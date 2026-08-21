@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: front-deployment
+spec:
+  selector:
+    matchLabels:
+      component: front
+  template:
+    metadata:
+      labels:
+        component: front
+    spec:
+      containers:
+        - name: front-container
+          image: mo29172/silomis_front:latest
+          ports:
+            - containerPort: 3000
+          resources:
+            limits:
+              cpu: 500m
+            requests:
+              cpu: 200m
+          env:
+            - name: NODE_ENV
+              valueFrom:
+                secretKeyRef:
+                  name: front-envs
+                  key: NODE_ENV
+            - name: PREPROD_PUBLIC_APP_URL
+              valueFrom:
+                secretKeyRef:
+                  name: front-envs
+                  key: PREPROD_PUBLIC_APP_URL
+            - name: API_BASE_URL_SERVER
+              valueFrom:
+                secretKeyRef:
+                  name: front-envs
+                  key: API_BASE_URL_SERVER
