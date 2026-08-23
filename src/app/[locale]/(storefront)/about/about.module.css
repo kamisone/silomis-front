@@ -1,0 +1,181 @@
+.page {
+  background: var(--color-surface);
+  min-height: 100vh;
+}
+
+/* ── Hero ── */
+.hero {
+  position: relative;
+  background: var(--color-secondary);
+  overflow: hidden;
+  padding: 5rem 2rem 4.5rem;
+}
+
+.heroBg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.heroBgGlow {
+  position: absolute;
+  width: 700px;
+  height: 500px;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--color-accent) 14%, transparent) 0%, transparent 65%);
+  top: -150px;
+  right: -80px;
+}
+
+.heroBgGrid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--background) 3%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--background) 3%, transparent) 1px, transparent 1px);
+  background-size: 56px 56px;
+}
+
+.heroContent {
+  position: relative;
+  max-width: 680px;
+  margin: 0 auto;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.heroTitle {
+  font-size: clamp(2rem, 5vw, 3rem);
+  font-weight: 900;
+  color: var(--background);
+  margin: 0;
+  letter-spacing: -0.025em;
+  line-height: 1.1;
+}
+
+.heroMission {
+  font-size: 1.15rem;
+  color: color-mix(in srgb, var(--background) 65%, transparent);
+  margin: 0;
+  line-height: 1.65;
+}
+
+/* ── Content wrapper ── */
+.content {
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 0 1.5rem 5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* ── Text sections ── */
+.section {
+  padding: 2.5rem 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--foreground) 12%, transparent);
+}
+
+.sectionTitle {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--foreground);
+  margin: 0 0 0.85rem;
+}
+
+.sectionBody {
+  font-size: 0.975rem;
+  color: color-mix(in srgb, var(--foreground) 70%, var(--background));
+  line-height: 1.75;
+  margin: 0;
+}
+
+/* ── Values ── */
+.valuesSection {
+  padding: 2.5rem 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--foreground) 12%, transparent);
+}
+
+.valuesGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+.valueCard {
+  background: var(--background);
+  border: 1px solid color-mix(in srgb, var(--foreground) 12%, transparent);
+  border-radius: 14px;
+  padding: 1.4rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.valueIcon {
+  width: 1.5rem;
+  height: 1.5rem;
+  color: var(--color-accent);
+}
+
+.valueTitle {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--foreground);
+  margin: 0;
+}
+
+.valueBody {
+  font-size: 0.875rem;
+  color: color-mix(in srgb, var(--foreground) 60%, var(--background));
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* ── Contact CTA ── */
+.ctaSection {
+  padding: 3rem 0 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.75rem;
+}
+
+.ctaTitle {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--foreground);
+  margin: 0;
+}
+
+.ctaBody {
+  font-size: 0.975rem;
+  color: color-mix(in srgb, var(--foreground) 60%, var(--background));
+  max-width: 440px;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.ctaBtn {
+  display: inline-block;
+  padding: 0.75rem 2rem;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 100%);
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-decoration: none;
+  margin-top: 0.25rem;
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--color-primary) 30%, transparent);
+  transition: opacity 0.15s, transform 0.12s;
+}
+.ctaBtn:hover { opacity: 0.9; transform: translateY(-1px); }
+
+@media (max-width: 640px) {
+  .valuesGrid { grid-template-columns: 1fr; }
+  .heroTitle { font-size: 1.8rem; }
+}

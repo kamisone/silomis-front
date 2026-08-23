@@ -1,0 +1,57 @@
+.shell {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+  background: var(--background);
+}
+
+/* ── Main content column ── */
+.main {
+  flex: 1;
+  min-width: 0;
+  margin-left: 240px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  transition: margin-left 0.25s ease;
+}
+
+.collapsed .main {
+  margin-left: 64px;
+}
+
+.content {
+  padding: 1.5rem;
+  flex: 1;
+}
+
+/* ── Mobile overlay backdrop ── */
+.backdrop {
+  display: none;
+}
+
+/* ── Tablet/phone: sidebar hides off-screen, top bar hamburger takes over ── */
+@media (max-width: 720px) {
+  .main,
+  .collapsed .main {
+    margin-left: 0 !important;
+  }
+
+  .content {
+    padding: 1rem;
+  }
+
+  .backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 99;
+    animation: fadeIn 0.2s ease;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+}

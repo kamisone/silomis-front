@@ -1,0 +1,105 @@
+/* ── Spacer (prevents content jumping under the fixed two-row header) ──
+   Height tracks the header's real measured height (set on <html> by
+   ScrollAwareHeader) rather than a fixed guess — the static fallback values
+   below only cover the instant before that JS runs. */
+.headerSpacer {
+  height: var(--header-height, 112px);
+  flex-shrink: 0;
+}
+
+/* ── Inner layout (two rows) ── */
+.inner {
+  max-width: 1280px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 0.6rem 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+/* ── Row 1: logo / search / account-wishlist-cart ── */
+.topRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1.25rem;
+  min-height: 48px;
+}
+
+.logoOrder { order: 1; }
+.iconsOrder { order: 2; }
+
+.logo {
+  display: flex;
+  align-items: end;
+  flex-shrink: 0;
+  text-decoration: none;
+  opacity: 1;
+  transition: opacity 0.15s;
+}
+.logo:hover { opacity: 0.85; }
+
+.logoIcon {
+  height: 32px;
+  width: 43px;
+  object-fit: contain;
+}
+
+.logoText {
+  height: 20px;
+  width: 50px;
+  object-fit: contain;
+}
+
+.searchDesktop {
+  order: 1;
+  flex: 1;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.searchMobile {
+  display: none;
+  width: 100%;
+}
+
+.navRight {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+/* ── Row 2: discovery navigation ── */
+.menuRow {
+  display: flex;
+  align-items: center;
+  justify-content: safe center;
+  gap: 0.2rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.menuRow::-webkit-scrollbar { display: none; }
+
+.menuItem { flex-shrink: 0; }
+
+/* ── Responsive ── */
+@media (max-width: 640px) {
+  .headerSpacer { height: var(--header-height, 156px); }
+
+  .searchDesktop { display: none; }
+
+  .searchMobile {
+    display: block;
+    order: 3;
+    flex-basis: 100%;
+  }
+
+  .inner { padding: 0.6rem 14px; }
+  .topRow { gap: 0.75rem; }
+
+  /* Narrow viewports keep just the mark — the wordmark is redundant next to
+     a tight search bar and nav icons. */
+  .logoText { display: none; }
+}

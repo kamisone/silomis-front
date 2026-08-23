@@ -1,0 +1,37 @@
+.depthIndent {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.depthLine {
+  display: inline-block;
+  width: 16px;
+  height: 1.5px;
+  background: var(--color-surface);
+  flex-shrink: 0;
+}
+
+.catName {
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.catSlug {
+  font-size: 0.78rem;
+  color: var(--color-secondary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.sortOrderCell {
+  font-variant-numeric: tabular-nums;
+  color: var(--color-secondary);
+  font-size: 0.85rem;
+}
+
+.hint {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--color-secondary);
+  margin-top: 0.25rem;
+}

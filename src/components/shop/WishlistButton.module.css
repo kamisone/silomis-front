@@ -1,0 +1,25 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  background: var(--color-surface-tint);
+  border: 1px solid color-mix(in srgb, var(--foreground) 14%, transparent);
+  border-radius: 9px;
+  cursor: pointer;
+  color: var(--foreground);
+  flex-shrink: 0;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    border-color 0.15s;
+}
+.button:hover {
+  background: var(--color-surface);
+  border-color: color-mix(in srgb, var(--foreground) 28%, transparent);
+}
+.active {
+  color: #e11d48;
+  border-color: color-mix(in srgb, #e11d48 40%, transparent);
+}

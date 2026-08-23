@@ -1,0 +1,274 @@
+.bilingualField {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.bilingualLabel {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.bilingualLabelToggle {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  width: 100%;
+  padding: 0;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+}
+
+.chevron {
+  margin-left: auto;
+  flex-shrink: 0;
+  color: var(--color-secondary);
+  transition: transform .15s;
+}
+
+.chevronOpen {
+  transform: rotate(180deg);
+}
+
+/* Card — two columns side by side */
+.bilingualCard {
+  display: flex;
+  flex-direction: row;
+  border: 1.5px solid var(--color-surface);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--background);
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--color-primary) 6%, transparent);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.bilingualCard:focus-within {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 10%, transparent);
+}
+
+/* Rich text editors are too cramped side by side — stack English/overlay vertically */
+.bilingualCardRichText {
+  flex-direction: column;
+}
+.bilingualCardRichText .langSep {
+  width: auto;
+  height: 1px;
+  align-self: auto;
+}
+
+/* Each language column */
+.langRow {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: stretch;
+}
+
+/* Vertical divider between the English and overlay columns */
+.langSep {
+  width: 1px;
+  flex-shrink: 0;
+  background: var(--color-surface);
+  align-self: stretch;
+}
+
+/* Colored left accent bar */
+.langAccent {
+  width: 4px;
+  flex-shrink: 0;
+  transition: opacity 0.2s;
+}
+
+.base .langAccent {
+  background: linear-gradient(180deg, var(--color-primary) 0%, var(--color-accent) 100%);
+}
+
+.overlay .langAccent {
+  background: var(--color-surface);
+}
+
+.overlay:hover .langAccent {
+  background: var(--color-secondary);
+}
+
+/* Column wrapping the overlay-language tab strip + the active language's row */
+.overlayColumn {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.overlayTabs {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 0.35rem 0.5rem;
+  background: var(--color-surface-tint);
+}
+
+.generateSlot {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+}
+
+.generateError {
+  margin: 0;
+  padding: 0.3rem 0.5rem 0;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: #ef4444;
+  background: var(--color-surface-tint);
+}
+
+.overlayTab {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.4rem;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: none;
+  color: color-mix(in srgb, var(--foreground) 50%, transparent);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  position: relative;
+}
+
+.overlayTab:hover {
+  background: var(--color-surface);
+  color: var(--foreground);
+}
+
+.overlayTabActive {
+  background: var(--background);
+  border-color: var(--color-surface);
+  color: var(--foreground);
+}
+
+.overlayTabFlag {
+  font-size: 0.72rem;
+  line-height: 1;
+}
+
+.overlayTabDot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  margin-left: 0.15rem;
+}
+
+/* Content area */
+.langBody {
+  flex: 1;
+  padding: 0.6rem 0.75rem 0.65rem 0.62rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.38rem;
+  min-width: 0;
+}
+
+/* Language header row: flag + name + badge */
+.langMeta {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.langFlag {
+  font-size: 0.78rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.langName {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--foreground);
+  letter-spacing: 0.03em;
+  flex-shrink: 0;
+}
+
+.langBadge {
+  margin-left: auto;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.badgeOptional {
+  background: var(--color-surface-tint);
+  color: color-mix(in srgb, var(--foreground) 50%, transparent);
+  border: 1px solid var(--color-surface);
+}
+
+.badgeRequired {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+.requiredStar {
+  color: #dc2626;
+}
+
+/* Input / textarea */
+.langInput {
+  width: 100%;
+  padding: 0.4rem 0.65rem;
+  border-radius: 8px;
+  border: 1.5px solid var(--color-surface);
+  background: var(--color-surface-tint);
+  color: var(--foreground);
+  font-size: 0.84rem;
+  outline: none;
+  font-family: inherit;
+  box-sizing: border-box;
+  resize: vertical;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+  line-height: 1.45;
+}
+
+.langInput::placeholder {
+  color: color-mix(in srgb, var(--foreground) 40%, transparent);
+}
+
+.base .langInput:focus {
+  border-color: var(--color-primary);
+  background: var(--background);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 9%, transparent);
+}
+
+.overlay .langInput:focus {
+  border-color: var(--color-accent);
+  background: var(--background);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 10%, transparent);
+}
+
+/* phone (640px) */
+@media (max-width: 640px) {
+  .bilingualCard {
+    flex-direction: column;
+  }
+
+  .langSep {
+    width: auto;
+    height: 1px;
+    align-self: auto;
+  }
+}

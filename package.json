@@ -9,9 +9,24 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@stripe/react-stripe-js": "^6.3.0",
+    "@stripe/stripe-js": "^9.3.1",
+    "@tiptap/extension-character-count": "^2.27.2",
+    "@tiptap/extension-image": "^2.27.2",
+    "@tiptap/extension-link": "^2.27.2",
+    "@tiptap/extension-placeholder": "^2.27.2",
+    "@tiptap/extension-text-align": "^2.27.2",
+    "@tiptap/pm": "^2.27.2",
+    "@tiptap/react": "^2.27.2",
+    "@tiptap/starter-kit": "^2.27.2",
+    "lucide-react": "^1.33.0",
     "next": "16.3.2",
+    "nextjs-toploader": "^3.9.17",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "rrweb": "^2.1.1",
+    "rrweb-player": "^2.1.1",
+    "socket.io-client": "^4.8.3"
   },
   "devDependencies": {
     "@types/node": "^20",

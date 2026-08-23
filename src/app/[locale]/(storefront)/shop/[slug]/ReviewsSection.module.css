@@ -1,0 +1,246 @@
+.stars {
+  display: inline-flex;
+  gap: 2px;
+  color: #f59e0b;
+}
+
+.summary {
+  display: flex;
+  gap: 32px;
+  flex-wrap: wrap;
+  padding: 20px;
+  background: var(--color-surface-tint, #f8fafc);
+  border-radius: 10px;
+  margin-bottom: 16px;
+}
+
+.summaryScore {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.summaryAverage {
+  font-size: 2rem;
+  font-weight: 800;
+}
+
+.summaryCount {
+  font-size: 0.85rem;
+  color: var(--color-secondary, #3a4a4a);
+}
+
+.distribution {
+  flex: 1;
+  min-width: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  justify-content: center;
+}
+
+.distributionRow {
+  display: grid;
+  grid-template-columns: 28px 1fr 30px;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+}
+
+.distributionBarTrack {
+  height: 6px;
+  background: color-mix(in srgb, var(--foreground) 10%, transparent);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.distributionBarFill {
+  height: 100%;
+  background: #f59e0b;
+}
+
+.writeButton {
+  padding: 10px 18px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--foreground) 20%, transparent);
+  background: var(--color-surface, #fff);
+  cursor: pointer;
+  font-weight: 600;
+  margin-bottom: 20px;
+}
+
+.empty {
+  color: var(--color-secondary, #3a4a4a);
+  margin-bottom: 16px;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.card {
+  border: 1px solid color-mix(in srgb, var(--foreground) 10%, transparent);
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.verifiedBadge {
+  font-size: 0.75rem;
+  color: #16a34a;
+  font-weight: 600;
+}
+
+.cardTitle {
+  font-weight: 700;
+  margin: 4px 0;
+}
+
+.cardBody {
+  margin: 4px 0;
+  line-height: 1.5;
+}
+
+.cardMedia {
+  display: flex;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.cardMediaItem {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+.cardMeta {
+  font-size: 0.8rem;
+  color: var(--color-secondary, #3a4a4a);
+  margin-top: 8px;
+}
+
+.loadMore {
+  margin-top: 16px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--foreground) 20%, transparent);
+  background: transparent;
+  cursor: pointer;
+}
+
+/* ── Modal ────────────────────────────────────────────────────────────── */
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 20px;
+}
+
+.modalPanel {
+  position: relative;
+  background: var(--background, #fff);
+  border-radius: 12px;
+  padding: 28px;
+  max-width: 480px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modalClose {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.modalForm {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.modalForm label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.modalForm input,
+.modalForm textarea {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--foreground) 20%, transparent);
+  font-weight: 400;
+  font-size: 0.9rem;
+}
+
+.modalForm button[type="submit"],
+.modalForm button[type="button"]:not(.ratingInput button) {
+  padding: 10px 18px;
+  border-radius: 8px;
+  border: none;
+  background: var(--color-primary, #7fbfa8);
+  color: #fff;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.modalHint {
+  font-size: 0.85rem;
+  color: var(--color-secondary, #3a4a4a);
+  margin: -8px 0 0;
+}
+
+.modalError {
+  color: #dc2626;
+  font-size: 0.85rem;
+}
+
+.ratingInput {
+  display: flex;
+  gap: 4px;
+}
+.ratingInput button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px;
+  color: #f59e0b;
+}
+
+.existingMedia {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.existingMedia > div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.mediaRemoved img {
+  opacity: 0.35;
+}

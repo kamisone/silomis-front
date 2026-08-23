@@ -1,0 +1,158 @@
+.label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-primary);
+  margin-bottom: 8px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+/* ── Card ── */
+.card {
+  position: relative;
+  border-radius: 10px;
+  border: 1.5px solid var(--color-surface);
+  overflow: hidden;
+  background: var(--color-surface-tint);
+  cursor: grab;
+  transition: box-shadow 0.12s, border-color 0.12s;
+}
+.card:hover { border-color: var(--color-accent); }
+.cardDragging { opacity: 0.4; }
+
+.dragHandle {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  z-index: 2;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.thumb {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  background: #000;
+}
+.thumbImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  background: var(--color-surface);
+}
+
+.typeBadge {
+  position: absolute;
+  bottom: 6px;
+  left: 6px;
+  z-index: 1;
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  pointer-events: none;
+}
+
+/* ── Top-right action buttons ── */
+.starBtn,
+.removeBtn {
+  position: absolute;
+  top: 6px;
+  z-index: 2;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.92);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: color 0.12s, background 0.12s;
+}
+.starBtn { right: 34px; color: color-mix(in srgb, var(--foreground) 45%, transparent); }
+.starBtn:hover { color: var(--color-accent); }
+.starBtnActive { color: var(--color-accent); }
+
+.removeBtn { right: 6px; color: #dc2626; }
+.removeBtn:hover { background: #fff; }
+
+.cardBody {
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.altInput {
+  padding: 5px 8px;
+  border: 1.5px solid var(--color-surface);
+  border-radius: 6px;
+  font-size: 11.5px;
+  color: var(--foreground);
+  background: var(--background);
+  width: 100%;
+  transition: border-color 0.15s;
+}
+.altInput:focus {
+  outline: none;
+  border-color: var(--color-accent);
+}
+
+.posterLabel {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--foreground) 45%, transparent);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* ── Add row ── */
+.addRow {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  padding-top: 4px;
+  border-top: 1px dashed var(--color-surface);
+}
+
+.addCol {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.addColLabel {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.maxReached {
+  font-size: 12px;
+  color: color-mix(in srgb, var(--foreground) 45%, transparent);
+}
+
+.hint {
+  font-size: 11px;
+  color: color-mix(in srgb, var(--foreground) 45%, transparent);
+  margin-bottom: 12px;
+}

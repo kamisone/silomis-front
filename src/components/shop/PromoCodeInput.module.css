@@ -1,0 +1,94 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  --pc-border: color-mix(in srgb, var(--foreground) 14%, transparent);
+  --pc-text-muted: color-mix(in srgb, var(--foreground) 55%, var(--background));
+  --pc-text-primary: var(--foreground);
+}
+
+.label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--pc-text-muted);
+}
+
+.row { display: flex; gap: 6px; }
+
+.input {
+  flex: 1;
+  padding: 10px 13px;
+  font-size: 14px;
+  font-family: 'Courier New', monospace;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  border: 1.5px solid var(--pc-border);
+  border-radius: 9px;
+  background: var(--color-surface);
+  color: var(--pc-text-primary);
+  transition: border-color .18s, box-shadow .18s;
+  min-width: 0;
+  box-sizing: border-box;
+}
+.input::placeholder { text-transform: none; letter-spacing: normal; color: var(--pc-text-muted); opacity: .6; font-family: inherit; }
+.input:focus { outline: none; border-color: var(--color-primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 12%, transparent); }
+.input:disabled { opacity: .5; cursor: not-allowed; }
+
+.inputValid  { border-color: #16a34a !important; }
+.inputInvalid { border-color: #ef4444 !important; }
+
+.applyBtn {
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  border: none;
+  border-radius: 9px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background .18s, transform .15s, opacity .18s;
+  background: var(--color-primary);
+  color: var(--background);
+}
+.applyBtn:hover:not(:disabled) { background: var(--color-secondary); transform: translateY(-1px); }
+.applyBtn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+
+.removeBtn {
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  border: 1.5px solid #ef4444;
+  border-radius: 9px;
+  cursor: pointer;
+  background: #fef2f2;
+  color: #ef4444;
+  transition: background .15s;
+  white-space: nowrap;
+}
+.removeBtn:hover { background: #fee2e2; }
+
+/* Feedback row */
+.feedback {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 8px;
+  padding: 8px 12px;
+  animation: fadeIn .2s ease;
+}
+.feedbackValid {
+  background: #f0fdf4;
+  color: #16a34a;
+  border: 1px solid #bbf7d0;
+}
+.feedbackInvalid {
+  background: #fef2f2;
+  color: #ef4444;
+  border: 1px solid #fecaca;
+}
+.feedbackIcon { font-style: normal; display: inline-flex; align-items: center; }
+
+@keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }

@@ -1,0 +1,107 @@
+.empty {
+  font-size: 13px;
+  color: color-mix(in srgb, var(--foreground) 45%, transparent);
+  margin: 0 0 12px;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.card {
+  border: 1.5px solid var(--color-surface);
+  border-radius: 12px;
+  background: var(--background);
+  overflow: hidden;
+  transition: opacity 0.15s, border-color 0.15s;
+}
+.cardDragging { opacity: 0.5; }
+.cardInactive { opacity: 0.6; }
+
+.cardHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--color-surface-tint);
+  border-bottom: 1px solid var(--color-surface);
+}
+
+.dragHandle {
+  display: inline-flex;
+  color: color-mix(in srgb, var(--foreground) 40%, transparent);
+  cursor: grab;
+  flex-shrink: 0;
+}
+
+.cardTitle {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.toggleBtn {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 7px;
+  border: 1px solid var(--color-surface);
+  background: var(--background);
+  color: color-mix(in srgb, var(--foreground) 65%, transparent);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.toggleBtn:hover { background: var(--color-surface-tint); }
+
+.removeBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  border: 1px solid var(--color-surface);
+  background: var(--background);
+  color: #b91c1c;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.removeBtn:hover { background: #fef2f2; border-color: #fca5a5; }
+
+.itemError {
+  margin: 0;
+  padding: 6px 12px;
+  font-size: 12px;
+  color: #b91c1c;
+  background: #fef2f2;
+}
+
+.cardBody {
+  padding: 14px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.addBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  padding: 8px 16px;
+  border-radius: 9px;
+  border: 1.5px dashed var(--color-surface);
+  background: var(--color-surface-tint);
+  color: var(--color-primary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.addBtn:hover { border-color: var(--color-accent); }

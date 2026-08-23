@@ -1,0 +1,52 @@
+.page {
+  background: var(--color-surface);
+  min-height: 100vh;
+  padding: 4rem 1.5rem;
+}
+
+.inner {
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.updated {
+  font-size: 0.8rem;
+  color: color-mix(in srgb, var(--foreground) 55%, var(--background));
+  margin: 0 0 0.5rem;
+}
+
+.title {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--foreground);
+  margin: 0 0 1rem;
+  letter-spacing: -0.02em;
+}
+
+.intro {
+  font-size: 1rem;
+  color: color-mix(in srgb, var(--foreground) 70%, var(--background));
+  line-height: 1.7;
+  margin: 0 0 2.5rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--foreground) 14%, transparent);
+}
+
+.section {
+  padding: 1.75rem 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--foreground) 10%, transparent);
+}
+
+.sectionTitle {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--foreground);
+  margin: 0 0 0.6rem;
+}
+
+.sectionBody {
+  font-size: 0.925rem;
+  color: color-mix(in srgb, var(--foreground) 70%, var(--background));
+  line-height: 1.75;
+  margin: 0;
+}

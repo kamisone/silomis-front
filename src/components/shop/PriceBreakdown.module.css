@@ -1,0 +1,86 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  --price-border: color-mix(in srgb, var(--foreground) 16%, transparent);
+  --price-text-primary: var(--foreground);
+  --price-text-secondary: color-mix(in srgb, var(--foreground) 72%, var(--background));
+  --price-text-muted: color-mix(in srgb, var(--foreground) 50%, var(--background));
+  --price-text-heading: var(--foreground);
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  padding: 9px 0;
+  font-size: 14px;
+  color: var(--price-text-primary);
+  border-bottom: 1px solid var(--price-border);
+}
+.row:first-child {
+  padding-top: 0;
+}
+
+.label {
+  color: var(--price-text-secondary);
+}
+
+.sub {
+  font-size: 11px;
+  color: var(--price-text-muted);
+  font-weight: 400;
+  display: block;
+  margin-top: 2px;
+}
+
+.value {
+  font-weight: 600;
+  text-align: right;
+}
+
+/* Discount rows */
+.rowDiscount .label {
+  color: #16a34a;
+}
+.rowDiscount .value {
+  color: #16a34a;
+}
+
+.rowShipping .value {
+  color: var(--color-primary);
+}
+
+/* Total */
+.total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 0 0;
+  margin-top: 4px;
+  font-weight: 800;
+  font-size: 18px;
+  color: var(--price-text-heading);
+}
+.totalLabel {
+  color: var(--price-text-heading);
+}
+.totalValue {
+  color: var(--color-primary);
+}
+
+/* Loading skeleton */
+.skeleton {
+  display: inline-block;
+  height: 14px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, var(--color-surface) 25%, var(--color-surface-tint) 50%, var(--color-surface) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+}
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}

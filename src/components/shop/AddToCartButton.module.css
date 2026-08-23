@@ -1,0 +1,159 @@
+/* ── Wrapper ── */
+.addWrap {
+  width: 100%;
+  --atc-border: color-mix(in srgb, var(--foreground) 16%, transparent);
+  --atc-text-heading: var(--foreground);
+  --atc-error: #dc2626;
+  --atc-success: #059669;
+}
+
+/* ── Add to cart button ── */
+.addBtn {
+  width: 100%;
+  border: none;
+  border-radius: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.01em;
+  background: var(--color-accent);
+  color: #fff;
+  transition: background 0.18s, transform 0.15s, box-shadow 0.18s, opacity 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  white-space: nowrap;
+  min-height: 52px;
+}
+.addBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.addBtn:hover:not(:disabled) {
+  background: var(--color-secondary);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--color-accent) 45%, transparent);
+}
+.addBtn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+/* sizes */
+.addBtn.lg {
+  padding: 15px 20px;
+  font-size: 15px;
+}
+.addBtn.sm {
+  padding: 10px 14px;
+  font-size: 13px;
+  border-radius: 9px;
+  min-height: 40px;
+}
+
+/* just-added state */
+.justAdded {
+  background: var(--atc-success) !important;
+  color: #fff !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.addingLabel,
+.addedLabel {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+/* spinner */
+.spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(0, 0, 0, 0.25);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spin 0.65s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* error */
+.error {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--atc-error);
+}
+
+/* ── Quantity stepper ── */
+.stepper {
+  display: flex;
+  align-items: center;
+  border: 2px solid var(--color-accent);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--background);
+  width: 100%;
+  min-height: 44px;
+}
+.stepper.sm {
+  border-radius: 9px;
+  min-height: 40px;
+}
+
+.stepBtn {
+  flex: 1;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+}
+.stepper.sm .stepBtn {
+  min-width: 40px;
+  min-height: 40px;
+  font-size: 16px;
+}
+.stepBtn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+}
+.stepBtn:active:not(:disabled) {
+  background: color-mix(in srgb, var(--color-primary) 14%, transparent);
+}
+.stepBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.qty {
+  flex-shrink: 0;
+  min-width: 40px;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--atc-text-heading);
+  border-left: 1.5px solid var(--color-accent);
+  border-right: 1.5px solid var(--color-accent);
+  line-height: 1;
+  padding: 0 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
+}
+.stepper.sm .qty {
+  min-width: 36px;
+  font-size: 14px;
+}

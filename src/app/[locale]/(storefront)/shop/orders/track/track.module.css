@@ -1,0 +1,384 @@
+.page {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 40px 20px 80px;
+  --tr-border: color-mix(in srgb, var(--foreground) 14%, transparent);
+  --tr-text-muted: color-mix(in srgb, var(--foreground) 55%, var(--background));
+  --tr-text-secondary: color-mix(in srgb, var(--foreground) 72%, var(--background));
+}
+
+/* ── Lookup card ── */
+.card {
+  background: var(--color-surface-tint);
+  border: 1px solid var(--tr-border);
+  border-radius: 18px;
+  padding: 40px 32px;
+  text-align: center;
+}
+.iconWrap {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 20px;
+  border-radius: 16px;
+  background: var(--color-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--background);
+}
+.title {
+  font-size: 24px;
+  font-weight: 800;
+  margin: 0 0 8px;
+}
+.subtitle {
+  font-size: 14px;
+  color: var(--tr-text-secondary);
+  margin: 0 0 28px;
+  line-height: 1.55;
+}
+
+/* ── Form ── */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  text-align: left;
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.label {
+  font-size: 13px;
+  font-weight: 700;
+}
+.input {
+  padding: 11px 14px;
+  border: 1.5px solid var(--tr-border);
+  border-radius: 10px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.15s;
+  background: var(--background);
+  color: var(--foreground);
+}
+.input:focus {
+  border-color: var(--color-primary);
+}
+
+.error {
+  font-size: 13px;
+  color: #dc2626;
+  font-weight: 600;
+  padding: 10px 14px;
+  background: #fef2f2;
+  border-radius: 8px;
+}
+
+.submitBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 13px;
+  border: none;
+  border-radius: 10px;
+  background: var(--color-primary);
+  color: var(--background);
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.submitBtn:hover {
+  opacity: 0.88;
+}
+.submitBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* ── Back link ── */
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-primary);
+  margin-bottom: 20px;
+  transition: opacity 0.15s;
+}
+.backLink:hover {
+  opacity: 0.7;
+}
+
+/* ── Track header ── */
+.trackHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+}
+.trackTitle {
+  font-size: 26px;
+  font-weight: 800;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+.trackDate {
+  font-size: 13px;
+  color: var(--tr-text-muted);
+  margin: 4px 0 0;
+}
+
+.statusBadge {
+  padding: 5px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+  background: var(--color-surface);
+  color: var(--tr-text-muted);
+  border: 1px solid var(--tr-border);
+}
+.status_paid {
+  background: #d1fae5;
+  color: #065f46;
+  border-color: #a7f3d0;
+}
+.status_processing {
+  background: #dbeafe;
+  color: #1d4ed8;
+  border-color: #bfdbfe;
+}
+.status_shipped {
+  background: #e0e7ff;
+  color: #4338ca;
+  border-color: #c7d2fe;
+}
+.status_delivered {
+  background: #d1fae5;
+  color: #065f46;
+  border-color: #a7f3d0;
+}
+.status_cancelled {
+  background: #fee2e2;
+  color: #dc2626;
+  border-color: #fecaca;
+}
+.status_refunded {
+  background: #fef3c7;
+  color: #92400e;
+  border-color: #fde68a;
+}
+
+/* ── Timeline ── */
+.timeline {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 28px 0;
+  margin-bottom: 24px;
+  position: relative;
+}
+.timelineStep {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+  flex: 1;
+  z-index: 1;
+}
+.timelineDot {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-surface);
+  border: 2px solid var(--tr-border);
+  color: var(--tr-text-muted);
+  transition: all 0.2s;
+}
+.timelineStepDone .timelineDot {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--background);
+}
+.timelineLabel {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--tr-text-muted);
+  text-align: center;
+}
+.timelineStepDone .timelineLabel {
+  color: var(--color-primary);
+}
+.timelineDate {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--tr-text-muted);
+  text-align: center;
+  margin-top: 2px;
+  opacity: 0.8;
+}
+.timelineStepDone .timelineDate {
+  color: var(--color-secondary);
+  opacity: 1;
+}
+.timelineLine {
+  position: absolute;
+  top: 22px;
+  left: calc(50% + 26px);
+  right: calc(-50% + 26px);
+  height: 2px;
+  background: var(--tr-border);
+  z-index: 0;
+}
+.timelineLineDone {
+  background: var(--color-primary);
+}
+
+/* ── Info cards ── */
+.infoCard {
+  background: var(--background);
+  border: 1px solid var(--tr-border);
+  border-radius: 14px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+.infoCardTitle {
+  padding: 14px 20px;
+  font-size: 14px;
+  font-weight: 800;
+  margin: 0;
+  border-bottom: 1px solid var(--tr-border);
+  background: var(--color-surface);
+}
+
+.infoGrid {
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.infoRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.infoLabel {
+  font-size: 13px;
+  color: var(--tr-text-muted);
+  font-weight: 500;
+}
+.infoValue {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.trackingLink {
+  color: var(--color-primary);
+  font-weight: 700;
+}
+.trackingLink:hover {
+  text-decoration: underline;
+}
+
+/* ── Items ── */
+.itemsList {
+  display: flex;
+  flex-direction: column;
+}
+.itemRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--tr-border);
+}
+.itemRow:last-child {
+  border-bottom: none;
+}
+.itemInfo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.itemTitle {
+  font-size: 14px;
+  font-weight: 700;
+}
+.itemOptions {
+  font-size: 12px;
+  color: var(--tr-text-muted);
+}
+.itemQty {
+  font-size: 13px;
+  color: var(--tr-text-muted);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.itemPrice {
+  font-size: 14px;
+  font-weight: 700;
+  flex-shrink: 0;
+  min-width: 70px;
+  text-align: right;
+}
+
+/* ── Totals ── */
+.totalSection {
+  padding: 12px 20px 16px;
+  border-top: 1px solid var(--tr-border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.totalRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--tr-text-secondary);
+}
+.totalRowFinal {
+  font-size: 16px;
+  font-weight: 800;
+  padding-top: 8px;
+  border-top: 1px solid var(--tr-border);
+  margin-top: 4px;
+}
+
+/* ── Mobile ── */
+@media (max-width: 480px) {
+  .card {
+    padding: 28px 20px;
+  }
+  .trackTitle {
+    font-size: 22px;
+  }
+  .timelineLabel {
+    font-size: 11px;
+  }
+  .timelineDot {
+    width: 36px;
+    height: 36px;
+  }
+  .timelineLine {
+    top: 18px;
+    left: calc(50% + 22px);
+    right: calc(-50% + 22px);
+  }
+}

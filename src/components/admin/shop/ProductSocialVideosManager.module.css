@@ -1,0 +1,130 @@
+.empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 13px;
+  color: color-mix(in srgb, var(--foreground) 45%, transparent);
+  padding: 14px;
+  border: 1.5px dashed var(--color-surface);
+  border-radius: 10px;
+  text-align: center;
+  margin-bottom: 12px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 14px;
+}
+
+.gridItem {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ── Video tile ── */
+.tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 12px;
+  border: 1.5px solid var(--color-surface);
+  background: var(--color-surface-tint);
+  cursor: grab;
+  transition: border-color .12s, opacity .12s;
+}
+.tile:hover { border-color: var(--color-accent); }
+.tileDragging { opacity: .4; }
+.tileInactive { opacity: .6; }
+
+.tileHead {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.orderBadge {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--foreground);
+  font-size: 10.5px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dragHandle {
+  display: flex; align-items: center; justify-content: center;
+  color: color-mix(in srgb, var(--foreground) 45%, transparent);
+  cursor: grab;
+}
+
+.eyeBtn,
+.removeBtn {
+  width: 22px; height: 22px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: background .12s, color .12s;
+  margin-left: auto;
+  color: color-mix(in srgb, var(--foreground) 45%, transparent);
+}
+.eyeBtn:hover { background: var(--color-surface); color: var(--foreground); }
+.removeBtn { margin-left: 4px; color: #ef4444; }
+.removeBtn:hover { background: rgba(239, 68, 68, .12); }
+
+/* Mirrors the storefront's badge overlay so admins see what ships */
+.titleBadgePreview {
+  align-self: flex-start;
+  max-width: 100%;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-surface);
+  color: var(--foreground);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Add tile ── */
+.addTile {
+  min-height: 150px;
+  border-radius: 12px;
+  border: 2px dashed var(--color-surface);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px;
+  background: transparent;
+  transition: border-color .15s;
+}
+.addTile:hover { border-color: var(--color-accent); }
+
+.addTileLabel {
+  display: flex; align-items: center; gap: 5px;
+  color: color-mix(in srgb, var(--foreground) 45%, transparent);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+/* ── Per-video badge fields ── */
+.badgeFields {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}

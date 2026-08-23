@@ -1,0 +1,48 @@
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--color-surface);
+  background: var(--background);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+/* ── Mobile hamburger — hidden on desktop, the sidebar is always visible there ── */
+.hamburger {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--color-surface);
+  border-radius: 8px;
+  background: var(--color-surface-tint);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.hamburger span {
+  display: block;
+  width: 16px;
+  height: 2px;
+  margin: 0 auto;
+  background: var(--foreground);
+  border-radius: 1px;
+}
+
+@media (max-width: 720px) {
+  .hamburger {
+    display: flex;
+  }
+}

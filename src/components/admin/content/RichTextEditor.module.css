@@ -1,0 +1,99 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--color-surface);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--background);
+}
+
+/* ── Toolbar ── */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  padding: 0.4rem 0.5rem;
+  background: var(--color-surface-tint);
+  border-bottom: 1px solid var(--color-surface);
+}
+
+.tbBtn {
+  min-width: 28px;
+  height: 28px;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--color-secondary);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tbBtn:hover {
+  background: var(--color-surface);
+  color: var(--foreground);
+}
+
+.tbBtnActive {
+  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+  color: var(--color-accent);
+  border-color: color-mix(in srgb, var(--color-accent) 30%, transparent);
+}
+
+.tbBtnActive:hover {
+  background: color-mix(in srgb, var(--color-accent) 20%, transparent);
+}
+
+.tbDivider {
+  width: 1px;
+  height: 18px;
+  background: var(--color-surface);
+  margin: 0 4px;
+  flex-shrink: 0;
+}
+
+/* ── ProseMirror editable area ── */
+.proseMirror {
+  padding: 0.75rem 1rem;
+  min-height: 160px;
+  outline: none;
+  font-size: 0.9rem;
+  line-height: 1.65;
+  color: var(--foreground);
+}
+
+.proseMirror p {
+  margin: 0 0 0.6em;
+}
+
+.proseMirror h2 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin: 1em 0 0.4em;
+}
+
+.proseMirror h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0.8em 0 0.3em;
+}
+
+.proseMirror ul,
+.proseMirror ol {
+  margin: 0.4em 0 0.6em 1.4em;
+}
+
+.proseMirror li {
+  margin: 0.2em 0;
+}
+
+.proseMirror s {
+  opacity: 0.6;
+}

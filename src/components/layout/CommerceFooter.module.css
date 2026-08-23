@@ -1,0 +1,245 @@
+.footer {
+  position: relative;
+  background: var(--color-secondary);
+  padding: 2rem 0 1.5rem;
+  margin-top: auto;
+}
+
+/* ── Wavy top edge ──
+   Sits just above the footer's flat top, overlapping the section before it,
+   so the curve reads as the boundary between page content and footer
+   instead of a hard horizontal line. */
+.wave {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  line-height: 0;
+  pointer-events: none;
+}
+
+.wave svg {
+  display: block;
+  width: 100%;
+  height: clamp(36px, 6vw, 84px);
+}
+
+.wavePath {
+  fill: var(--color-secondary);
+}
+
+.footerInner {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* ── Multi-column grid ── */
+.footerGrid {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr 1.4fr;
+  gap: 2.5rem;
+  align-items: start;
+}
+
+.footerCol {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.footerHeading {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--background);
+  margin: 0;
+}
+
+.footerTagline {
+  font-size: 0.8rem;
+  color: color-mix(in srgb, var(--background) 70%, transparent);
+  line-height: 1.55;
+  margin: 0;
+  max-width: 26ch;
+}
+
+.footerLogo {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+.logoIcon {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+}
+
+.logoText {
+  color: var(--background);
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+/* ── Contact info (address / email) ── */
+.footerContact {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.contactRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: color-mix(in srgb, var(--background) 70%, transparent);
+  text-decoration: none;
+  line-height: 1.4;
+}
+
+a.contactRow:hover {
+  color: var(--background);
+}
+
+.contactIcon {
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+  color: var(--color-accent);
+}
+
+/* ── Social icons ── */
+.socialRow {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.25rem;
+}
+
+.socialLink {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--background) 8%, transparent);
+  transition: background 0.15s, transform 0.15s;
+}
+
+.socialLink:hover {
+  background: color-mix(in srgb, var(--background) 16%, transparent);
+  transform: translateY(-2px);
+}
+
+.socialIcon {
+  width: 16px;
+  height: 16px;
+  color: color-mix(in srgb, var(--background) 70%, transparent);
+}
+
+.socialLink:hover .socialIcon {
+  color: var(--background);
+}
+
+/* ── Nav links (stacked within a column) ── */
+.footerLinks {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.6rem;
+}
+
+.footerLink {
+  font-size: 0.8rem;
+  color: color-mix(in srgb, var(--background) 70%, transparent);
+  text-decoration: none;
+  transition: color 0.15s;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+.footerLink:hover {
+  color: var(--background);
+}
+
+/* ── Bottom row: copyright + accepted payment methods ── */
+.footerBottom {
+  border-top: 1px solid color-mix(in srgb, var(--background) 10%, transparent);
+  padding-top: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.footerCopy {
+  font-size: 0.75rem;
+  color: color-mix(in srgb, var(--background) 65%, transparent);
+  margin: 0;
+}
+
+.paymentMethods {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.paymentLabel {
+  font-size: 0.75rem;
+  color: color-mix(in srgb, var(--background) 65%, transparent);
+  white-space: nowrap;
+}
+
+.paymentIcon {
+  width: 32px;
+  height: 21px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+/* ── Tablet (≤ 900px): 2 columns ── */
+@media (max-width: 900px) {
+  .footerGrid {
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem 2.5rem;
+  }
+}
+
+/* ── Tablet (≤ 768px): centre-align bottom row ── */
+@media (max-width: 768px) {
+  .footerBottom {
+    flex-direction: column;
+    justify-content: center;
+    text-align: center;
+  }
+}
+
+/* ── Mobile (≤ 480px): single column, tighten padding ── */
+@media (max-width: 480px) {
+  .footerInner {
+    padding: 0 1.25rem;
+    gap: 1.5rem;
+  }
+
+  .footerGrid {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+
+  .footerLinks {
+    gap: 0.25rem 0.9rem;
+  }
+}

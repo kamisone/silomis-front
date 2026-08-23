@@ -1,0 +1,311 @@
+/* ── Sidebar shell ── */
+.sidebar {
+  width: 240px;
+  min-height: 100vh;
+  background: var(--brand-secondary);
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  z-index: 100;
+  border-right: 1px solid color-mix(in srgb, white 8%, transparent);
+  transition: width 0.25s ease;
+  overflow: hidden;
+}
+
+/* ── Desktop collapsed ── */
+.sidebarCollapsed { width: 64px; }
+
+.sidebarCollapsed .brandText          { display: none; }
+.sidebarCollapsed .navLabel           { display: none; }
+.sidebarCollapsed .groupLabel         { display: none; }
+.sidebarCollapsed .group              { padding-bottom: 4px; }
+.sidebarCollapsed .categoryHeader     { display: none; }
+.sidebarCollapsed .categoryItems      { grid-template-rows: 1fr; }
+.sidebarCollapsed .categoryItemsInner { padding-left: 0; padding-bottom: 0; }
+
+.sidebarCollapsed .brand {
+  justify-content: center;
+  padding: 0.9rem 0;
+  border-bottom: 1px solid color-mix(in srgb, white 8%, transparent);
+}
+
+.sidebarCollapsed .collapseBtn {
+  margin: 0 auto;
+  width: 28px;
+  height: 28px;
+}
+
+.sidebarCollapsed .navItem {
+  justify-content: center;
+  padding: 0.6rem 0;
+}
+
+.sidebarCollapsed .navActiveBar { display: none; }
+
+/* ── Brand row ── */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1.2rem 1rem 1.2rem 1.25rem;
+  border-bottom: 1px solid color-mix(in srgb, white 8%, transparent);
+  position: relative;
+  flex-shrink: 0;
+}
+
+.brandText {
+  flex: 1;
+  min-width: 0;
+  transition: opacity 0.2s, width 0.25s;
+}
+
+.brandName {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--brand-base);
+  margin: 0;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+.brandSub {
+  font-size: 0.65rem;
+  color: color-mix(in srgb, var(--brand-base) 55%, transparent);
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.collapseBtn {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, white 14%, transparent);
+  background: color-mix(in srgb, white 7%, transparent);
+  color: color-mix(in srgb, var(--brand-base) 65%, transparent);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.collapseBtn:hover {
+  background: color-mix(in srgb, white 14%, transparent);
+  color: var(--brand-base);
+}
+
+/* ── Nav ── */
+.nav {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 4px 8px 12px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+}
+
+.nav::-webkit-scrollbar { display: none; }
+
+/* ── Group (static section headline, not collapsible) ── */
+.group {
+  padding-bottom: 10px;
+}
+
+.groupLabel {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, white 35%, transparent);
+  padding: 18px 10px 5px;
+  border-top: 1px solid color-mix(in srgb, white 8%, transparent);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.group:first-child .groupLabel {
+  padding-top: 6px;
+  border-top: none;
+}
+
+/* ── Category (collapsible) ── */
+.category {
+  margin-bottom: 1px;
+}
+
+.categoryHeader {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 7px;
+  border: none;
+  background: transparent;
+  color: color-mix(in srgb, white 62%, transparent);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+  overflow: hidden;
+  line-height: 1.3;
+}
+
+.categoryHeader:hover {
+  background: color-mix(in srgb, white 6%, transparent);
+  color: color-mix(in srgb, white 88%, transparent);
+}
+
+.categoryHeaderActive {
+  color: var(--brand-base);
+}
+
+.categoryIcon {
+  flex-shrink: 0;
+  color: color-mix(in srgb, white 42%, transparent);
+  transition: color 0.15s;
+}
+
+.categoryHeaderActive .categoryIcon {
+  color: var(--brand-primary);
+}
+
+.categoryLabel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.categoryChevron {
+  flex-shrink: 0;
+  color: color-mix(in srgb, white 30%, transparent);
+  transition: transform 0.2s ease, color 0.15s;
+}
+
+.categoryHeader:hover .categoryChevron {
+  color: color-mix(in srgb, white 55%, transparent);
+}
+
+.categoryChevronOpen {
+  transform: rotate(180deg);
+}
+
+/* ── Category items (grid-row open/close animation) ── */
+.categoryItems {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.2s ease;
+}
+
+.categoryItemsOpen {
+  grid-template-rows: 1fr;
+}
+
+.categoryItemsInner {
+  overflow: hidden;
+  padding-left: 6px;
+  padding-bottom: 4px;
+}
+
+/* ── Nav item ── */
+.navItem {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 6px 10px;
+  border-radius: 7px;
+  text-decoration: none;
+  color: color-mix(in srgb, white 55%, transparent);
+  font-size: 13px;
+  font-weight: 500;
+  transition: background 0.15s, color 0.15s;
+  position: relative;
+  white-space: nowrap;
+}
+
+.navItem:hover {
+  background: color-mix(in srgb, white 6%, transparent);
+  color: color-mix(in srgb, white 85%, transparent);
+}
+
+.navItemActive {
+  background: color-mix(in srgb, var(--brand-primary) 16%, transparent);
+  color: var(--brand-primary);
+}
+
+.navItemActive:hover {
+  background: color-mix(in srgb, var(--brand-primary) 22%, transparent);
+  color: var(--brand-primary);
+}
+
+.navIcon {
+  width: 16px;
+  flex-shrink: 0;
+}
+
+.navLabel {
+  flex: 1;
+  transition: opacity 0.2s;
+}
+
+/* ── Active bar ── */
+.navActiveBar {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 60%;
+  background: var(--brand-primary);
+  border-radius: 0 3px 3px 0;
+}
+
+/* ── Mobile: hidden off-canvas by default, slides in when opened ── */
+@media (max-width: 720px) {
+  .sidebar {
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    width: 240px;
+  }
+
+  .sidebarMobileOpen {
+    transform: translateX(0);
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.35);
+  }
+
+  /* On mobile the "collapsed" (icon-rail) desktop state doesn't apply —
+     the sidebar is either fully off-canvas or fully open. */
+  .sidebarCollapsed:not(.sidebarMobileOpen) {
+    width: 240px;
+  }
+
+  .sidebarMobileOpen .brandText          { display: block; }
+  .sidebarMobileOpen .navLabel           { display: block; }
+  .sidebarMobileOpen .groupLabel         { display: block; }
+  .sidebarMobileOpen .group              { padding-bottom: 10px; }
+  .sidebarMobileOpen .categoryHeader     { display: flex; }
+  .sidebarMobileOpen .categoryItemsInner { padding-left: 6px; padding-bottom: 4px; }
+
+  .sidebarMobileOpen .brand {
+    justify-content: space-between;
+    padding: 1.2rem 1rem 1.2rem 1.25rem;
+  }
+
+  .sidebarMobileOpen .navItem {
+    justify-content: flex-start;
+    padding: 6px 10px;
+  }
+}

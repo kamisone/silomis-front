@@ -1,0 +1,112 @@
+.empty {
+  font-size: 13px;
+  color: color-mix(in srgb, var(--foreground) 45%, transparent);
+  padding: 14px;
+  border: 1.5px dashed var(--color-surface);
+  border-radius: 10px;
+  text-align: center;
+  margin-bottom: 12px;
+}
+
+.list { display: flex; flex-direction: column; gap: 12px; }
+
+/* ── Card ── */
+.card {
+  border: 1.5px solid var(--color-surface);
+  border-radius: 12px;
+  background: var(--background);
+  transition: box-shadow .12s, border-color .12s, opacity .12s;
+}
+.card:hover { border-color: var(--color-accent); }
+.cardDragging { opacity: 0.4; }
+
+.cardHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--color-surface);
+}
+
+.dragHandle {
+  display: flex; align-items: center; justify-content: center;
+  color: color-mix(in srgb, var(--foreground) 45%, transparent);
+  cursor: grab;
+  flex-shrink: 0;
+}
+
+.removeBtn {
+  width: 28px; height: 28px; border-radius: 8px;
+  border: none; background: transparent; color: #ef4444;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: background .12s;
+  flex-shrink: 0;
+}
+.removeBtn:hover { background: rgba(239,68,68,.1); }
+
+.itemError {
+  margin: 0;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #ef4444;
+  background: rgba(239, 68, 68, .08);
+  border-bottom: 1px solid var(--color-surface);
+}
+
+.cardBody {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.cardBody > * { margin-bottom: 0; }
+
+/* ── Link field (single, non-bilingual) ── */
+.linkField {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.linkLabel {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--foreground) 70%, transparent);
+}
+
+.linkInput {
+  width: 100%;
+  padding: 0.4rem 0.65rem;
+  border-radius: 8px;
+  border: 1.5px solid var(--color-surface);
+  background: var(--background);
+  color: var(--foreground);
+  font-size: 0.84rem;
+  outline: none;
+  font-family: inherit;
+  box-sizing: border-box;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+}
+.linkInput::placeholder { color: color-mix(in srgb, var(--foreground) 35%, transparent); }
+.linkInput:focus {
+  border-color: var(--color-accent);
+  background: var(--background);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 10%, transparent);
+}
+
+/* ── Add tile ── */
+.addBtn {
+  width: 100%;
+  margin-top: 12px;
+  padding: 11px;
+  border-radius: 10px;
+  border: 2px dashed var(--color-surface);
+  display: flex; align-items: center; justify-content: center;
+  gap: 6px; color: color-mix(in srgb, var(--foreground) 45%, transparent);
+  background: transparent; cursor: pointer;
+  font-size: 13px; font-weight: 600;
+  transition: border-color .15s, color .15s;
+}
+.addBtn:hover { border-color: var(--color-accent); color: var(--color-accent); }
+
+.hint { font-size: 12px; color: color-mix(in srgb, var(--foreground) 45%, transparent); margin-top: 8px; }

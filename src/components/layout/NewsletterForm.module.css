@@ -1,0 +1,82 @@
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.6rem 0.85rem;
+  border-radius: 8px;
+  border: 1.5px solid color-mix(in srgb, var(--background) 15%, transparent);
+  background: color-mix(in srgb, var(--background) 8%, transparent);
+  color: var(--background);
+  font-size: 0.82rem;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.input::placeholder {
+  color: color-mix(in srgb, var(--background) 70%, transparent);
+}
+
+.input:focus {
+  border-color: var(--color-accent);
+  background: color-mix(in srgb, var(--background) 12%, transparent);
+}
+
+.submitBtn {
+  padding: 0.6rem 1.1rem;
+  border-radius: 8px;
+  border: none;
+  background: var(--color-accent);
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity 0.15s, transform 0.15s;
+}
+
+.submitBtn:hover:not(:disabled) {
+  opacity: 0.92;
+  transform: translateY(-1px);
+}
+
+.submitBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.errorMsg {
+  font-size: 0.75rem;
+  color: #f87171;
+  margin: 0;
+}
+
+.successMsg {
+  font-size: 0.85rem;
+  color: #4ade80;
+  font-weight: 600;
+  margin: 0;
+}
+
+@media (max-width: 480px) {
+  .row {
+    flex-direction: column;
+  }
+
+  .submitBtn {
+    align-self: stretch;
+    text-align: center;
+  }
+}

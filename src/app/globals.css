@@ -1,12 +1,32 @@
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Brand palette — the single source of truth for color across the storefront
+     and admin UI. Every future component should reference the semantic tokens
+     below rather than these hex values directly. */
+  --brand-primary:   #7fbfa8; /* mint — signature brand color */
+  --brand-secondary: #3a4a4a; /* slate — navigation, categories, key elements; also doubles as body text */
+  --brand-accent:    #ff8266; /* coral — CTAs, promotions */
+  --brand-accent-2:  #f6c453; /* butter — badges, categories, illustrations */
+  --brand-base:      #fefbf3; /* ivory — backgrounds, breathing room */
+
+  --color-primary: var(--brand-primary);
+  --color-secondary: var(--brand-secondary);
+  --color-accent: var(--brand-accent);
+  /* Badges, category chips, illustrations — a second accent distinct from the
+     CTA/promo color above. */
+  --color-accent-secondary: var(--brand-accent-2);
+  --color-surface: color-mix(in srgb, var(--brand-base) 96%, var(--brand-primary) 4%);
+  --color-surface-tint: color-mix(in srgb, var(--brand-base) 92%, var(--brand-primary) 8%);
+
+  --background: var(--brand-base);
+  --foreground: var(--brand-secondary);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: var(--brand-secondary);
+    --foreground: var(--brand-base);
+    --color-surface: color-mix(in srgb, var(--brand-secondary) 85%, white 15%);
+    --color-surface-tint: color-mix(in srgb, var(--brand-secondary) 75%, white 25%);
   }
 }
 

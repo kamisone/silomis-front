@@ -1,0 +1,107 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin: 4px 0 18px;
+}
+
+.attrGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.attrLabel {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--foreground);
+}
+.attrSelected {
+  font-weight: 400;
+  color: color-mix(in srgb, var(--foreground) 60%, var(--background));
+}
+
+.optionRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.attrSelect {
+  padding: 9px 12px;
+  border-radius: 9px;
+  border: 1.5px solid color-mix(in srgb, var(--foreground) 18%, transparent);
+  background: var(--background);
+  color: var(--foreground);
+  font-size: 14px;
+  max-width: 260px;
+}
+
+/* ── Text/button-style option (size, etc.) ── */
+.optionBtn {
+  min-width: 44px;
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 9px;
+  border: 1.5px solid color-mix(in srgb, var(--foreground) 18%, transparent);
+  background: var(--background);
+  color: var(--foreground);
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+.optionBtn:hover:not(:disabled) {
+  border-color: var(--color-accent);
+}
+
+/* ── Swatch option ── */
+.swatchBtn {
+  width: 40px;
+  height: 40px;
+  padding: 2px;
+  border-radius: 999px;
+  border: 1.5px solid color-mix(in srgb, var(--foreground) 18%, transparent);
+  background: var(--background);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.15s;
+}
+.swatchBtn:hover:not(:disabled) {
+  border-color: var(--color-accent);
+}
+.swatchInner {
+  width: 100%;
+  height: 100%;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--foreground) 14%, transparent);
+}
+.swatchTextInner {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-align: center;
+  line-height: 1.1;
+  padding: 0 2px;
+}
+
+/* ── Shared states ── */
+.optionSelected {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 1.5px var(--color-primary);
+}
+.optionBtn.optionSelected {
+  background: var(--color-surface);
+  color: var(--color-primary);
+}
+
+.optionOos {
+  opacity: 0.55;
+  position: relative;
+}
+
+.optionUnavailable {
+  opacity: 0.3;
+  cursor: not-allowed;
+}

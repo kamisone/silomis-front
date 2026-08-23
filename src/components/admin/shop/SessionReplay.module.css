@@ -1,0 +1,159 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  padding: 20px;
+}
+
+.panel {
+  background: var(--background, #fff);
+  border-radius: 12px;
+  width: 100%;
+  max-width: 1100px;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid color-mix(in srgb, var(--foreground) 10%, transparent);
+}
+
+.title {
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+
+.closeButton {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  line-height: 1;
+  margin-left: 8px;
+}
+
+.body {
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.table th {
+  text-align: left;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-secondary, #3a4a4a);
+  padding: 8px 10px;
+  border-bottom: 1px solid color-mix(in srgb, var(--foreground) 10%, transparent);
+}
+.table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid color-mix(in srgb, var(--foreground) 6%, transparent);
+  font-size: 0.9rem;
+}
+
+.detailLayout {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.playerCol {
+  flex: 2;
+  min-width: 400px;
+}
+
+.timelineCol {
+  flex: 1;
+  min-width: 240px;
+}
+
+.timelineTrack {
+  position: relative;
+  height: 8px;
+  background: color-mix(in srgb, var(--foreground) 8%, transparent);
+  border-radius: 999px;
+  margin-bottom: 16px;
+}
+
+.timelineDot {
+  position: absolute;
+  top: -3px;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  transform: translateX(-50%);
+}
+
+.eventList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 400px;
+  overflow-y: auto;
+  font-size: 0.85rem;
+}
+
+.eventList li {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 6px;
+  border-radius: 6px;
+}
+
+.eventActive {
+  background: var(--color-surface-tint, #f8fafc);
+}
+
+.eventTime {
+  color: var(--color-secondary, #3a4a4a);
+  font-size: 0.75rem;
+}
+
+.replayBtn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid color-mix(in srgb, var(--foreground) 16%, transparent);
+  background: var(--color-surface-tint, #f8fafc);
+  color: var(--foreground);
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.replayBtn:hover {
+  background: color-mix(in srgb, var(--foreground) 8%, transparent);
+}
+
+.unreadBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--color-primary, #7fbfa8);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
