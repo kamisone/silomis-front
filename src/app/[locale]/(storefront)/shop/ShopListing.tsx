@@ -4,11 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { buildCategoryTree, getAncestorIds, type CategoryNode as BaseCategoryNode } from "@/lib/shop/categoryTree";
-import PromotionBadge, { type PromotionInfo } from "@/components/shop/PromotionBadge";
+import ProductCard, { type ProductListItem } from "@/components/shop/ProductCard";
+import type { PromotionInfo } from "@/components/shop/PromotionBadge";
 import { trackSearch } from "@/lib/shop/behaviorTracking";
 import { pixelTrack, trackServerEvent } from "@/lib/metaPixel";
 import { ttqTrack, trackTikTokServerEvent } from "@/lib/tiktokPixel";
-import { getTranslations, type Locale } from "@/lib/i18n";
+import { getTranslations } from "@/lib/i18n";
 import { useLocale } from "@/lib/i18n/useLocale";
 import styles from "./Shop.module.css";
 
@@ -34,28 +35,6 @@ function findMatchingPromotion(promotions: ActivePromotion[], productId: string,
   return null;
 }
 
-interface ProductVariantSummary {
-  id: string;
-  priceCents: number;
-  compareAtPriceCents: number | null;
-  isDefault: boolean;
-}
-
-interface ProductListItem {
-  id: string;
-  slug: string;
-  title: string;
-  brand: string | null;
-  basePriceCents: number | null;
-  featuredImageUrl: string | null;
-  cardImageUrls?: string[];
-  outOfStock?: boolean;
-  defaultVariantOutOfStock?: boolean;
-  freeShipping?: boolean;
-  categories?: { id: string }[];
-  variants: ProductVariantSummary[];
-}
-
 interface Category {
   id: string;
   name: string;
@@ -63,10 +42,6 @@ interface Category {
 }
 
 type CategoryNode = BaseCategoryNode<Category>;
-
-function centsToAmount(cents: number) {
-  return (cents / 100).toLocaleString(undefined, { style: "currency", currency: "EUR" });
-}
 
 function CategoryTreeItem({ node, activeCategory, buildUrl }: { node: CategoryNode; activeCategory?: string; buildUrl: (params: Record<string, string | undefined>) => string }) {
   const isActive = activeCategory === node.id;
@@ -86,44 +61,8 @@ function CategoryTreeItem({ node, activeCategory, buildUrl }: { node: CategoryNo
   );
 }
 
-function ProductCard({ product, promotion, locale, t }: { product: ProductListItem; promotion: ActivePromotion | null; locale: Locale; t: ReturnType<typeof getTranslations> }) {
-  const defaultVariant = product.variants.find((v) => v.isDefault) ?? product.variants[0];
-  const priceCents = defaultVariant?.priceCents ?? product.basePriceCents ?? 0;
-  const compareAtCents = defaultVariant?.compareAtPriceCents ?? null;
-  const isOnSale = !!(compareAtCents && compareAtCents > priceCents);
-  const outOfStock = !!product.outOfStock;
-  const defaultVariantOos = !!product.defaultVariantOutOfStock;
-  const imageUrl = product.cardImageUrls?.[0] ?? product.featuredImageUrl ?? null;
-  const promotionInfo: PromotionInfo | null = promotion ? { name: promotion.name, discountType: promotion.discountType, discountValue: promotion.discountValue } : null;
-
-  return (
-    <Link href={`/${locale}/shop/${product.slug}`} className={styles.productCard}>
-      <div className={styles.productImageWrap}>
-        {imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={imageUrl} alt={product.title} className={styles.productImage} loading="lazy" />
-        ) : (
-          <div className={styles.productImagePlaceholder} />
-        )}
-        {outOfStock ? (
-          <span className={styles.outOfStockBadge}>{t.shop.outOfStock}</span>
-        ) : isOnSale ? (
-          <span className={styles.saleBadge}>{t.shop.sale}</span>
-        ) : null}
-        {product.freeShipping && !outOfStock && <span className={styles.freeShipBadge}>{t.shop.freeShippingBadge}</span>}
-      </div>
-      <div className={styles.productInfo}>
-        {product.brand && <span className={styles.productBrand}>{product.brand}</span>}
-        <h3 className={styles.productTitle}>{product.title}</h3>
-        <div className={styles.productPrice}>
-          {isOnSale && <span className={styles.comparePrice}>{centsToAmount(compareAtCents!)}</span>}
-          <span className={styles.price}>{centsToAmount(priceCents)}</span>
-          {promotionInfo && <PromotionBadge promotion={promotionInfo} size="sm" freeShippingLabel={t.shop.freeShippingBadge} />}
-        </div>
-        {defaultVariantOos && !outOfStock && <span className={styles.variantOosNote}>{t.shop.selectedOptionOutOfStock}</span>}
-      </div>
-    </Link>
-  );
+function toPromotionInfo(promotion: ActivePromotion | null): PromotionInfo | null {
+  return promotion ? { name: promotion.name, discountType: promotion.discountType, discountValue: promotion.discountValue } : null;
 }
 
 export default function ShopListing() {
@@ -281,7 +220,7 @@ export default function ShopListing() {
           ) : (
             <div className={styles.productGrid}>
               {products.map((p) => (
-                <ProductCard key={p.id} product={p} promotion={findMatchingPromotion(promotions, p.id, (p.categories ?? []).map((c) => c.id))} locale={locale} t={t} />
+                <ProductCard key={p.id} product={p} promotion={toPromotionInfo(findMatchingPromotion(promotions, p.id, (p.categories ?? []).map((c) => c.id)))} locale={locale} t={t} />
               ))}
             </div>
           )}

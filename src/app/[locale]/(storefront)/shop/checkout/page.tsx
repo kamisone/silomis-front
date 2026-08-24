@@ -543,8 +543,42 @@ export default function CheckoutPage() {
       return;
     }
 
-    const { clientSecret: cs } = await intentRes.json();
+    const { clientSecret: cs, metaAddPaymentInfoEventId, tiktokAddPaymentInfoEventId } = await intentRes.json();
     setClientSecret(cs);
+
+    // Same event IDs the backend's own AddPaymentInfo call used (fired from
+    // ShopPaymentService.createPaymentIntent) — matches the browser+server
+    // pair for Meta/TikTok dedup.
+    if (metaAddPaymentInfoEventId) {
+      pixelTrack(
+        "AddPaymentInfo",
+        {
+          value: snapshot.totalCents / 100,
+          currency: "EUR",
+          content_type: "product",
+          content_ids: cart?.items.map((i) => i.variantId) ?? [],
+        },
+        metaAddPaymentInfoEventId,
+      );
+    }
+    if (tiktokAddPaymentInfoEventId) {
+      ttqTrack(
+        "AddPaymentInfo",
+        {
+          contents: (cart?.items ?? []).map((i) => ({
+            content_id: i.variantId,
+            content_type: "product",
+            content_name: i.titleSnapshot,
+            quantity: i.quantity,
+            price: i.unitPriceCents / 100,
+          })),
+          value: snapshot.totalCents / 100,
+          currency: "EUR",
+        },
+        tiktokAddPaymentInfoEventId,
+      );
+    }
+
     goToStep("payment");
     setSubmitting(false);
   }

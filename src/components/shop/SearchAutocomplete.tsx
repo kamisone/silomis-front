@@ -69,7 +69,7 @@ export default function SearchAutocomplete({ locale }: { locale: Locale }) {
       navigate(suggestions[active].slug);
     } else if (query.trim()) {
       setOpen(false);
-      router.push(`/${locale}/shop?search=${encodeURIComponent(query.trim())}`);
+      router.push(`/${locale}/shop/search?q=${encodeURIComponent(query.trim())}`);
     }
   }
 
@@ -117,7 +117,7 @@ export default function SearchAutocomplete({ locale }: { locale: Locale }) {
               {s.title}
             </button>
           ))}
-          <a href={`/${locale}/shop?search=${encodeURIComponent(query)}`} className={styles.seeAll}>
+          <a href={`/${locale}/shop/search?q=${encodeURIComponent(query)}`} className={styles.seeAll}>
             {t.shop.seeAllResultsFor} &ldquo;{query}&rdquo;
           </a>
         </div>

@@ -1,0 +1,200 @@
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px 20px 64px;
+  width: 100%;
+}
+
+.filterBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.filterChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px 6px 12px;
+  border-radius: 999px;
+  background: var(--color-surface-tint);
+  color: var(--foreground);
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid color-mix(in srgb, var(--foreground) 12%, transparent);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.filterChip:hover {
+  background: var(--color-surface);
+}
+
+.filterChipX {
+  opacity: 0.6;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 32px;
+  align-items: start;
+}
+
+@media (max-width: 800px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.sidebar {
+  position: sticky;
+  top: calc(var(--header-offset, 84px) + 20px);
+}
+
+@media (max-width: 800px) {
+  .sidebar {
+    position: static;
+  }
+}
+
+.filterBlock {
+  margin-bottom: 24px;
+}
+
+.filterGroupTitle {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: color-mix(in srgb, var(--foreground) 60%, var(--background));
+  margin-bottom: 10px;
+}
+
+.brandBtn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 7px 10px;
+  border-radius: 8px;
+  font-size: 14px;
+  color: var(--foreground);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.brandBtn:hover {
+  background: var(--color-surface-tint);
+}
+.brandBtnActive {
+  background: var(--color-surface);
+  color: var(--color-primary);
+  font-weight: 700;
+}
+
+.brandCount {
+  color: color-mix(in srgb, var(--foreground) 50%, var(--background));
+  font-weight: 400;
+}
+
+.priceRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.priceInput {
+  width: 0;
+  flex: 1;
+  min-width: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--foreground) 18%, transparent);
+  background: var(--background);
+  color: var(--foreground);
+  font-size: 14px;
+}
+.priceInput:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.priceDash {
+  color: color-mix(in srgb, var(--foreground) 45%, var(--background));
+}
+
+.main {
+  min-width: 0;
+}
+
+.resultsMeta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.resultCount {
+  font-size: 13px;
+  color: color-mix(in srgb, var(--foreground) 55%, var(--background));
+}
+
+.processingTime {
+  font-size: 11px;
+  color: color-mix(in srgb, var(--foreground) 35%, var(--background));
+}
+
+.empty {
+  padding: 64px 0;
+  text-align: center;
+}
+
+.emptyTitle {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--foreground);
+  margin-bottom: 8px;
+}
+
+.emptyHint {
+  font-size: 14px;
+  color: color-mix(in srgb, var(--foreground) 55%, var(--background));
+}
+
+.productGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 18px;
+}
+
+.pagination {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 32px;
+}
+
+.pageLink,
+.pageLinkActive {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  height: 34px;
+  padding: 0 8px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--foreground);
+  background: var(--color-surface-tint);
+  transition: background 0.15s, color 0.15s;
+}
+.pageLink:hover {
+  background: var(--color-surface);
+}
+.pageLinkActive {
+  background: var(--color-primary);
+  color: #fff;
+}
