@@ -2,6 +2,8 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { parseApiError, type CartMutationResult } from "@/lib/shop/stockError";
+import { pixelTrack } from "@/lib/metaPixel";
+import { ttqTrack } from "@/lib/tiktokPixel";
 
 export interface CartItemOption {
   attributeId: string;
@@ -37,6 +39,9 @@ export interface Cart {
   itemCount: number;
   /** At least one item ships free, so the order does. Set by the backend. */
   freeShipping?: boolean;
+  /** Set only on the addItem response — shared with the matching browser pixel call for Meta/TikTok dedup. */
+  metaAddToCartEventId?: string;
+  tiktokAddToCartEventId?: string;
 }
 
 interface CartContextValue {
@@ -120,6 +125,41 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         if (res.ok) {
           const data: Cart = await res.json();
           applyCart(data);
+
+          // Meta/TikTok: value/currency/ids only — never customer PII. Value
+          // reflects what was just added (unit price × quantity added), not
+          // the line's accumulated total. eventId is shared with the
+          // server-side Conversions/Events API call for this same action (dedup).
+          const addedItem = data.items.find((i) => i.variantId === variantId);
+          pixelTrack(
+            "AddToCart",
+            {
+              content_type: "product",
+              content_ids: [variantId],
+              value: ((addedItem?.unitPriceCents ?? 0) * quantity) / 100,
+              currency: "EUR",
+              num_items: quantity,
+            },
+            data.metaAddToCartEventId,
+          );
+          ttqTrack(
+            "AddToCart",
+            {
+              contents: [
+                {
+                  content_id: variantId,
+                  content_type: "product",
+                  content_name: addedItem?.titleSnapshot,
+                  quantity,
+                  price: (addedItem?.unitPriceCents ?? 0) / 100,
+                },
+              ],
+              value: ((addedItem?.unitPriceCents ?? 0) * quantity) / 100,
+              currency: "EUR",
+            },
+            data.tiktokAddToCartEventId,
+          );
+
           return { ok: true };
         }
         const body = await res.json().catch(() => ({}));
@@ -130,8 +170,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       } finally {
         setMutating(false);
       }
-      // eslint-disable-next-line react-hooks/exhaustive-deps
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [token],
   );
 
@@ -174,8 +214,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       } finally {
         setMutating(false);
       }
-      // eslint-disable-next-line react-hooks/exhaustive-deps
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [token],
   );
 
@@ -208,8 +248,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       } finally {
         setMutating(false);
       }
-      // eslint-disable-next-line react-hooks/exhaustive-deps
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [token],
   );
 

@@ -6,6 +6,8 @@ import { useSearchParams } from "next/navigation";
 import { buildCategoryTree, getAncestorIds, type CategoryNode as BaseCategoryNode } from "@/lib/shop/categoryTree";
 import PromotionBadge, { type PromotionInfo } from "@/components/shop/PromotionBadge";
 import { trackSearch } from "@/lib/shop/behaviorTracking";
+import { pixelTrack, trackServerEvent } from "@/lib/metaPixel";
+import { ttqTrack, trackTikTokServerEvent } from "@/lib/tiktokPixel";
 import { getTranslations, type Locale } from "@/lib/i18n";
 import { useLocale } from "@/lib/i18n/useLocale";
 import styles from "./Shop.module.css";
@@ -170,7 +172,22 @@ export default function ShopListing() {
           const items = Array.isArray(data.items) ? data.items : [];
           setProducts(items);
           setTotal(typeof data.total === "number" ? data.total : 0);
-          if (search) trackSearch(search, items.length);
+          if (search) {
+            trackSearch(search, items.length);
+
+            // Meta Pixel / TikTok: value/currency/ids only — never add
+            // customer PII here. Same eventId shared between the browser
+            // pixel and the server-side Conversions/Events API call for dedup.
+            const eventId = crypto.randomUUID();
+            const customData = { search_string: search, content_ids: items.map((i: { id: string }) => i.id) };
+            pixelTrack("Search", customData, eventId);
+            trackServerEvent("Search", eventId, customData);
+
+            const tiktokEventId = crypto.randomUUID();
+            const tiktokProperties = { query: search, contents: items.map((i: { id: string }) => ({ content_id: i.id, content_type: "product" })) };
+            ttqTrack("Search", tiktokProperties, tiktokEventId);
+            trackTikTokServerEvent("Search", tiktokEventId, tiktokProperties);
+          }
         })
         .catch(() => {
           if (!cancelled) {

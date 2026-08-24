@@ -9,6 +9,8 @@ import PriceBreakdown from "@/components/shop/PriceBreakdown";
 import PromoCodeInput, { type ValidateCouponResult } from "@/components/shop/PromoCodeInput";
 import { getTranslations, type Locale } from "@/lib/i18n";
 import { useLocale } from "@/lib/i18n/useLocale";
+import { pixelTrack, getMetaCookies } from "@/lib/metaPixel";
+import { ttqTrack, getTikTokCookies } from "@/lib/tiktokPixel";
 import styles from "./Checkout.module.css";
 
 type T = ReturnType<typeof getTranslations>;
@@ -398,6 +400,8 @@ export default function CheckoutPage() {
         zip: form.zip,
         country: form.country,
         couponCode: form.couponCode || null,
+        ...getMetaCookies(),
+        ...getTikTokCookies(),
       }),
     });
 
@@ -411,6 +415,38 @@ export default function CheckoutPage() {
 
     const snap: CheckoutSnapshot = await res.json();
     setSnapshot(snap);
+
+    // Meta Pixel: value/currency/ids only — never add customer PII here.
+    // eventId shared with the server-side Conversions API call for this same
+    // order (sent from the backend's ORDER_CREATED listener) for dedup.
+    pixelTrack(
+      "InitiateCheckout",
+      {
+        value: snap.totalCents / 100,
+        currency: "EUR",
+        content_type: "product",
+        content_ids: cart.items.map((i) => i.variantId),
+        num_items: cart.items.reduce((n, i) => n + i.quantity, 0),
+      },
+      snap.orderNumber,
+    );
+    // TikTok: same order number as the event ID — matches the backend's
+    // server-side InitiateCheckout call (ORDER_CREATED listener) for dedup.
+    ttqTrack(
+      "InitiateCheckout",
+      {
+        contents: cart.items.map((i) => ({
+          content_id: i.variantId,
+          content_type: "product",
+          content_name: i.titleSnapshot,
+          quantity: i.quantity,
+          price: i.unitPriceCents / 100,
+        })),
+        value: snap.totalCents / 100,
+        currency: "EUR",
+      },
+      snap.orderNumber,
+    );
 
     if (snap.shippingMethods.length > 0) {
       const firstId = snap.shippingMethods[0].id;

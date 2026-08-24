@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import AddToCartButton from "@/components/shop/AddToCartButton";
 import ProductVariantSelector, { type SelectableVariant } from "@/components/shop/ProductVariantSelector";
@@ -8,6 +8,8 @@ import WishlistButton from "@/components/shop/WishlistButton";
 import ReplayRecorderMount from "@/components/shop/ReplayRecorderMount";
 import ReviewsSection from "./ReviewsSection";
 import { trackProductView } from "@/lib/shop/behaviorTracking";
+import { pixelTrack, trackServerEvent } from "@/lib/metaPixel";
+import { ttqTrack, trackTikTokServerEvent } from "@/lib/tiktokPixel";
 import { getTranslations, type Locale } from "@/lib/i18n";
 import styles from "./ProductDetail.module.css";
 
@@ -357,6 +359,39 @@ export default function ShopProductDetail({ product, locale }: { product: Produc
 
   useEffect(() => {
     trackProductView(product.id);
+  }, [product.id]);
+
+  // Meta Pixel / TikTok: value/currency/ids only — never add customer PII here.
+  // Fires once per distinct product (App Router can reuse this component
+  // across client-side navigations between products without a full remount).
+  // Same eventId shared between the browser pixel and the server-side
+  // Conversions/Events API call for dedup.
+  const viewContentFiredForRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (viewContentFiredForRef.current === product.id) return;
+    viewContentFiredForRef.current = product.id;
+
+    const eventId = crypto.randomUUID();
+    const customData = {
+      content_type: "product",
+      content_ids: [product.id],
+      content_name: product.title,
+      value: priceCents / 100,
+      currency: "EUR",
+    };
+    pixelTrack("ViewContent", customData, eventId);
+    trackServerEvent("ViewContent", eventId, customData);
+
+    // TikTok: separate event ID — dedup is per-platform, no reason to share Meta's.
+    const tiktokEventId = crypto.randomUUID();
+    const tiktokProperties = {
+      contents: [{ content_id: product.id, content_type: "product", content_name: product.title }],
+      value: priceCents / 100,
+      currency: "EUR",
+    };
+    ttqTrack("ViewContent", tiktokProperties, tiktokEventId);
+    trackTikTokServerEvent("ViewContent", tiktokEventId, tiktokProperties);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product.id]);
 
   return (
