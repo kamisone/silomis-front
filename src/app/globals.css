@@ -1,12 +1,14 @@
 :root {
   /* Brand palette — the single source of truth for color across the storefront
      and admin UI. Every future component should reference the semantic tokens
-     below rather than these hex values directly. */
-  --brand-primary:   #7fbfa8; /* mint — signature brand color */
-  --brand-secondary: #3a4a4a; /* slate — navigation, categories, key elements; also doubles as body text */
-  --brand-accent:    #ff8266; /* coral — CTAs, promotions */
-  --brand-accent-2:  #f6c453; /* butter — badges, categories, illustrations */
-  --brand-base:      #fefbf3; /* ivory — backgrounds, breathing room */
+     below rather than these hex values directly. Soft baby/kids palette on a
+     white base, inspired by bebe9.com's real UI colors (teal signature accent,
+     magenta/pink and dusty-blue badge colors, neutral charcoal text). */
+  --brand-primary:   #129c98; /* soft teal — signature brand color */
+  --brand-secondary: #363a40; /* neutral charcoal — navigation, categories, key elements; also doubles as body text */
+  --brand-accent:    #d9548c; /* blush pink — CTAs, promotions */
+  --brand-accent-2:  #8fb9c8; /* dusty blue — badges, categories, illustrations */
+  --brand-base:      #ffffff; /* white — backgrounds, breathing room */
 
   --color-primary: var(--brand-primary);
   --color-secondary: var(--brand-secondary);
@@ -19,15 +21,6 @@
 
   --background: var(--brand-base);
   --foreground: var(--brand-secondary);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: var(--brand-secondary);
-    --foreground: var(--brand-base);
-    --color-surface: color-mix(in srgb, var(--brand-secondary) 85%, white 15%);
-    --color-surface-tint: color-mix(in srgb, var(--brand-secondary) 75%, white 25%);
-  }
 }
 
 html {
@@ -62,8 +55,10 @@ a {
   text-decoration: none;
 }
 
-@media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
-  }
+/* Native checkboxes/radios default to the browser's blue — brand them once
+   here so every form across the storefront and admin picks it up, instead
+   of each component re-declaring accent-color. */
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--color-primary);
 }

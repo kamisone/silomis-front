@@ -1,6 +1,17 @@
 .footer {
   position: relative;
-  background: var(--color-secondary);
+  /* Soft white glow washed into the dark base — keeps the footer grounded
+     while still carrying the brand's white/pastel feel instead of reading
+     as a flat, lightless block. The first glow's center is pinned a fixed
+     220px down from the top (not a %, which scales with the footer's own
+     height and previously let the glow's fade still reach y=0 on shorter
+     footers) with a radius small enough that it can never reach the top
+     edge — that edge must stay flat var(--color-secondary) to line up with
+     the wave's flat fill above it, or a visible seam reappears. */
+  background:
+    radial-gradient(560px 180px at 15% 220px, color-mix(in srgb, white 24%, transparent) 0%, transparent 60%),
+    radial-gradient(620px 320px at 90% 100%, color-mix(in srgb, white 14%, transparent) 0%, transparent 60%),
+    var(--color-secondary);
   padding: 2rem 0 1.5rem;
   margin-top: auto;
 }
@@ -14,6 +25,11 @@
   left: 0;
   right: 0;
   bottom: 100%;
+  /* Nudge down 1px so the SVG always overlaps the footer's top edge by a
+     hair — bottom: 100% alone leaves the two flush, and sub-pixel rounding
+     (viewport width not landing on a whole pixel) can then show a thin
+     sliver of the page background between them. */
+  transform: translateY(1px);
   line-height: 0;
   pointer-events: none;
 }
@@ -130,19 +146,24 @@ a.contactRow:hover {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: color-mix(in srgb, var(--background) 8%, transparent);
+  background: var(--background);
   transition: background 0.15s, transform 0.15s;
 }
 
 .socialLink:hover {
-  background: color-mix(in srgb, var(--background) 16%, transparent);
+  background: var(--color-accent);
   transform: translateY(-2px);
 }
 
 .socialIcon {
   width: 16px;
   height: 16px;
-  color: color-mix(in srgb, var(--background) 70%, transparent);
+  color: var(--color-secondary);
+  transition: color 0.15s;
+}
+
+.socialLink:hover .socialIcon {
+  color: var(--background);
 }
 
 .socialLink:hover .socialIcon {

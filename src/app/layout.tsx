@@ -29,7 +29,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         {/* Global nav-in-progress feedback — mounted once here so it covers
             every route (storefront + admin) instead of each section rolling
             its own. Brand accent color; no spinner, just the top bar. */}
-        <NextTopLoader color="#ff8266" height={3} showSpinner={false} shadow="0 0 10px #ff8266,0 0 5px #ff8266" />
+        <NextTopLoader color="#d9548c" height={3} showSpinner={false} shadow="0 0 10px #d9548c,0 0 5px #d9548c" />
         {children}
       </body>
     </html>

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
-import ui from "@/components/admin/ui/admin-ui.module.css";
+import styles from "./contacts.module.css";
 
 interface Contact {
   id: string;
@@ -14,72 +14,91 @@ interface Contact {
   createdAt: string;
 }
 
-export default function ContactsPage() {
+export default function AdminContactsPage() {
   const [contacts, setContacts] = useState<Contact[]>([]);
-  const [loading, setLoading]   = useState(true);
-  const [openId, setOpenId]     = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  const load = () => {
-    setLoading(true);
+  useEffect(() => {
     api.get<Contact[]>("/next-api/admin/contacts")
       .then(setContacts)
       .finally(() => setLoading(false));
+  }, []);
+
+  const markRead = (id: string) => {
+    api.patch(`/next-api/admin/contacts/${id}/read`, {}).then(() => {
+      setContacts((prev) => prev.map((c) => (c.id === id ? { ...c, read: true } : c)));
+    });
   };
 
-  useEffect(load, []);
-
-  const open = (c: Contact) => {
-    setOpenId(openId === c.id ? null : c.id);
-    if (!c.read) {
-      api.patch(`/next-api/admin/contacts/${c.id}/read`, {}).then(() => {
-        setContacts(prev => prev.map(x => x.id === c.id ? { ...x, read: true } : x));
-      });
-    }
+  const toggle = (c: Contact) => {
+    setExpandedId((prev) => (prev === c.id ? null : c.id));
+    if (!c.read) markRead(c.id);
   };
+
+  const unreadCount = contacts.filter((c) => !c.read).length;
 
   return (
-    <div className={ui.page}>
-      <div className={ui.pageHeader}>
-        <h1 className={ui.pageTitle}>Contact Messages</h1>
+    <div className={styles.page}>
+      <div className={styles.pageHeader}>
+        <div className={styles.titleRow}>
+          <h1 className={styles.title}>Contact Messages</h1>
+          {unreadCount > 0 && <span className={styles.unreadBadge}>{unreadCount} unread</span>}
+        </div>
       </div>
 
-      <div className={ui.card}>
-        {loading ? (
-          <div className={ui.emptyState}>Loading…</div>
-        ) : contacts.length === 0 ? (
-          <div className={ui.emptyState}>No messages yet.</div>
-        ) : (
-          <table className={ui.table}>
-            <thead>
-              <tr>
-                <th />
-                <th>From</th>
-                <th>Contact</th>
-                <th>Subject</th>
-                <th>Received</th>
-              </tr>
-            </thead>
-            <tbody>
-              {contacts.map((c) => (
-                <>
-                  <tr key={c.id} onClick={() => open(c)} style={{ cursor: "pointer" }}>
-                    <td>{!c.read && <span className={ui.badgeActive}>New</span>}</td>
-                    <td style={{ fontWeight: c.read ? 400 : 700 }}>{c.name}</td>
-                    <td style={{ color: "var(--color-secondary)" }}>{c.contact}</td>
-                    <td style={{ fontWeight: c.read ? 400 : 700 }}>{c.subject}</td>
-                    <td style={{ color: "var(--color-secondary)" }}>{new Date(c.createdAt).toLocaleString()}</td>
-                  </tr>
-                  {openId === c.id && (
-                    <tr key={`${c.id}-detail`}>
-                      <td colSpan={5} style={{ background: "var(--color-surface-tint)", whiteSpace: "pre-wrap" }}>{c.message}</td>
-                    </tr>
-                  )}
-                </>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+      {loading ? (
+        <div className={styles.loadingRow}>
+          <span className={styles.spinner} />
+        </div>
+      ) : contacts.length === 0 ? (
+        <p className={styles.empty}>No contact messages yet.</p>
+      ) : (
+        <div className={styles.list}>
+          {contacts.map((c) => {
+            const isOpen = expandedId === c.id;
+            return (
+              <div
+                key={c.id}
+                className={`${styles.item} ${!c.read ? styles.itemUnread : ""} ${isOpen ? styles.itemOpen : ""}`}
+              >
+                <button type="button" className={styles.itemHeader} onClick={() => toggle(c)}>
+                  <div className={styles.itemMeta}>
+                    {!c.read && <span className={styles.dot} aria-label="unread" />}
+                    <div className={styles.itemInfo}>
+                      <span className={styles.itemName}>{c.name}</span>
+                      <span className={styles.itemContact}>{c.contact}</span>
+                    </div>
+                  </div>
+                  <div className={styles.itemRight}>
+                    <span className={styles.itemSubject}>{c.subject}</span>
+                    <span className={styles.itemDate}>
+                      {new Date(c.createdAt).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}
+                    </span>
+                    <span className={styles.chevron}>{isOpen ? "▲" : "▼"}</span>
+                  </div>
+                </button>
+
+                {isOpen && (
+                  <div className={styles.itemBody}>
+                    <p className={styles.messageText}>{c.message}</p>
+                    <div className={styles.itemFooter}>
+                      <span className={styles.itemDateFull}>{new Date(c.createdAt).toLocaleString()}</span>
+                      {!c.read ? (
+                        <button type="button" className={styles.readBtn} onClick={() => markRead(c.id)}>
+                          Mark as read
+                        </button>
+                      ) : (
+                        <span className={styles.readLabel}>Read</span>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

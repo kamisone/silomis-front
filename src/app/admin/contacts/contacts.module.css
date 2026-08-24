@@ -1,0 +1,230 @@
+.page {
+  max-width: 840px;
+  margin: 0 auto;
+  padding: 0.5rem 0 3rem;
+}
+
+.pageHeader {
+  margin-bottom: 1.5rem;
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--color-primary);
+  margin: 0;
+}
+
+.unreadBadge {
+  display: inline-block;
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 100%);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.loadingRow {
+  display: flex;
+  justify-content: center;
+  padding: 4rem 0;
+}
+
+.spinner {
+  display: inline-block;
+  width: 30px;
+  height: 30px;
+  border: 3px solid var(--color-surface);
+  border-top-color: var(--color-accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.empty {
+  color: var(--color-secondary);
+  text-align: center;
+  padding: 4rem 0;
+  font-size: 0.9rem;
+}
+
+/* ── List ── */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.item {
+  background: var(--background);
+  border: 1px solid var(--color-surface);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.itemUnread {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 10%, transparent);
+}
+
+.itemOpen {
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--color-secondary) 10%, transparent);
+}
+
+.itemHeader {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 1.1rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  transition: background 0.12s;
+}
+.itemHeader:hover {
+  background: var(--color-surface-tint);
+}
+
+.itemMeta {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+  flex-shrink: 0;
+}
+
+.dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  flex-shrink: 0;
+}
+
+.itemInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.itemName {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--color-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
+}
+
+.itemContact {
+  font-size: 0.76rem;
+  color: var(--color-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
+}
+
+.itemRight {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.itemSubject {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--foreground);
+  flex: 1;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.itemDate {
+  font-size: 0.74rem;
+  color: color-mix(in srgb, var(--color-secondary) 70%, transparent);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.chevron {
+  font-size: 0.6rem;
+  color: var(--color-secondary);
+  flex-shrink: 0;
+  transition: transform 0.15s;
+}
+
+/* ── Expanded body ── */
+.itemBody {
+  border-top: 1px solid var(--color-surface);
+  padding: 1rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  background: var(--color-surface-tint);
+}
+
+.messageText {
+  font-size: 0.88rem;
+  color: var(--foreground);
+  line-height: 1.65;
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.itemFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.itemDateFull {
+  font-size: 0.74rem;
+  color: var(--color-secondary);
+}
+
+.readBtn {
+  padding: 0.35rem 0.9rem;
+  border-radius: 7px;
+  border: 1.5px solid var(--color-accent);
+  background: var(--background);
+  color: var(--color-accent);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.readBtn:hover {
+  background: var(--color-accent);
+  color: #fff;
+}
+
+.readLabel {
+  font-size: 0.74rem;
+  color: var(--color-secondary);
+  font-style: italic;
+}

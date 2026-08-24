@@ -1,5 +1,5 @@
 .page {
-  background: var(--color-surface);
+  background: var(--background);
   min-height: 100vh;
 }
 
@@ -25,6 +25,18 @@
   background: radial-gradient(circle, color-mix(in srgb, var(--color-accent) 14%, transparent) 0%, transparent 65%);
   top: -150px;
   right: -80px;
+}
+
+/* Soft white counter-glow, bottom-left — keeps the dark hero from reading
+   as a flat, lightless block. */
+.heroBgGlowWhite {
+  position: absolute;
+  width: 620px;
+  height: 460px;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, white 26%, transparent) 0%, transparent 68%);
+  bottom: -180px;
+  left: -100px;
 }
 
 .heroBgGrid {

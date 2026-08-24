@@ -53,7 +53,7 @@ export default function WishlistPage() {
       ) : products.length === 0 ? (
         <div className={styles.empty}>
           <p>{t.shop.wishlistEmpty}</p>
-          <Link href={`/${locale}/shop`}>{t.shop.browseProducts}</Link>
+          <Link href={`/${locale}/shop`} className={styles.emptyCta}>{t.shop.browseProducts}</Link>
         </div>
       ) : (
         <div className={styles.grid}>

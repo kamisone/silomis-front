@@ -18,15 +18,19 @@
   }
 }
 
-/* ── Sidebar ── */
+/* ── Sidebar ──
+   Sticks just below the fixed header. Tracks the header's real, measured
+   height via --header-offset (set by ScrollAwareHeader — collapses to 0px
+   while the header is auto-hidden on scroll-down) rather than a guessed px
+   value, which drifted out of sync with the header's actual height. */
 .sidebar {
   position: sticky;
-  top: 84px;
+  top: calc(var(--header-offset, 84px) + 20px);
 }
 
 @media (max-width: 800px) {
   .sidebar {
-    position: static;
+    display: none;
   }
 }
 

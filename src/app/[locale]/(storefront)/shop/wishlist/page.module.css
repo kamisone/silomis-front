@@ -15,7 +15,26 @@
   flex-direction: column;
   gap: 12px;
   padding: 48px 0;
-  color: var(--color-secondary, #3a4a4a);
+  color: var(--color-secondary, #363a40);
+}
+
+.emptyCta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: flex-start;
+  min-height: 46px;
+  padding: 0 30px;
+  background: var(--color-accent);
+  color: #fff;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 15px;
+  transition: background 0.18s, transform 0.15s;
+}
+.emptyCta:hover {
+  background: var(--color-secondary);
+  transform: translateY(-1px);
 }
 
 .grid {
@@ -53,7 +72,7 @@
 .cardPrice {
   padding: 0 12px 12px;
   font-size: 0.85rem;
-  color: var(--color-secondary, #3a4a4a);
+  color: var(--color-secondary, #363a40);
 }
 
 .cardAction {

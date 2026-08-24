@@ -29,17 +29,24 @@ export default function ScrollAwareHeader({ children }: { children: React.ReactN
 
   // Keep --header-offset and --header-height in sync with the real, measured
   // header height — the commerce header has two rows and wraps onto extra
-  // lines at some breakpoints, so a hardcoded px value drifts out of sync and
-  // lets the fixed header cover page content.
+  // lines at some breakpoints, and its second row (category nav) populates
+  // asynchronously after its own data fetch, so a one-time measurement on
+  // mount goes stale the moment that content lands. A ResizeObserver tracks
+  // the header's actual rendered size continuously instead.
   useEffect(() => {
+    const el = headerRef.current;
+    if (!el) return;
+
     const setOffset = () => {
-      const height = headerRef.current?.offsetHeight ?? 64;
+      const height = el.offsetHeight || 64;
       document.documentElement.style.setProperty("--header-offset", hidden ? "0px" : `${height}px`);
       document.documentElement.style.setProperty("--header-height", `${height}px`);
     };
     setOffset();
-    window.addEventListener("resize", setOffset, { passive: true });
-    return () => window.removeEventListener("resize", setOffset);
+
+    const observer = new ResizeObserver(setOffset);
+    observer.observe(el);
+    return () => observer.disconnect();
   }, [hidden]);
 
   return (

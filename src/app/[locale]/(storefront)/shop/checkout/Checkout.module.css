@@ -438,14 +438,16 @@
   transform: translateY(-1px);
 }
 
-/* ── Order summary ── */
+/* ── Order summary ──
+   Sticks just below the fixed header — see Shop.module.css .sidebar for why
+   this tracks --header-offset instead of a guessed px value. */
 .summary {
   background: var(--color-surface-tint);
   border: 1px solid var(--co-border);
   border-radius: 18px;
   padding: 26px;
   position: sticky;
-  top: 24px;
+  top: calc(var(--header-offset, 84px) + 20px);
   height: fit-content;
 }
 .summary h3 {

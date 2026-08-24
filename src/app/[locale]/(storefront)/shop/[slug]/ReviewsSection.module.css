@@ -28,7 +28,7 @@
 
 .summaryCount {
   font-size: 0.85rem;
-  color: var(--color-secondary, #3a4a4a);
+  color: var(--color-secondary, #363a40);
 }
 
 .distribution {
@@ -71,7 +71,7 @@
 }
 
 .empty {
-  color: var(--color-secondary, #3a4a4a);
+  color: var(--color-secondary, #363a40);
   margin-bottom: 16px;
 }
 
@@ -125,7 +125,7 @@
 
 .cardMeta {
   font-size: 0.8rem;
-  color: var(--color-secondary, #3a4a4a);
+  color: var(--color-secondary, #363a40);
   margin-top: 8px;
 }
 
@@ -201,7 +201,7 @@
   padding: 10px 18px;
   border-radius: 8px;
   border: none;
-  background: var(--color-primary, #7fbfa8);
+  background: var(--color-primary, #129c98);
   color: #fff;
   cursor: pointer;
   font-weight: 600;
@@ -209,7 +209,7 @@
 
 .modalHint {
   font-size: 0.85rem;
-  color: var(--color-secondary, #3a4a4a);
+  color: var(--color-secondary, #363a40);
   margin: -8px 0 0;
 }
 

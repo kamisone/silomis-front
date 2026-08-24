@@ -62,7 +62,7 @@ export default function ContactPage() {
       {/* ── Hero ── */}
       <div className={styles.hero}>
         <div className={styles.heroBg} aria-hidden="true">
-          <div className={styles.heroBgGlow} />
+          <div className={styles.heroBgGlowWhite} />
         </div>
         <div className={styles.heroContent}>
           <span className={styles.eyebrow}>{t.eyebrow}</span>

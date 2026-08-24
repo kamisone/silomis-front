@@ -27,6 +27,7 @@ export default async function AboutPage({ params }: { params: Promise<{ locale: 
       <section className={styles.hero}>
         <div className={styles.heroBg} aria-hidden="true">
           <div className={styles.heroBgGlow} />
+          <div className={styles.heroBgGlowWhite} />
           <div className={styles.heroBgGrid} />
         </div>
         <div className={styles.heroContent}>
