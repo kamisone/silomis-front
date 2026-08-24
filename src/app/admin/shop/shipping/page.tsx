@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { api, ApiError } from "@/lib/api";
+import { useToast } from "@/components/toast/ToastContext";
 import Button from "@/components/admin/ui/Button";
 import Modal from "@/components/admin/ui/Modal";
 import ui from "@/components/admin/ui/admin-ui.module.css";
@@ -63,13 +64,13 @@ const ZONE_FORM_ID = "shipping-zone-form";
 const METHOD_FORM_ID = "shipping-method-form";
 
 export default function ShippingPage() {
+  const { toast } = useToast();
   const [zones, setZones] = useState<Zone[]>([]);
   const [methods, setMethods] = useState<Method[]>([]);
   const [loading, setLoading] = useState(true);
   const [zoneForm, setZoneForm] = useState<ZoneForm | null>(null);
   const [methodForm, setMethodForm] = useState<MethodForm | null>(null);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   async function load() {
     setLoading(true);
@@ -106,7 +107,7 @@ export default function ShippingPage() {
     e.preventDefault();
     if (!zoneForm) return;
     setSaving(true);
-    setError(null);
+    const isNew = !zoneForm.id;
     const payload = {
       name: zoneForm.name,
       countryCodes: zoneForm.countryCodes
@@ -126,8 +127,9 @@ export default function ShippingPage() {
       }
       setZoneForm(null);
       await load();
+      toast.success(isNew ? "Zone created" : "Zone updated");
     } catch (err) {
-      setError(err instanceof ApiError ? String((err.body as { message?: string })?.message ?? "Save failed") : "Save failed");
+      toast.error(err instanceof ApiError ? String((err.body as { message?: string })?.message ?? "Failed to save zone") : "Failed to save zone");
     } finally {
       setSaving(false);
     }
@@ -138,8 +140,9 @@ export default function ShippingPage() {
     try {
       await api.delete(`/next-api/admin/shop/shipping/zones/${zone.id}`);
       await load();
+      toast.success("Zone deleted");
     } catch (err) {
-      alert(err instanceof ApiError ? String((err.body as { message?: string })?.message ?? "Delete failed") : "Delete failed");
+      toast.error(err instanceof ApiError ? String((err.body as { message?: string })?.message ?? "Failed to delete zone") : "Failed to delete zone");
     }
   }
 
@@ -147,7 +150,7 @@ export default function ShippingPage() {
     e.preventDefault();
     if (!methodForm) return;
     setSaving(true);
-    setError(null);
+    const isNew = !methodForm.id;
     const payload = {
       zoneId: methodForm.zoneId,
       name: methodForm.name,
@@ -168,8 +171,9 @@ export default function ShippingPage() {
       }
       setMethodForm(null);
       await load();
+      toast.success(isNew ? "Method created" : "Method updated");
     } catch (err) {
-      setError(err instanceof ApiError ? String((err.body as { message?: string })?.message ?? "Save failed") : "Save failed");
+      toast.error(err instanceof ApiError ? String((err.body as { message?: string })?.message ?? "Failed to save method") : "Failed to save method");
     } finally {
       setSaving(false);
     }
@@ -180,8 +184,9 @@ export default function ShippingPage() {
     try {
       await api.delete(`/next-api/admin/shop/shipping/methods/${method.id}`);
       await load();
+      toast.success("Method deleted");
     } catch (err) {
-      alert(err instanceof ApiError ? String((err.body as { message?: string })?.message ?? "Delete failed") : "Delete failed");
+      toast.error(err instanceof ApiError ? String((err.body as { message?: string })?.message ?? "Failed to delete method") : "Failed to delete method");
     }
   }
 
@@ -347,7 +352,6 @@ export default function ShippingPage() {
           }
         >
           <form id={ZONE_FORM_ID} onSubmit={handleZoneSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-            {error && <p className={ui.error}>{error}</p>}
             <div className={ui.field}>
               <label className={ui.label}>Name</label>
               <input className={ui.input} value={zoneForm.name} onChange={(e) => setZoneForm({ ...zoneForm, name: e.target.value })} required autoFocus />
@@ -405,7 +409,6 @@ export default function ShippingPage() {
           }
         >
           <form id={METHOD_FORM_ID} onSubmit={handleMethodSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-            {error && <p className={ui.error}>{error}</p>}
             <div className={ui.field}>
               <label className={ui.label}>Zone</label>
               <select className={ui.select} value={methodForm.zoneId} onChange={(e) => setMethodForm({ ...methodForm, zoneId: e.target.value })} required>

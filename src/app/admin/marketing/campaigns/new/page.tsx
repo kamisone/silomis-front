@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
+import { useToast } from "@/components/toast/ToastContext";
 import Button from "@/components/admin/ui/Button";
 import ui from "@/components/admin/ui/admin-ui.module.css";
 
@@ -11,6 +12,7 @@ function errMessage(err: unknown, fallback: string): string {
 }
 
 export default function NewCampaignPage() {
+  const { toast } = useToast();
   const router = useRouter();
   const [title, setTitle] = useState("");
   const [subject, setSubject] = useState("");
@@ -20,6 +22,7 @@ export default function NewCampaignPage() {
   async function create() {
     if (!title.trim() || !subject.trim()) {
       setError("Title and subject are required");
+      toast.error("Title and subject are required");
       return;
     }
     setSaving(true);
@@ -28,7 +31,9 @@ export default function NewCampaignPage() {
       const data = await api.post<{ id: string }>("/next-api/admin/newsletter/campaigns", { title: title.trim(), subject: subject.trim() });
       router.push(`/admin/marketing/campaigns/${data.id}`);
     } catch (err) {
-      setError(errMessage(err, "Failed to create campaign"));
+      const msg = errMessage(err, "Failed to create campaign");
+      setError(msg);
+      toast.error(msg);
     } finally {
       setSaving(false);
     }

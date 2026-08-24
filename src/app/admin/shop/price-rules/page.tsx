@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { api, ApiError } from "@/lib/api";
+import { useToast } from "@/components/toast/ToastContext";
 import Button from "@/components/admin/ui/Button";
 import Modal from "@/components/admin/ui/Modal";
 import ui from "@/components/admin/ui/admin-ui.module.css";
@@ -105,13 +106,13 @@ function ruleToForm(r: PriceRule): PriceRuleForm {
 }
 
 export default function PriceRulesPage() {
+  const { toast } = useToast();
   const [rules, setRules] = useState<PriceRule[]>([]);
   const [products, setProducts] = useState<ProductLite[]>([]);
   const [variants, setVariants] = useState<VariantLite[]>([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState<PriceRuleForm | null>(null);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   async function load() {
     setLoading(true);
@@ -142,13 +143,11 @@ export default function PriceRulesPage() {
   }
 
   function openCreate() {
-    setError(null);
     setVariants([]);
     setForm({ ...EMPTY_FORM });
   }
 
   async function openEdit(r: PriceRule) {
-    setError(null);
     setForm(ruleToForm(r));
     if (r.scope === "variant" && r.productId) await loadVariants(r.productId);
     else setVariants([]);
@@ -163,7 +162,7 @@ export default function PriceRulesPage() {
     e.preventDefault();
     if (!form) return;
     setSaving(true);
-    setError(null);
+    const isNew = !form.id;
     const payload = {
       name: form.name,
       type: form.type,
@@ -185,8 +184,9 @@ export default function PriceRulesPage() {
       }
       closeModal();
       await load();
+      toast.success(isNew ? "Price rule created" : "Price rule updated");
     } catch (err) {
-      setError(err instanceof ApiError ? String((err.body as { message?: string })?.message ?? "Save failed") : "Save failed");
+      toast.error(err instanceof ApiError ? String((err.body as { message?: string })?.message ?? "Failed to save price rule") : "Failed to save price rule");
     } finally {
       setSaving(false);
     }
@@ -197,8 +197,9 @@ export default function PriceRulesPage() {
     try {
       await api.delete(`/next-api/admin/shop/price-rules/${r.id}`);
       await load();
+      toast.success("Price rule deleted");
     } catch (err) {
-      alert(err instanceof ApiError ? String((err.body as { message?: string })?.message ?? "Delete failed") : "Delete failed");
+      toast.error(err instanceof ApiError ? String((err.body as { message?: string })?.message ?? "Failed to delete price rule") : "Failed to delete price rule");
     }
   }
 
@@ -275,8 +276,6 @@ export default function PriceRulesPage() {
           }
         >
           <form id={FORM_ID} onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-            {error && <p className={ui.error}>{error}</p>}
-
             <div className={ui.field}>
               <label className={ui.label}>Name</label>
               <input className={ui.input} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required autoFocus />

@@ -9,6 +9,7 @@ import MediaPicker from "@/components/admin/ui/MediaPicker";
 import BilingualField from "@/components/admin/BilingualField";
 import { useEntityTranslations } from "@/hooks/useEntityTranslations";
 import ui from "@/components/admin/ui/admin-ui.module.css";
+import { useToast } from "@/components/toast/ToastContext";
 
 const ENTITY_TYPE = "shop_collection";
 
@@ -53,12 +54,11 @@ function toDateInput(iso: string | null): string {
 export default function CollectionDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const { toast } = useToast();
   const [collection, setCollection] = useState<Collection | null>(null);
   const [products, setProducts] = useState<ProductLite[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
 
   const { translations, setTranslation, saveTranslations } = useEntityTranslations(ENTITY_TYPE, collection?.id ?? null);
 
@@ -85,8 +85,6 @@ export default function CollectionDetailPage() {
     e.preventDefault();
     if (!collection) return;
     setSaving(true);
-    setError(null);
-    setSaved(false);
     try {
       const updated = await api.patch<Collection>(`/next-api/admin/shop/collections/${collection.id}`, {
         name: collection.name,
@@ -108,9 +106,9 @@ export default function CollectionDetailPage() {
       await saveTranslations(collection.id, ["name", "description", "seoTitle", "seoDescription", "heroTitle", "heroSubtitle", "bodyHtml"]);
 
       setCollection({ ...updated, productLinks: collection.productLinks });
-      setSaved(true);
+      toast.success("Changes saved");
     } catch (err) {
-      setError(err instanceof ApiError ? String((err.body as { message?: string })?.message ?? "Save failed") : "Save failed");
+      toast.error(err instanceof ApiError ? String((err.body as { message?: string })?.message ?? "Save failed") : "Save failed");
     } finally {
       setSaving(false);
     }
@@ -122,7 +120,7 @@ export default function CollectionDetailPage() {
       await api.post(`/next-api/admin/shop/collections/${collection.id}/products`, { productId });
       await load();
     } catch (err) {
-      setError(err instanceof ApiError ? String((err.body as { message?: string })?.message ?? "Failed to add product") : "Failed to add product");
+      toast.error(err instanceof ApiError ? String((err.body as { message?: string })?.message ?? "Failed to add product") : "Failed to add product");
     }
   }
 
@@ -132,7 +130,7 @@ export default function CollectionDetailPage() {
       await api.delete(`/next-api/admin/shop/collections/${collection.id}/products/${productId}`);
       await load();
     } catch (err) {
-      setError(err instanceof ApiError ? String((err.body as { message?: string })?.message ?? "Failed to remove product") : "Failed to remove product");
+      toast.error(err instanceof ApiError ? String((err.body as { message?: string })?.message ?? "Failed to remove product") : "Failed to remove product");
     }
   }
 
@@ -146,14 +144,19 @@ export default function CollectionDetailPage() {
       await api.put(`/next-api/admin/shop/collections/${collection.id}/products/reorder`, { productIds: links.map((l) => l.productId) });
       await load();
     } catch (err) {
-      setError(err instanceof ApiError ? String((err.body as { message?: string })?.message ?? "Failed to reorder") : "Failed to reorder");
+      toast.error(err instanceof ApiError ? String((err.body as { message?: string })?.message ?? "Failed to reorder") : "Failed to reorder");
     }
   }
 
   async function handleDelete() {
     if (!collection || !confirm(`Delete collection "${collection.name}"?`)) return;
-    await api.delete(`/next-api/admin/shop/collections/${collection.id}`);
-    router.push("/admin/shop/collections");
+    try {
+      await api.delete(`/next-api/admin/shop/collections/${collection.id}`);
+      toast.success("Collection deleted");
+      router.push("/admin/shop/collections");
+    } catch (err) {
+      toast.error(err instanceof ApiError ? String((err.body as { message?: string })?.message ?? "Failed to delete collection") : "Failed to delete collection");
+    }
   }
 
   if (loading || !collection) {
@@ -183,8 +186,6 @@ export default function CollectionDetailPage() {
 
       <div className={ui.card}>
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem", maxWidth: 640 }}>
-          {error && <p className={ui.error}>{error}</p>}
-
           <BilingualField
             label="Name"
             field="name"
@@ -301,7 +302,6 @@ export default function CollectionDetailPage() {
             <Button type="submit" disabled={saving}>
               {saving ? "Saving…" : "Save"}
             </Button>
-            {saved && <span style={{ marginLeft: "0.75rem", fontSize: "0.85rem", color: "var(--color-secondary)" }}>Saved</span>}
           </div>
         </form>
       </div>

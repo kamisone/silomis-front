@@ -2,8 +2,13 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { api } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
 import styles from "./Products.module.css";
+import { useToast } from "@/components/toast/ToastContext";
+
+function errMessage(err: unknown, fallback: string): string {
+  return err instanceof ApiError ? String((err.body as { message?: string })?.message ?? fallback) : fallback;
+}
 
 interface ProductListItem {
   id: string;
@@ -36,6 +41,7 @@ function formatPrice(cents: number | null): string {
 }
 
 export default function AdminProductsPage() {
+  const { toast } = useToast();
   const [tab, setTab] = useState<Tab>("active");
   const [products, setProducts] = useState<ProductListItem[]>([]);
   const [total, setTotal] = useState(0);
@@ -75,27 +81,47 @@ export default function AdminProductsPage() {
 
   async function handleDelete(id: string) {
     if (!confirm("Move this product to Trash?")) return;
-    await api.delete(`/next-api/admin/shop/products/${id}`);
-    setProducts((prev) => prev.filter((p) => p.id !== id));
-    setTotal((t) => t - 1);
+    try {
+      await api.delete(`/next-api/admin/shop/products/${id}`);
+      setProducts((prev) => prev.filter((p) => p.id !== id));
+      setTotal((t) => t - 1);
+      toast.success("Product moved to Trash");
+    } catch (err) {
+      toast.error(errMessage(err, "Failed to delete product"));
+    }
   }
 
   async function handlePublish(id: string) {
-    await api.post(`/next-api/admin/shop/products/${id}/publish`, {});
-    load();
+    try {
+      await api.post(`/next-api/admin/shop/products/${id}/publish`, {});
+      load();
+      toast.success("Product published");
+    } catch (err) {
+      toast.error(errMessage(err, "Failed to publish product"));
+    }
   }
 
   async function handleRestore(id: string) {
-    await api.post(`/next-api/admin/shop/products/${id}/restore`, {});
-    setProducts((prev) => prev.filter((p) => p.id !== id));
-    setTotal((t) => t - 1);
+    try {
+      await api.post(`/next-api/admin/shop/products/${id}/restore`, {});
+      setProducts((prev) => prev.filter((p) => p.id !== id));
+      setTotal((t) => t - 1);
+      toast.success("Product restored");
+    } catch (err) {
+      toast.error(errMessage(err, "Failed to restore product"));
+    }
   }
 
   async function handleHardDelete(id: string) {
     if (!confirm("Permanently delete this product? This cannot be undone.")) return;
-    await api.delete(`/next-api/admin/shop/products/${id}/permanent`);
-    setProducts((prev) => prev.filter((p) => p.id !== id));
-    setTotal((t) => t - 1);
+    try {
+      await api.delete(`/next-api/admin/shop/products/${id}/permanent`);
+      setProducts((prev) => prev.filter((p) => p.id !== id));
+      setTotal((t) => t - 1);
+      toast.success("Product permanently deleted");
+    } catch (err) {
+      toast.error(errMessage(err, "Failed to permanently delete product"));
+    }
   }
 
   const pages = Math.ceil(total / limit);

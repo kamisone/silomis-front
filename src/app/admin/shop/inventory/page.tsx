@@ -5,6 +5,7 @@ import { api, ApiError } from "@/lib/api";
 import Button from "@/components/admin/ui/Button";
 import Modal from "@/components/admin/ui/Modal";
 import ui from "@/components/admin/ui/admin-ui.module.css";
+import { useToast } from "@/components/toast/ToastContext";
 
 interface OptionValue {
   optionValueId: string;
@@ -71,6 +72,7 @@ const SKELETON_ROWS = 6;
 const COLUMN_COUNT = 12;
 
 export default function InventoryPage() {
+  const { toast } = useToast();
   const [rows, setRows] = useState<InventoryRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -81,13 +83,11 @@ export default function InventoryPage() {
   const [bulkDelta, setBulkDelta] = useState("");
   const [bulkNote, setBulkNote] = useState("");
   const [bulkSaving, setBulkSaving] = useState(false);
-  const [bulkError, setBulkError] = useState<string | null>(null);
 
   const [adjustTarget, setAdjustTarget] = useState<InventoryRow | null>(null);
   const [delta, setDelta] = useState("");
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const [movementsTarget, setMovementsTarget] = useState<InventoryRow | null>(null);
   const [movements, setMovements] = useState<Movement[]>([]);
@@ -96,12 +96,9 @@ export default function InventoryPage() {
   const [thresholdTarget, setThresholdTarget] = useState<InventoryRow | null>(null);
   const [thresholdValue, setThresholdValue] = useState("");
   const [thresholdSaving, setThresholdSaving] = useState(false);
-  const [thresholdError, setThresholdError] = useState<string | null>(null);
 
   const [generateTarget, setGenerateTarget] = useState<{ productId: string } | null>(null);
   const [generateSaving, setGenerateSaving] = useState(false);
-  const [generateError, setGenerateError] = useState<string | null>(null);
-  const [generateResultMsg, setGenerateResultMsg] = useState<string | null>(null);
 
   const [copiedSku, setCopiedSku] = useState<string | null>(null);
 
@@ -175,7 +172,6 @@ export default function InventoryPage() {
   }
 
   function openAdjust(row: InventoryRow) {
-    setError(null);
     setDelta("");
     setNote("");
     setAdjustTarget(row);
@@ -186,17 +182,17 @@ export default function InventoryPage() {
     if (!adjustTarget) return;
     const deltaNum = Number(delta);
     if (!Number.isInteger(deltaNum) || deltaNum === 0) {
-      setError("Enter a non-zero whole number.");
+      toast.error("Invalid delta value");
       return;
     }
     setSaving(true);
-    setError(null);
     try {
       await api.post(`/next-api/admin/shop/inventory/${adjustTarget.variantId}/adjust`, { delta: deltaNum, note: note || "Manual adjustment" });
+      toast.success("Stock adjusted");
       setAdjustTarget(null);
       await load();
     } catch (err) {
-      setError(errMessage(err, "Adjustment failed"));
+      toast.error(errMessage(err, "Failed to adjust stock"));
     } finally {
       setSaving(false);
     }
@@ -205,20 +201,20 @@ export default function InventoryPage() {
   async function handleBulkAdjust() {
     const deltaNum = Number(bulkDelta);
     if (!Number.isInteger(deltaNum) || deltaNum === 0 || selected.size === 0) {
-      setBulkError("Enter a non-zero whole number.");
+      toast.error("Invalid delta value");
       return;
     }
     setBulkSaving(true);
-    setBulkError(null);
     try {
       const adjustments = Array.from(selected).map((variantId) => ({ variantId, delta: deltaNum, note: bulkNote || "Bulk adjustment" }));
-      await api.post<{ ok: number; failed: number }>("/next-api/admin/shop/inventory/bulk-adjust", { adjustments });
+      const data = await api.post<{ ok: number; failed: number }>("/next-api/admin/shop/inventory/bulk-adjust", { adjustments });
+      toast.success(`Adjusted ${data.ok} SKU(s)${data.failed > 0 ? `, ${data.failed} failed` : ""}`);
       setSelected(new Set());
       setBulkDelta("");
       setBulkNote("");
       await load();
     } catch (err) {
-      setBulkError(errMessage(err, "Bulk adjustment failed"));
+      toast.error(errMessage(err, "Bulk adjustment failed"));
     } finally {
       setBulkSaving(false);
     }
@@ -229,13 +225,14 @@ export default function InventoryPage() {
     setMovementsLoading(true);
     try {
       setMovements(await api.get<Movement[]>(`/next-api/admin/shop/inventory/${row.variantId}/movements`));
+    } catch {
+      toast.error("Failed to load movements");
     } finally {
       setMovementsLoading(false);
     }
   }
 
   function openThreshold(row: InventoryRow) {
-    setThresholdError(null);
     setThresholdValue(String(row.lowStockThreshold));
     setThresholdTarget(row);
   }
@@ -245,24 +242,23 @@ export default function InventoryPage() {
     if (!thresholdTarget) return;
     const val = Number(thresholdValue);
     if (!Number.isInteger(val) || val < 0) {
-      setThresholdError("Enter a whole number of zero or more.");
+      toast.error("Invalid threshold");
       return;
     }
     setThresholdSaving(true);
-    setThresholdError(null);
     try {
       await api.patch(`/next-api/admin/shop/inventory/${thresholdTarget.variantId}`, { lowStockThreshold: val });
+      toast.success("Threshold updated");
       setThresholdTarget(null);
       await load();
     } catch (err) {
-      setThresholdError(errMessage(err, "Failed to update threshold"));
+      toast.error(errMessage(err, "Failed to update threshold"));
     } finally {
       setThresholdSaving(false);
     }
   }
 
   function openGenerate() {
-    setGenerateError(null);
     const first = uniqueProducts[0];
     if (first) setGenerateTarget({ productId: first.id });
   }
@@ -270,14 +266,13 @@ export default function InventoryPage() {
   async function handleGenerate() {
     if (!generateTarget) return;
     setGenerateSaving(true);
-    setGenerateError(null);
     try {
       const res = await api.post<{ created: number; skipped: number }>(`/next-api/admin/shop/products/${generateTarget.productId}/variants/generate-combinations`);
+      toast.success(`Generated ${res.created} new SKU(s), ${res.skipped} already existed`);
       setGenerateTarget(null);
       await load();
-      setGenerateResultMsg(`Generated ${res.created} new SKU(s), ${res.skipped} already existed.`);
     } catch (err) {
-      setGenerateError(errMessage(err, "Failed to generate combinations"));
+      toast.error(errMessage(err, "Failed to generate combinations"));
     } finally {
       setGenerateSaving(false);
     }
@@ -286,6 +281,7 @@ export default function InventoryPage() {
   function copySku(sku: string) {
     navigator.clipboard?.writeText(sku).then(() => {
       setCopiedSku(sku);
+      toast.success("SKU copied");
       setTimeout(() => setCopiedSku((cur) => (cur === sku ? null : cur)), 1500);
     });
   }
@@ -303,12 +299,6 @@ export default function InventoryPage() {
           </Button>
         </div>
       </div>
-
-      {generateResultMsg && (
-        <p className={ui.muted} style={{ fontSize: "0.85rem" }}>
-          {generateResultMsg}
-        </p>
-      )}
 
       <div className={ui.kpiStrip}>
         <div className={ui.kpiCard} title="Sellable stock — not held by any order">
@@ -374,12 +364,10 @@ export default function InventoryPage() {
             variant="secondary"
             onClick={() => {
               setSelected(new Set());
-              setBulkError(null);
             }}
           >
             Clear
           </Button>
-          {bulkError && <span className={ui.error}>{bulkError}</span>}
         </div>
       )}
 
@@ -517,7 +505,6 @@ export default function InventoryPage() {
           }
         >
           <form id={ADJUST_FORM_ID} onSubmit={handleAdjustSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-            {error && <p className={ui.error}>{error}</p>}
             <p style={{ fontSize: "0.85rem", color: "var(--color-secondary)" }}>
               Currently <strong>{adjustTarget.available}</strong> available. Enter a positive number to add stock, or negative to remove.
             </p>
@@ -549,7 +536,6 @@ export default function InventoryPage() {
           }
         >
           <form id={THRESHOLD_FORM_ID} onSubmit={handleThresholdSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-            {thresholdError && <p className={ui.error}>{thresholdError}</p>}
             <div className={ui.field}>
               <label className={ui.label}>Alert when available drops below</label>
               <input className={ui.input} type="number" min={0} step="1" value={thresholdValue} onChange={(e) => setThresholdValue(e.target.value)} required autoFocus />
@@ -574,7 +560,6 @@ export default function InventoryPage() {
           }
         >
           <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-            {generateError && <p className={ui.error}>{generateError}</p>}
             <div className={ui.field}>
               <label className={ui.label}>Product</label>
               <select

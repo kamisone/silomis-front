@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { api, ApiError } from "@/lib/api";
+import { useToast } from "@/components/toast/ToastContext";
 import Button from "@/components/admin/ui/Button";
 import ui from "@/components/admin/ui/admin-ui.module.css";
 
@@ -10,17 +11,16 @@ function errMessage(err: unknown, fallback: string): string {
 }
 
 export default function CommerceConfigPage() {
+  const { toast } = useToast();
   const [ipsValue, setIpsValue] = useState("");
   const [ipsCount, setIpsCount] = useState(0);
   const [ipsLoading, setIpsLoading] = useState(true);
   const [ipsSaving, setIpsSaving] = useState(false);
-  const [ipsStatus, setIpsStatus] = useState<{ text: string; isError: boolean } | null>(null);
 
   const [botValue, setBotValue] = useState("");
   const [botCount, setBotCount] = useState(0);
   const [botLoading, setBotLoading] = useState(true);
   const [botSaving, setBotSaving] = useState(false);
-  const [botStatus, setBotStatus] = useState<{ text: string; isError: boolean } | null>(null);
 
   useEffect(() => {
     api
@@ -42,21 +42,17 @@ export default function CommerceConfigPage() {
 
   async function saveIps() {
     setIpsSaving(true);
-    setIpsStatus(null);
     try {
       const data = await api.put<{ rules: string[]; invalid: string[] }>("/next-api/admin/platform-settings/analytics-excluded-ips", { value: ipsValue });
       setIpsCount(data.rules.length);
       setIpsValue(data.rules.join("\n"));
-      setIpsStatus(
-        data.invalid.length
-          ? { text: `Ignored ${data.invalid.length} invalid entr${data.invalid.length === 1 ? "y" : "ies"}: ${data.invalid.join(", ")}`, isError: true }
-          : {
-              text: data.rules.length ? `Saved — ${data.rules.length} address${data.rules.length === 1 ? "" : "es"} excluded from analytics` : "Saved — no addresses excluded",
-              isError: false,
-            },
-      );
+      if (data.invalid.length) {
+        toast.error(`Ignored ${data.invalid.length} invalid entr${data.invalid.length === 1 ? "y" : "ies"}: ${data.invalid.join(", ")}`);
+      } else {
+        toast.success(data.rules.length ? `Saved — ${data.rules.length} address${data.rules.length === 1 ? "" : "es"} excluded from analytics` : "Saved — no addresses excluded");
+      }
     } catch (err) {
-      setIpsStatus({ text: errMessage(err, "Failed to save the exclusion list"), isError: true });
+      toast.error(errMessage(err, "Failed to save the exclusion list"));
     } finally {
       setIpsSaving(false);
     }
@@ -64,14 +60,13 @@ export default function CommerceConfigPage() {
 
   async function saveBotPatterns() {
     setBotSaving(true);
-    setBotStatus(null);
     try {
       const data = await api.put<{ patterns: string[] }>("/next-api/admin/platform-settings/analytics-bot-user-agents", { value: botValue });
       setBotCount(data.patterns.length);
       setBotValue(data.patterns.join("\n"));
-      setBotStatus({ text: data.patterns.length ? `Saved — ${data.patterns.length} pattern${data.patterns.length === 1 ? "" : "s"} filtered from analytics` : "Saved — bot filtering disabled", isError: false });
+      toast.success(data.patterns.length ? `Saved — ${data.patterns.length} pattern${data.patterns.length === 1 ? "" : "s"} filtered from analytics` : "Saved — bot filtering disabled");
     } catch (err) {
-      setBotStatus({ text: errMessage(err, "Failed to save the bot filter list"), isError: true });
+      toast.error(errMessage(err, "Failed to save the bot filter list"));
     } finally {
       setBotSaving(false);
     }
@@ -112,11 +107,6 @@ export default function CommerceConfigPage() {
           </Button>
           <span style={{ fontSize: "0.8rem", color: "var(--color-secondary)" }}>{ipsLoading ? "Loading…" : ipsCount === 0 ? "No exclusions — all traffic is recorded" : `${ipsCount} address${ipsCount === 1 ? "" : "es"} currently excluded`}</span>
         </div>
-        {ipsStatus && (
-          <p className={ipsStatus.isError ? ui.error : undefined} style={{ marginTop: "0.75rem", fontSize: "0.8rem", color: ipsStatus.isError ? undefined : "var(--color-primary)" }}>
-            {ipsStatus.text}
-          </p>
-        )}
 
         <p style={{ fontSize: "0.75rem", lineHeight: 1.6, color: "var(--color-secondary)", margin: "1rem 0 0", paddingTop: "0.85rem", borderTop: "1px solid color-mix(in srgb, var(--foreground) 10%, transparent)" }}>
           Applies to events recorded from now on. Anything already counted stays in the reports — and a change can take up to a minute to reach every server.
@@ -148,11 +138,6 @@ export default function CommerceConfigPage() {
           </Button>
           <span style={{ fontSize: "0.8rem", color: "var(--color-secondary)" }}>{botLoading ? "Loading…" : botCount === 0 ? "No patterns — bot filtering disabled" : `${botCount} pattern${botCount === 1 ? "" : "s"} currently filtered`}</span>
         </div>
-        {botStatus && (
-          <p className={botStatus.isError ? ui.error : undefined} style={{ marginTop: "0.75rem", fontSize: "0.8rem", color: botStatus.isError ? undefined : "var(--color-primary)" }}>
-            {botStatus.text}
-          </p>
-        )}
 
         <p style={{ fontSize: "0.75rem", lineHeight: 1.6, color: "var(--color-secondary)", margin: "1rem 0 0", paddingTop: "0.85rem", borderTop: "1px solid color-mix(in srgb, var(--foreground) 10%, transparent)" }}>
           Applies to events recorded from now on. Anything already counted stays in the reports — and a change can take up to a minute to reach every server.

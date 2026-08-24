@@ -4,9 +4,7 @@ import { useEffect, useState, useCallback, type FormEvent } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { api, ApiError } from "@/lib/api";
-import Button from "@/components/admin/ui/Button";
-import Modal from "@/components/admin/ui/Modal";
-import MediaPicker from "@/components/admin/ui/MediaPicker";
+import { useToast } from "@/components/toast/ToastContext";
 import BilingualField from "@/components/admin/BilingualField";
 import CollapsibleSection from "@/components/admin/shop/CollapsibleSection";
 import ProductMediaManager from "@/components/admin/shop/ProductMediaManager";
@@ -34,9 +32,9 @@ import type {
   ProductSocialVideo,
   ProductUpsellTier,
 } from "@/lib/shop/productContent.types";
-import { Pencil, DollarSign, Image as ImageIcon, ClipboardList, Shield, HelpCircle, FileText, GalleryHorizontalEnd, Clapperboard, Layers, ZoomIn, Lock, Package } from "lucide-react";
+import { Pencil, DollarSign, Image as ImageIcon, ClipboardList, Shield, HelpCircle, FileText, GalleryHorizontalEnd, Clapperboard, Layers, ZoomIn, Lock, Package, Palette, ImagePlus } from "lucide-react";
+import ProductImagePicker from "@/components/admin/shop/ProductImagePicker";
 import styles from "../ProductEdit.module.css";
-import ui from "@/components/admin/ui/admin-ui.module.css";
 
 // ── Types ────────────────────────────────────────────────────────────────
 
@@ -52,11 +50,37 @@ interface OptionValue {
   id: string;
   value: string;
   displayValue: string | null;
+  sortOrder?: number;
+  isActive?: boolean;
+  swatchValue?: string | null;
+  swatchType?: "color" | "image" | null;
 }
 interface VariantAttribute {
   id: string;
   name: string;
+  slug?: string;
+  displayType?: string;
+  /** Internal-only label to tell apart attributes that share the same storefront name. */
+  adminLabel?: string | null;
+  isActive?: boolean;
+  sortOrder?: number;
   optionValues: OptionValue[];
+}
+/** Attributes can share a `name` (two different "Color" sets), so anywhere the admin has to tell them apart the internal label has to come along with it. */
+function attrLabel(a: Pick<VariantAttribute, "name" | "adminLabel">): string {
+  return a.adminLabel ? `${a.name} — ${a.adminLabel}` : a.name;
+}
+interface ProductAttr {
+  id: string;
+  attributeId: string;
+  sortOrder: number;
+  defaultOptionValueId: string | null;
+  attribute: VariantAttribute;
+}
+interface OptionImage {
+  optionValueId: string;
+  mediaKey: string;
+  url: string | null;
 }
 interface VariantOptionRow {
   attributeId: string;
@@ -122,9 +146,6 @@ interface Product {
   storyNarrativeTitle: string | null;
   upsellingEnabled: boolean;
   upsellTiers: ProductUpsellTier[];
-  seoTitle: string | null;
-  seoDescription: string | null;
-  canonicalUrl: string | null;
   primaryCategoryId: string | null;
   categories: Category[];
   tags: Tag[];
@@ -141,12 +162,12 @@ function errMessage(err: unknown, fallback: string): string {
   return err instanceof ApiError ? String((err.body as { message?: string })?.message ?? fallback) : fallback;
 }
 
-const VARIANT_FORM_ID = "variant-form";
 const ENTITY_TYPE = "shop_product";
 
 export default function EditProductPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const { toast } = useToast();
 
   const [product, setProduct] = useState<Product | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -155,34 +176,43 @@ export default function EditProductPage() {
   const [freeShipMethods, setFreeShipMethods] = useState<FreeShipMethod[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [savedAt, setSavedAt] = useState<number | null>(null);
+  const [publishing, setPublishing] = useState(false);
 
   const { translations, setTranslation, saveTranslations } = useEntityTranslations(ENTITY_TYPE, product?.id ?? null);
-
-  const [variantModal, setVariantModal] = useState<{ id: string | null; selections: Record<string, string>; priceCents: string; compareAtPriceCents: string; sku: string; initialStock: string } | null>(null);
-  const [variantSaving, setVariantSaving] = useState(false);
-  const [variantError, setVariantError] = useState<string | null>(null);
 
   const [inventory, setInventory] = useState<Inventory | null>(null);
   const [stockDelta, setStockDelta] = useState("");
   const [stockNote, setStockNote] = useState("");
   const [adjusting, setAdjusting] = useState(false);
 
+  // ── Product-level variation attributes ───────────────────────────────────
+  const [productAttrs, setProductAttrs] = useState<ProductAttr[]>([]);
+  const [attrLinkId, setAttrLinkId] = useState("");
+  const [attrLinkDefaultId, setAttrLinkDefaultId] = useState("");
+  const [attrLinking, setAttrLinking] = useState(false);
+
+  // ── Per-product images for "image" swatch option values ─────────────────
+  const [optionImages, setOptionImages] = useState<OptionImage[]>([]);
+  const [optionImagePickerTarget, setOptionImagePickerTarget] = useState<string | null>(null);
+
   const load = useCallback(async () => {
     setLoading(true);
-    const [p, cats, tgs, attrs, fsm] = await Promise.all([
+    const [p, cats, tgs, attrs, fsm, prodAttrs, optImages] = await Promise.all([
       api.get<Product>(`/next-api/admin/shop/products/${id}`),
       api.get<Category[]>("/next-api/admin/shop/categories"),
       api.get<Tag[]>("/next-api/admin/shop/tags"),
       api.get<VariantAttribute[]>("/next-api/admin/shop/variant-attributes"),
       api.get<FreeShipMethod[]>("/next-api/admin/shop/shipping/free-shipping-methods").catch(() => []),
+      api.get<ProductAttr[]>(`/next-api/admin/shop/products/${id}/attributes`).catch(() => []),
+      api.get<OptionImage[]>(`/next-api/admin/shop/products/${id}/option-images`).catch(() => []),
     ]);
     setProduct(p);
     setCategories(cats);
     setTags(tgs);
     setAttributes(attrs);
     setFreeShipMethods(fsm);
+    setProductAttrs(prodAttrs);
+    setOptionImages(optImages);
     const defaultVariant = p.variants.find((v) => v.isDefault) ?? p.variants[0];
     if (defaultVariant) {
       api
@@ -237,7 +267,6 @@ export default function EditProductPage() {
     e.preventDefault();
     if (!product) return;
     setSaving(true);
-    setError(null);
     try {
       const updated = await api.patch<Product>(`/next-api/admin/shop/products/${id}`, {
         title: product.title,
@@ -247,7 +276,7 @@ export default function EditProductPage() {
         description: product.description || null,
         brand: product.brand || null,
         basePriceCents: product.basePriceCents,
-        featuredImageKey: product.featuredImageKey || null,
+        compareAtPriceCents: (product.variants.find((v) => v.isDefault) ?? product.variants[0])?.compareAtPriceCents ?? null,
         media: product.media.map((m) => ({ key: m.key, type: m.type, posterKey: m.posterKey, altText: m.altText, isFeatured: m.isFeatured })),
         infoSections: product.infoSections,
         trustBadges: product.trustBadges,
@@ -262,9 +291,6 @@ export default function EditProductPage() {
         storyNarrativeTitle: product.storyNarrativeTitle || null,
         upsellingEnabled: product.upsellingEnabled,
         upsellTiers: product.upsellTiers,
-        seoTitle: product.seoTitle || null,
-        seoDescription: product.seoDescription || null,
-        canonicalUrl: product.canonicalUrl || null,
         featured: product.featured,
         isTestProduct: product.isTestProduct,
         freeShipping: product.freeShipping,
@@ -293,26 +319,47 @@ export default function EditProductPage() {
 
       setProduct(updated);
       setInventory((prev) => prev); // no-op, keep current inventory display
-      setSavedAt(Date.now());
+      toast.success("Changes saved");
     } catch (err) {
-      setError(errMessage(err, "Save failed"));
+      toast.error(errMessage(err, "Save failed"));
     } finally {
       setSaving(false);
     }
   }
 
   async function handlePublish() {
-    const updated = await api.post<Product>(`/next-api/admin/shop/products/${id}/publish`);
-    setProduct(updated);
+    setPublishing(true);
+    try {
+      const updated = await api.post<Product>(`/next-api/admin/shop/products/${id}/publish`);
+      setProduct(updated);
+      toast.success("Product published");
+    } catch (err) {
+      toast.error(errMessage(err, "Publish failed"));
+    } finally {
+      setPublishing(false);
+    }
   }
   async function handleArchive() {
-    const updated = await api.post<Product>(`/next-api/admin/shop/products/${id}/archive`);
-    setProduct(updated);
+    setPublishing(true);
+    try {
+      const updated = await api.post<Product>(`/next-api/admin/shop/products/${id}/archive`);
+      setProduct(updated);
+      toast.success("Product archived");
+    } catch (err) {
+      toast.error(errMessage(err, "Archive failed"));
+    } finally {
+      setPublishing(false);
+    }
   }
   async function handleDelete() {
     if (!confirm("Move this product to Trash? It can be restored later.")) return;
-    await api.delete(`/next-api/admin/shop/products/${id}`);
-    router.push("/admin/shop/products");
+    try {
+      await api.delete(`/next-api/admin/shop/products/${id}`);
+      toast.success("Product deleted");
+      router.push("/admin/shop/products");
+    } catch (err) {
+      toast.error(errMessage(err, "Delete failed"));
+    }
   }
 
   function toggleCategory(cid: string) {
@@ -334,6 +381,9 @@ export default function EditProductPage() {
       setInventory(updated);
       setStockDelta("");
       setStockNote("");
+      toast.success(`Stock adjusted by ${delta > 0 ? "+" : ""}${delta}`);
+    } catch (err) {
+      toast.error(errMessage(err, "Failed to adjust stock"));
     } finally {
       setAdjusting(false);
     }
@@ -345,53 +395,107 @@ export default function EditProductPage() {
     await api.patch(`/next-api/admin/shop/inventory/${defaultVariant.id}`, { lowStockThreshold: value });
   }
 
-  // ── Variant modal handlers (existing simple attribute-selection flow) ───
-  function openNewVariant() {
-    setVariantError(null);
-    setVariantModal({ id: null, selections: {}, priceCents: "", compareAtPriceCents: "", sku: "", initialStock: "0" });
-  }
-  function openEditVariant(v: Variant) {
-    setVariantError(null);
-    const selections: Record<string, string> = {};
-    for (const o of v.options) if (o.optionValue) selections[o.attributeId] = o.optionValue.id;
-    setVariantModal({ id: v.id, selections, priceCents: eur(v.priceCents), compareAtPriceCents: eur(v.compareAtPriceCents), sku: v.sku, initialStock: "" });
-  }
-  async function handleVariantSubmit(e: FormEvent) {
-    e.preventDefault();
-    if (!variantModal) return;
-    setVariantSaving(true);
-    setVariantError(null);
-    const options = Object.values(variantModal.selections)
-      .filter(Boolean)
-      .map((optionValueId) => ({ optionValueId }));
-    const payload = {
-      sku: variantModal.sku || undefined,
-      priceCents: toCents(variantModal.priceCents),
-      compareAtPriceCents: toCents(variantModal.compareAtPriceCents),
-      options,
-      ...(variantModal.id ? {} : { initialStock: Number(variantModal.initialStock || 0) }),
-    };
+
+  // ── Product-level attribute scoping ──────────────────────────────────────
+
+  const linkedAttrIds = new Set(productAttrs.map((pa) => pa.attributeId));
+  const unlinkedAttrs = attributes.filter((a) => a.isActive !== false && !linkedAttrIds.has(a.id));
+
+  async function generateCombinations(silent = false): Promise<void> {
     try {
-      if (variantModal.id) {
-        await api.patch(`/next-api/admin/shop/products/${id}/variants/${variantModal.id}`, payload);
-      } else {
-        await api.post(`/next-api/admin/shop/products/${id}/variants`, payload);
+      const data = await api.post<{ created: number; skipped: number; deleted: number }>(`/next-api/admin/shop/products/${id}/variants/generate-combinations`);
+      const hasActivity = data.created > 0 || data.deleted > 0;
+      if (!silent || hasActivity) {
+        const parts = [`${data.created} SKU${data.created !== 1 ? "s" : ""} created`];
+        if (data.skipped > 0) parts.push(`${data.skipped} already existed`);
+        if (data.deleted > 0) parts.push(`${data.deleted} stale SKU${data.deleted !== 1 ? "s" : ""} removed`);
+        toast.success(parts.join(", "));
       }
-      setVariantModal(null);
       await load();
     } catch (err) {
-      setVariantError(errMessage(err, "Could not save variant"));
-    } finally {
-      setVariantSaving(false);
+      if (!silent) toast.error(errMessage(err, "Failed to generate combinations"));
     }
   }
-  async function handleDeleteVariant(variantId: string) {
-    if (!confirm("Delete this variant?")) return;
-    await api.delete(`/next-api/admin/shop/products/${id}/variants/${variantId}`);
-    await load();
+
+  async function linkAttribute() {
+    if (!attrLinkId) return;
+    const selectedAttr = attributes.find((a) => a.id === attrLinkId);
+    const activeOvs = (selectedAttr?.optionValues ?? []).filter((v) => v.isActive !== false).sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+    if (activeOvs.length > 0 && !attrLinkDefaultId) {
+      toast.error("Please select a default option before adding");
+      return;
+    }
+    setAttrLinking(true);
+    try {
+      await api.post(`/next-api/admin/shop/products/${id}/attributes`, {
+        attributeId: attrLinkId,
+        defaultOptionValueId: attrLinkDefaultId || null,
+      });
+      setAttrLinkId("");
+      setAttrLinkDefaultId("");
+      toast.success("Variation added to product");
+      await generateCombinations(true);
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 409) {
+        // Already linked — just refresh so the list reflects reality.
+        setAttrLinkId("");
+        setAttrLinkDefaultId("");
+        toast.success("Variation already linked — list refreshed");
+        await load();
+      } else {
+        toast.error(errMessage(err, "Failed to add variation"));
+      }
+    } finally {
+      setAttrLinking(false);
+    }
   }
 
-  const isSimpleProduct = product.variants.length <= 1;
+  async function updateDefaultOption(attributeId: string, defaultOptionValueId: string | null) {
+    try {
+      await api.patch(`/next-api/admin/shop/products/${id}/attributes/${attributeId}`, { defaultOptionValueId });
+      setProductAttrs((prev) => prev.map((pa) => (pa.attributeId === attributeId ? { ...pa, defaultOptionValueId } : pa)));
+      toast.success("Default option updated");
+    } catch (err) {
+      toast.error(errMessage(err, "Failed to update default option"));
+    }
+  }
+
+  async function unlinkAttribute(attributeId: string, attrName: string) {
+    if (!confirm(`Remove "${attrName}" from this product? All generated SKUs and inventory entries for this variation will be deleted.`)) return;
+    try {
+      const data = await api.delete<{ deletedVariants: number }>(`/next-api/admin/shop/products/${id}/attributes/${attributeId}`);
+      setProductAttrs((prev) => prev.filter((pa) => pa.attributeId !== attributeId));
+      toast.success(data.deletedVariants > 0 ? `Removed "${attrName}" — ${data.deletedVariants} SKU${data.deletedVariants !== 1 ? "s" : ""} and their inventory deleted` : `Removed "${attrName}"`);
+      await load();
+    } catch (err) {
+      toast.error(errMessage(err, "Failed to remove variation"));
+    }
+  }
+
+  // ── Per-product option images ────────────────────────────────────────────
+
+  async function setOptionImage(optionValueId: string, mediaKey: string) {
+    try {
+      const saved = await api.put<OptionImage>(`/next-api/admin/shop/products/${id}/option-images/${optionValueId}`, { mediaKey });
+      setOptionImages((prev) => [...prev.filter((oi) => oi.optionValueId !== optionValueId), saved]);
+      toast.success("Image updated");
+    } catch (err) {
+      toast.error(errMessage(err, "Failed to set image"));
+    }
+    setOptionImagePickerTarget(null);
+  }
+
+  async function removeOptionImage(optionValueId: string) {
+    try {
+      await api.delete(`/next-api/admin/shop/products/${id}/option-images/${optionValueId}`);
+      setOptionImages((prev) => prev.filter((oi) => oi.optionValueId !== optionValueId));
+      toast.success("Image removed");
+    } catch (err) {
+      toast.error(errMessage(err, "Failed to remove image"));
+    }
+  }
+
+  const isSimpleProduct = productAttrs.length === 0;
 
   return (
     <div className={styles.page}>
@@ -404,22 +508,20 @@ export default function EditProductPage() {
           <span className={styles.topbarTitle}>{product.title || "Untitled product"}</span>
         </div>
         <div className={styles.topbarActions}>
-          {error && <span className={ui.error}>{error}</span>}
-          {savedAt && !error && <span style={{ color: "#166534", fontSize: 13 }}>Saved.</span>}
-          <button type="button" className={styles.deleteBtn} onClick={handleDelete}>
+          <button type="button" className={styles.deleteBtn} onClick={handleDelete} disabled={saving || publishing}>
             Delete
           </button>
           {product.status !== "active" && (
-            <button type="button" className={styles.publishBtn} onClick={handlePublish}>
-              Publish
+            <button type="button" className={styles.publishBtn} onClick={handlePublish} disabled={saving || publishing}>
+              {publishing ? "Publishing…" : "Publish"}
             </button>
           )}
           {product.status === "active" && (
-            <button type="button" className={styles.publishBtn} onClick={handleArchive} style={{ background: "#64748b", borderColor: "#64748b" }}>
-              Archive
+            <button type="button" className={styles.publishBtn} onClick={handleArchive} disabled={saving || publishing} style={{ background: "#64748b", borderColor: "#64748b" }}>
+              {publishing ? "Archiving…" : "Archive"}
             </button>
           )}
-          <button type="submit" form="product-form" className={styles.saveBtn} disabled={saving}>
+          <button type="submit" form="product-form" className={styles.saveBtn} disabled={saving || publishing}>
             {saving ? "Saving…" : "Save changes"}
           </button>
         </div>
@@ -500,19 +602,39 @@ export default function EditProductPage() {
               <span className={styles.sectionTitle}>Pricing</span>
             </div>
             <div className={styles.sectionBody}>
-              <div className={styles.field}>
-                <label className={styles.label}>
-                  Base price (€) <span className={styles.required}>*</span>
-                </label>
-                <input
-                  className={styles.input}
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={eur(product.basePriceCents)}
-                  onChange={(e) => set({ basePriceCents: toCents(e.target.value) ?? 0 })}
-                  required
-                />
+              <div className={styles.fieldRow}>
+                <div className={styles.field}>
+                  <label className={styles.label}>
+                    Base price (€) <span className={styles.required}>*</span>
+                  </label>
+                  <input
+                    className={styles.input}
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={eur(product.basePriceCents)}
+                    onChange={(e) => set({ basePriceCents: toCents(e.target.value) ?? 0 })}
+                    required
+                  />
+                </div>
+                <div className={styles.field}>
+                  <label className={styles.label}>Compare-at price (€)</label>
+                  <input
+                    className={styles.input}
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={eur((product.variants.find((v) => v.isDefault) ?? product.variants[0])?.compareAtPriceCents ?? null)}
+                    onChange={(e) => {
+                      const dv = product.variants.find((v) => v.isDefault) ?? product.variants[0];
+                      if (!dv) return;
+                      const compareAtPriceCents = toCents(e.target.value);
+                      set({ variants: product.variants.map((v) => (v.id === dv.id ? { ...v, compareAtPriceCents } : v)) });
+                    }}
+                    placeholder="49.99 (optional)"
+                  />
+                  <span className={styles.hint}>Shown as crossed-out original price</span>
+                </div>
               </div>
             </div>
           </div>
@@ -526,15 +648,6 @@ export default function EditProductPage() {
               <span className={styles.sectionTitle}>Media</span>
             </div>
             <div className={styles.sectionBody}>
-              <div className={styles.field} style={{ marginBottom: 16 }}>
-                <label className={styles.label}>Featured image</label>
-                <MediaPicker
-                  value={product.featuredImageKey}
-                  previewUrl={product.featuredImageUrl}
-                  onChange={(key, url) => set({ featuredImageKey: key, featuredImageUrl: url })}
-                  label="featured image"
-                />
-              </div>
               <ProductMediaManager initialMedia={product.media} onChange={(media) => set({ media: media as ResolvedProductMediaItem[] })} />
             </div>
           </div>
@@ -654,97 +767,194 @@ export default function EditProductPage() {
             )}
           </CollapsibleSection>
 
-          {/* SEO */}
-          <div className={styles.section}>
-            <div className={styles.sectionHead}>
-              <span className={styles.sectionIcon}>
-                <Pencil size={15} />
-              </span>
-              <span className={styles.sectionTitle}>SEO</span>
-            </div>
-            <div className={styles.sectionBody}>
-              <div className={styles.field}>
-                <label className={styles.label}>SEO title</label>
-                <input className={styles.input} value={product.seoTitle ?? ""} onChange={(e) => set({ seoTitle: e.target.value })} />
-              </div>
-              <div className={styles.field}>
-                <label className={styles.label}>SEO description</label>
-                <textarea className={styles.textarea} value={product.seoDescription ?? ""} onChange={(e) => set({ seoDescription: e.target.value })} />
-              </div>
-              <div className={styles.field}>
-                <label className={styles.label}>Canonical URL</label>
-                <input className={styles.input} value={product.canonicalUrl ?? ""} onChange={(e) => set({ canonicalUrl: e.target.value })} />
-              </div>
-            </div>
-          </div>
-
-          {/* Variants */}
-          <div className={styles.section} style={{ marginBottom: 0 }}>
-            <div className={styles.sectionHead}>
-              <span className={styles.sectionIcon}>
-                <Layers size={15} />
-              </span>
-              <span className={styles.sectionTitle}>Variants</span>
-              <button type="button" className={styles.sectionHeadAction} onClick={openNewVariant}>
-                Add variant
+          {/* Variations — which attributes (Color, Size…) this product uses */}
+          <CollapsibleSection icon={<Palette size={15} />} title="Variations" last>
+            {productAttrs.length > 0 && (
+              <button type="button" onClick={() => generateCombinations(false)} className={styles.saveBtn} style={{ fontSize: 12, padding: "5px 12px", marginBottom: 14 }}>
+                Generate combinations
               </button>
-            </div>
-            <div className={styles.sectionBodyNoPad}>
-              {product.variants.length === 0 ? (
-                <p className={styles.hint} style={{ padding: 20 }}>
-                  No variants yet.
-                </p>
-              ) : (
-                <table className={styles.variantsTable}>
-                  <thead>
-                    <tr>
-                      <th>Title</th>
-                      <th>SKU</th>
-                      <th>Options</th>
-                      <th>Price</th>
-                      <th>Stock</th>
-                      <th />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {product.variants.map((v) => (
-                      <tr key={v.id}>
-                        <td>
-                          {v.title} {v.isDefault && <span className={styles.defaultBadge}>default</span>}
-                        </td>
-                        <td>{v.sku}</td>
-                        <td>
-                          <div className={styles.optionChips}>
-                            {v.options.length === 0 ? (
-                              <span className={styles.optionChipNone}>—</span>
-                            ) : (
-                              v.options.map((o) => (
-                                <span key={o.attributeId} className={styles.optionChip}>
-                                  <span className={styles.optionChipAttr}>{o.attribute.name}:</span> {o.optionValue?.displayValue ?? o.value}
-                                </span>
-                              ))
-                            )}
+            )}
+
+            {productAttrs.length === 0 ? (
+              <p className={styles.hint} style={{ marginBottom: 16 }}>
+                No variations linked. Add a variation below — customers will see its options when choosing.
+              </p>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 14, marginBottom: 20 }}>
+                {[...productAttrs]
+                  .sort((a, b) => a.sortOrder - b.sortOrder)
+                  .map((pa) => {
+                    const activeOvs = [...pa.attribute.optionValues].filter((v) => v.isActive !== false).sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+                    return (
+                      <div key={pa.id} style={{ border: "1px solid var(--color-surface)", borderRadius: 10, padding: "12px 14px", background: "var(--color-surface-tint)" }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <span style={{ fontWeight: 700, fontSize: 13, color: "var(--foreground)" }}>{pa.attribute.name}</span>
+                            {pa.attribute.adminLabel && <span className={styles.hint}>{pa.attribute.adminLabel}</span>}
+                            <span
+                              style={{
+                                fontSize: 11,
+                                fontWeight: 600,
+                                background: "var(--background)",
+                                border: "1px solid var(--color-surface)",
+                                borderRadius: 5,
+                                padding: "1px 7px",
+                                color: "color-mix(in srgb, var(--foreground) 45%, transparent)",
+                                textTransform: "capitalize",
+                              }}
+                            >
+                              {pa.attribute.displayType}
+                            </span>
                           </div>
-                        </td>
-                        <td className={styles.variantPrice}>
-                          {v.priceCents !== null ? `€${(v.priceCents / 100).toFixed(2)}` : `€${((product.basePriceCents ?? 0) / 100).toFixed(2)} (base)`}
-                        </td>
-                        <td>{v.inventoryItem?.available ?? 0}</td>
-                        <td>
-                          <button type="button" className={styles.variantEditBtn} onClick={() => openEditVariant(v)}>
-                            Edit
+                          <button type="button" onClick={() => unlinkAttribute(pa.attributeId, attrLabel(pa.attribute))} style={{ fontSize: 12, color: "#dc2626", background: "none", border: "none", cursor: "pointer", padding: "2px 6px" }}>
+                            Remove
                           </button>
-                          <button type="button" className={styles.variantDeleteBtn} onClick={() => handleDeleteVariant(v.id)}>
-                            Delete
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
-          </div>
+                        </div>
+
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
+                          {activeOvs.length === 0 ? (
+                            <span className={styles.optionChipNone}>No option values defined</span>
+                          ) : (
+                            activeOvs.map((ov) => {
+                              const optImg = ov.swatchType === "image" ? optionImages.find((oi) => oi.optionValueId === ov.id) : undefined;
+                              const isDefault = pa.defaultOptionValueId === ov.id;
+                              return (
+                                <span
+                                  key={ov.id}
+                                  style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: 6,
+                                    fontSize: 12,
+                                    fontWeight: 500,
+                                    background: "var(--background)",
+                                    border: isDefault ? "2px solid var(--color-primary)" : "1px solid var(--color-surface)",
+                                    borderRadius: 8,
+                                    padding: "3px 10px",
+                                    color: "var(--foreground)",
+                                  }}
+                                >
+                                  {ov.swatchValue && ov.swatchType === "color" && <span style={{ width: 12, height: 12, borderRadius: "50%", background: ov.swatchValue, border: "1px solid rgba(0,0,0,.15)", flexShrink: 0 }} />}
+                                  {ov.swatchType === "image" && (
+                                    <span
+                                      style={{
+                                        width: 20,
+                                        height: 20,
+                                        borderRadius: 4,
+                                        overflow: "hidden",
+                                        flexShrink: 0,
+                                        background: "var(--color-surface-tint)",
+                                        border: "1px solid var(--color-surface)",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                      }}
+                                    >
+                                      {optImg?.url ? (
+                                        // eslint-disable-next-line @next/next/no-img-element
+                                        <img src={optImg.url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                                      ) : (
+                                        <ImagePlus size={11} style={{ color: "color-mix(in srgb, var(--foreground) 45%, transparent)" }} />
+                                      )}
+                                    </span>
+                                  )}
+                                  {ov.displayValue ?? ov.value}
+                                  {isDefault && (
+                                    <span style={{ fontSize: 10, color: "var(--color-primary)", fontWeight: 700 }} className={styles.defaultBadge}>
+                                      default
+                                    </span>
+                                  )}
+                                  {ov.swatchType === "image" && (
+                                    <span style={{ display: "inline-flex", gap: 4 }}>
+                                      <button type="button" onClick={() => setOptionImagePickerTarget(ov.id)} style={{ fontSize: 10, fontWeight: 600, color: "var(--color-primary)", background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+                                        {optImg ? "Change" : "Set image"}
+                                      </button>
+                                      {optImg && (
+                                        <button type="button" onClick={() => removeOptionImage(ov.id)} style={{ fontSize: 10, fontWeight: 600, color: "#dc2626", background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+                                          Remove
+                                        </button>
+                                      )}
+                                    </span>
+                                  )}
+                                </span>
+                              );
+                            })
+                          )}
+                        </div>
+
+                        {activeOvs.length > 0 && (
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <label className={styles.hint} style={{ whiteSpace: "nowrap", margin: 0 }}>
+                              Default option:
+                            </label>
+                            <select className={styles.select} style={{ fontSize: 12, padding: "3px 8px", flex: 1 }} value={pa.defaultOptionValueId ?? ""} onChange={(e) => updateDefaultOption(pa.attributeId, e.target.value || null)}>
+                              <option value="">— none —</option>
+                              {activeOvs.map((ov) => (
+                                <option key={ov.id} value={ov.id}>
+                                  {ov.displayValue ?? ov.value}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
+
+            {unlinkedAttrs.length > 0 &&
+              (() => {
+                const selectedAttrForLink = attributes.find((a) => a.id === attrLinkId);
+                const linkActiveOvs = (selectedAttrForLink?.optionValues ?? []).filter((v) => v.isActive !== false).sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+                return (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                      <select
+                        className={styles.select}
+                        value={attrLinkId}
+                        onChange={(e) => {
+                          setAttrLinkId(e.target.value);
+                          setAttrLinkDefaultId("");
+                        }}
+                        style={{ flex: 1 }}
+                      >
+                        <option value="">— Add a variation (Color, Size…) —</option>
+                        {unlinkedAttrs.map((a) => (
+                          <option key={a.id} value={a.id}>
+                            {attrLabel(a)}
+                          </option>
+                        ))}
+                      </select>
+                      <button type="button" onClick={linkAttribute} disabled={!attrLinkId || attrLinking} className={styles.saveBtn} style={{ whiteSpace: "nowrap", flexShrink: 0 }}>
+                        {attrLinking ? "Adding…" : "Add"}
+                      </button>
+                    </div>
+                    {attrLinkId && linkActiveOvs.length > 0 && (
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <label className={styles.hint} style={{ whiteSpace: "nowrap", margin: 0 }}>
+                          Default option:
+                        </label>
+                        <select className={styles.select} style={{ fontSize: 12, padding: "3px 8px", flex: 1 }} value={attrLinkDefaultId} onChange={(e) => setAttrLinkDefaultId(e.target.value)}>
+                          <option value="">— Select default option —</option>
+                          {linkActiveOvs.map((ov) => (
+                            <option key={ov.id} value={ov.id}>
+                              {ov.displayValue ?? ov.value}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+            {unlinkedAttrs.length === 0 && productAttrs.length > 0 && (
+              <p className={styles.hint} style={{ marginTop: 8 }}>
+                All available variations are linked to this product.
+              </p>
+            )}
+          </CollapsibleSection>
         </div>
 
         {/* ── Right column / sidebar ── */}
@@ -777,14 +987,14 @@ export default function EditProductPage() {
                 <div>
                   <div className={styles.toggleLabel}>Test product</div>
                   <div className={styles.toggleNote}>
-                    Measures demand before you order stock. Customers can browse, add to cart and enter shipping, but checkout fails at the payment step.
+                    Measures demand before you order stock. Customers can browse, add to cart and enter shipping, but checkout fails at the payment step. Results appear under Test Products.
                   </div>
                 </div>
                 <input type="checkbox" checked={product.isTestProduct} onChange={(e) => set({ isTestProduct: e.target.checked })} style={{ width: 16, height: 16, accentColor: "var(--color-accent)", cursor: "pointer" }} />
               </div>
               {product.isTestProduct && (
                 <p style={{ margin: "8px 0 0", fontSize: 12, lineHeight: 1.5, color: "#b45309", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 8, padding: "8px 10px" }}>
-                  This product cannot be sold. The payment form never loads and no charge is ever created.
+                  This product cannot be sold. The payment form never loads and no charge is ever created — customers see a generic error at the shipping step.
                 </p>
               )}
               <div className={styles.divider} />
@@ -792,7 +1002,7 @@ export default function EditProductPage() {
                 <div>
                   <div className={styles.toggleLabel}>Free shipping</div>
                   <div className={styles.toggleNote}>
-                    Delivery is offered on this product. A &ldquo;Free shipping&rdquo; badge appears on the listing, product page and cart.
+                    Delivery is offered on this product, whatever the order total. A &ldquo;Free shipping&rdquo; badge appears on the listing, the product page and the cart. Applies when the basket contains only free-shipping products.
                   </div>
                 </div>
                 <input type="checkbox" checked={product.freeShipping} onChange={(e) => set({ freeShipping: e.target.checked })} style={{ width: 16, height: 16, accentColor: "var(--color-accent)", cursor: "pointer" }} />
@@ -826,6 +1036,7 @@ export default function EditProductPage() {
                     />
                     <span style={{ fontSize: 13 }}>days</span>
                   </div>
+                  <p className={styles.hint}>Shown next to &ldquo;Free shipping&rdquo; at checkout. Leave empty to use the delivery estimate of the customer&rsquo;s shipping zone.</p>
                 </div>
               )}
               {product.freeShipping && (
@@ -834,38 +1045,63 @@ export default function EditProductPage() {
                     Paid faster options <span className={styles.hint} style={{ fontWeight: 400 }}>(optional)</span>
                   </label>
                   {freeShipMethods.length === 0 ? (
-                    <p className={styles.hint}>No method is marked &ldquo;available for free shipping&rdquo; yet.</p>
+                    <p className={styles.hint}>No method is marked &ldquo;Used for free shipping&rdquo; yet — enable that switch on a method in Shop → Shipping to offer one here.</p>
                   ) : (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 6, border: "1px solid var(--color-surface)", borderRadius: 10, padding: "10px 12px", maxHeight: 220, overflowY: "auto" }}>
-                      {freeShipMethods.map((m) => {
-                        const checked = (product.freeShippingUpgradeMethods ?? []).some((x) => x.id === m.id);
-                        return (
-                          <label key={m.id} style={{ display: "flex", alignItems: "flex-start", gap: 9, cursor: "pointer", fontSize: 13 }}>
-                            <input
-                              type="checkbox"
-                              checked={checked}
-                              onChange={() =>
-                                set({
-                                  freeShippingUpgradeMethods: checked
-                                    ? (product.freeShippingUpgradeMethods ?? []).filter((x) => x.id !== m.id)
-                                    : [...(product.freeShippingUpgradeMethods ?? []), { id: m.id }],
-                                })
-                              }
-                              style={{ width: 15, height: 15, marginTop: 2, accentColor: "var(--color-accent)", cursor: "pointer" }}
-                            />
-                            <span>
-                              <span style={{ fontWeight: 600, color: "var(--color-primary)" }}>{m.name}</span>
-                              <span className={styles.hint}>
-                                {" "}
-                                — €{(m.priceCents / 100).toFixed(2)} · {m.estimatedDaysMin}–{m.estimatedDaysMax} days
+                    <>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6, border: "1px solid var(--color-surface)", borderRadius: 10, padding: "10px 12px", maxHeight: 220, overflowY: "auto" }}>
+                        {freeShipMethods.map((m) => {
+                          const checked = (product.freeShippingUpgradeMethods ?? []).some((x) => x.id === m.id);
+                          return (
+                            <label key={m.id} style={{ display: "flex", alignItems: "flex-start", gap: 9, cursor: "pointer", fontSize: 13 }}>
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() =>
+                                  set({
+                                    freeShippingUpgradeMethods: checked
+                                      ? (product.freeShippingUpgradeMethods ?? []).filter((x) => x.id !== m.id)
+                                      : [...(product.freeShippingUpgradeMethods ?? []), { id: m.id }],
+                                  })
+                                }
+                                style={{ width: 15, height: 15, marginTop: 2, accentColor: "var(--color-accent)", cursor: "pointer" }}
+                              />
+                              <span>
+                                <span style={{ fontWeight: 600, color: "var(--color-primary)" }}>{m.name}</span>
+                                <span className={styles.hint}>
+                                  {" "}
+                                  — €{(m.priceCents / 100).toFixed(2)} · {m.estimatedDaysMin}–{m.estimatedDaysMax} days
+                                </span>
+                                {m.zone && (
+                                  <span className={styles.hint} style={{ display: "block", fontSize: 11.5 }}>
+                                    Zone: {m.zone.name}
+                                    {m.zone.countryCodes && m.zone.countryCodes.length > 0 && ` (${m.zone.countryCodes.join(", ")})`}
+                                  </span>
+                                )}
                               </span>
-                            </span>
-                          </label>
-                        );
-                      })}
-                    </div>
+                            </label>
+                          );
+                        })}
+                      </div>
+                      <p className={styles.hint}>Offered next to free shipping at checkout, for customers willing to pay for quicker delivery. Each customer only sees the ones belonging to the shipping zone of their delivery address.</p>
+                    </>
                   )}
                 </div>
+              )}
+              {product.freeShipping && (
+                <p
+                  style={{
+                    margin: "8px 0 0",
+                    fontSize: 12,
+                    lineHeight: 1.5,
+                    color: "var(--color-primary)",
+                    background: "color-mix(in srgb, var(--color-primary) 7%, transparent)",
+                    border: "1px solid color-mix(in srgb, var(--color-primary) 28%, transparent)",
+                    borderRadius: 8,
+                    padding: "8px 10px",
+                  }}
+                >
+                  Shipping is charged once per order, so it is all or nothing: the order ships free only when <strong>every product in the basket</strong> has free shipping. Add one product with paid delivery and normal shipping applies to the whole order.
+                </p>
               )}
             </div>
           </div>
@@ -1000,80 +1236,13 @@ export default function EditProductPage() {
         </div>
       </form>
 
-      {variantModal && (
-        <Modal
-          title={variantModal.id ? "Edit variant" : "Add variant"}
-          onClose={() => setVariantModal(null)}
-          footer={
-            <>
-              <Button type="button" variant="secondary" onClick={() => setVariantModal(null)}>
-                Cancel
-              </Button>
-              <Button type="submit" form={VARIANT_FORM_ID} disabled={variantSaving}>
-                {variantSaving ? "Saving…" : "Save"}
-              </Button>
-            </>
-          }
-        >
-          <form id={VARIANT_FORM_ID} onSubmit={handleVariantSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-            {variantError && <p className={ui.error}>{variantError}</p>}
-            {attributes.length === 0 ? (
-              <p style={{ color: "var(--color-secondary)", fontSize: "0.85rem" }}>No variant attributes defined yet — this will be a single (no-option) variant.</p>
-            ) : (
-              attributes.map((attr) => (
-                <div className={ui.field} key={attr.id}>
-                  <label className={ui.label}>{attr.name}</label>
-                  <select
-                    className={ui.select}
-                    value={variantModal.selections[attr.id] ?? ""}
-                    onChange={(e) => setVariantModal({ ...variantModal, selections: { ...variantModal.selections, [attr.id]: e.target.value } })}
-                  >
-                    <option value="">—</option>
-                    {attr.optionValues.map((ov) => (
-                      <option key={ov.id} value={ov.id}>
-                        {ov.displayValue ?? ov.value}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              ))
-            )}
-            <div className={ui.formGrid}>
-              <div className={ui.field}>
-                <label className={ui.label}>SKU (optional)</label>
-                <input className={ui.input} value={variantModal.sku} onChange={(e) => setVariantModal({ ...variantModal, sku: e.target.value })} />
-              </div>
-              <div className={ui.field}>
-                <label className={ui.label}>Price override (€, optional)</label>
-                <input
-                  className={ui.input}
-                  type="number"
-                  step="0.01"
-                  value={variantModal.priceCents}
-                  onChange={(e) => setVariantModal({ ...variantModal, priceCents: e.target.value })}
-                  placeholder="uses base price"
-                />
-              </div>
-              <div className={ui.field}>
-                <label className={ui.label}>Compare-at price (€, optional)</label>
-                <input
-                  className={ui.input}
-                  type="number"
-                  step="0.01"
-                  value={variantModal.compareAtPriceCents}
-                  onChange={(e) => setVariantModal({ ...variantModal, compareAtPriceCents: e.target.value })}
-                />
-              </div>
-              {!variantModal.id && (
-                <div className={ui.field}>
-                  <label className={ui.label}>Initial stock</label>
-                  <input className={ui.input} type="number" min="0" value={variantModal.initialStock} onChange={(e) => setVariantModal({ ...variantModal, initialStock: e.target.value })} />
-                </div>
-              )}
-            </div>
-          </form>
-        </Modal>
-      )}
+      <ProductImagePicker
+        open={optionImagePickerTarget !== null}
+        onClose={() => setOptionImagePickerTarget(null)}
+        images={product.media.filter((m) => m.type === "image")}
+        onSelect={(item) => setOptionImage(optionImagePickerTarget!, item.key)}
+        title="Select option image"
+      />
     </div>
   );
 }

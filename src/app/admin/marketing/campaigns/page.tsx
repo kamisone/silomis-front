@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
+import { useToast } from "@/components/toast/ToastContext";
 import Button from "@/components/admin/ui/Button";
 import ui from "@/components/admin/ui/admin-ui.module.css";
 
@@ -71,6 +72,7 @@ function errMessage(err: unknown, fallback: string): string {
 }
 
 export default function CampaignsPage() {
+  const { toast } = useToast();
   const router = useRouter();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [total, setTotal] = useState(0);
@@ -91,6 +93,8 @@ export default function CampaignsPage() {
       const data = await api.get<{ items: Campaign[]; total: number }>(`/next-api/admin/newsletter/campaigns?${qs}`);
       setCampaigns(data.items);
       setTotal(data.total);
+    } catch {
+      toast.error("Failed to load campaigns");
     } finally {
       setLoading(false);
     }
@@ -111,9 +115,10 @@ export default function CampaignsPage() {
   async function duplicateCampaign(id: string) {
     try {
       const data = await api.post<{ id: string }>(`/next-api/admin/newsletter/campaigns/${id}/duplicate`);
+      toast.success("Campaign duplicated");
       router.push(`/admin/marketing/campaigns/${data.id}`);
     } catch (err) {
-      alert(errMessage(err, "Duplicate failed"));
+      toast.error(errMessage(err, "Duplicate failed"));
     }
   }
 
@@ -121,9 +126,10 @@ export default function CampaignsPage() {
     if (!confirm("Cancel this scheduled campaign?")) return;
     try {
       await api.post(`/next-api/admin/newsletter/campaigns/${id}/cancel`);
+      toast.success("Campaign cancelled");
       await load();
     } catch (err) {
-      alert(errMessage(err, "Cancel failed"));
+      toast.error(errMessage(err, "Cancel failed"));
     }
   }
 

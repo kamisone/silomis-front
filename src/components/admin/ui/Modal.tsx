@@ -6,12 +6,14 @@ interface ModalProps {
   onClose: () => void;
   children: ReactNode;
   footer?: ReactNode;
+  /** Panel max-width in px. Default 520 — pass a larger value for content-heavy modals (e.g. a media browser). */
+  maxWidth?: number;
 }
 
-export default function Modal({ title, onClose, children, footer }: ModalProps) {
+export default function Modal({ title, onClose, children, footer, maxWidth }: ModalProps) {
   return (
     <div className={styles.overlay} onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className={styles.panel}>
+      <div className={styles.panel} style={maxWidth ? { maxWidth } : undefined}>
         <div className={styles.header}>
           <span className={styles.title}>{title}</span>
           <button type="button" className={styles.closeButton} onClick={onClose} aria-label="Close">

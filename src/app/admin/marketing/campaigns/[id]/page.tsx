@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { useParams, useRouter } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
+import { useToast } from "@/components/toast/ToastContext";
 import Button from "@/components/admin/ui/Button";
 import Modal from "@/components/admin/ui/Modal";
 import AudienceSelector, { type AudienceDefinition } from "@/components/admin/marketing/AudienceSelector";
@@ -59,11 +60,11 @@ function errMessage(err: unknown, fallback: string): string {
 export default function CampaignEditorPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const { toast } = useToast();
 
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [notice, setNotice] = useState<{ text: string; isError: boolean } | null>(null);
 
   const [title, setTitle] = useState("");
   const [subject, setSubject] = useState("");
@@ -90,11 +91,11 @@ export default function CampaignEditorPage() {
       setHtmlContent(data.htmlContent ?? "");
       setAudience(data.audience ?? { segment: "all" });
     } catch (err) {
-      setNotice({ text: errMessage(err, "Failed to load campaign"), isError: true });
+      toast.error(errMessage(err, "Failed to load campaign"));
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, toast]);
 
   useEffect(() => {
     load();
@@ -118,10 +119,10 @@ export default function CampaignEditorPage() {
           .map((t) => t.trim())
           .filter(Boolean),
       });
-      setNotice({ text: "Campaign saved", isError: false });
+      toast.success("Campaign saved");
       await load();
     } catch (err) {
-      setNotice({ text: errMessage(err, "Save failed"), isError: true });
+      toast.error(errMessage(err, "Save failed"));
     } finally {
       setSaving(false);
     }
@@ -129,30 +130,30 @@ export default function CampaignEditorPage() {
 
   async function sendTest() {
     if (!campaign || !testEmail.trim()) {
-      setNotice({ text: "Enter an email address", isError: true });
+      toast.error("Enter an email address");
       return;
     }
     try {
       await api.post(`/next-api/admin/newsletter/campaigns/${campaign.id}/send-test`, { to: testEmail.trim() });
-      setNotice({ text: "Test email sent", isError: false });
+      toast.success("Test email sent");
       setTestOpen(false);
       setTestEmail("");
     } catch (err) {
-      setNotice({ text: errMessage(err, "Failed to send test email"), isError: true });
+      toast.error(errMessage(err, "Failed to send test email"));
     }
   }
 
   async function schedule() {
     if (!campaign || !scheduleAt) {
-      setNotice({ text: "Pick a date and time", isError: true });
+      toast.error("Pick a date and time");
       return;
     }
     try {
       await api.post(`/next-api/admin/newsletter/campaigns/${campaign.id}/schedule`, { scheduledAt: new Date(scheduleAt).toISOString() });
-      setNotice({ text: "Campaign scheduled", isError: false });
+      toast.success("Campaign scheduled");
       await load();
     } catch (err) {
-      setNotice({ text: errMessage(err, "Schedule failed"), isError: true });
+      toast.error(errMessage(err, "Schedule failed"));
     }
   }
 
@@ -161,10 +162,10 @@ export default function CampaignEditorPage() {
     if (!confirm("Send this campaign now to its audience? This cannot be undone.")) return;
     try {
       await api.post(`/next-api/admin/newsletter/campaigns/${campaign.id}/send-now`);
-      setNotice({ text: "Campaign queued for sending", isError: false });
+      toast.success("Campaign queued for sending");
       await load();
     } catch (err) {
-      setNotice({ text: errMessage(err, "Send failed"), isError: true });
+      toast.error(errMessage(err, "Send failed"));
     }
   }
 
@@ -173,10 +174,10 @@ export default function CampaignEditorPage() {
     if (!confirm("Cancel this scheduled campaign?")) return;
     try {
       await api.post(`/next-api/admin/newsletter/campaigns/${campaign.id}/cancel`);
-      setNotice({ text: "Campaign cancelled", isError: false });
+      toast.success("Campaign cancelled");
       await load();
     } catch (err) {
-      setNotice({ text: errMessage(err, "Cancel failed"), isError: true });
+      toast.error(errMessage(err, "Cancel failed"));
     }
   }
 
@@ -184,9 +185,10 @@ export default function CampaignEditorPage() {
     if (!campaign) return;
     try {
       const data = await api.post<{ id: string }>(`/next-api/admin/newsletter/campaigns/${campaign.id}/duplicate`);
+      toast.success("Campaign duplicated");
       router.push(`/admin/marketing/campaigns/${data.id}`);
     } catch (err) {
-      setNotice({ text: errMessage(err, "Duplicate failed"), isError: true });
+      toast.error(errMessage(err, "Duplicate failed"));
     }
   }
 
@@ -195,9 +197,10 @@ export default function CampaignEditorPage() {
     if (!confirm("Delete this draft campaign?")) return;
     try {
       await api.delete(`/next-api/admin/newsletter/campaigns/${campaign.id}`);
+      toast.success("Campaign deleted");
       router.push("/admin/marketing/campaigns");
     } catch (err) {
-      setNotice({ text: errMessage(err, "Delete failed"), isError: true });
+      toast.error(errMessage(err, "Delete failed"));
     }
   }
 
@@ -243,11 +246,6 @@ export default function CampaignEditorPage() {
         </div>
       </div>
 
-      {notice && (
-        <p className={notice.isError ? ui.error : undefined} style={{ marginTop: "-0.5rem", marginBottom: "1rem", fontSize: "0.85rem", color: notice.isError ? undefined : "var(--color-primary)" }}>
-          {notice.text}
-        </p>
-      )}
       {campaign.scheduledAt && (
         <p style={{ color: "var(--color-secondary)", fontSize: "0.8rem", marginTop: "-0.5rem", marginBottom: "1rem" }}>
           Scheduled for {new Date(campaign.scheduledAt).toLocaleString()}

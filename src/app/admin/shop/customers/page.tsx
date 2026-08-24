@@ -2,8 +2,13 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { api } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
 import ui from "@/components/admin/ui/admin-ui.module.css";
+import { useToast } from "@/components/toast/ToastContext";
+
+function errMessage(err: unknown, fallback: string): string {
+  return err instanceof ApiError ? String((err.body as { message?: string })?.message ?? fallback) : fallback;
+}
 
 interface CustomerListItem {
   id: string;
@@ -20,6 +25,7 @@ function eur(cents: number): string {
 }
 
 export default function CustomersPage() {
+  const { toast } = useToast();
   const [items, setItems] = useState<CustomerListItem[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -33,6 +39,8 @@ export default function CustomersPage() {
       const data = await api.get<{ items: CustomerListItem[]; total: number }>(`/next-api/admin/shop/customers?${params.toString()}`);
       setItems(data.items);
       setTotal(data.total);
+    } catch (err) {
+      toast.error(errMessage(err, "Failed to load customers"));
     } finally {
       setLoading(false);
     }

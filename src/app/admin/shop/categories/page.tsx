@@ -8,6 +8,7 @@ import BilingualField from "@/components/admin/BilingualField";
 import { useEntityTranslations } from "@/hooks/useEntityTranslations";
 import ui from "@/components/admin/ui/admin-ui.module.css";
 import styles from "./Categories.module.css";
+import { useToast } from "@/components/toast/ToastContext";
 
 const ENTITY_TYPE = "shop_product_category";
 const TRANSLATION_FIELDS = ["name", "description"];
@@ -66,11 +67,11 @@ function buildTree(categories: Category[]): CategoryRow[] {
 }
 
 export default function CategoriesPage() {
+  const { toast } = useToast();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState<FormState | null>(null);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const { translations, setTranslation, saveTranslations } = useEntityTranslations(ENTITY_TYPE, form?.id ?? null);
 
@@ -92,7 +93,6 @@ export default function CategoriesPage() {
     e.preventDefault();
     if (!form) return;
     setSaving(true);
-    setError(null);
     const payload = {
       name: form.name,
       slug: form.slug || undefined,
@@ -110,10 +110,11 @@ export default function CategoriesPage() {
         savedId = created.id;
       }
       if (savedId) await saveTranslations(savedId, TRANSLATION_FIELDS);
+      toast.success(form.id ? "Category updated" : "Category created");
       setForm(null);
       await load();
     } catch (err) {
-      setError(err instanceof ApiError ? String((err.body as { message?: string })?.message ?? "Save failed") : "Save failed");
+      toast.error(err instanceof ApiError ? String((err.body as { message?: string })?.message ?? "Failed to save category") : "Failed to save category");
     } finally {
       setSaving(false);
     }
@@ -123,9 +124,10 @@ export default function CategoriesPage() {
     if (!confirm(`Delete category "${category.name}"?`)) return;
     try {
       await api.delete(`/next-api/admin/shop/categories/${category.id}`);
+      toast.success("Category deleted");
       await load();
     } catch (err) {
-      alert(err instanceof ApiError ? String((err.body as { message?: string })?.message ?? "Delete failed") : "Delete failed");
+      toast.error(err instanceof ApiError ? String((err.body as { message?: string })?.message ?? "Failed to delete category") : "Failed to delete category");
     }
   }
 
@@ -214,7 +216,6 @@ export default function CategoriesPage() {
           }
         >
           <form id={FORM_ID} onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-            {error && <p className={ui.error}>{error}</p>}
             <BilingualField
               label="Name"
               field="name"

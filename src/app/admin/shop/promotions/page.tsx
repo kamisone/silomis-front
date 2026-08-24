@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { api, ApiError } from "@/lib/api";
+import { useToast } from "@/components/toast/ToastContext";
 import Button from "@/components/admin/ui/Button";
 import Modal from "@/components/admin/ui/Modal";
 import ui from "@/components/admin/ui/admin-ui.module.css";
@@ -154,6 +155,7 @@ function promotionToForm(p: Promotion): PromotionForm {
 }
 
 export default function PromotionsPage() {
+  const { toast } = useToast();
   const [promotions, setPromotions] = useState<Promotion[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<ProductLite[]>([]);
@@ -162,7 +164,6 @@ export default function PromotionsPage() {
   const [form, setForm] = useState<PromotionForm | null>(null);
   const [detail, setDetail] = useState<Promotion | null>(null);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   async function load() {
     setLoading(true);
@@ -187,19 +188,17 @@ export default function PromotionsPage() {
   }, []);
 
   function openCreate() {
-    setError(null);
     setDetail(null);
     setForm({ ...EMPTY_FORM });
   }
 
   async function openEdit(p: Promotion) {
-    setError(null);
     try {
       const full = await api.get<Promotion>(`/next-api/admin/shop/promotions/${p.id}`);
       setDetail(full);
       setForm(promotionToForm(full));
     } catch (err) {
-      setError(err instanceof ApiError ? String((err.body as { message?: string })?.message ?? "Failed to load promotion") : "Failed to load promotion");
+      toast.error(err instanceof ApiError ? String((err.body as { message?: string })?.message ?? "Failed to load promotion") : "Failed to load promotion");
     }
   }
 
@@ -212,7 +211,7 @@ export default function PromotionsPage() {
     e.preventDefault();
     if (!form) return;
     setSaving(true);
-    setError(null);
+    const isNew = !form.id;
     const payload = {
       name: form.name,
       description: form.description || null,
@@ -239,8 +238,9 @@ export default function PromotionsPage() {
       }
       closeModal();
       await load();
+      toast.success(isNew ? "Promotion created" : "Promotion updated");
     } catch (err) {
-      setError(err instanceof ApiError ? String((err.body as { message?: string })?.message ?? "Save failed") : "Save failed");
+      toast.error(err instanceof ApiError ? String((err.body as { message?: string })?.message ?? "Failed to save promotion") : "Failed to save promotion");
     } finally {
       setSaving(false);
     }
@@ -251,8 +251,9 @@ export default function PromotionsPage() {
     try {
       await api.delete(`/next-api/admin/shop/promotions/${p.id}`);
       await load();
+      toast.success("Promotion deleted");
     } catch (err) {
-      alert(err instanceof ApiError ? String((err.body as { message?: string })?.message ?? "Delete failed") : "Delete failed");
+      toast.error(err instanceof ApiError ? String((err.body as { message?: string })?.message ?? "Failed to delete promotion") : "Failed to delete promotion");
     }
   }
 
@@ -266,8 +267,9 @@ export default function PromotionsPage() {
     try {
       await api.post(`/next-api/admin/shop/promotions/${detail.id}/category-links`, { categoryId });
       await refreshDetail(detail.id);
+      toast.success("Category restriction added");
     } catch (err) {
-      setError(err instanceof ApiError ? String((err.body as { message?: string })?.message ?? "Failed to add category") : "Failed to add category");
+      toast.error(err instanceof ApiError ? String((err.body as { message?: string })?.message ?? "Failed to add category") : "Failed to add category");
     }
   }
 
@@ -276,8 +278,9 @@ export default function PromotionsPage() {
     try {
       await api.delete(`/next-api/admin/shop/promotions/${detail.id}/category-links/${linkId}`);
       await refreshDetail(detail.id);
+      toast.success("Removed");
     } catch (err) {
-      setError(err instanceof ApiError ? String((err.body as { message?: string })?.message ?? "Failed to remove category") : "Failed to remove category");
+      toast.error(err instanceof ApiError ? String((err.body as { message?: string })?.message ?? "Failed to remove category") : "Failed to remove category");
     }
   }
 
@@ -286,8 +289,9 @@ export default function PromotionsPage() {
     try {
       await api.post(`/next-api/admin/shop/promotions/${detail.id}/product-links`, { productId });
       await refreshDetail(detail.id);
+      toast.success("Product added");
     } catch (err) {
-      setError(err instanceof ApiError ? String((err.body as { message?: string })?.message ?? "Failed to add product") : "Failed to add product");
+      toast.error(err instanceof ApiError ? String((err.body as { message?: string })?.message ?? "Failed to add product") : "Failed to add product");
     }
   }
 
@@ -296,8 +300,9 @@ export default function PromotionsPage() {
     try {
       await api.delete(`/next-api/admin/shop/promotions/${detail.id}/product-links/${linkId}`);
       await refreshDetail(detail.id);
+      toast.success("Removed");
     } catch (err) {
-      setError(err instanceof ApiError ? String((err.body as { message?: string })?.message ?? "Failed to remove product") : "Failed to remove product");
+      toast.error(err instanceof ApiError ? String((err.body as { message?: string })?.message ?? "Failed to remove product") : "Failed to remove product");
     }
   }
 
@@ -381,8 +386,6 @@ export default function PromotionsPage() {
           }
         >
           <form id={FORM_ID} onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-            {error && <p className={ui.error}>{error}</p>}
-
             <div className={ui.field}>
               <label className={ui.label}>Name</label>
               <input className={ui.input} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required autoFocus />

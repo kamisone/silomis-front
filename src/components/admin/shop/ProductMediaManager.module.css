@@ -125,27 +125,6 @@
   letter-spacing: 0.04em;
 }
 
-/* ── Add row ── */
-.addRow {
-  display: flex;
-  gap: 20px;
-  flex-wrap: wrap;
-  padding-top: 4px;
-  border-top: 1px dashed var(--color-surface);
-}
-
-.addCol {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.addColLabel {
-  font-size: 11.5px;
-  font-weight: 600;
-  color: var(--color-primary);
-}
-
 .maxReached {
   font-size: 12px;
   color: color-mix(in srgb, var(--foreground) 45%, transparent);

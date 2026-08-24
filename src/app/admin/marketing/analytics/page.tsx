@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
+import { useToast } from "@/components/toast/ToastContext";
 import Button from "@/components/admin/ui/Button";
 import ui from "@/components/admin/ui/admin-ui.module.css";
 
@@ -42,6 +43,7 @@ function pct(value: number): string {
 }
 
 export default function MarketingAnalyticsPage() {
+  const { toast } = useToast();
   const [overview, setOverview] = useState<Overview | null>(null);
   const [growth, setGrowth] = useState<GrowthPoint[]>([]);
   const [campaigns, setCampaigns] = useState<CampaignPerformanceRow[]>([]);
@@ -56,7 +58,11 @@ export default function MarketingAnalyticsPage() {
         setGrowth(Array.isArray(gr) ? gr : []);
         setCampaigns(Array.isArray(camp) ? camp : []);
       })
+      .catch(() => {
+        toast.error("Failed to load analytics overview");
+      })
       .finally(() => setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [days]);
 
   const maxGrowth = Math.max(...growth.map((p) => p.newSubscribers), 1);

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { api, ApiError } from "@/lib/api";
+import { useToast } from "@/components/toast/ToastContext";
 import Button from "@/components/admin/ui/Button";
 import Modal from "@/components/admin/ui/Modal";
 import ui from "@/components/admin/ui/admin-ui.module.css";
@@ -38,6 +39,7 @@ function errMessage(err: unknown, fallback: string): string {
 }
 
 export default function SubscribersPage() {
+  const { toast } = useToast();
   const [subscribers, setSubscribers] = useState<Subscriber[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -60,7 +62,6 @@ export default function SubscribersPage() {
   const [addSource, setAddSource] = useState("");
   const [addTags, setAddTags] = useState("");
   const [saving, setSaving] = useState(false);
-  const [notice, setNotice] = useState<{ text: string; isError: boolean } | null>(null);
 
   async function load() {
     setLoading(true);
@@ -75,7 +76,7 @@ export default function SubscribersPage() {
       setSubscribers(data.items);
       setTotal(data.total);
     } catch (err) {
-      setNotice({ text: errMessage(err, "Failed to load subscribers"), isError: true });
+      toast.error(errMessage(err, "Failed to load subscribers"));
     } finally {
       setLoading(false);
     }
@@ -110,7 +111,7 @@ export default function SubscribersPage() {
   async function runBulkAction() {
     if (selected.size === 0) return;
     if ((bulkAction === "add_tag" || bulkAction === "remove_tag") && !bulkTag.trim()) {
-      setNotice({ text: "Enter a tag first", isError: true });
+      toast.error("Enter a tag first");
       return;
     }
     if (bulkAction === "delete" && !confirm(`Delete ${selected.size} subscriber(s)? This cannot be undone.`)) return;
@@ -121,12 +122,12 @@ export default function SubscribersPage() {
         action: bulkAction,
         ...(bulkAction === "add_tag" || bulkAction === "remove_tag" ? { tag: bulkTag.trim() } : {}),
       });
-      setNotice({ text: "Bulk action applied", isError: false });
+      toast.success("Bulk action applied");
       setSelected(new Set());
       setBulkTag("");
       await load();
     } catch (err) {
-      setNotice({ text: errMessage(err, "Bulk action failed"), isError: true });
+      toast.error(errMessage(err, "Bulk action failed"));
     }
   }
 
@@ -134,26 +135,26 @@ export default function SubscribersPage() {
     if (!confirm("Delete this subscriber?")) return;
     try {
       await api.delete(`/next-api/admin/newsletter/subscribers/${id}`);
-      setNotice({ text: "Subscriber deleted", isError: false });
+      toast.success("Subscriber deleted");
       await load();
     } catch (err) {
-      setNotice({ text: errMessage(err, "Delete failed"), isError: true });
+      toast.error(errMessage(err, "Delete failed"));
     }
   }
 
   async function changeStatus(id: string, status: SubscriberStatus) {
     try {
       await api.patch(`/next-api/admin/newsletter/subscribers/${id}`, { status });
-      setNotice({ text: "Subscriber updated", isError: false });
+      toast.success("Subscriber updated");
       await load();
     } catch (err) {
-      setNotice({ text: errMessage(err, "Update failed"), isError: true });
+      toast.error(errMessage(err, "Update failed"));
     }
   }
 
   async function createSubscriber() {
     if (!addEmail.trim()) {
-      setNotice({ text: "Email is required", isError: true });
+      toast.error("Email is required");
       return;
     }
     setSaving(true);
@@ -169,7 +170,7 @@ export default function SubscribersPage() {
               .filter(Boolean)
           : undefined,
       });
-      setNotice({ text: "Subscriber added", isError: false });
+      toast.success("Subscriber added");
       setAddOpen(false);
       setAddEmail("");
       setAddLocale("");
@@ -178,7 +179,7 @@ export default function SubscribersPage() {
       setPage(1);
       await load();
     } catch (err) {
-      setNotice({ text: errMessage(err, "Failed to add subscriber"), isError: true });
+      toast.error(errMessage(err, "Failed to add subscriber"));
     } finally {
       setSaving(false);
     }
@@ -206,12 +207,6 @@ export default function SubscribersPage() {
           <Button onClick={() => setAddOpen(true)}>Add subscriber</Button>
         </div>
       </div>
-
-      {notice && (
-        <p className={notice.isError ? ui.error : undefined} style={{ marginTop: "-0.5rem", marginBottom: "1rem", fontSize: "0.85rem", color: notice.isError ? undefined : "var(--color-primary)" }}>
-          {notice.text}
-        </p>
-      )}
 
       <div className={ui.toolbar} style={{ marginBottom: "1rem" }}>
         <input

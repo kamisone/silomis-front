@@ -6,6 +6,7 @@ import { api, ApiError } from "@/lib/api";
 import Button from "@/components/admin/ui/Button";
 import Modal from "@/components/admin/ui/Modal";
 import ui from "@/components/admin/ui/admin-ui.module.css";
+import { useToast } from "@/components/toast/ToastContext";
 
 type ReviewStatus = "pending" | "approved" | "rejected" | "hidden";
 
@@ -46,12 +47,12 @@ function stars(rating: number): string {
 }
 
 export default function ReviewsAdminPage() {
+  const { toast } = useToast();
   const [tab, setTab] = useState<ReviewStatus | "">("pending");
   const [reviews, setReviews] = useState<Review[]>([]);
   const [total, setTotal] = useState(0);
   const [counts, setCounts] = useState<Partial<Record<ReviewStatus, number>>>({});
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   const [rejecting, setRejecting] = useState<Review | null>(null);
   const [rejectReason, setRejectReason] = useState("");
@@ -98,12 +99,12 @@ export default function ReviewsAdminPage() {
   }, []);
 
   async function moderate(id: string, status: ReviewStatus, rejectionReason?: string) {
-    setError(null);
     try {
       await api.patch(`/next-api/admin/shop/reviews/${id}/moderate`, { status, rejectionReason });
+      toast.success(`Review ${status}`);
       await Promise.all([load(), loadCounts()]);
     } catch (err) {
-      setError(err instanceof ApiError ? String((err.body as { message?: string })?.message ?? "Action failed") : "Action failed");
+      toast.error(err instanceof ApiError ? String((err.body as { message?: string })?.message ?? "Failed to moderate review") : "Failed to moderate review");
     }
   }
 
@@ -127,10 +128,11 @@ export default function ReviewsAdminPage() {
     if (!editing) return;
     try {
       await api.patch(`/next-api/admin/shop/reviews/${editing.id}`, { rating: parseInt(editRating, 10), title: editTitle || null, body: editBody || null });
+      toast.success("Review updated");
       setEditing(null);
       await load();
     } catch (err) {
-      setError(err instanceof ApiError ? String((err.body as { message?: string })?.message ?? "Save failed") : "Save failed");
+      toast.error(err instanceof ApiError ? String((err.body as { message?: string })?.message ?? "Failed to update review") : "Failed to update review");
     }
   }
 
@@ -138,9 +140,10 @@ export default function ReviewsAdminPage() {
     if (!confirm(`Delete review by "${r.authorName}"?`)) return;
     try {
       await api.delete(`/next-api/admin/shop/reviews/${r.id}`);
+      toast.success("Review deleted");
       await Promise.all([load(), loadCounts()]);
     } catch (err) {
-      alert(err instanceof ApiError ? String((err.body as { message?: string })?.message ?? "Delete failed") : "Delete failed");
+      toast.error(err instanceof ApiError ? String((err.body as { message?: string })?.message ?? "Failed to delete review") : "Failed to delete review");
     }
   }
 
@@ -178,8 +181,6 @@ export default function ReviewsAdminPage() {
           );
         })}
       </div>
-
-      {error && <p className={ui.error}>{error}</p>}
 
       <div className={ui.card}>
         {loading ? (

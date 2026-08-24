@@ -9,6 +9,7 @@ import Modal from "@/components/admin/ui/Modal";
 import BilingualField from "@/components/admin/BilingualField";
 import { useEntityTranslations } from "@/hooks/useEntityTranslations";
 import ui from "@/components/admin/ui/admin-ui.module.css";
+import { useToast } from "@/components/toast/ToastContext";
 
 const ENTITY_TYPE = "shop_collection";
 
@@ -32,6 +33,7 @@ function slugify(name: string): string {
 
 export default function CollectionsPage() {
   const router = useRouter();
+  const { toast } = useToast();
   const [collections, setCollections] = useState<Collection[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -39,7 +41,6 @@ export default function CollectionsPage() {
   const [slug, setSlug] = useState("");
   const [slugEdited, setSlugEdited] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const { translations, setTranslation, saveTranslations } = useEntityTranslations(ENTITY_TYPE, null);
 
@@ -58,7 +59,6 @@ export default function CollectionsPage() {
   }, []);
 
   function openCreate() {
-    setError(null);
     setName("");
     setSlug("");
     setSlugEdited(false);
@@ -68,13 +68,13 @@ export default function CollectionsPage() {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setSaving(true);
-    setError(null);
     try {
       const created = await api.post<Collection>("/next-api/admin/shop/collections", { name, slug: slug || slugify(name) });
       await saveTranslations(created.id, ["name"]);
+      toast.success("Collection created");
       router.push(`/admin/shop/collections/${created.id}`);
     } catch (err) {
-      setError(err instanceof ApiError ? String((err.body as { message?: string })?.message ?? "Create failed") : "Create failed");
+      toast.error(err instanceof ApiError ? String((err.body as { message?: string })?.message ?? "Failed to save collection") : "Failed to save collection");
     } finally {
       setSaving(false);
     }
@@ -84,9 +84,10 @@ export default function CollectionsPage() {
     if (!confirm(`Delete collection "${c.name}"?`)) return;
     try {
       await api.delete(`/next-api/admin/shop/collections/${c.id}`);
+      toast.success("Collection deleted");
       await load();
     } catch (err) {
-      alert(err instanceof ApiError ? String((err.body as { message?: string })?.message ?? "Delete failed") : "Delete failed");
+      toast.error(err instanceof ApiError ? String((err.body as { message?: string })?.message ?? "Failed to delete collection") : "Failed to delete collection");
     }
   }
 
@@ -160,7 +161,6 @@ export default function CollectionsPage() {
           }
         >
           <form id="new-collection-form" onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-            {error && <p className={ui.error}>{error}</p>}
             <BilingualField
               label="Name"
               field="name"

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { api, ApiError } from "@/lib/api";
+import { useToast } from "@/components/toast/ToastContext";
 import Button from "@/components/admin/ui/Button";
 import Modal from "@/components/admin/ui/Modal";
 import ui from "@/components/admin/ui/admin-ui.module.css";
@@ -30,11 +31,11 @@ const EMPTY_FORM: FormState = { id: null, code: "", label: "", description: "", 
 const FORM_ID = "order-status-ref-form";
 
 export default function OrderStatusRefsPage() {
+  const { toast } = useToast();
   const [refs, setRefs] = useState<OrderStatusRef[]>([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState<FormState | null>(null);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   async function load() {
     setLoading(true);
@@ -54,7 +55,7 @@ export default function OrderStatusRefsPage() {
     e.preventDefault();
     if (!form) return;
     setSaving(true);
-    setError(null);
+    const isNew = !form.id;
     const payload = {
       code: form.code,
       label: form.label,
@@ -71,8 +72,9 @@ export default function OrderStatusRefsPage() {
       }
       setForm(null);
       await load();
+      toast.success(isNew ? "Status created" : "Status updated");
     } catch (err) {
-      setError(err instanceof ApiError ? String((err.body as { message?: string })?.message ?? "Save failed") : "Save failed");
+      toast.error(err instanceof ApiError ? String((err.body as { message?: string })?.message ?? "Failed to save status") : "Failed to save status");
     } finally {
       setSaving(false);
     }
@@ -83,8 +85,9 @@ export default function OrderStatusRefsPage() {
     try {
       await api.delete(`/next-api/admin/shop/order-status-refs/${ref.id}`);
       await load();
+      toast.success("Status deleted");
     } catch (err) {
-      alert(err instanceof ApiError ? String((err.body as { message?: string })?.message ?? "Delete failed") : "Delete failed");
+      toast.error(err instanceof ApiError ? String((err.body as { message?: string })?.message ?? "Failed to delete status") : "Failed to delete status");
     }
   }
 
@@ -185,7 +188,6 @@ export default function OrderStatusRefsPage() {
           }
         >
           <form id={FORM_ID} onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-            {error && <p className={ui.error}>{error}</p>}
             <div className={ui.field}>
               <label className={ui.label}>Code *</label>
               <input

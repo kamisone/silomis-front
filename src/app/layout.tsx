@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { headers } from "next/headers";
 import NextTopLoader from "nextjs-toploader";
+import { ToastProvider } from "@/components/toast/ToastContext";
+import Toaster from "@/components/toast/Toaster";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -30,7 +32,10 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
             every route (storefront + admin) instead of each section rolling
             its own. Brand accent color; no spinner, just the top bar. */}
         <NextTopLoader color="#d9548c" height={3} showSpinner={false} shadow="0 0 10px #d9548c,0 0 5px #d9548c" />
-        {children}
+        <ToastProvider>
+          {children}
+          <Toaster />
+        </ToastProvider>
       </body>
     </html>
   );

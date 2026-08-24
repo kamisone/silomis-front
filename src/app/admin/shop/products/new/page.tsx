@@ -17,7 +17,7 @@ import { summarizeGenerateErrors, type SectionTranslationOutcome } from "@/lib/s
 import type { ResolvedProductMediaItem, ProductInfoSection, ProductTrustBadge, ProductFaq } from "@/lib/shop/productContent.types";
 import { Pencil, DollarSign, Image as ImageIcon, ClipboardList, Shield, HelpCircle } from "lucide-react";
 import styles from "../ProductEdit.module.css";
-import ui from "@/components/admin/ui/admin-ui.module.css";
+import { useToast } from "@/components/toast/ToastContext";
 
 // ── Types ────────────────────────────────────────────────────────────────
 
@@ -56,6 +56,7 @@ function errMessage(err: unknown, fallback: string): string {
 
 export default function NewProductPage() {
   const router = useRouter();
+  const { toast } = useToast();
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
@@ -89,7 +90,6 @@ export default function NewProductPage() {
   const [faqs, setFaqs] = useState<ProductFaq[]>([]);
 
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const { translations, setTranslation, saveTranslations } = useEntityTranslations(ENTITY_TYPE, null);
 
@@ -129,7 +129,6 @@ export default function NewProductPage() {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setSubmitting(true);
-    setError(null);
 
     const categoryIds = form.primaryCategoryId && !form.categoryIds.includes(form.primaryCategoryId) ? [form.primaryCategoryId, ...form.categoryIds] : form.categoryIds;
 
@@ -167,9 +166,10 @@ export default function NewProductPage() {
       ];
       await saveTranslations(product.id, fields);
 
+      toast.success("Product created");
       router.push(`/admin/shop/products/${product.id}`);
     } catch (err) {
-      setError(errMessage(err, "Could not create product"));
+      toast.error(errMessage(err, "Failed to create product"));
       setSubmitting(false);
     }
   }
@@ -185,7 +185,6 @@ export default function NewProductPage() {
           <span className={styles.topbarTitle}>{form.title || "New product"}</span>
         </div>
         <div className={styles.topbarActions}>
-          {error && <span className={ui.error}>{error}</span>}
           <button type="submit" form="product-form" className={styles.saveBtn} disabled={submitting}>
             {submitting ? "Creating…" : "Create product"}
           </button>

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { api, ApiError } from "@/lib/api";
+import { useToast } from "@/components/toast/ToastContext";
 import Button from "@/components/admin/ui/Button";
 import Modal from "@/components/admin/ui/Modal";
 import ui from "@/components/admin/ui/admin-ui.module.css";
@@ -24,11 +25,11 @@ interface FormState {
 const FORM_ID = "payment-type-form";
 
 export default function PaymentTypesPage() {
+  const { toast } = useToast();
   const [items, setItems] = useState<PaymentType[]>([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState<FormState | null>(null);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   async function load() {
     setLoading(true);
@@ -47,15 +48,16 @@ export default function PaymentTypesPage() {
     e.preventDefault();
     if (!form) return;
     setSaving(true);
-    setError(null);
+    const isNew = !form.id;
     try {
       const payload = { code: form.code, name: form.name, isActive: form.isActive };
       if (form.id) await api.patch(`/next-api/admin/shop/payment-types/${form.id}`, payload);
       else await api.post("/next-api/admin/shop/payment-types", payload);
       setForm(null);
       await load();
+      toast.success(isNew ? "Payment type created" : "Payment type updated");
     } catch (err) {
-      setError(err instanceof ApiError ? String((err.body as { message?: string })?.message ?? "Save failed") : "Save failed");
+      toast.error(err instanceof ApiError ? String((err.body as { message?: string })?.message ?? "Failed to save payment type") : "Failed to save payment type");
     } finally {
       setSaving(false);
     }
@@ -63,8 +65,13 @@ export default function PaymentTypesPage() {
 
   async function handleDelete(pt: PaymentType) {
     if (!confirm(`Delete payment type "${pt.name}"?`)) return;
-    await api.delete(`/next-api/admin/shop/payment-types/${pt.id}`);
-    await load();
+    try {
+      await api.delete(`/next-api/admin/shop/payment-types/${pt.id}`);
+      await load();
+      toast.success("Payment type deleted");
+    } catch (err) {
+      toast.error(err instanceof ApiError ? String((err.body as { message?: string })?.message ?? "Failed to delete payment type") : "Failed to delete payment type");
+    }
   }
 
   return (
@@ -130,7 +137,6 @@ export default function PaymentTypesPage() {
           }
         >
           <form id={FORM_ID} onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-            {error && <p className={ui.error}>{error}</p>}
             <div className={ui.field}>
               <label className={ui.label}>Name</label>
               <input className={ui.input} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required autoFocus placeholder="e.g. Credit / Debit Card" />

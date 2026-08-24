@@ -107,8 +107,6 @@ export interface Product {
   categories: CategoryRef[];
   primaryCategory: CategoryRef | null;
   variants: SelectableVariant[];
-  seoTitle?: string | null;
-  seoDescription?: string | null;
   isTestProduct?: boolean;
 }
 

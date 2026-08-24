@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { api, ApiError } from "@/lib/api";
+import { useToast } from "@/components/toast/ToastContext";
 import Button from "@/components/admin/ui/Button";
 import ui from "@/components/admin/ui/admin-ui.module.css";
 
@@ -20,6 +21,7 @@ interface PaymentMethod {
 }
 
 export default function PaymentMethodsPage() {
+  const { toast } = useToast();
   const [items, setItems] = useState<PaymentMethod[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -48,8 +50,9 @@ export default function PaymentMethodsPage() {
     try {
       await api.delete(`/next-api/admin/shop/payment-methods/${m.id}`);
       await load();
+      toast.success("Payment method removed");
     } catch (err) {
-      alert(err instanceof ApiError ? String((err.body as { message?: string })?.message ?? "Remove failed") : "Remove failed");
+      toast.error(err instanceof ApiError ? String((err.body as { message?: string })?.message ?? "Failed to remove") : "Failed to remove");
     }
   }
 

@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
+import { useToast } from "@/components/toast/ToastContext";
 import Button from "@/components/admin/ui/Button";
 import ui from "@/components/admin/ui/admin-ui.module.css";
 
@@ -82,10 +83,10 @@ const STATUS_LABEL: Record<string, string> = {
 
 export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const { toast } = useToast();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [transitioning, setTransitioning] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -101,12 +102,12 @@ export default function OrderDetailPage() {
     if (!order) return;
     if ((toStatus === "cancelled" || toStatus === "refunded") && !confirm(`${STATUS_LABEL[toStatus]}? This cannot be undone.`)) return;
     setTransitioning(true);
-    setError(null);
     try {
       await api.patch(`/next-api/admin/shop/orders/${order.id}/status`, { status: toStatus });
       await load();
+      toast.success(`Status updated to "${toStatus.replace(/_/g, " ")}"`);
     } catch (err) {
-      setError(err instanceof ApiError ? String((err.body as { message?: string })?.message ?? "Transition failed") : "Transition failed");
+      toast.error(err instanceof ApiError ? String((err.body as { message?: string })?.message ?? "Failed to update order status") : "Failed to update order status");
     } finally {
       setTransitioning(false);
     }
@@ -136,7 +137,6 @@ export default function OrderDetailPage() {
           ))}
         </div>
       </div>
-      {error && <p className={ui.error}>{error}</p>}
 
       <div className={ui.card} style={{ padding: "1.5rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
         <strong style={{ color: "var(--color-primary)" }}>Customer</strong>

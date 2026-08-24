@@ -21,16 +21,42 @@
 
   --background: var(--brand-base);
   --foreground: var(--brand-secondary);
+
+  /* Semantic status colors — success/error/warning/info feedback (toasts,
+     inline banners, badges). Deliberately independent of the brand palette
+     above: status meaning should read the same regardless of brand color. */
+  --color-success: #16a34a;
+  --color-success-bg: #f0fdf4;
+  --color-success-border: #bbf7d0;
+
+  --color-error: #dc2626;
+  --color-error-bg: #fef2f2;
+  --color-error-border: #fecaca;
+
+  --color-warning: #d97706;
+  --color-warning-bg: #fffbeb;
+  --color-warning-border: #fde68a;
+
+  --color-info: #2563eb;
+  --color-info-bg: #eff6ff;
+  --color-info-border: #bfdbfe;
 }
 
 html {
   height: 100%;
 }
 
+/*
+ * overflow-x: clip prevents horizontal overflow from reaching the viewport
+ * without creating a new scroll container (unlike overflow-x: hidden, which
+ * — per the CSS overflow interdependence rule — forces the paired
+ * overflow-y to auto and quietly breaks every position:sticky element on
+ * the page).
+ */
 html,
 body {
   max-width: 100vw;
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 body {

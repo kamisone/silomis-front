@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { api, ApiError } from "@/lib/api";
+import { useToast } from "@/components/toast/ToastContext";
 import Button from "@/components/admin/ui/Button";
 import Modal from "@/components/admin/ui/Modal";
 import BilingualField from "@/components/admin/BilingualField";
@@ -76,12 +77,12 @@ function errMessage(err: unknown, fallback: string): string {
 }
 
 export default function CountriesPage() {
+  const { toast } = useToast();
   const [countries, setCountries] = useState<Country[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
   const [form, setForm] = useState<FormState | null>(null);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const { translations, setTranslation, saveTranslations } = useEntityTranslations(ENTITY_TYPE, form && !form.isNew ? form.isoCode : null);
   const nameGen = useSectionGenerate<SectionTranslationOutcome<string>>("/next-api/admin/shop/countries/sections/name/translate");
@@ -111,12 +112,10 @@ export default function CountriesPage() {
   }, []);
 
   function openCreate() {
-    setError(null);
     setForm({ ...EMPTY_FORM });
   }
 
   function openEdit(c: Country) {
-    setError(null);
     setForm({
       isoCode: c.isoCode,
       isNew: false,
@@ -133,9 +132,12 @@ export default function CountriesPage() {
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!form || !form.isoCode.trim() || !form.name.trim()) return;
+    if (!form) return;
+    if (!form.isoCode.trim() || !form.name.trim()) {
+      toast.error("ISO code and name are required");
+      return;
+    }
     setSaving(true);
-    setError(null);
     const isoCode = form.isoCode.toUpperCase().trim();
     const payload = {
       isoCode,
@@ -152,10 +154,12 @@ export default function CountriesPage() {
       if (form.isNew) await api.post("/next-api/admin/shop/countries", payload);
       else await api.patch(`/next-api/admin/shop/countries/${isoCode}`, payload);
       await saveTranslations(isoCode, TRANSLATION_FIELDS);
+      const isNew = form.isNew;
       setForm(null);
       await load();
+      toast.success(isNew ? "Country added" : "Country updated");
     } catch (err) {
-      setError(errMessage(err, "Save failed"));
+      toast.error(errMessage(err, "Failed to save country"));
     } finally {
       setSaving(false);
     }
@@ -167,8 +171,9 @@ export default function CountriesPage() {
     try {
       await api.delete(`/next-api/admin/shop/countries/${c.isoCode}`);
       await load();
+      toast.success("Country deleted");
     } catch (err) {
-      alert(errMessage(err, "Delete failed"));
+      toast.error(errMessage(err, "Failed to delete country"));
     } finally {
       setUpdating(null);
     }
@@ -180,7 +185,7 @@ export default function CountriesPage() {
       const updated = await api.patch<Country>(`/next-api/admin/shop/countries/${isoCode}`, { [field]: !current });
       setCountries((prev) => prev.map((c) => (c.isoCode === isoCode ? updated : c)));
     } catch (err) {
-      alert(errMessage(err, "Update failed"));
+      toast.error(errMessage(err, "Failed to update country"));
     } finally {
       setUpdating(null);
     }
@@ -263,7 +268,6 @@ export default function CountriesPage() {
           }
         >
           <form id={FORM_ID} onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-            {error && <p className={ui.error}>{error}</p>}
             <div className={ui.formGrid}>
               <div className={ui.field}>
                 <label className={ui.label}>ISO code (2-letter) *</label>

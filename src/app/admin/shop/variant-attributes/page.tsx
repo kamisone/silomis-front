@@ -9,6 +9,7 @@ import BilingualField from "@/components/admin/BilingualField";
 import { useEntityTranslations, type OverlayLang } from "@/hooks/useEntityTranslations";
 import { useSectionGenerate } from "@/hooks/useSectionGenerate";
 import { summarizeGenerateErrors, type SectionTranslationOutcome } from "@/lib/sectionTranslate";
+import { useToast } from "@/components/toast/ToastContext";
 
 interface OptionValue {
   id: string;
@@ -62,12 +63,12 @@ function errMessage(err: unknown, fallback: string): string {
 }
 
 export default function VariantAttributesPage() {
+  const { toast } = useToast();
   const [attributes, setAttributes] = useState<VariantAttribute[]>([]);
   const [loading, setLoading] = useState(true);
   const [attrForm, setAttrForm] = useState<AttrFormState | null>(null);
   const [valueForm, setValueForm] = useState<ValueFormState | null>(null);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const { translations: attrTr, setTranslation: setAttrTr, saveTranslations: saveAttrTr } =
     useEntityTranslations("shop_variant_attribute", attrForm?.id ?? null);
@@ -120,7 +121,6 @@ export default function VariantAttributesPage() {
     e.preventDefault();
     if (!attrForm) return;
     setSaving(true);
-    setError(null);
     const payload = {
       name: attrForm.name,
       slug: attrForm.slug || undefined,
@@ -138,10 +138,11 @@ export default function VariantAttributesPage() {
         entityId = created.id;
       }
       if (entityId) await saveAttrTr(entityId, ["name"]);
+      toast.success(attrForm.id ? "Attribute updated" : "Attribute created");
       setAttrForm(null);
       await load();
     } catch (err) {
-      setError(errMessage(err, "Save failed"));
+      toast.error(errMessage(err, "Failed to save attribute"));
     } finally {
       setSaving(false);
     }
@@ -149,15 +150,19 @@ export default function VariantAttributesPage() {
 
   async function handleDeleteAttr(attr: VariantAttribute) {
     if (!confirm(`Delete attribute "${attr.name}"? This also removes its option values.`)) return;
-    await api.delete(`/next-api/admin/shop/variant-attributes/${attr.id}`);
-    await load();
+    try {
+      await api.delete(`/next-api/admin/shop/variant-attributes/${attr.id}`);
+      toast.success("Attribute deleted");
+      await load();
+    } catch (err) {
+      toast.error(errMessage(err, "Failed to delete attribute"));
+    }
   }
 
   async function handleValueSubmit(e: FormEvent) {
     e.preventDefault();
     if (!valueForm) return;
     setSaving(true);
-    setError(null);
     const payload = {
       value: valueForm.value,
       displayValue: valueForm.displayValue || null,
@@ -176,10 +181,11 @@ export default function VariantAttributesPage() {
         entityId = created.id;
       }
       if (entityId) await saveValTr(entityId, ["displayValue"]);
+      toast.success(valueForm.id ? "Value updated" : "Value added");
       setValueForm(null);
       await load();
     } catch (err) {
-      setError(errMessage(err, "Save failed"));
+      toast.error(errMessage(err, "Failed to save value"));
     } finally {
       setSaving(false);
     }
@@ -187,8 +193,13 @@ export default function VariantAttributesPage() {
 
   async function handleDeleteValue(attributeId: string, value: OptionValue) {
     if (!confirm(`Delete value "${value.value}"?`)) return;
-    await api.delete(`/next-api/admin/shop/variant-attributes/${attributeId}/values/${value.id}`);
-    await load();
+    try {
+      await api.delete(`/next-api/admin/shop/variant-attributes/${attributeId}/values/${value.id}`);
+      toast.success("Value deleted");
+      await load();
+    } catch (err) {
+      toast.error(errMessage(err, "Failed to delete value"));
+    }
   }
 
   return (
@@ -363,7 +374,6 @@ export default function VariantAttributesPage() {
           }
         >
           <form id={ATTR_FORM_ID} onSubmit={handleAttrSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-            {error && <p className={ui.error}>{error}</p>}
             <BilingualField
               label="Name"
               field="name"
@@ -438,7 +448,6 @@ export default function VariantAttributesPage() {
           }
         >
           <form id={VALUE_FORM_ID} onSubmit={handleValueSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-            {error && <p className={ui.error}>{error}</p>}
             <div className={ui.field}>
               <label className={ui.label}>Value</label>
               <input className={ui.input} value={valueForm.value} onChange={(e) => setValueForm({ ...valueForm, value: e.target.value })} required autoFocus placeholder="e.g. Black" />

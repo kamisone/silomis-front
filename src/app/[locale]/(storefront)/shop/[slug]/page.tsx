@@ -27,8 +27,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const product = await fetchProduct(slug);
   if (!product) return { title: "Product not found — Silomis" };
   return {
-    title: product.seoTitle?.trim() || `${product.title} — Silomis`,
-    description: product.seoDescription?.trim() || product.shortDescription || undefined,
+    title: `${product.title} — Silomis`,
+    description: product.shortDescription || undefined,
   };
 }
 
