@@ -476,15 +476,61 @@
   font-size: 13px;
   color: var(--co-text-secondary);
 }
-.summaryItemImage {
+/* Thumbnail + name are one click target. Padded and negatively margined so the
+   hover surface breathes around the row without shifting the layout. */
+.summaryItemLink {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: -5px;
+  padding: 5px;
+  border-radius: 12px;
+  color: inherit;
+  text-decoration: none;
+  transition: background 0.16s ease;
+}
+a.summaryItemLink:hover {
+  background: var(--color-surface-tint);
+}
+a.summaryItemLink:hover .summaryItemImage {
+  border-color: var(--color-primary);
+}
+a.summaryItemLink:hover .summaryItemTitle {
+  color: var(--color-primary);
+}
+/* The arrow is the whole affordance — it says "opens the product" without an
+   underline dragging the eye across a summary that should read as static. */
+a.summaryItemLink:hover .summaryItemGoIcon,
+a.summaryItemLink:focus-visible .summaryItemGoIcon {
+  opacity: 1;
+  transform: none;
+}
+a.summaryItemLink:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+  background: var(--color-surface-tint);
+}
+
+/* Holds the image and its quantity badge: the badge overhangs the corner, so it
+   can't live inside the clipped, rounded image box. */
+.summaryItemThumb {
   position: relative;
   flex-shrink: 0;
+  display: block;
   width: 48px;
   height: 48px;
+}
+.summaryItemImage {
+  display: block;
+  width: 100%;
+  height: 100%;
   border-radius: 10px;
   overflow: hidden;
   background: var(--color-surface);
   border: 1px solid var(--co-border);
+  transition: border-color 0.16s ease;
 }
 .summaryItemImage img {
   width: 100%;
@@ -493,6 +539,7 @@
   display: block;
 }
 .summaryItemImagePlaceholder {
+  display: block;
   width: 100%;
   height: 100%;
   background: var(--color-surface);
@@ -514,6 +561,19 @@
   flex: 1;
   min-width: 0;
   align-self: center;
+}
+.summaryItemTitle {
+  display: inline;
+  color: var(--co-text-secondary);
+  transition: color 0.16s ease;
+}
+.summaryItemGoIcon {
+  display: inline-block;
+  vertical-align: -1px;
+  margin-left: 4px;
+  opacity: 0;
+  transform: translate(-2px, 2px);
+  transition: opacity 0.16s ease, transform 0.16s ease;
 }
 .summaryItemOptions {
   display: block;

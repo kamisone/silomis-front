@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { ArrowUpRight } from "lucide-react";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import { useCart } from "@/components/shop/CartContext";
@@ -877,26 +878,49 @@ export default function CheckoutPage() {
           <h3>{t.shop.checkoutOrderSummary}</h3>
 
           <div className={styles.lineItems}>
-            {cart.items.map((item) => (
-              <div key={item.id} className={styles.summaryItem}>
-                <div className={styles.summaryItemImage}>
-                  {item.imageUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={item.imageUrl} alt={item.titleSnapshot} />
+            {cart.items.map((item) => {
+              const productHref = item.productSlug ? `/${locale}/shop/${item.productSlug}` : null;
+              // Thumbnail and name make up one navigation target; the price sits
+              // outside it since it isn't something you click through on.
+              const body = (
+                <>
+                  <span className={styles.summaryItemThumb}>
+                    <span className={styles.summaryItemImage}>
+                      {item.imageUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={item.imageUrl} alt="" />
+                      ) : (
+                        <span className={styles.summaryItemImagePlaceholder} />
+                      )}
+                    </span>
+                    {item.quantity > 1 && <span className={styles.summaryItemQtyBadge}>×{item.quantity}</span>}
+                  </span>
+                  <span className={styles.summaryItemName}>
+                    <span className={styles.summaryItemTitle}>
+                      {item.titleSnapshot}
+                      {productHref && <ArrowUpRight size={13} strokeWidth={2.25} className={styles.summaryItemGoIcon} aria-hidden="true" />}
+                    </span>
+                    {item.optionsSnapshot && item.optionsSnapshot.length > 0 && (
+                      <span className={styles.summaryItemOptions}>{item.optionsSnapshot.map((o) => `${o.attributeName}: ${o.displayValue ?? o.value}`).join(" · ")}</span>
+                    )}
+                  </span>
+                </>
+              );
+              return (
+                <div key={item.id} className={styles.summaryItem}>
+                  {productHref ? (
+                    // New tab on purpose: checking the product page must never cost
+                    // the customer the details they've already filled in here.
+                    <Link href={productHref} target="_blank" rel="noopener noreferrer" className={styles.summaryItemLink}>
+                      {body}
+                    </Link>
                   ) : (
-                    <div className={styles.summaryItemImagePlaceholder} />
+                    <span className={styles.summaryItemLink}>{body}</span>
                   )}
-                  {item.quantity > 1 && <span className={styles.summaryItemQtyBadge}>×{item.quantity}</span>}
+                  <span className={styles.summaryItemPrice}>€{centsToEuros(item.lineTotalCents)}</span>
                 </div>
-                <span className={styles.summaryItemName}>
-                  {item.titleSnapshot}
-                  {item.optionsSnapshot && item.optionsSnapshot.length > 0 && (
-                    <span className={styles.summaryItemOptions}>{item.optionsSnapshot.map((o) => `${o.attributeName}: ${o.displayValue ?? o.value}`).join(" · ")}</span>
-                  )}
-                </span>
-                <span className={styles.summaryItemPrice}>€{centsToEuros(item.lineTotalCents)}</span>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {onAddressStep && (
