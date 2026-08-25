@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
+import { ChevronDown } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import Button from "@/components/admin/ui/Button";
 import Modal from "@/components/admin/ui/Modal";
@@ -10,6 +11,7 @@ import { useEntityTranslations, type OverlayLang } from "@/hooks/useEntityTransl
 import { useSectionGenerate } from "@/hooks/useSectionGenerate";
 import { summarizeGenerateErrors, type SectionTranslationOutcome } from "@/lib/sectionTranslate";
 import { useToast } from "@/components/toast/ToastContext";
+import styles from "./VariantAttributes.module.css";
 
 interface OptionValue {
   id: string;
@@ -65,6 +67,7 @@ function errMessage(err: unknown, fallback: string): string {
 export default function VariantAttributesPage() {
   const { toast } = useToast();
   const [attributes, setAttributes] = useState<VariantAttribute[]>([]);
+  const [expanded, setExpanded] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [attrForm, setAttrForm] = useState<AttrFormState | null>(null);
   const [valueForm, setValueForm] = useState<ValueFormState | null>(null);
@@ -153,6 +156,7 @@ export default function VariantAttributesPage() {
     try {
       await api.delete(`/next-api/admin/shop/variant-attributes/${attr.id}`);
       toast.success("Attribute deleted");
+      setExpanded((e) => (e === attr.id ? null : e));
       await load();
     } catch (err) {
       toast.error(errMessage(err, "Failed to delete attribute"));
@@ -224,16 +228,41 @@ export default function VariantAttributesPage() {
           <div className={ui.emptyState}>No variant attributes yet — create one (e.g. Color, Size) to start building variants.</div>
         </div>
       ) : (
-        attributes.map((attr) => (
+        attributes.map((attr) => {
+          const isOpen = expanded === attr.id;
+          const toggle = () => setExpanded((e) => (e === attr.id ? null : attr.id));
+          return (
           <div key={attr.id} className={ui.card}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "1rem 1rem 0.5rem" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
-                <strong style={{ color: "var(--color-primary)" }}>{attr.name}</strong>
+            <div
+              className={`${styles.attrHeader} ${isOpen ? styles.attrHeaderOpen : ""}`}
+              role="button"
+              tabIndex={0}
+              aria-expanded={isOpen}
+              onClick={toggle}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  toggle();
+                }
+              }}
+            >
+              <div className={styles.attrHeaderMain}>
+                <span
+                  className={`${styles.expandBtn} ${isOpen ? styles.expandBtnActive : ""}`}
+                  title={isOpen ? "Collapse" : "Expand values"}
+                  aria-hidden="true"
+                >
+                  <ChevronDown size={14} className={`${styles.chevron} ${isOpen ? styles.chevronOpen : ""}`} />
+                </span>
+                <strong className={styles.attrName}>{attr.name}</strong>
+                <span className={styles.valueCount} title={`${attr.optionValues.length} option value(s)`}>
+                  {attr.optionValues.length}
+                </span>
                 <span className={ui.badge}>{attr.displayType}</span>
                 <span className={ui.badge}>Order: {attr.sortOrder}</span>
                 <span className={attr.isActive ? ui.badgeActive : ui.badgeInactive}>{attr.isActive ? "active" : "inactive"}</span>
               </div>
-              <div className={ui.rowActions}>
+              <div className={ui.rowActions} onClick={(e) => e.stopPropagation()}>
                 <Button
                   variant="secondary"
                   onClick={() =>
@@ -250,112 +279,123 @@ export default function VariantAttributesPage() {
                 >
                   Edit
                 </Button>
-                <Button
-                  variant="secondary"
-                  onClick={() =>
-                    setValueForm({
-                      attributeId: attr.id,
-                      id: null,
-                      value: "",
-                      displayValue: "",
-                      swatchValue: "",
-                      swatchType: "",
-                      priceAdjustmentCents: "",
-                      sortOrder: 0,
-                      isActive: true,
-                    })
-                  }
-                >
-                  Add value
-                </Button>
                 <Button variant="danger" onClick={() => handleDeleteAttr(attr)}>
                   Delete
                 </Button>
               </div>
             </div>
 
-            {attr.optionValues.length > 0 && (
-              <table className={ui.table}>
-                <thead>
-                  <tr>
-                    <th>Value</th>
-                    <th>Display</th>
-                    <th>Swatch</th>
-                    <th>Price adj.</th>
-                    <th>Order</th>
-                    <th>Status</th>
-                    <th />
-                  </tr>
-                </thead>
-                <tbody>
-                  {attr.optionValues.map((v) => (
-                    <tr key={v.id}>
-                      <td>{v.value}</td>
-                      <td>{v.displayValue ?? "—"}</td>
-                      <td>
-                        {v.swatchType === "color" && v.swatchValue ? (
-                          <span style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem" }}>
-                            <span style={{ width: 16, height: 16, borderRadius: "50%", background: v.swatchValue, border: "1px solid var(--color-surface)", display: "inline-block" }} />
-                            {v.swatchValue}
-                          </span>
-                        ) : v.swatchType === "image" && v.swatchValue ? (
-                          <span style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem" }}>
-                            <span
-                              style={{
-                                width: 24,
-                                height: 24,
-                                borderRadius: 4,
-                                backgroundImage: `url(${v.swatchValue})`,
-                                backgroundSize: "cover",
-                                backgroundPosition: "center",
-                                border: "1px solid var(--color-surface)",
-                                display: "inline-block",
-                              }}
-                              title={v.swatchValue}
-                            />
-                            {v.swatchValue}
-                          </span>
-                        ) : (
-                          "—"
-                        )}
-                      </td>
-                      <td>{v.priceAdjustmentCents != null ? `${v.priceAdjustmentCents >= 0 ? "+" : ""}${(v.priceAdjustmentCents / 100).toFixed(2)}` : "—"}</td>
-                      <td>{v.sortOrder}</td>
-                      <td>
-                        <span className={v.isActive ? ui.badgeActive : ui.badgeInactive}>{v.isActive ? "active" : "inactive"}</span>
-                      </td>
-                      <td>
-                        <div className={ui.rowActions}>
-                          <Button
-                            variant="secondary"
-                            onClick={() =>
-                              setValueForm({
-                                attributeId: attr.id,
-                                id: v.id,
-                                value: v.value,
-                                displayValue: v.displayValue ?? "",
-                                swatchValue: v.swatchValue ?? "",
-                                swatchType: v.swatchType ?? "",
-                                priceAdjustmentCents: v.priceAdjustmentCents != null ? String(v.priceAdjustmentCents / 100) : "",
-                                sortOrder: v.sortOrder,
-                                isActive: v.isActive,
-                              })
-                            }
-                          >
-                            Edit
-                          </Button>
-                          <Button variant="danger" onClick={() => handleDeleteValue(attr.id, v)}>
-                            Delete
-                          </Button>
-                        </div>
-                      </td>
+            {isOpen && (
+              <div className={styles.valuesPanel}>
+                <div className={styles.valuesPanelHeader}>
+                  <span className={styles.valuesPanelTitle}>Option values — {attr.name}</span>
+                  <Button
+                    variant="secondary"
+                    onClick={() =>
+                      setValueForm({
+                        attributeId: attr.id,
+                        id: null,
+                        value: "",
+                        displayValue: "",
+                        swatchValue: "",
+                        swatchType: "",
+                        priceAdjustmentCents: "",
+                        sortOrder: 0,
+                        isActive: true,
+                      })
+                    }
+                  >
+                    Add value
+                  </Button>
+                </div>
+
+                {attr.optionValues.length === 0 ? (
+                  <p className={styles.valEmpty}>No option values yet. Add one to enable structured variant selection.</p>
+                ) : (
+                <table className={ui.table}>
+                  <thead>
+                    <tr>
+                      <th>Value</th>
+                      <th>Display</th>
+                      <th>Swatch</th>
+                      <th>Price adj.</th>
+                      <th>Order</th>
+                      <th>Status</th>
+                      <th />
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {attr.optionValues.map((v) => (
+                      <tr key={v.id}>
+                        <td>{v.value}</td>
+                        <td>{v.displayValue ?? "—"}</td>
+                        <td>
+                          {v.swatchType === "color" && v.swatchValue ? (
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem" }}>
+                              <span style={{ width: 16, height: 16, borderRadius: "50%", background: v.swatchValue, border: "1px solid var(--color-surface)", display: "inline-block" }} />
+                              {v.swatchValue}
+                            </span>
+                          ) : v.swatchType === "image" && v.swatchValue ? (
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem" }}>
+                              <span
+                                style={{
+                                  width: 24,
+                                  height: 24,
+                                  borderRadius: 4,
+                                  backgroundImage: `url(${v.swatchValue})`,
+                                  backgroundSize: "cover",
+                                  backgroundPosition: "center",
+                                  border: "1px solid var(--color-surface)",
+                                  display: "inline-block",
+                                }}
+                                title={v.swatchValue}
+                              />
+                              {v.swatchValue}
+                            </span>
+                          ) : (
+                            "—"
+                          )}
+                        </td>
+                        <td>{v.priceAdjustmentCents != null ? `${v.priceAdjustmentCents >= 0 ? "+" : ""}${(v.priceAdjustmentCents / 100).toFixed(2)}` : "—"}</td>
+                        <td>{v.sortOrder}</td>
+                        <td>
+                          <span className={v.isActive ? ui.badgeActive : ui.badgeInactive}>{v.isActive ? "active" : "inactive"}</span>
+                        </td>
+                        <td>
+                          <div className={ui.rowActions}>
+                            <Button
+                              variant="secondary"
+                              onClick={() =>
+                                setValueForm({
+                                  attributeId: attr.id,
+                                  id: v.id,
+                                  value: v.value,
+                                  displayValue: v.displayValue ?? "",
+                                  swatchValue: v.swatchValue ?? "",
+                                  swatchType: v.swatchType ?? "",
+                                  priceAdjustmentCents: v.priceAdjustmentCents != null ? String(v.priceAdjustmentCents / 100) : "",
+                                  sortOrder: v.sortOrder,
+                                  isActive: v.isActive,
+                                })
+                              }
+                            >
+                              Edit
+                            </Button>
+                            <Button variant="danger" onClick={() => handleDeleteValue(attr.id, v)}>
+                              Delete
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                )}
+              </div>
             )}
           </div>
-        ))
+          );
+        })
       )}
 
       {attrForm && (

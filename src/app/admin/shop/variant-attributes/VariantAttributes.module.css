@@ -1,0 +1,107 @@
+/* Collapsible attribute cards — mirrors the vitecamio variant-attributes accordion. */
+
+.attrHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.attrHeader:hover {
+  background: var(--color-surface-tint);
+}
+
+.attrHeaderOpen {
+  border-bottom: 1px solid var(--color-surface);
+}
+
+.attrHeaderMain {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.expandBtn {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 7px;
+  border: 1px solid var(--color-surface);
+  background: var(--background);
+  color: var(--color-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+
+.expandBtn:hover {
+  color: var(--color-primary);
+}
+
+.expandBtnActive {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--background);
+}
+
+.chevron {
+  transition: transform 0.15s;
+}
+
+.chevronOpen {
+  transform: rotate(180deg);
+}
+
+.attrName {
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+.valueCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 22px;
+  padding: 0 0.45rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-surface);
+  background: var(--color-surface-tint);
+  color: var(--color-secondary);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.valuesPanel {
+  background: var(--color-surface-tint);
+}
+
+.valuesPanelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+}
+
+.valuesPanelTitle {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-secondary);
+}
+
+.valEmpty {
+  padding: 0 1rem 1rem;
+  margin: 0;
+  color: var(--color-secondary);
+  font-size: 0.85rem;
+}
