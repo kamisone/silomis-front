@@ -23,7 +23,7 @@ export default function CommerceHeader({ locale }: { locale: Locale }) {
         <div className={styles.inner}>
           {/* ── Row 1: logo, search, account/wishlist/cart ── */}
           <div className={styles.topRow}>
-            <Link href={`/${locale}/shop`} className={`${styles.logo} ${styles.logoOrder}`} aria-label={t.nav.logoAriaLabel}>
+            <Link href={`/${locale}`} className={`${styles.logo} ${styles.logoOrder}`} aria-label={t.nav.logoAriaLabel}>
               <Image src="/assets/logo_silomis_icon.png" alt="" width={43} height={32} className={styles.logoIcon} priority />
               <Image src="/assets/logo_silomis_text.png" alt="" width={84} height={32} className={styles.logoText} priority />
             </Link>

@@ -1,0 +1,786 @@
+/* ──────────────────────────────────────────────────────────────────────────
+   Home page section system.
+
+   Every section on the home page shares one stylesheet on purpose: the whole
+   job of this page is a consistent vertical rhythm, and splitting the spacing
+   scale across seven modules is how that drifts. Section-specific rules live
+   under their own heading below.
+
+   Colours come exclusively from the site tokens (--color-primary / -accent /
+   -secondary / -surface / -surface-tint), so the page follows the brand palette
+   defined once in globals.css.
+   ────────────────────────────────────────────────────────────────────────── */
+
+.page {
+  --home-gutter: clamp(16px, 4vw, 40px);
+  --home-max: 1280px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Standard content width. Sections that bleed to the viewport edge (hero, promo)
+   put this on an inner element instead. */
+.container {
+  width: 100%;
+  max-width: var(--home-max);
+  margin: 0 auto;
+  padding-inline: var(--home-gutter);
+}
+
+.section {
+  padding-block: clamp(40px, 6vw, 68px);
+}
+
+/* Alternating tint gives the page structure without drawing divider lines
+   between every block. */
+.sectionTinted {
+  background: var(--color-surface-tint);
+}
+
+/* ── Section heading ── */
+
+.sectionHead {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: clamp(18px, 3vw, 28px);
+}
+
+.sectionHeadText {
+  min-width: 0;
+}
+
+.sectionTitle {
+  font-size: clamp(21px, 3vw, 28px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--foreground);
+  margin: 0;
+}
+
+.sectionSubtitle {
+  margin: 6px 0 0;
+  font-size: 14.5px;
+  color: color-mix(in srgb, var(--foreground) 62%, var(--background));
+}
+
+.sectionLink {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-primary);
+  text-decoration: none;
+  padding-bottom: 2px;
+  border-bottom: 1.5px solid transparent;
+  transition: border-color 0.15s, gap 0.15s;
+}
+.sectionLink:hover {
+  border-bottom-color: var(--color-primary);
+  gap: 7px;
+}
+
+/* ── Hero ── */
+
+.hero {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background: var(--background);
+}
+
+/* A horizontal strip that translates one viewport-width per slide. The flex row
+   stretches every slide to the tallest one's height, so the hero never changes
+   height mid-slide — the reason a stacked cross-fade was the safer option is
+   handled here by the row itself rather than by avoiding the movement. */
+.heroViewport {
+  overflow: hidden;
+}
+.heroTrack {
+  display: flex;
+  /* Decelerating ease: the slide arrives rather than stopping dead. Duration
+     is mirrored by SLIDE_MS in HomeHero.tsx. */
+  transition: transform 0.55s cubic-bezier(0.22, 0.61, 0.36, 1);
+  will-change: transform;
+}
+.heroSlide {
+  flex: 0 0 100%;
+  min-width: 0;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Text-only slide — the original gradient treatment, kept so an editorial slide
+   needs no artwork to look finished. */
+.heroSlideGradient {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-primary) 12%, var(--background)) 0%,
+    color-mix(in srgb, var(--color-accent) 10%, var(--background)) 100%
+  );
+}
+/* Soft blooms behind the copy — cheap depth that never competes with the text. */
+.heroSlideGradient::before,
+.heroSlideGradient::after {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  border-radius: 50%;
+  filter: blur(60px);
+  opacity: 0.5;
+  pointer-events: none;
+}
+.heroSlideGradient::before {
+  width: 420px;
+  height: 420px;
+  top: -140px;
+  right: -80px;
+  background: color-mix(in srgb, var(--color-accent) 45%, transparent);
+}
+.heroSlideGradient::after {
+  width: 340px;
+  height: 340px;
+  bottom: -160px;
+  left: -60px;
+  background: color-mix(in srgb, var(--color-primary) 35%, transparent);
+}
+
+.heroImage {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Banner slides put light text on an unknown photo, so the scrim is what keeps
+   the copy legible whatever the admin uploads. */
+.heroScrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    rgba(0, 0, 0, 0.62) 0%,
+    rgba(0, 0, 0, 0.42) 45%,
+    rgba(0, 0, 0, 0.18) 100%
+  );
+}
+
+.heroInner {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 14px;
+  padding-block: clamp(56px, 10vw, 104px);
+}
+
+.heroEyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 13px;
+  border-radius: 999px;
+  background: var(--background);
+  border: 1px solid color-mix(in srgb, var(--color-primary) 25%, transparent);
+  color: var(--color-primary);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.heroTitle {
+  margin: 0;
+  font-size: clamp(30px, 6vw, 52px);
+  font-weight: 800;
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+  color: var(--color-primary);
+  max-width: 16ch;
+}
+
+.heroSubtitle {
+  margin: 0;
+  font-size: clamp(15px, 2vw, 18px);
+  line-height: 1.55;
+  color: color-mix(in srgb, var(--foreground) 72%, var(--background));
+  max-width: 46ch;
+}
+
+/* On a photo the copy flips to white; the eyebrow becomes a translucent chip so
+   it reads as part of the image rather than a sticker on top of it. */
+.heroSlideImage .heroTitle,
+.heroSlideImage .heroSubtitle {
+  color: #fff;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+}
+.heroSlideImage .heroEyebrow {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.4);
+  color: #fff;
+  backdrop-filter: blur(4px);
+}
+.heroSlideImage .heroCtaSecondary {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.55);
+  color: #fff;
+  backdrop-filter: blur(4px);
+}
+.heroSlideImage .heroCtaSecondary:hover {
+  background: #fff;
+  color: var(--color-primary);
+  border-color: #fff;
+}
+
+.heroActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.heroCta,
+.heroCtaSecondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 50px;
+  padding: 0 26px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: background 0.18s, color 0.18s, transform 0.15s, box-shadow 0.18s;
+}
+
+.heroCta {
+  background: var(--color-accent);
+  color: #fff;
+}
+.heroCta:hover {
+  background: var(--color-secondary);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--color-accent) 40%, transparent);
+}
+
+.heroCtaSecondary {
+  background: var(--background);
+  color: var(--color-primary);
+  border: 1.5px solid color-mix(in srgb, var(--color-primary) 35%, transparent);
+}
+.heroCtaSecondary:hover {
+  border-color: var(--color-primary);
+  transform: translateY(-1px);
+}
+
+/* ── Carousel controls ── */
+
+/* Pinned to the extreme edges rather than inside the content column, so they
+   never collide with the centred copy at any width. */
+.heroArrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--foreground) 12%, transparent);
+  background: color-mix(in srgb, var(--background) 82%, transparent);
+  color: var(--color-primary);
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  transition: background 0.15s, transform 0.15s, box-shadow 0.15s;
+}
+.heroArrow:hover {
+  background: var(--background);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--foreground) 18%, transparent);
+}
+.heroArrow:active {
+  transform: translateY(-50%) scale(0.94);
+}
+.heroArrowPrev {
+  left: 10px;
+}
+.heroArrowNext {
+  right: 10px;
+}
+@media (max-width: 640px) {
+  .heroArrow {
+    width: 36px;
+    height: 36px;
+  }
+  .heroArrowPrev {
+    left: 6px;
+  }
+  .heroArrowNext {
+    right: 6px;
+  }
+}
+
+.heroDots {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 7px;
+}
+.heroDot {
+  width: 8px;
+  height: 8px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--foreground) 28%, transparent);
+  cursor: pointer;
+  transition: width 0.2s, background 0.2s;
+}
+.heroDot:hover {
+  background: color-mix(in srgb, var(--color-primary) 60%, transparent);
+}
+/* The active dot stretches instead of just changing colour — position stays
+   readable at a glance even against a busy photo. */
+.heroDotActive {
+  width: 22px;
+  background: var(--color-primary);
+}
+
+/* ── Trust bar ── */
+
+.trustBar {
+  border-block: 1px solid color-mix(in srgb, var(--foreground) 10%, transparent);
+  background: var(--background);
+}
+
+.trustGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  padding-block: 18px;
+}
+@media (max-width: 860px) {
+  .trustGrid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px 4px;
+  }
+}
+
+.trustItem {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding-inline: 8px;
+  min-width: 0;
+}
+
+.trustIcon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  color: var(--color-primary);
+}
+
+.trustLabel {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--foreground);
+  line-height: 1.25;
+}
+.trustSub {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  line-height: 1.3;
+  color: color-mix(in srgb, var(--foreground) 58%, var(--background));
+}
+
+/* ── Category tiles ── */
+
+.categoryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 14px;
+}
+
+.categoryTile {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  aspect-ratio: 4 / 5;
+  border-radius: 16px;
+  overflow: hidden;
+  background: var(--color-surface);
+  border: 1px solid color-mix(in srgb, var(--foreground) 10%, transparent);
+  text-decoration: none;
+  transition: transform 0.18s, box-shadow 0.18s;
+}
+.categoryTile:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--foreground) 14%, transparent);
+}
+
+.categoryImage {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.4s ease;
+}
+.categoryTile:hover .categoryImage {
+  transform: scale(1.05);
+}
+
+/* Fallback for a category with no picture: a tinted panel rather than a hole in
+   the grid, so an unfinished catalogue still looks deliberate. */
+.categoryImageFallback {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    150deg,
+    color-mix(in srgb, var(--color-primary) 16%, var(--background)),
+    color-mix(in srgb, var(--color-accent) 14%, var(--background))
+  );
+}
+
+/* Scrim only behind the label, so the picture stays the subject. */
+.categoryScrim {
+  position: relative;
+  width: 100%;
+  padding: 30px 14px 13px;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.62), rgba(0, 0, 0, 0));
+}
+
+.categoryName {
+  display: block;
+  font-size: 14.5px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: #fff;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+
+/* ── Featured collections ── */
+
+.collectionGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 18px;
+}
+
+.collectionCard {
+  display: flex;
+  flex-direction: column;
+  border-radius: 16px;
+  overflow: hidden;
+  background: var(--background);
+  border: 1px solid color-mix(in srgb, var(--foreground) 11%, transparent);
+  text-decoration: none;
+  transition: transform 0.18s, box-shadow 0.18s;
+}
+.collectionCard:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 26px color-mix(in srgb, var(--foreground) 14%, transparent);
+}
+
+.collectionMedia {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  background: var(--color-surface);
+}
+.collectionImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.4s ease;
+}
+.collectionCard:hover .collectionImage {
+  transform: scale(1.04);
+}
+.collectionImageFallback {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    150deg,
+    color-mix(in srgb, var(--color-primary) 16%, var(--background)),
+    color-mix(in srgb, var(--color-accent) 14%, var(--background))
+  );
+}
+
+.collectionBody {
+  padding: 14px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+.collectionName {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--foreground);
+}
+.collectionDesc {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: color-mix(in srgb, var(--foreground) 62%, var(--background));
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.collectionCue {
+  margin-top: auto;
+  padding-top: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-primary);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: gap 0.15s;
+}
+.collectionCard:hover .collectionCue {
+  gap: 8px;
+}
+
+/* ── Product rail ── */
+
+/* A scroll-snapped row rather than a wrapping grid: it keeps the rail one line
+   tall at every width, so several rails stack on the page without turning it
+   into an endless scroll. Pure CSS — no carousel JS to ship or hydrate. */
+.rail {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(200px, 1fr);
+  gap: 18px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-padding-inline: var(--home-gutter);
+  /* Bleed the scroll area to the viewport edge so cards run off-screen rather
+     than stopping short at the container edge, which reads as "there is more". */
+  margin-inline: calc(var(--home-gutter) * -1);
+  padding-inline: var(--home-gutter);
+  padding-bottom: 6px;
+  scrollbar-width: thin;
+}
+.railItem {
+  scroll-snap-align: start;
+  min-width: 0;
+}
+@media (min-width: 1100px) {
+  .rail {
+    grid-auto-columns: minmax(0, 1fr);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-auto-flow: row;
+    overflow-x: visible;
+    margin-inline: 0;
+    padding-inline: 0;
+  }
+}
+
+/* ── Promotion banner ── */
+
+.promo {
+  background: linear-gradient(
+    120deg,
+    var(--color-primary) 0%,
+    color-mix(in srgb, var(--color-primary) 62%, var(--color-accent)) 100%
+  );
+  color: #fff;
+}
+
+.promoInner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 18px;
+  padding-block: clamp(26px, 4vw, 40px);
+}
+
+.promoText {
+  min-width: 0;
+}
+.promoBadge {
+  display: inline-block;
+  padding: 4px 11px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.2);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.promoTitle {
+  margin: 9px 0 0;
+  font-size: clamp(19px, 3vw, 26px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.promoDesc {
+  margin: 6px 0 0;
+  font-size: 14.5px;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.88);
+  max-width: 56ch;
+}
+.promoCta {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 0 24px;
+  border-radius: 12px;
+  background: #fff;
+  color: var(--color-primary);
+  font-size: 15px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: transform 0.15s, box-shadow 0.18s;
+}
+.promoCta:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+}
+
+/* ── Blog teasers ── */
+
+.blogGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 18px;
+}
+
+.blogCard {
+  display: flex;
+  flex-direction: column;
+  border-radius: 16px;
+  overflow: hidden;
+  background: var(--background);
+  border: 1px solid color-mix(in srgb, var(--foreground) 11%, transparent);
+  text-decoration: none;
+  transition: transform 0.18s, box-shadow 0.18s;
+}
+.blogCard:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 26px color-mix(in srgb, var(--foreground) 14%, transparent);
+}
+.blogMedia {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  background: var(--color-surface);
+  overflow: hidden;
+}
+.blogImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.4s ease;
+}
+.blogCard:hover .blogImage {
+  transform: scale(1.04);
+}
+.blogImageFallback {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    150deg,
+    color-mix(in srgb, var(--color-primary) 14%, var(--background)),
+    color-mix(in srgb, var(--color-accent) 12%, var(--background))
+  );
+}
+.blogBody {
+  padding: 14px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.blogMeta {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--color-primary);
+}
+.blogTitle {
+  margin: 0;
+  font-size: 15.5px;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--foreground);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.blogExcerpt {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: color-mix(in srgb, var(--foreground) 62%, var(--background));
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ── Reduced motion ── */
+
+@media (prefers-reduced-motion: reduce) {
+  /* The carousel still advances (it's information, not decoration) but cuts
+     instead of sliding. The clone-snap is on a timer rather than transitionend,
+     so it still resolves with the transition suppressed. */
+  .heroTrack {
+    transition: none;
+  }
+  .categoryTile,
+  .categoryImage,
+  .collectionCard,
+  .collectionImage,
+  .blogCard,
+  .blogImage,
+  .heroCta,
+  .heroCtaSecondary,
+  .promoCta {
+    transition: none;
+  }
+  .categoryTile:hover,
+  .collectionCard:hover,
+  .blogCard:hover,
+  .heroCta:hover,
+  .heroCtaSecondary:hover,
+  .promoCta:hover {
+    transform: none;
+  }
+  .categoryTile:hover .categoryImage,
+  .collectionCard:hover .collectionImage,
+  .blogCard:hover .blogImage {
+    transform: none;
+  }
+}

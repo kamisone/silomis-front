@@ -1,0 +1,571 @@
+/* ──────────────────────────────────────────────────────────────────────────
+   Home page layout editor.
+
+   The screen is a vertical stack of full-width cards that mirrors the page it
+   configures: card 1 is the top of the storefront, the last card is the bottom.
+   Everything here serves that metaphor — the connector line between cards, the
+   position rail on the left, and the "add" affordance sitting at the end of the
+   stack where a new section actually lands.
+   ────────────────────────────────────────────────────────────────────────── */
+
+.pageHint {
+  margin: 6px 0 0;
+  max-width: 76ch;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--color-secondary);
+}
+
+/* ── Status bar ── */
+
+.statusBar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+  font-size: 0.82rem;
+  color: var(--color-secondary);
+}
+.statusCount strong {
+  color: var(--foreground);
+}
+.statusWarn {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+  color: var(--color-accent);
+  font-weight: 700;
+}
+
+/* ── The stack ── */
+
+.stack {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.card {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  width: 100%;
+  border: 1px solid var(--color-surface);
+  border-radius: 14px;
+  background: var(--background);
+  overflow: hidden;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.card:hover {
+  border-color: color-mix(in srgb, var(--color-primary) 35%, var(--color-surface));
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--foreground) 8%, transparent);
+}
+
+/* The connector: a short line from each card down to the next, so the list
+   reads as one continuous page rather than seven unrelated panels. */
+.card:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  left: 27px;
+  bottom: -12px;
+  width: 2px;
+  height: 12px;
+  background: var(--color-surface);
+}
+
+/* A hidden section keeps its place and stays legible — it is still part of the
+   layout being arranged, just switched off. The striped rail is the at-a-glance
+   cue that survives even when the card is scrolled past quickly. */
+.cardOff {
+  background: repeating-linear-gradient(
+    135deg,
+    transparent,
+    transparent 7px,
+    color-mix(in srgb, var(--foreground) 3%, transparent) 7px,
+    color-mix(in srgb, var(--foreground) 3%, transparent) 14px
+  );
+}
+.cardOff .previewFrame,
+.cardOff .cardText {
+  opacity: 0.55;
+}
+
+/* ── Position rail ── */
+
+.rail {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  width: 54px;
+  padding: 14px 0;
+  background: var(--color-surface-tint);
+  border-right: 1px solid var(--color-surface);
+}
+
+.railNum {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: var(--background);
+  font-size: 0.72rem;
+  font-weight: 800;
+  margin-bottom: 2px;
+}
+.cardOff .railNum {
+  background: color-mix(in srgb, var(--foreground) 30%, var(--background));
+}
+
+.moveBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 22px;
+  border: 1px solid var(--color-surface);
+  border-radius: 6px;
+  background: var(--background);
+  color: var(--color-secondary);
+  cursor: pointer;
+  transition: color 0.12s, border-color 0.12s, background 0.12s;
+}
+.moveBtn:hover:not(:disabled) {
+  color: var(--background);
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+}
+.moveBtn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* ── Card body ── */
+
+.cardMain {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.cardHead {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px 16px;
+}
+
+/* Wireframe thumbnail — the fastest way to recognise a block. */
+.previewFrame {
+  flex-shrink: 0;
+  display: block;
+  width: 104px;
+  color: var(--foreground);
+}
+.preview {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.cardText {
+  flex: 1;
+  min-width: 0;
+}
+
+.cardTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.cardTitle {
+  margin: 0;
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: var(--foreground);
+}
+
+.pillLive,
+.pillHidden {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.pillLive {
+  background: color-mix(in srgb, var(--color-primary) 13%, transparent);
+  color: var(--color-primary);
+}
+.pillHidden {
+  background: var(--color-surface);
+  color: var(--color-secondary);
+}
+
+.cardDesc {
+  margin: 4px 0 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--color-secondary);
+  max-width: 64ch;
+}
+
+/* Settings echoed in the header, so the whole page can be audited by scanning
+   down the stack without opening anything. */
+.cardSummary {
+  margin: 6px 0 0;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.manageLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 8px;
+  padding: 4px 10px;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 30%, transparent);
+  border-radius: 8px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--color-primary);
+  text-decoration: none;
+  transition: background 0.14s, color 0.14s;
+}
+.manageLink:hover {
+  background: var(--color-primary);
+  color: var(--background);
+  border-color: var(--color-primary);
+}
+
+/* ── Card actions ── */
+
+.cardActions {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Visibility is the control used most on this screen, so it is a labelled
+   stateful button rather than a menu item — one click, current state readable
+   without hovering. */
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border: 1px solid var(--color-surface);
+  border-radius: 9px;
+  background: var(--background);
+  color: var(--color-secondary);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.14s, color 0.14s, border-color 0.14s;
+}
+.toggle:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+.toggleOn {
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+  border-color: color-mix(in srgb, var(--color-primary) 30%, transparent);
+  color: var(--color-primary);
+}
+.toggle:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Destructive action stays quiet until reached for — an icon that only turns
+   red on hover, so it never competes with the visibility toggle. */
+.deleteBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--color-surface);
+  border-radius: 9px;
+  background: var(--background);
+  color: var(--color-secondary);
+  cursor: pointer;
+  transition: background 0.14s, color 0.14s, border-color 0.14s;
+}
+.deleteBtn:hover:not(:disabled) {
+  background: #dc2626;
+  border-color: #dc2626;
+  color: #fff;
+}
+.deleteBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Settings band ── */
+
+.settings {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--color-surface);
+  background: var(--color-surface-tint);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 150px;
+}
+.fieldWide {
+  flex: 1;
+  min-width: 220px;
+}
+.fieldNarrow {
+  min-width: 90px;
+  max-width: 110px;
+}
+
+.fieldLabel {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-secondary);
+}
+
+.settingsNote {
+  margin-left: auto;
+  padding-bottom: 9px;
+  font-size: 0.72rem;
+  color: var(--color-secondary);
+}
+
+/* ── Add a section ── */
+
+.addCard {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 12px;
+  padding: 18px;
+  border: 2px dashed var(--color-surface);
+  border-radius: 14px;
+  background: transparent;
+  color: var(--color-secondary);
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+.addCard:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: var(--color-surface-tint);
+}
+
+.picker {
+  margin-top: 12px;
+  border: 2px dashed color-mix(in srgb, var(--color-primary) 35%, transparent);
+  border-radius: 14px;
+  background: var(--color-surface-tint);
+  padding: 14px 16px 16px;
+}
+
+.pickerHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.pickerTitle {
+  font-size: 0.8rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-secondary);
+}
+.pickerClose {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--color-secondary);
+  cursor: pointer;
+}
+.pickerClose:hover {
+  background: var(--color-surface);
+  color: var(--foreground);
+}
+
+/* Picked by shape, not from a dropdown of names — same wireframes as the cards,
+   so choosing is recognition rather than recall. */
+.pickerGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.pickerOption {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--color-surface);
+  border-radius: 11px;
+  background: var(--background);
+  color: var(--foreground);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.14s, transform 0.14s, box-shadow 0.14s;
+}
+.pickerOption:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--foreground) 10%, transparent);
+}
+.pickerOption:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pickerLabel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.pickerUsed {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-primary) 13%, transparent);
+  color: var(--color-primary);
+  font-size: 0.63rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* ── Default-layout state ── */
+
+.defaults {
+  padding: 20px;
+}
+.defaultsTitle {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--foreground);
+}
+.defaultsBody {
+  margin: 6px 0 0;
+  max-width: 68ch;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--color-secondary);
+}
+.defaultsStack {
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.defaultsRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 12px;
+  border: 1px solid var(--color-surface);
+  border-radius: 10px;
+  background: var(--color-surface-tint);
+}
+.defaultsRow .preview {
+  width: 78px;
+  flex-shrink: 0;
+  color: var(--foreground);
+  opacity: 0.75;
+}
+.defaultsNum {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--color-surface);
+  color: var(--color-secondary);
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+.defaultsLabel {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+/* ── Narrow screens ── */
+
+@media (max-width: 780px) {
+  .cardHead {
+    flex-wrap: wrap;
+  }
+  .previewFrame {
+    width: 78px;
+  }
+  .cardActions {
+    width: 100%;
+    justify-content: flex-end;
+    padding-top: 4px;
+  }
+  .settingsNote {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .pickerOption {
+    transition: none;
+  }
+  .pickerOption:hover:not(:disabled) {
+    transform: none;
+  }
+}

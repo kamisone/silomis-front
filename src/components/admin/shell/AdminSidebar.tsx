@@ -13,7 +13,7 @@ import {
   Users, User, Wallet, MapPin, History,
   Truck, Box, ClipboardCheck, Flag,
   CreditCard, Receipt, ArrowLeftRight, Zap, AlertCircle,
-  Tag, Send, Percent, Hash, Ticket,
+  Tag, Send, Percent, Hash, Ticket, Home,
   Settings, Coins, Landmark, Mail, Target, Headphones,
   FileEdit, BookOpen,
   ChevronRight, ChevronLeft, ChevronDown,
@@ -157,6 +157,7 @@ const NAV_GROUPS: NavGroup[] = [
         label: "Merchandising",
         icon:  Tag,
         items: [
+          { href: "/admin/shop/home",        icon: Home, label: "Home Page"   },
           { href: "/admin/shop/campaigns",   icon: Send, label: "Campaigns"   },
           { href: "/admin/shop/price-rules", icon: Tag,  label: "Price Rules" },
           { href: "/admin/shop/tags",        icon: Hash, label: "Tags"        },
