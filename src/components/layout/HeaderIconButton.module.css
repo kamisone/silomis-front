@@ -9,7 +9,7 @@
   border: 1px solid color-mix(in srgb, var(--foreground) 14%, transparent);
   border-radius: 9px;
   cursor: pointer;
-  color: var(--foreground);
+  color: var(--color-accent);
   text-decoration: none;
   flex-shrink: 0;
   transition: background 0.15s, color 0.15s, border-color 0.15s;

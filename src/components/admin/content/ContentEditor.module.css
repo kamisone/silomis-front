@@ -1,0 +1,291 @@
+.editor {
+  display: flex;
+  flex-direction: column;
+  background: var(--background);
+  border: 1px solid var(--color-surface);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+/* ── Page tabs ── */
+.pageTabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 1rem 1.25rem 0;
+  border-bottom: 1px solid var(--color-surface);
+}
+
+.pageTab {
+  padding: 0.45rem 0.9rem;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--color-secondary);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 6px 6px 0 0;
+  transition: color 0.15s, background 0.15s;
+  margin-bottom: -1px;
+}
+
+.pageTab:hover {
+  color: var(--foreground);
+  background: var(--color-surface-tint);
+}
+
+.pageTabActive {
+  color: var(--color-accent);
+  border-bottom-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 8%, transparent);
+}
+
+/* ── Locale bar ── */
+.localeBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1.25rem;
+  background: var(--color-surface-tint);
+  border-bottom: 1px solid var(--color-surface);
+}
+
+.localeBtn {
+  padding: 0.3rem 0.75rem;
+  border: 1px solid var(--color-surface);
+  border-radius: 20px;
+  background: transparent;
+  color: var(--color-secondary);
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+
+.localeBtn:hover {
+  background: var(--color-surface);
+  color: var(--foreground);
+}
+
+.localeBtnActive {
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+  border-color: color-mix(in srgb, var(--color-accent) 35%, transparent);
+  color: var(--color-accent);
+}
+
+.localeNote {
+  margin-left: auto;
+  font-size: 0.72rem;
+  color: color-mix(in srgb, var(--foreground) 45%, transparent);
+  font-style: italic;
+}
+
+/* ── Fields area ── */
+.loadingRow {
+  padding: 2rem;
+  text-align: center;
+  color: var(--color-secondary);
+  font-size: 0.9rem;
+}
+
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.25rem;
+}
+
+.fieldLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.fieldInput,
+.fieldTextarea {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-surface);
+  border-radius: 7px;
+  background: var(--background);
+  color: var(--foreground);
+  font-size: 0.88rem;
+  font-family: inherit;
+  line-height: 1.5;
+  transition: border-color 0.15s;
+  resize: vertical;
+}
+
+.fieldInput:focus,
+.fieldTextarea:focus {
+  outline: none;
+  border-color: var(--color-accent);
+}
+
+/* ── Sections ── */
+.sectionsHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 0.5rem;
+}
+
+.sectionsTitle {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-secondary);
+}
+
+.addSectionBtn {
+  padding: 0.3rem 0.75rem;
+  border: 1px dashed var(--color-accent);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-accent);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.addSectionBtn:hover {
+  background: color-mix(in srgb, var(--color-accent) 8%, transparent);
+}
+
+.emptySections {
+  padding: 1.25rem;
+  text-align: center;
+  color: color-mix(in srgb, var(--foreground) 45%, transparent);
+  font-size: 0.85rem;
+  border: 1px dashed var(--color-surface);
+  border-radius: 8px;
+}
+
+.sectionCard {
+  border: 1px solid var(--color-surface);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.sectionCardHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--color-surface-tint);
+  border-bottom: 1px solid var(--color-surface);
+}
+
+.sectionIndex {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: color-mix(in srgb, var(--foreground) 45%, transparent);
+  min-width: 22px;
+}
+
+.sectionTitleInput {
+  flex: 1;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--color-surface);
+  border-radius: 5px;
+  background: var(--background);
+  color: var(--foreground);
+  font-size: 0.82rem;
+  font-weight: 600;
+  font-family: inherit;
+}
+
+.sectionTitleInput:focus {
+  outline: none;
+  border-color: var(--color-accent);
+}
+
+.sectionActions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.sectionMoveBtn,
+.sectionRemoveBtn {
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--color-surface);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--color-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.12s, color 0.12s;
+  padding: 0;
+}
+
+.sectionMoveBtn:hover:not(:disabled) {
+  background: var(--color-surface);
+  color: var(--foreground);
+}
+
+.sectionMoveBtn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.sectionRemoveBtn:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+/* ── Footer save bar ── */
+.footerBar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1.25rem;
+  border-top: 1px solid var(--color-surface);
+  background: var(--color-surface-tint);
+}
+
+.saveBtn {
+  margin-left: auto;
+  padding: 0.45rem 1.25rem;
+  border: none;
+  border-radius: 8px;
+  background: var(--color-accent);
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.saveBtn:hover:not(:disabled) {
+  opacity: 0.88;
+}
+
+.saveBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.savedMsg {
+  font-size: 0.8rem;
+  color: #16a34a;
+  font-weight: 500;
+}
+
+.errorMsg {
+  font-size: 0.8rem;
+  color: #ef4444;
+  font-weight: 500;
+}

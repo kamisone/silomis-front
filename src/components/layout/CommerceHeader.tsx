@@ -7,6 +7,7 @@ import LangSwitcher from "./LangSwitcher";
 import ScrollAwareHeader from "./ScrollAwareHeader";
 import SearchAutocomplete from "../shop/SearchAutocomplete";
 import CommerceCategoryNav from "../shop/CommerceCategoryNav";
+import HeaderQuickLinks from "./HeaderQuickLinks";
 import { getTranslations, type Locale } from "@/lib/i18n";
 import styles from "./CommerceHeader.module.css";
 import iconStyles from "./HeaderIconButton.module.css";
@@ -26,6 +27,8 @@ export default function CommerceHeader({ locale }: { locale: Locale }) {
               <Image src="/assets/logo_silomis_icon.png" alt="" width={43} height={32} className={styles.logoIcon} priority />
               <Image src="/assets/logo_silomis_text.png" alt="" width={84} height={32} className={styles.logoText} priority />
             </Link>
+
+            <HeaderQuickLinks locale={locale} />
 
             <div className={styles.searchDesktop}>
               <SearchAutocomplete locale={locale} />

@@ -15,6 +15,7 @@ import {
   CreditCard, Receipt, ArrowLeftRight, Zap, AlertCircle,
   Tag, Send, Percent, Hash, Ticket,
   Settings, Coins, Landmark, Mail, Target, Headphones,
+  FileEdit, BookOpen,
   ChevronRight, ChevronLeft, ChevronDown,
 } from "lucide-react";
 import styles from "./AdminSidebar.module.css";
@@ -48,10 +49,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: "Overview",
     items: [
-      { href: "/admin",                                  icon: LayoutDashboard, label: "Dashboard"        },
-      { href: "/admin/shop/analytics",                    icon: BarChart3,       label: "Analytics"        },
-      { href: "/admin/shop/analytics/wishlists",           icon: Heart,           label: "Wishlist Analytics" },
-      { href: "/admin/shop/analytics/test-products",       icon: FlaskConical,    label: "Test Products"    },
+      { href: "/admin", icon: LayoutDashboard, label: "Dashboard" },
     ],
   },
   {
@@ -134,6 +132,7 @@ const NAV_GROUPS: NavGroup[] = [
         label: "Analytics",
         icon:  BarChart2,
         items: [
+          { href: "/admin/shop/analytics",               icon: BarChart3,    label: "Dashboard"             },
           { href: "/admin/shop/analytics/revenue",       icon: TrendingUp,   label: "Revenue Analytics"    },
           { href: "/admin/shop/analytics/products",      icon: LineChart,    label: "Product Performance"  },
           { href: "/admin/shop/analytics/conversion",    icon: BarChart3,    label: "Conversion Metrics"   },
@@ -174,6 +173,15 @@ const NAV_GROUPS: NavGroup[] = [
           { href: "/admin/shop/settings/checkout",        icon: ShoppingCart,      label: "Checkout Settings"      },
         ],
       },
+    ],
+  },
+  {
+    label: "Content",
+    items: [
+      { href: "/admin/blog",            icon: FileEdit, label: "Articles"   },
+      { href: "/admin/blog/categories", icon: Tag,      label: "Categories" },
+      { href: "/admin/blog/tags",       icon: Hash,     label: "Tags"       },
+      { href: "/admin/content",         icon: BookOpen, label: "Policies"   },
     ],
   },
 ];

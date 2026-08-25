@@ -14,6 +14,8 @@ export const en = {
     navAriaLabel: "Category navigation",
     selectLanguage: "Select language",
     trackMyOrder: "Track my order",
+    contactLabel: "Contact",
+    blogLabel: "Blog",
   },
   shop: {
     searchPlaceholder: "Search products…",
@@ -435,6 +437,8 @@ export const fr: Translations = {
     navAriaLabel: "Navigation des catégories",
     selectLanguage: "Choisir la langue",
     trackMyOrder: "Suivre ma commande",
+    contactLabel: "Contact",
+    blogLabel: "Blog",
   },
   shop: {
     searchPlaceholder: "Rechercher des produits…",
@@ -841,6 +845,8 @@ export const es: Translations = {
     navAriaLabel: "Navegación de categorías",
     selectLanguage: "Seleccionar idioma",
     trackMyOrder: "Seguir mi pedido",
+    contactLabel: "Contacto",
+    blogLabel: "Blog",
   },
   shop: {
     searchPlaceholder: "Buscar productos…",
@@ -1247,6 +1253,8 @@ export const it: Translations = {
     navAriaLabel: "Navigazione categorie",
     selectLanguage: "Seleziona lingua",
     trackMyOrder: "Traccia il mio ordine",
+    contactLabel: "Contatti",
+    blogLabel: "Blog",
   },
   shop: {
     searchPlaceholder: "Cerca prodotti…",
@@ -1653,6 +1661,8 @@ export const de: Translations = {
     navAriaLabel: "Kategorienavigation",
     selectLanguage: "Sprache auswählen",
     trackMyOrder: "Meine Bestellung verfolgen",
+    contactLabel: "Kontakt",
+    blogLabel: "Blog",
   },
   shop: {
     searchPlaceholder: "Produkte suchen…",
@@ -2059,6 +2069,8 @@ export const nl: Translations = {
     navAriaLabel: "Categorienavigatie",
     selectLanguage: "Taal selecteren",
     trackMyOrder: "Volg mijn bestelling",
+    contactLabel: "Contact",
+    blogLabel: "Blog",
   },
   shop: {
     searchPlaceholder: "Zoek producten…",
@@ -2465,6 +2477,8 @@ export const pl: Translations = {
     navAriaLabel: "Nawigacja kategorii",
     selectLanguage: "Wybierz język",
     trackMyOrder: "Śledź moje zamówienie",
+    contactLabel: "Kontakt",
+    blogLabel: "Blog",
   },
   shop: {
     searchPlaceholder: "Szukaj produktów…",
