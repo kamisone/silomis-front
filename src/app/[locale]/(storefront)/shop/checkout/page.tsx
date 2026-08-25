@@ -9,6 +9,7 @@ import PriceBreakdown from "@/components/shop/PriceBreakdown";
 import PromoCodeInput, { type ValidateCouponResult } from "@/components/shop/PromoCodeInput";
 import { getTranslations, type Locale } from "@/lib/i18n";
 import { useLocale } from "@/lib/i18n/useLocale";
+import CountrySelect from "@/components/shop/CountrySelect";
 import { pixelTrack, getMetaCookies } from "@/lib/metaPixel";
 import { ttqTrack, getTikTokCookies } from "@/lib/tiktokPixel";
 import styles from "./Checkout.module.css";
@@ -333,15 +334,17 @@ export default function CheckoutPage() {
     return () => clearTimeout(t);
   }, [token]);
 
+  // ?lang= applies the admin's per-country name overlays; the backend leaves
+  // the base name in place for any country that has no translation yet.
   useEffect(() => {
-    fetch("/next-api/public/shop/countries")
+    fetch(`/next-api/public/shop/countries?lang=${locale}`)
       .then((r) => (r.ok ? r.json() : []))
       .then((data) => {
         if (Array.isArray(data)) setCountries(data);
       })
       .catch(() => {})
       .finally(() => setCountriesLoading(false));
-  }, []);
+  }, [locale]);
 
   function goToStep(s: Step) {
     setStep(s);
@@ -697,20 +700,17 @@ export default function CheckoutPage() {
                   {t.shop.countryLabel}
                   <span className={styles.requiredMark}> *</span>
                 </label>
-                <select required disabled={countriesLoading} value={form.country} onChange={(e) => setForm((f) => ({ ...f, country: e.target.value }))}>
-                  {countriesLoading ? (
-                    <option value="">{t.shop.loading}</option>
-                  ) : (
-                    <>
-                      <option value="">{t.shop.selectCountryPlaceholder}</option>
-                      {countries.map((c) => (
-                        <option key={c.isoCode} value={c.isoCode}>
-                          {c.name}
-                        </option>
-                      ))}
-                    </>
-                  )}
-                </select>
+                <CountrySelect
+                  countries={countries}
+                  value={form.country}
+                  onChange={(isoCode) => setForm((f) => ({ ...f, country: isoCode }))}
+                  disabled={countriesLoading}
+                  required
+                  placeholder={countriesLoading ? t.shop.loading : t.shop.selectCountryPlaceholder}
+                  searchPlaceholder={t.shop.countrySearchPlaceholder}
+                  noResultsLabel={t.shop.countryNoResults}
+                  ariaLabel={t.shop.countryLabel}
+                />
               </div>
               <div className={styles.field}>
                 <label>
