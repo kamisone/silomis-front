@@ -307,37 +307,65 @@
 }
 
 /* ── Trust badges ── */
+/* All badges on one line, sharing the width equally. auto-fit with a small
+   floor lets them drop to two-up and then one-up on narrow screens instead of
+   overflowing; every cell stays centred at each step. */
 .trustRow {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 14px;
-  padding: 14px 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  grid-template-rows: auto auto auto;
+  justify-items: center;
+  gap: 14px 10px;
+  padding: 16px 0;
   margin-bottom: 8px;
   border-top: 1px solid color-mix(in srgb, var(--foreground) 12%, transparent);
   border-bottom: 1px solid color-mix(in srgb, var(--foreground) 12%, transparent);
 }
+
+/* Each badge is three stacked lines — icon, title, subtitle — spanning the
+   parent's three rows via subgrid so titles and subtitles stay on shared
+   baselines even when one title wraps, which it will: "fast and reliable
+   shipping" is far longer in fr/de than in en. Without subgrid support this
+   degrades to a plain three-row grid: still stacked correctly, just not
+   cross-aligned. */
 .trustItem {
-  display: inline-flex;
-  align-items: center;
+  display: grid;
+  grid-row: span 3;
+  grid-template-rows: subgrid;
+  justify-items: center;
+  align-content: start;
   gap: 6px;
-  font-size: 12.5px;
+  text-align: center;
   color: color-mix(in srgb, var(--foreground) 75%, var(--background));
 }
 .trustLink:hover {
   color: var(--color-primary);
 }
+
 .trustIcon {
   color: var(--color-primary);
-  font-weight: 700;
+  flex-shrink: 0;
 }
-.trustText {
-  display: flex;
-  flex-direction: column;
-  line-height: 1.3;
+.trustTitle {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  line-height: 1.25;
+  color: var(--foreground);
 }
 .trustSubtitle {
   font-size: 11px;
+  line-height: 1.3;
   color: color-mix(in srgb, var(--foreground) 55%, var(--background));
+}
+
+/* Below this the three badges no longer fit abreast and auto-fit would settle
+   on a lopsided 2-then-1. Collapse straight to one centred column instead. */
+@media (max-width: 460px) {
+  .trustRow {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* ── Description / specs ── */

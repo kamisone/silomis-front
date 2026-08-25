@@ -6,10 +6,13 @@ import { useRouter } from "next/navigation";
 import { PackageX } from "lucide-react";
 import AddToCartButton from "@/components/shop/AddToCartButton";
 import ProductVariantSelector, { type SelectableVariant } from "@/components/shop/ProductVariantSelector";
+import StickyVariantSelector from "@/components/shop/StickyVariantSelector";
+import { useVariantSelection } from "@/components/shop/useVariantSelection";
 import WishlistButton from "@/components/shop/WishlistButton";
 import ReplayRecorderMount from "@/components/shop/ReplayRecorderMount";
 import PromotionBadge, { type PromotionInfo } from "@/components/shop/PromotionBadge";
 import BackToTopButton from "@/components/BackToTopButton";
+import { getTrustBadgeIcon } from "@/lib/shop/trustBadgeIcons";
 import { useCart } from "@/components/shop/CartContext";
 import ProductGallery, { type GalleryMediaItem } from "./ProductGallery";
 import ReviewsSection, { type ReviewItem } from "./ReviewsSection";
@@ -279,21 +282,30 @@ function DocumentsSection({
   );
 }
 
-function TrustBadgesRow({ badges }: { badges: TrustBadge[] }) {
-  if (!badges?.length) return null;
-  const sorted = [...badges].sort((a, b) => a.sortOrder - b.sortOrder);
+/** Shown on every product that has no trust badges configured in admin, so the
+ * PDP never renders without trust signals. `icon` values resolve through the
+ * same TRUST_BADGE_ICON_MAP the admin picker offers. */
+function defaultTrustBadges(t: T): TrustBadge[] {
+  return [
+    { id: "default-secure", icon: "Lock", title: t.shop.trustSecureTitle, subtitle: t.shop.trustSecureText, sortOrder: 0 },
+    { id: "default-shipping", icon: "Truck", title: t.shop.trustShippingTitle, subtitle: t.shop.trustShippingText, sortOrder: 1 },
+    { id: "default-support", icon: "Headset", title: t.shop.trustSupportTitle, subtitle: t.shop.trustSupportText, sortOrder: 2 },
+  ];
+}
+
+function TrustBadgesRow({ badges, t }: { badges: TrustBadge[]; t: T }) {
+  const source = badges?.length ? badges : defaultTrustBadges(t);
+  const sorted = [...source].sort((a, b) => a.sortOrder - b.sortOrder);
   return (
     <div className={styles.trustRow}>
       {sorted.map((b) => {
+        const Icon = getTrustBadgeIcon(b.icon);
+        // Three stacked lines per badge: icon, then title, then subtitle.
         const content = (
           <>
-            <span className={styles.trustIcon} aria-hidden="true">
-              ✓
-            </span>
-            <span className={styles.trustText}>
-              {b.title}
-              {b.subtitle && <span className={styles.trustSubtitle}>{b.subtitle}</span>}
-            </span>
+            <Icon size={26} strokeWidth={1.75} className={styles.trustIcon} aria-hidden="true" />
+            <span className={styles.trustTitle}>{b.title}</span>
+            {b.subtitle && <span className={styles.trustSubtitle}>{b.subtitle}</span>}
           </>
         );
         return b.link ? (
@@ -332,18 +344,6 @@ function FaqSection({ faqs, t }: { faqs: Faq[]; t: T }) {
   );
 }
 
-/** Picks the initial variant using the same "default, else first in-stock,
- * else first" preference as ProductVariantSelector's own initial selection —
- * kept in sync so the price/stock shown before the selector's effect fires
- * matches what it resolves to. */
-function pickInitialVariant(product: Product): SelectableVariant | null {
-  const withOptions = product.variants.filter((v) => v.options.length > 0);
-  if (withOptions.length > 0) {
-    return withOptions.find((v) => v.isDefault) ?? withOptions.find((v) => (v.inventoryItem?.available ?? 0) > 0) ?? withOptions[0];
-  }
-  return product.variants.find((v) => v.isDefault) ?? product.variants[0] ?? null;
-}
-
 export default function ShopProductDetail({
   product,
   locale,
@@ -362,7 +362,13 @@ export default function ShopProductDetail({
   const { cart, addItem, mutating } = useCart();
   const gallery = useMemo(() => buildGallery(product), [product]);
   const hasVariants = useMemo(() => product.variants.some((v) => v.options.length > 0), [product]);
-  const [selectedVariant, setSelectedVariant] = useState<SelectableVariant | null>(() => pickInitialVariant(product));
+
+  // One selection shared by the inline picker and the sticky-bar picker below
+  // — see useVariantSelection on why this is lifted here rather than owned by
+  // ProductVariantSelector. `currentVariant` is already correct on first
+  // render, so price/stock never flash a placeholder value.
+  const variantSelection = useVariantSelection(product.variants);
+  const selectedVariant: SelectableVariant | null = variantSelection.currentVariant;
 
   const noMatch = hasVariants && !selectedVariant;
   const selectedOptionValueIds = useMemo(() => (selectedVariant?.options ?? []).map((o) => o.optionValueId).filter((id): id is string => !!id), [selectedVariant]);
@@ -697,7 +703,7 @@ export default function ShopProductDetail({
 
             {product.shortDescription && <p className={styles.shortDesc}>{product.shortDescription}</p>}
 
-            <ProductVariantSelector variants={product.variants} onVariantChange={setSelectedVariant} />
+            <ProductVariantSelector selection={variantSelection} />
 
             {noMatch ? (
               <div className={`${styles.stockBadge} ${styles.stockUnavailable}`}>{t.shop.selectOption}</div>
@@ -756,6 +762,8 @@ export default function ShopProductDetail({
 
             {buyError && <p className={styles.addError}>{buyError}</p>}
 
+            <TrustBadgesRow badges={product.trustBadges} t={t} />
+
             <DeliveryDetails
               locale={locale}
               freeShipping={product.freeShipping}
@@ -765,8 +773,6 @@ export default function ShopProductDetail({
             />
 
             <PackageContents locale={locale} items={product.packageContents ?? []} />
-
-            <TrustBadgesRow badges={product.trustBadges} />
 
             {product.description && (
               <div className={styles.descSection}>
@@ -846,6 +852,8 @@ export default function ShopProductDetail({
       {/* Sticky mobile buy bar — mobile/tablet only, hidden when the whole
           product is out of stock (the sticky notice above communicates that). */}
       <div className={`${styles.stickyBuyBar} ${showStickyBar && !allOutOfStock ? styles.stickyBuyBarVisible : ""}`} aria-hidden={!showStickyBar || allOutOfStock}>
+        <StickyVariantSelector selection={variantSelection} visible={showStickyBar && !allOutOfStock} />
+
         <div className={styles.stickyMeta}>
           <span className={styles.stickyPrice}>{qty > 1 ? centsToAmount(totalPriceCents) : centsToAmount(displayUnitPriceCents)}</span>
           {isOnSale && <span className={styles.stickyCompare}>{centsToAmount(compareAtCents!)}</span>}

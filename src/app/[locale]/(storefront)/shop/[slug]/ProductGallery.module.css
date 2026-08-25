@@ -678,23 +678,13 @@
      strip is visible here too — hidden, same as it already is on mobile. */
   .navRow { display: none; }
   /* Same edge capsule prev/next buttons already built for mobile, reused
-     here. They're positioned against .galleryWrap (a sibling of the strip
-     below), so top:50% would center them across image+strip together —
-     reset to an explicit top/bottom band matching just the strip's height
-     (thumb row ~136px + 26px top/bottom padding) so they land on the
-     image's own vertical center instead. */
+     here — only the reveal differs. Positioning stays on the base rule's
+     top:50%/translateY(-50%), which centers them in .galleryWrap: the strip
+     below is a *sibling* of the wrap, not a child, so the wrap's box is the
+     main image's box and nothing needs discounting from it. */
   .mobileNavBtn {
     display: flex;
-    top: 0;
-    bottom: 166px;
-    transform: none;
-    margin: auto 0;
   }
-  /* Base :active (line above) assumes the mobile resting transform
-     (translateY(-50%)) and re-applies it alongside the click scale — on
-     desktop the resting transform is none, so that translateY would jump
-     the button on click. Scale only, no translate. */
-  .mobileNavBtn:active { transform: scale(.94); }
   .mobileStripWrap {
     display: flex;
     flex: 0 0 auto;

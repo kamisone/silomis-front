@@ -1,0 +1,140 @@
+/* Compact picker inside the fixed mobile buy bar. Kept deliberately short:
+   one scrolling row per attribute, with the whole block capped so a product
+   with several attributes can never grow the bar over the viewport. */
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 34vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.label {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--foreground) 62%, var(--background));
+}
+.labelValue {
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--foreground);
+}
+
+/* Horizontal scroll rather than wrap — a long size run stays one row tall. */
+.optionRow {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+  scroll-snap-type: x proximity;
+}
+.optionRow::-webkit-scrollbar {
+  display: none;
+}
+.optionRow > * {
+  scroll-snap-align: start;
+}
+
+.select {
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1.5px solid color-mix(in srgb, var(--foreground) 18%, transparent);
+  background: var(--background);
+  color: var(--foreground);
+  font-size: 13px;
+  max-width: 100%;
+}
+
+.optionBtn {
+  flex-shrink: 0;
+  min-width: 36px;
+  height: 32px;
+  padding: 0 11px;
+  border-radius: 8px;
+  border: 1.5px solid color-mix(in srgb, var(--foreground) 18%, transparent);
+  background: var(--background);
+  color: var(--foreground);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+
+.swatchBtn {
+  position: relative;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  padding: 2px;
+  border-radius: 999px;
+  border: 1.5px solid color-mix(in srgb, var(--foreground) 18%, transparent);
+  background: var(--background);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.15s;
+}
+.swatchInner {
+  width: 100%;
+  height: 100%;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--foreground) 14%, transparent);
+}
+.swatchTextInner {
+  font-size: 9.5px;
+  font-weight: 700;
+  text-align: center;
+  line-height: 1.1;
+  padding: 0 1px;
+}
+
+/* Selected swatches carry a tick, matching the inline selector's ring but
+   readable at this size where the ring alone is easy to miss. */
+.check {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--color-primary);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid var(--background);
+}
+
+.optionSelected {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 1.5px var(--color-primary);
+}
+.optionBtn.optionSelected {
+  background: var(--color-surface);
+  color: var(--color-primary);
+}
+
+.optionOos {
+  opacity: 0.55;
+}
+
+.optionUnavailable {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
