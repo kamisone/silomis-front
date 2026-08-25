@@ -38,9 +38,14 @@ export default function ProductZoomedImagesManager({ initialItems, onChange }: P
     onChange(reordered.map(strip));
   }
 
-  function addImage(key: string, url: string) {
-    if (items.length >= MAX_IMAGES) return;
-    notify([...items, { id: crypto.randomUUID(), key, altText: null, sortOrder: items.length, isActive: true, url }]);
+  function addItems(assets: Array<{ storageKey: string; url: string; mediaType: "image" | "video" | "other" }>) {
+    const remaining = MAX_IMAGES - items.length;
+    const newItems: ResolvedProductZoomedImage[] = assets
+      .filter((a) => a.mediaType === "image")
+      .filter((a) => !items.some((i) => i.key === a.storageKey))
+      .slice(0, remaining)
+      .map((a) => ({ id: crypto.randomUUID(), key: a.storageKey, altText: null, sortOrder: 0, isActive: true, url: a.url }));
+    if (newItems.length) notify([...items, ...newItems]);
   }
 
   function update(index: number, patch: Partial<ResolvedProductZoomedImage>) {
@@ -52,13 +57,18 @@ export default function ProductZoomedImagesManager({ initialItems, onChange }: P
   }
 
   function handleDrop(targetIndex: number) {
-    if (drag === null || drag === targetIndex) { setDrag(null); return; }
+    if (drag === null || drag === targetIndex) {
+      setDrag(null);
+      return;
+    }
     const next = [...items];
     const [moved] = next.splice(drag, 1);
     next.splice(targetIndex, 0, moved);
     setDrag(null);
     notify(next);
   }
+
+  const canAdd = items.length < MAX_IMAGES;
 
   return (
     <div>
@@ -71,59 +81,51 @@ export default function ProductZoomedImagesManager({ initialItems, onChange }: P
         <p className={styles.empty}>No images yet. Add 3–8 close-up/detail shots for the best effect.</p>
       )}
 
-      <div className={styles.list}>
+      <div className={styles.grid}>
         {items.map((item, i) => (
           <div
             key={item.id}
             className={`${styles.card} ${drag === i ? styles.cardDragging : ""} ${!item.isActive ? styles.cardInactive : ""}`}
             draggable
             onDragStart={() => setDrag(i)}
-            onDragOver={e => e.preventDefault()}
+            onDragOver={(e) => e.preventDefault()}
             onDrop={() => handleDrop(i)}
             onDragEnd={() => setDrag(null)}
           >
-            <span className={styles.dragHandle}><GripVertical size={16} /></span>
-            <div className={styles.mediaWrap}>
-              <MediaPicker
-                value={item.key}
-                previewUrl={item.url}
-                onChange={(key, url) => {
-                  if (!key || !url) { remove(i); return; }
-                  update(i, { key, url });
-                }}
-                label="image"
-              />
+            <div className={styles.thumb}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={item.url} alt={item.altText ?? ""} className={styles.thumbImg} />
+              <span className={styles.dragBadge}>
+                <GripVertical size={13} />
+              </span>
+              <button
+                type="button"
+                className={`${styles.iconBtn} ${styles.eyeBtn}`}
+                onClick={() => update(i, { isActive: !item.isActive })}
+                title={item.isActive ? "Active — visible on product page" : "Inactive — hidden from product page"}
+              >
+                {item.isActive ? <Eye size={13} /> : <EyeOff size={13} />}
+              </button>
+              <button type="button" className={`${styles.iconBtn} ${styles.removeIconBtn}`} onClick={() => remove(i)} title="Remove">
+                <Trash2 size={13} />
+              </button>
             </div>
             <input
               className={styles.altInput}
               value={item.altText ?? ""}
-              onChange={e => update(i, { altText: e.target.value })}
+              onChange={(e) => update(i, { altText: e.target.value })}
               placeholder="Alt text (accessibility)"
             />
-            <button
-              type="button"
-              className={`${styles.iconBtn} ${styles.eyeBtn}`}
-              onClick={() => update(i, { isActive: !item.isActive })}
-              title={item.isActive ? "Active — visible on product page" : "Inactive — hidden from product page"}
-            >
-              {item.isActive ? <Eye size={14} /> : <EyeOff size={14} />}
-            </button>
-            <button type="button" className={`${styles.iconBtn} ${styles.removeIconBtn}`} onClick={() => remove(i)} title="Remove">
-              <Trash2 size={14} />
-            </button>
           </div>
         ))}
-      </div>
 
-      {items.length < MAX_IMAGES && (
-        <div className={styles.addRow}>
-          <MediaPicker value={null} onChange={(key, url) => { if (key && url) addImage(key, url); }} label="image" />
-        </div>
-      )}
+        {canAdd && <MediaPicker value={null} label="image" mediaType="image" multi onSelectMulti={addItems} asAddTile />}
+      </div>
 
       <p className={styles.hint}>
         Drag to reorder · only active images are shown on the product page · hidden automatically when empty.
       </p>
+      {!canAdd && <p className={styles.hint}>Maximum of {MAX_IMAGES} images reached.</p>}
     </div>
   );
 }

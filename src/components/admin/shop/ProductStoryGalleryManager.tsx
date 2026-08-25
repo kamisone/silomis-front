@@ -8,7 +8,7 @@ import { useSectionGenerate } from "@/hooks/useSectionGenerate";
 import { summarizeGenerateErrors, type SectionTranslationOutcome } from "@/lib/sectionTranslate";
 import { OVERLAY_LANGS, type OverlayLang } from "@/hooks/useEntityTranslations";
 import type { ProductStoryItem, StoryGalleryLocation, StoryImageAspectRatio } from "@/lib/shop/productContent.types";
-import { GripVertical, Trash2, Eye, EyeOff, Plus, PanelRight, BookOpen } from "lucide-react";
+import { GripVertical, Trash2, Eye, EyeOff, PanelRight, BookOpen } from "lucide-react";
 import peStyles from "@/app/admin/shop/products/ProductEdit.module.css";
 import styles from "./ProductStoryGalleryManager.module.css";
 
@@ -87,22 +87,26 @@ export default function ProductStoryGalleryManager({ initialItems, translations,
     else notify(side, sub);
   }
 
-  function addItem(location: StoryGalleryLocation, key: string, url: string | null) {
+  function addItems(location: StoryGalleryLocation, assets: Array<{ storageKey: string; url: string; mediaType: "image" | "video" | "other" }>) {
     const sub = location === "side" ? side : narrative;
-    if (sub.length >= MAX_PER_LOCATION) return;
-    const newItem: LocalStoryItem = {
-      id:          genId(),
-      key,
-      location,
-      altText:     null,
-      aspectRatio: "1:1",
-      title:       "",
-      description: "",
-      sortOrder:   sub.length,
-      isActive:    true,
-      previewUrl:  url,
-    };
-    withUpdated(location, [...sub, newItem]);
+    const remaining = MAX_PER_LOCATION - sub.length;
+    const newItems: LocalStoryItem[] = assets
+      .filter((a) => a.mediaType === "image")
+      .filter((a) => !sub.some((i) => i.key === a.storageKey))
+      .slice(0, remaining)
+      .map((a) => ({
+        id: genId(),
+        key: a.storageKey,
+        location,
+        altText: null,
+        aspectRatio: "1:1",
+        title: "",
+        description: "",
+        sortOrder: sub.length,
+        isActive: true,
+        previewUrl: a.url,
+      }));
+    if (newItems.length) withUpdated(location, [...sub, ...newItems]);
   }
 
   function update(location: StoryGalleryLocation, index: number, patch: Partial<LocalStoryItem>) {
@@ -185,11 +189,13 @@ export default function ProductStoryGalleryManager({ initialItems, translations,
             key={item.id}
             className={`${styles.sideCard} ${drag?.location === "side" && drag.index === i ? styles.cardDragging : ""} ${!item.isActive ? styles.cardInactive : ""}`}
           >
-            <div className={styles.sideCardHead} {...dragProps("side", i)}>
-              <span className={styles.dragHandle}><GripVertical size={14} /></span>
+            <div className={styles.sideThumb} {...dragProps("side", i)}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={item.previewUrl ?? undefined} alt={item.altText ?? ""} className={styles.thumbImg} />
+              <span className={styles.dragBadge}><GripVertical size={13} /></span>
               <button
                 type="button"
-                className={styles.iconBtn}
+                className={`${styles.iconBtn} ${styles.eyeBtn}`}
                 onClick={() => update("side", i, { isActive: !item.isActive })}
                 title={item.isActive ? "Active — visible on product page" : "Inactive — hidden from product page"}
               >
@@ -199,13 +205,6 @@ export default function ProductStoryGalleryManager({ initialItems, translations,
                 <Trash2 size={13} />
               </button>
             </div>
-            <MediaPicker
-              value={item.key}
-              previewUrl={item.previewUrl}
-              onChange={(key, url) => update("side", i, { key: key ?? item.key, previewUrl: url })}
-              label="image"
-              mediaType="image"
-            />
             <input
               className={styles.altInput}
               value={item.altText ?? ""}
@@ -216,10 +215,7 @@ export default function ProductStoryGalleryManager({ initialItems, translations,
         ))}
 
         {side.length < MAX_PER_LOCATION && (
-          <div className={styles.addTile}>
-            <span className={styles.addTileLabel}><Plus size={14} strokeWidth={2} /> Add image</span>
-            <MediaPicker value={null} onChange={(key, url) => { if (key) addItem("side", key, url); }} label="image" mediaType="image" />
-          </div>
+          <MediaPicker value={null} label="image" mediaType="image" multi onSelectMulti={(assets) => addItems("side", assets)} asAddTile className={styles.addTile} />
         )}
       </div>
 
@@ -272,13 +268,8 @@ export default function ProductStoryGalleryManager({ initialItems, translations,
 
             <div className={styles.narrativeBody}>
               <div className={styles.narrativeThumbCol}>
-                <MediaPicker
-                  value={item.key}
-                  previewUrl={item.previewUrl}
-                  onChange={(key, url) => update("narrative", i, { key: key ?? item.key, previewUrl: url })}
-                  label="image"
-                  mediaType="image"
-                />
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={item.previewUrl ?? undefined} alt={item.altText ?? ""} className={styles.narrativeThumb} />
                 <input
                   className={styles.altInput}
                   value={item.altText ?? ""}
@@ -331,10 +322,15 @@ export default function ProductStoryGalleryManager({ initialItems, translations,
       </div>
 
       {narrative.length < MAX_PER_LOCATION && (
-        <div className={styles.addBtn}>
-          <span className={styles.addBtnLabel}><Plus size={15} /> Add story block</span>
-          <MediaPicker value={null} onChange={(key, url) => { if (key) addItem("narrative", key, url); }} label="image" mediaType="image" />
-        </div>
+        <MediaPicker
+          value={null}
+          label="Add story block"
+          mediaType="image"
+          multi
+          onSelectMulti={(assets) => addItems("narrative", assets)}
+          asAddTile
+          className={styles.addBtnTile}
+        />
       )}
 
       <p className={peStyles.hint}>

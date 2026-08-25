@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { GripVertical, Trash2, Eye, EyeOff, Film, Plus } from "lucide-react";
+import { GripVertical, Trash2, Eye, EyeOff, Film } from "lucide-react";
 import MediaPicker from "@/components/admin/ui/MediaPicker";
 import BilingualField from "@/components/admin/BilingualField";
 import { useSectionGenerate } from "@/hooks/useSectionGenerate";
@@ -68,17 +68,14 @@ export default function ProductSocialVideosManager({ initialVideos, translations
     onChange(ordered.map(strip));
   }
 
-  function addItem(key: string, url: string | null) {
-    if (items.length >= MAX_VIDEOS) return;
-    const newItem: LocalSocialVideo = {
-      id:         genId(),
-      key,
-      title:      null,
-      sortOrder:  items.length,
-      isActive:   true,
-      previewUrl: url,
-    };
-    notify([...items, newItem]);
+  function addItems(assets: Array<{ storageKey: string; url: string; mediaType: "image" | "video" | "other" }>) {
+    const remaining = MAX_VIDEOS - items.length;
+    const newItems: LocalSocialVideo[] = assets
+      .filter((a) => a.mediaType === "video")
+      .filter((a) => !items.some((i) => i.key === a.storageKey))
+      .slice(0, remaining)
+      .map((a) => ({ id: genId(), key: a.storageKey, title: null, sortOrder: items.length, isActive: true, previewUrl: a.url }));
+    if (newItems.length) notify([...items, ...newItems]);
   }
 
   function update(index: number, patch: Partial<LocalSocialVideo>) {
@@ -146,8 +143,12 @@ export default function ProductSocialVideosManager({ initialVideos, translations
               onDrop={() => handleDrop(i)}
               onDragEnd={() => setDragIndex(null)}
             >
-              <div className={styles.tileHead}>
-                <span className={styles.orderBadge}>{i + 1}</span>
+              <video src={item.previewUrl ?? undefined} className={styles.tileMedia} muted preload="metadata" />
+
+              <span className={styles.orderBadge}>{i + 1}</span>
+              {item.title?.trim() && <span className={styles.titleBadgePreview}>{item.title}</span>}
+
+              <div className={styles.tileActions}>
                 <span className={styles.dragHandle} title="Drag to reorder">
                   <GripVertical size={13} />
                 </span>
@@ -169,16 +170,6 @@ export default function ProductSocialVideosManager({ initialVideos, translations
                   <Trash2 size={13} />
                 </button>
               </div>
-
-              <MediaPicker
-                value={item.key}
-                previewUrl={item.previewUrl}
-                onChange={(key, url) => update(i, { key: key ?? item.key, previewUrl: url })}
-                label="video"
-                mediaType="video"
-              />
-
-              {item.title?.trim() && <span className={styles.titleBadgePreview}>{item.title}</span>}
             </div>
 
             <div className={styles.badgeFields}>
@@ -201,10 +192,7 @@ export default function ProductSocialVideosManager({ initialVideos, translations
         ))}
 
         {items.length < MAX_VIDEOS && (
-          <div className={styles.addTile}>
-            <span className={styles.addTileLabel}><Plus size={16} /> Add videos</span>
-            <MediaPicker value={null} onChange={(key, url) => { if (key) addItem(key, url); }} label="video" mediaType="video" />
-          </div>
+          <MediaPicker value={null} label="video" mediaType="video" multi onSelectMulti={addItems} asAddTile className={styles.reelAddTile} />
         )}
       </div>
 

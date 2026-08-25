@@ -1,0 +1,327 @@
+/* ══════════════════════════════════════════════════════════════════════
+   Product Story Gallery — shared styles
+   Location "side": staggered sticky column next to the FAQ section
+   Location "narrative": alternating storytelling rows after all sections
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* ── Lazy image shell (skeleton → fade-in) ── */
+.imgShell {
+  display: block;
+  width: 100%;
+  height: 100%;
+  position: relative;
+  border-radius: 14px;
+  background: linear-gradient(100deg, transparent 30%, color-mix(in srgb, var(--foreground) 8%, transparent) 50%, transparent 70%) var(--color-surface-tint);
+  background-size: 220% 100%;
+  animation: storyShimmer 1.5s ease-in-out infinite;
+}
+.imgShellLoaded {
+  animation: none;
+  background: none;
+}
+@keyframes storyShimmer {
+  from { background-position: 120% 0; }
+  to { background-position: -100% 0; }
+}
+/* Story images ship with transparent backgrounds — contain (never crop), no
+   box chrome; shadows are drop-shadows so they follow the object's silhouette. */
+.img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  opacity: 0;
+  transition: opacity 0.45s ease, filter 0.3s ease;
+}
+.imgShellLoaded .img { opacity: 1; }
+
+/* ── Location "side" — staggered sticky column ── */
+.faqStoryRow {
+  margin-top: 40px;
+  padding-top: 32px;
+  border-top: 1px solid color-mix(in srgb, var(--foreground) 12%, transparent);
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(240px, 380px);
+  gap: 40px;
+  align-items: start;
+}
+/* Side gallery shown alone (no Specifications/Zoomed Images/FAQ to share the
+   row with): center a narrower canvas instead of leaving an empty column. */
+.faqStoryRow > :only-child {
+  grid-column: 1 / -1;
+  max-width: 520px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.faqStoryCol {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 44px;
+}
+.sideStickyCol {
+  min-width: 0;
+  position: sticky;
+  top: calc(var(--header-offset, 84px) + 20px);
+}
+
+.sideCanvas {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 5 / 6;
+  max-height: 640px;
+}
+
+/* Soft brand-tinted glow behind the composition */
+.sideCanvas::before {
+  content: "";
+  position: absolute;
+  inset: 2%;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 32% 28%, rgba(18, 156, 152, 0.16), transparent 60%),
+    radial-gradient(circle at 70% 68%, rgba(217, 84, 140, 0.14), transparent 58%);
+  filter: blur(32px);
+  pointer-events: none;
+}
+
+/* Outer slot: positioned by inline style, transformed by the parallax loop */
+.sideSlot {
+  position: absolute;
+  will-change: transform;
+}
+
+/* Inner card: rotation + reveal + hover, independent of the parallax translate.
+   No background/border/box-shadow — the drop-shadow on the image itself
+   follows the pictured object's outline. The reveal runs as a one-shot
+   animation (staggered via inline animationDelay) so this transition stays
+   free for instant hover feedback. */
+.sideCard {
+  margin: 0;
+  width: 100%;
+  position: relative;
+  isolation: isolate; /* keeps the ::before glow behind the image but inside the card */
+  cursor: zoom-in;
+  opacity: 0;
+  transform: rotate(var(--story-rotate, 0deg));
+  transition: opacity 0.35s ease, transform 0.4s cubic-bezier(0.22, 0.61, 0.36, 1), filter 0.35s ease;
+}
+
+/* Wide brand-colored glow behind the pictured object. A fixed 1:1 circle
+   centered on the card — the glow keeps the same shape whatever the card's
+   aspect ratio, instead of stretching with it. */
+.sideCard::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 150%;
+  aspect-ratio: 1 / 1;
+  transform: translate(-50%, -50%);
+  z-index: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(18, 156, 152, 0.3) 0%, rgba(217, 84, 140, 0.18) 44%, transparent 70%);
+  filter: blur(30px);
+  opacity: 0.85;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.sideCard:focus-visible,
+.narrativeMedia:focus-visible {
+  outline: 2px solid rgba(18, 156, 152, 0.95);
+  outline-offset: 4px;
+  border-radius: 12px;
+}
+
+.sideCard .img {
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.14)) drop-shadow(0 16px 28px rgba(0, 0, 0, 0.22));
+}
+
+.sideCanvasRevealed .sideCard {
+  opacity: 1;
+  animation: storySideReveal 0.7s cubic-bezier(0.22, 0.61, 0.36, 1) backwards;
+}
+@keyframes storySideReveal {
+  from { opacity: 0; transform: rotate(var(--story-rotate, 0deg)) translateY(28px) scale(0.94); }
+  to { opacity: 1; transform: rotate(var(--story-rotate, 0deg)); }
+}
+
+/* ── Desktop hover showcase ──
+   The hovered card straightens and zooms up large while the rest of the
+   composition steps back; hover-capable fine pointers only. */
+@media (hover: hover) and (pointer: fine) {
+  .sideCanvasRevealed .sideCard:hover {
+    transform: rotate(0deg) scale(1.45);
+  }
+  .sideCanvasRevealed .sideCard:hover::before { opacity: 1; }
+  /* Each slot is its own stacking context (inline z-index + will-change),
+     so the whole slot must be lifted — !important beats the inline z-index. */
+  .sideSlot:has(.sideCard:hover) { z-index: 30 !important; }
+  /* Recede the neighbours so the enlarged card owns the focus */
+  .sideCanvasRevealed:has(.sideCard:hover) .sideCard:not(:hover) {
+    opacity: 0.4;
+    filter: saturate(0.8);
+  }
+  .sideCanvasRevealed .sideCard:hover .img {
+    filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.18)) drop-shadow(0 32px 56px rgba(0, 0, 0, 0.32));
+  }
+}
+
+@media (max-width: 900px) {
+  .faqStoryRow {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+  .sideStickyCol { position: static; }
+  .sideCanvas { max-width: 440px; margin: 0 auto; }
+}
+
+/* ── Location "narrative" — alternating storytelling rows ── */
+.narrativeSection {
+  margin-top: 40px;
+  padding-top: 32px;
+  border-top: 1px solid color-mix(in srgb, var(--foreground) 12%, transparent);
+}
+.narrativeInner {
+  max-width: 1000px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 64px;
+}
+.narrativeOverline {
+  align-self: center;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-primary);
+  margin: 0 0 -16px;
+}
+
+.narrativeRow {
+  display: grid;
+  grid-template-columns: minmax(0, 55%) minmax(0, 45%);
+  gap: clamp(20px, 3vw, 40px);
+  align-items: center;
+}
+.narrativeRowReversed { grid-template-columns: minmax(0, 45%) minmax(0, 55%); }
+.narrativeRowReversed .narrativeMedia { order: 2; }
+.narrativeRowReversed .narrativeCopy { order: 1; }
+
+.narrativeMedia {
+  margin: 0;
+  /* Actual ratio (1:1 / 16:9 / 9:16, admin-chosen per image) is set inline
+     via style={{ aspectRatio }} in StoryNarrativeGallery.tsx — this is only
+     the fallback before that renders. */
+  aspect-ratio: 1 / 1;
+  position: relative;
+  isolation: isolate;
+  cursor: zoom-in;
+  opacity: 0;
+  transform: translateX(-24px);
+  transition: opacity 0.7s cubic-bezier(0.22, 0.61, 0.36, 1), transform 0.7s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+.narrativeRowReversed .narrativeMedia { transform: translateX(24px); }
+
+/* Wide brand-colored glow behind the pictured object */
+.narrativeMedia::before {
+  content: "";
+  position: absolute;
+  inset: -8% -12%;
+  z-index: 0;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at 50% 52%, rgba(217, 84, 140, 0.2) 0%, rgba(18, 156, 152, 0.16) 46%, transparent 74%);
+  filter: blur(38px);
+  pointer-events: none;
+}
+
+/* Uniform framed card: every row sits in the same rounded frame (aspect-ratio
+   set inline per image) regardless of the source image's own aspect ratio.
+   object-fit is "contain", so the whole image stays visible, letterboxed on
+   the frame's own background rather than cropped. */
+.narrativeMedia .imgShell {
+  position: relative;
+  z-index: 1;
+  border-radius: 20px;
+  overflow: hidden;
+  background: var(--background);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08), 0 24px 48px rgba(0, 0, 0, 0.14);
+}
+
+/* When a row has no copy, let the image span the full width, capped */
+.narrativeRow > .narrativeMedia:only-child {
+  grid-column: 1 / -1;
+  max-width: 760px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.narrativeCopy {
+  min-width: 0;
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity 0.7s cubic-bezier(0.22, 0.61, 0.36, 1) 0.1s, transform 0.7s cubic-bezier(0.22, 0.61, 0.36, 1) 0.1s;
+}
+.narrativeRowRevealed .narrativeMedia,
+.narrativeRowRevealed .narrativeCopy {
+  opacity: 1;
+  transform: none;
+}
+
+.narrativeHeading {
+  font-size: clamp(20px, 2.6vw, 26px);
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--foreground);
+  margin: 0 0 12px;
+}
+.narrativeText {
+  font-size: 14.5px;
+  line-height: 1.7;
+  color: color-mix(in srgb, var(--foreground) 78%, var(--background));
+  margin: 0;
+  white-space: pre-line;
+}
+
+@media (max-width: 760px) {
+  .narrativeInner { gap: 44px; }
+  .narrativeRow,
+  .narrativeRowReversed {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+  .narrativeRowReversed .narrativeMedia { order: 0; }
+  .narrativeRowReversed .narrativeCopy { order: 1; }
+  .narrativeMedia,
+  .narrativeRowReversed .narrativeMedia { transform: translateY(20px); }
+
+  /* Ties in specificity with .narrativeRowRevealed .narrativeMedia above and
+     comes later in the cascade, so without this the reversed rows' images
+     never settle back to transform:none after the reveal animation — they
+     stay shifted down, eating the row gap and pushing the title into them. */
+  .narrativeRowRevealed.narrativeRowReversed .narrativeMedia { transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sideCard,
+  .narrativeMedia,
+  .narrativeRowReversed .narrativeMedia,
+  .narrativeCopy {
+    transition: opacity 0.4s ease;
+    transform: rotate(var(--story-rotate, 0deg));
+  }
+  .narrativeMedia,
+  .narrativeRowReversed .narrativeMedia,
+  .narrativeCopy { transform: none; }
+
+  .sideCanvasRevealed .sideCard { animation: none; }
+  .sideCanvasRevealed .sideCard:hover { transform: rotate(var(--story-rotate, 0deg)); }
+  .sideCanvasRevealed:has(.sideCard:hover) .sideCard:not(:hover) {
+    opacity: 1;
+    filter: none;
+  }
+  .imgShell { animation: none; }
+}

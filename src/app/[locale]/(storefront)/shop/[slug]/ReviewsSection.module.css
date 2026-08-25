@@ -95,9 +95,28 @@
 }
 
 .verifiedBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: 0.75rem;
   color: #16a34a;
   font-weight: 600;
+}
+
+.cardAuthorRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: color-mix(in srgb, var(--foreground) 65%, var(--background));
+  margin-bottom: 6px;
+}
+.cardAuthor {
+  font-weight: 700;
+  color: var(--foreground);
+}
+.cardDate {
+  color: color-mix(in srgb, var(--foreground) 50%, var(--background));
 }
 
 .cardTitle {
@@ -116,17 +135,73 @@
   margin: 8px 0;
 }
 
+.mediaThumbBtn {
+  position: relative;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  background: none;
+  line-height: 0;
+}
+
 .cardMediaItem {
   width: 72px;
   height: 72px;
   object-fit: cover;
   border-radius: 8px;
+  display: block;
 }
 
-.cardMeta {
-  font-size: 0.8rem;
-  color: var(--color-secondary, #363a40);
-  margin-top: 8px;
+.mediaPlayBadge {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+}
+
+/* ── Media viewer overlay ── */
+.viewerOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  padding: 20px;
+}
+.viewerPanel {
+  position: relative;
+  max-width: 720px;
+  width: 100%;
+}
+.viewerMedia {
+  width: 100%;
+  max-height: 85vh;
+  border-radius: 10px;
+  display: block;
+  object-fit: contain;
+}
+.viewerClose {
+  position: absolute;
+  top: -40px;
+  right: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
 }
 
 .loadMore {
@@ -186,6 +261,13 @@
   font-size: 0.85rem;
   font-weight: 600;
 }
+.label {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.req {
+  color: var(--color-accent);
+}
 
 .modalForm input,
 .modalForm textarea {
@@ -218,6 +300,42 @@
   font-size: 0.85rem;
 }
 
+/* Visually hidden without display:none (which some spam bots detect and skip) */
+.honeypot {
+  position: absolute;
+  left: -9999px;
+  top: -9999px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.successState {
+  text-align: center;
+  padding: 12px 0 4px;
+}
+.successIcon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--color-primary) 14%, transparent);
+  color: var(--color-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 14px;
+}
+.successTitle {
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--foreground);
+  margin: 0 0 6px;
+}
+.successSub {
+  font-size: 13.5px;
+  color: color-mix(in srgb, var(--foreground) 70%, var(--background));
+  margin: 0 0 18px;
+}
+
 .ratingInput {
   display: flex;
   gap: 4px;
@@ -230,12 +348,54 @@
   color: #f59e0b;
 }
 
+.mediaField {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.mediaLabel {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.mediaPicker {
+  border: 1.5px dashed color-mix(in srgb, var(--foreground) 25%, transparent);
+  border-radius: 10px;
+  padding: 12px;
+  text-align: center;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--color-secondary, #363a40);
+  cursor: pointer;
+}
+.mediaPicker:hover {
+  border-color: var(--color-primary, #129c98);
+}
+
+.mediaPreviewItem {
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: 8px;
+  display: block;
+}
+
+.formActions {
+  display: flex;
+  gap: 10px;
+}
+.secondaryBtn {
+  border: 1.5px solid color-mix(in srgb, var(--foreground) 20%, transparent) !important;
+  background: var(--background, #fff) !important;
+  color: var(--foreground) !important;
+}
+
 .existingMedia {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
 }
 .existingMedia > div {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;

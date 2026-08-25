@@ -1,0 +1,93 @@
+/* Auto-scrolling filmstrip — every image renders twice back to back (see
+   the `track` array built in ZoomedImagesGallery.tsx) and the track scrolls
+   exactly -50% on a linear infinite loop, so the seam is invisible. */
+
+/* No margin/padding here on purpose — this section renders in two different
+   contexts (full-width fallback vs. the narrow column next to the Story Side
+   Gallery) that each own their own outer spacing via their wrapper. */
+.section {}
+
+.heading {
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--foreground);
+  margin: 0 0 16px;
+}
+
+.viewport {
+  overflow: hidden;
+  mask-image: linear-gradient(90deg, transparent 0, #000 4%, #000 96%, transparent 100%);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 4%, #000 96%, transparent 100%);
+}
+
+/* Breaks out to the full browser viewport width — only safe outside the
+   narrower grid column shared with the sticky Story Side Gallery. */
+.viewportFullBleed {
+  position: relative;
+  left: 50%;
+  right: 50%;
+  width: 100vw;
+  margin-left: -50vw;
+  margin-right: -50vw;
+}
+
+.track {
+  display: flex;
+  width: max-content;
+  gap: 14px;
+  padding: 0 14px;
+  cursor: default;
+  user-select: none;
+  -webkit-user-select: none;
+  animation-name: zoomedMarquee;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+.track:hover {
+  animation-play-state: paused;
+}
+
+@keyframes zoomedMarquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.img {
+  flex-shrink: 0;
+  height: 280px;
+  width: auto;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  object-position: center;
+  border-radius: 14px;
+  display: block;
+  pointer-events: none;
+  box-shadow: 0 4px 14px rgba(0, 24, 41, 0.1);
+  background: var(--color-surface-tint);
+}
+
+@media (max-width: 900px) {
+  .img {
+    height: 220px;
+  }
+}
+
+@media (max-width: 640px) {
+  .img {
+    height: 160px;
+  }
+  .track {
+    gap: 10px;
+    padding: 0 10px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .track {
+    animation: none;
+  }
+}

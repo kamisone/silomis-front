@@ -60,6 +60,7 @@ export default function ReviewsAdminPage() {
   const [editRating, setEditRating] = useState("5");
   const [editTitle, setEditTitle] = useState("");
   const [editBody, setEditBody] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<Review | null>(null);
 
   async function load() {
     setLoading(true);
@@ -90,12 +91,14 @@ export default function ReviewsAdminPage() {
   }
 
   useEffect(() => {
-    load();
+    const t = setTimeout(load, 0);
+    return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab]);
 
   useEffect(() => {
-    loadCounts();
+    const t = setTimeout(loadCounts, 0);
+    return () => clearTimeout(t);
   }, []);
 
   async function moderate(id: string, status: ReviewStatus, rejectionReason?: string) {
@@ -136,14 +139,16 @@ export default function ReviewsAdminPage() {
     }
   }
 
-  async function handleDelete(r: Review) {
-    if (!confirm(`Delete review by "${r.authorName}"?`)) return;
+  async function confirmDelete() {
+    if (!deleteTarget) return;
     try {
-      await api.delete(`/next-api/admin/shop/reviews/${r.id}`);
+      await api.delete(`/next-api/admin/shop/reviews/${deleteTarget.id}`);
       toast.success("Review deleted");
       await Promise.all([load(), loadCounts()]);
     } catch (err) {
       toast.error(err instanceof ApiError ? String((err.body as { message?: string })?.message ?? "Failed to delete review") : "Failed to delete review");
+    } finally {
+      setDeleteTarget(null);
     }
   }
 
@@ -284,7 +289,7 @@ export default function ReviewsAdminPage() {
                       <Button variant="secondary" onClick={() => openEdit(r)}>
                         Edit
                       </Button>
-                      <Button variant="danger" onClick={() => handleDelete(r)}>
+                      <Button variant="danger" onClick={() => setDeleteTarget(r)}>
                         Delete
                       </Button>
                     </div>
@@ -355,6 +360,27 @@ export default function ReviewsAdminPage() {
               <textarea className={ui.textarea} value={editBody} onChange={(e) => setEditBody(e.target.value)} />
             </div>
           </form>
+        </Modal>
+      )}
+
+      {deleteTarget && (
+        <Modal
+          title="Delete this review?"
+          onClose={() => setDeleteTarget(null)}
+          footer={
+            <>
+              <Button type="button" variant="secondary" onClick={() => setDeleteTarget(null)}>
+                Cancel
+              </Button>
+              <Button type="button" variant="danger" onClick={confirmDelete}>
+                Delete
+              </Button>
+            </>
+          }
+        >
+          <p style={{ fontSize: "0.85rem", color: "var(--color-secondary)", margin: 0 }}>
+            This permanently removes the review by {deleteTarget.authorName} and its media. This can&apos;t be undone.
+          </p>
         </Modal>
       )}
     </div>

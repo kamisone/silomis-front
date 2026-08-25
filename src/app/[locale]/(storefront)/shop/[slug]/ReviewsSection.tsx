@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { createPortal } from "react-dom";
+import { BadgeCheck, Play, X } from "lucide-react";
 import WriteReviewForm from "./WriteReviewForm";
 import { getTranslations, toBcp47, type Locale } from "@/lib/i18n";
 import styles from "./ProductDetail.module.css";
@@ -10,9 +12,10 @@ interface ReviewMedia {
   key: string;
   type: "image" | "video";
   url: string;
+  altText?: string | null;
 }
 
-interface Review {
+export interface ReviewItem {
   id: string;
   authorName: string;
   rating: number;
@@ -26,7 +29,11 @@ interface Review {
 interface Stats {
   average: number;
   count: number;
-  distribution: Record<string, number>;
+  distribution?: Record<string, number>;
+}
+
+function formatDate(iso: string, locale: string) {
+  return new Date(iso).toLocaleDateString(toBcp47(locale), { day: "2-digit", month: "short", year: "numeric" });
 }
 
 function Stars({ rating, size = 16 }: { rating: number; size?: number }) {
@@ -41,43 +48,52 @@ function Stars({ rating, size = 16 }: { rating: number; size?: number }) {
   );
 }
 
-export default function ReviewsSection({ productId, locale }: { productId: string; locale: Locale }) {
-  const t = getTranslations(locale);
-  const [stats, setStats] = useState<Stats | null>(null);
-  const [reviews, setReviews] = useState<Review[]>([]);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
+interface Props {
+  productId: string;
+  locale: Locale;
+  stats: Stats;
+  initialReviews: { items: ReviewItem[]; total: number };
+}
 
-  async function load(limit = 10) {
-    setLoading(true);
+export default function ReviewsSection({ productId, locale, stats, initialReviews }: Props) {
+  const t = getTranslations(locale);
+  const [reviews, setReviews] = useState(initialReviews.items);
+  const [total, setTotal] = useState(initialReviews.total);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [viewerMedia, setViewerMedia] = useState<ReviewMedia | null>(null);
+
+  const distribution = stats.distribution ?? {};
+  const maxCount = Math.max(1, ...[1, 2, 3, 4, 5].map((n) => distribution[String(n)] ?? 0));
+
+  async function loadMore() {
+    setLoadingMore(true);
     try {
-      const [statsRes, reviewsRes] = await Promise.all([
-        fetch(`/next-api/public/shop/reviews/product/${productId}/stats`, { cache: "no-store" }).catch(() => null),
-        fetch(`/next-api/public/shop/reviews/product/${productId}?limit=${limit}`, { cache: "no-store" }).catch(() => null),
-      ]);
-      if (statsRes?.ok) setStats(await statsRes.json());
-      if (reviewsRes?.ok) {
-        const data = await reviewsRes.json();
-        setReviews(data.items ?? []);
-        setTotal(data.total ?? 0);
+      const res = await fetch(`/next-api/public/shop/reviews/product/${productId}?limit=10&offset=${reviews.length}`, { cache: "no-store" });
+      if (res.ok) {
+        const data = await res.json();
+        setReviews((prev) => [...prev, ...(data.items ?? [])]);
+        setTotal(data.total ?? total);
       }
     } finally {
-      setLoading(false);
+      setLoadingMore(false);
     }
   }
 
-  useEffect(() => {
-    const t = setTimeout(() => load(), 0);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [productId]);
+  async function refreshFirstPage() {
+    const res = await fetch(`/next-api/public/shop/reviews/product/${productId}?limit=${Math.max(reviews.length, 10)}`, { cache: "no-store" });
+    if (res.ok) {
+      const data = await res.json();
+      setReviews(data.items ?? []);
+      setTotal(data.total ?? total);
+    }
+  }
 
   return (
-    <section className={styles.section}>
+    <section id="reviews" className={styles.section}>
       <h2 className={styles.sectionTitle}>{t.shop.reviewsHeading}</h2>
 
-      {stats && stats.count > 0 && (
+      {stats.count > 0 && (
         <div className={reviewStyles.summary}>
           <div className={reviewStyles.summaryScore}>
             <span className={reviewStyles.summaryAverage}>{stats.average.toFixed(1)}</span>
@@ -88,13 +104,12 @@ export default function ReviewsSection({ productId, locale }: { productId: strin
           </div>
           <div className={reviewStyles.distribution}>
             {[5, 4, 3, 2, 1].map((n) => {
-              const count = stats.distribution[String(n)] ?? 0;
-              const pct = stats.count > 0 ? Math.round((count / stats.count) * 100) : 0;
+              const count = distribution[String(n)] ?? 0;
               return (
                 <div key={n} className={reviewStyles.distributionRow}>
                   <span>{n}★</span>
                   <div className={reviewStyles.distributionBarTrack}>
-                    <div className={reviewStyles.distributionBarFill} style={{ width: `${pct}%` }} />
+                    <div className={reviewStyles.distributionBarFill} style={{ width: `${(count / maxCount) * 100}%` }} />
                   </div>
                   <span>{count}</span>
                 </div>
@@ -108,39 +123,58 @@ export default function ReviewsSection({ productId, locale }: { productId: strin
         {t.shop.reviewsWriteBtn}
       </button>
 
-      {!loading && reviews.length === 0 && <p className={reviewStyles.empty}>{t.shop.reviewsEmpty}</p>}
+      {reviews.length === 0 && <p className={reviewStyles.empty}>{t.shop.reviewsEmpty}</p>}
 
       <div className={reviewStyles.list}>
         {reviews.map((r) => (
           <div key={r.id} className={reviewStyles.card}>
             <div className={reviewStyles.cardHeader}>
               <Stars rating={r.rating} />
-              {r.isVerifiedPurchase && <span className={reviewStyles.verifiedBadge}>{t.shop.reviewVerifiedBadge}</span>}
+              {r.isVerifiedPurchase && (
+                <span className={reviewStyles.verifiedBadge}>
+                  <BadgeCheck size={13} strokeWidth={2} /> {t.shop.reviewVerifiedBadge}
+                </span>
+              )}
+            </div>
+            <div className={reviewStyles.cardAuthorRow}>
+              <span className={reviewStyles.cardAuthor}>{r.authorName}</span>
+              <span aria-hidden="true">·</span>
+              <span className={reviewStyles.cardDate}>{formatDate(r.createdAt, locale)}</span>
             </div>
             {r.title && <p className={reviewStyles.cardTitle}>{r.title}</p>}
             {r.body && <p className={reviewStyles.cardBody}>{r.body}</p>}
             {r.media.length > 0 && (
               <div className={reviewStyles.cardMedia}>
-                {r.media.map((m) =>
-                  m.type === "video" ? (
-                    <video key={m.key} src={m.url} controls className={reviewStyles.cardMediaItem} />
-                  ) : (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img key={m.key} src={m.url} alt="" className={reviewStyles.cardMediaItem} />
-                  ),
-                )}
+                {r.media.map((m) => (
+                  <button
+                    key={m.key}
+                    type="button"
+                    className={reviewStyles.mediaThumbBtn}
+                    onClick={() => setViewerMedia(m)}
+                    aria-label={m.type === "video" ? "Play video" : "View image"}
+                  >
+                    {m.type === "video" ? (
+                      <video src={m.url} muted playsInline className={reviewStyles.cardMediaItem} />
+                    ) : (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={m.url} alt={m.altText ?? ""} loading="lazy" className={reviewStyles.cardMediaItem} />
+                    )}
+                    {m.type === "video" && (
+                      <span className={reviewStyles.mediaPlayBadge} aria-hidden="true">
+                        <Play size={16} fill="currentColor" />
+                      </span>
+                    )}
+                  </button>
+                ))}
               </div>
             )}
-            <p className={reviewStyles.cardMeta}>
-              {r.authorName} — {new Date(r.createdAt).toLocaleDateString(toBcp47(locale))}
-            </p>
           </div>
         ))}
       </div>
 
       {reviews.length < total && (
-        <button type="button" className={reviewStyles.loadMore} onClick={() => load(reviews.length + 10)}>
-          {t.shop.reviewLoadMore}
+        <button type="button" className={reviewStyles.loadMore} onClick={loadMore} disabled={loadingMore}>
+          {loadingMore ? "…" : t.shop.reviewLoadMore}
         </button>
       )}
 
@@ -149,12 +183,27 @@ export default function ReviewsSection({ productId, locale }: { productId: strin
           productId={productId}
           locale={locale}
           onClose={() => setShowForm(false)}
-          onSubmitted={() => {
-            setShowForm(false);
-            load(Math.max(reviews.length, 10));
-          }}
+          onSubmitted={refreshFirstPage}
         />
       )}
+
+      {viewerMedia &&
+        createPortal(
+          <div className={reviewStyles.viewerOverlay} onMouseDown={(e) => e.target === e.currentTarget && setViewerMedia(null)}>
+            <div className={reviewStyles.viewerPanel} role="dialog" aria-modal="true" aria-label="Media viewer">
+              <button type="button" className={reviewStyles.viewerClose} onClick={() => setViewerMedia(null)} aria-label={t.shop.reviewClose}>
+                <X size={18} strokeWidth={2} />
+              </button>
+              {viewerMedia.type === "video" ? (
+                <video src={viewerMedia.url} controls autoPlay className={reviewStyles.viewerMedia} />
+              ) : (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={viewerMedia.url} alt={viewerMedia.altText ?? ""} className={reviewStyles.viewerMedia} />
+              )}
+            </div>
+          </div>,
+          document.body,
+        )}
     </section>
   );
 }

@@ -1,0 +1,790 @@
+/* ── Gallery layout ───────────────────────────────────────────────────────── */
+.galleryWrap {
+  position: relative; /* anchor for the absolutely-positioned navRow on mobile */
+}
+
+.gallery {
+  display: flex;
+  gap: 12px;
+  position: relative;
+}
+
+/* ── Vertical thumbnail strip (desktop) ──────────────────────────────────── */
+/* Column wrapper owns the absolute placement so the scrollable strip and its
+   edge cues (fade + chevrons) can be layered within the same footprint. */
+.thumbColumn {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 76px;
+  z-index: 1;
+}
+
+.thumbStrip {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+  scroll-behavior: smooth;
+  /* A soft mask fades whichever end still has hidden thumbnails, so the strip
+     visibly "continues" past the edge instead of ending in a hard cut. Each
+     end is opaque (#000) by default and only turns transparent when its
+     direction can still scroll, toggled via .fadeTop / .fadeBottom. */
+  --fade-top: #000;
+  --fade-bottom: #000;
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    var(--fade-top) 0,
+    #000 var(--fade-size, 0px),
+    #000 calc(100% - var(--fade-size, 0px)),
+    var(--fade-bottom) 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    var(--fade-top) 0,
+    #000 var(--fade-size, 0px),
+    #000 calc(100% - var(--fade-size, 0px)),
+    var(--fade-bottom) 100%
+  );
+}
+.thumbStrip.fadeTop    { --fade-top: transparent;    --fade-size: 28px; }
+.thumbStrip.fadeBottom { --fade-bottom: transparent; --fade-size: 28px; }
+/* When both ends overflow, the shorthand above already covers it because each
+   class sets only its own side; --fade-size is shared and identical. */
+
+.thumbColumn + .mainImage {
+  margin-left: 88px;
+}
+.thumbStrip::-webkit-scrollbar { display: none; }
+
+/* ── Edge scroll cues (chevrons) ─────────────────────────────────────────── */
+.thumbEdge {
+  position: absolute;
+  left: 0;
+  width: 76px;
+  height: 40px;
+  border: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--foreground);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(0);
+  transition: opacity .2s ease;
+  z-index: 3;
+}
+.thumbEdgeVisible {
+  opacity: 1;
+  pointer-events: auto;
+}
+.thumbEdge > svg {
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,.25));
+}
+.thumbEdgeTop {
+  top: 0;
+  align-items: flex-start;
+  padding-top: 3px;
+  background: linear-gradient(to bottom, var(--background) 30%, transparent);
+  border-radius: 10px 10px 0 0;
+}
+.thumbEdgeBottom {
+  bottom: 0;
+  align-items: flex-end;
+  padding-bottom: 3px;
+  background: linear-gradient(to top, var(--background) 30%, transparent);
+  border-radius: 0 0 10px 10px;
+}
+/* Gentle bob to draw the eye toward the hidden thumbnails. */
+.thumbEdgeVisible > svg { animation: thumbEdgeHint 1.6s ease-in-out infinite; }
+.thumbEdgeTop:hover, .thumbEdgeBottom:hover { color: var(--color-primary); }
+.thumbEdge:hover > svg { animation-play-state: paused; }
+.thumbEdge:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; border-radius: 8px; }
+@keyframes thumbEdgeHint {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(2px); }
+}
+.thumbEdgeTop.thumbEdgeVisible > svg { animation-name: thumbEdgeHintUp; }
+@keyframes thumbEdgeHintUp {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-2px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .thumbStrip { scroll-behavior: auto; }
+  .thumbEdgeVisible > svg,
+  .thumbEdgeTop.thumbEdgeVisible > svg { animation: none; }
+}
+
+.thumb {
+  position: relative;
+  width: 76px;
+  height: 76px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  overflow: hidden;
+  cursor: pointer;
+  border: 2px solid transparent;
+  background: var(--color-surface);
+  transition: border-color .18s, opacity .18s;
+  padding: 0;
+}
+.thumb::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+  background: rgba(0,0,0,.04);
+  transition: background .18s;
+}
+.thumb:hover { border-color: color-mix(in srgb, var(--color-primary) 45%, var(--background)); }
+.thumb:hover::after { background: transparent; }
+.thumbActive { border-color: var(--color-primary) !important; }
+.thumbActive::after { background: transparent !important; }
+.thumbImg { object-fit: cover; border-radius: 8px; }
+.thumbVideo {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  object-fit: cover; border-radius: 8px;
+}
+
+/* ── Video badges (thumbnails + main viewer) ───────────────────────────────── */
+.playIconBadge {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  pointer-events: none;
+  z-index: 1;
+}
+.playIconBadge > span {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: rgba(0,0,0,.5);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff;
+}
+.durationBadge {
+  position: absolute; bottom: 4px; right: 4px;
+  background: rgba(0,0,0,.65); color: #fff;
+  font-size: 10px; font-weight: 600;
+  padding: 1px 5px; border-radius: 4px;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ── Main image ───────────────────────────────────────────────────────────── */
+.mainImage {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 18px;
+  overflow: hidden;
+  background: var(--color-surface);
+  cursor: zoom-in;
+  box-shadow: 0 4px 24px rgba(0,24,41,.09);
+}
+.mainImage:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 3px; }
+
+.slideLayer {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity .3s ease;
+  pointer-events: none;
+  z-index: 0;
+}
+.slideActive {
+  opacity: 1;
+  pointer-events: auto;
+  z-index: 1;
+}
+
+.mainImg { object-fit: contain; transition: transform .4s ease; }
+.mainImage:hover .slideActive .mainImg { transform: scale(1.03); }
+
+.mainVideo {
+  width: 100%; height: 100%;
+  object-fit: contain;
+  background: #000;
+}
+
+/* Expand-to-lightbox button shown over video slides — top-right, so it doesn't
+   collide with the video controls cluster anchored bottom-right. */
+.mainExpandBtn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 2;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255,255,255,.88);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-primary);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,.12);
+  transition: transform .15s;
+}
+.mainExpandBtn:hover { transform: scale(1.06); }
+
+/* Zoom hint icon */
+.zoomHint {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.88);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-primary);
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity .2s, transform .2s;
+  pointer-events: none;
+  box-shadow: 0 2px 8px rgba(0,0,0,.12);
+}
+.mainImage:hover .zoomHint { opacity: 1; transform: translateY(0); }
+
+/* ── Custom video player chrome ──────────────────────────────────────────── */
+/* Wrapper fills the slide; video + overlays live inside it. */
+.videoWrap {
+  position: absolute;
+  inset: 0;
+  cursor: pointer;
+}
+
+/* Center play/pause glyph — shown only while paused, fades on play */
+.videoPlayOverlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, .15);
+  pointer-events: none;
+  z-index: 1;
+  animation: videoOverlayIn .15s ease;
+}
+@keyframes videoOverlayIn { from { opacity: 0; } to { opacity: 1; } }
+.videoPlayOverlay > span {
+  width: 56px; height: 56px;
+  border-radius: 50%;
+  background: rgba(15, 23, 42, .5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  transform: translateX(2px); /* optical centering for the play triangle */
+}
+
+/* Minimal control cluster — bottom-right, hidden until hover/focus/touch */
+.videoControls {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  z-index: 2;
+  display: flex;
+  gap: 6px;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity .18s, transform .18s;
+}
+.videoWrap:hover .videoControls,
+.videoWrap:focus-within .videoControls {
+  opacity: 1;
+  transform: translateY(0);
+}
+/* Touch devices have no hover — keep controls subtly visible at all times */
+@media (hover: none) {
+  .videoControls { opacity: 1; transform: none; }
+}
+
+.videoCtrlBtn {
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(15, 23, 42, .55);
+  backdrop-filter: blur(4px);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: background .15s, transform .15s;
+}
+.videoCtrlBtn:hover { background: rgba(15, 23, 42, .8); transform: scale(1.08); }
+
+/* Counter + nav row */
+.navRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 10px;
+}
+.navBtn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--foreground) 18%, transparent);
+  background: var(--color-surface);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--foreground);
+  transition: background .15s, border-color .15s, transform .15s;
+}
+.navBtn:hover { background: var(--color-primary); color: #fff; border-color: var(--color-primary); transform: scale(1.08); }
+.counter { font-size: 13px; font-weight: 500; color: color-mix(in srgb, var(--foreground) 55%, var(--background)); min-width: 40px; text-align: center; }
+
+/* ── Edge prev/next — mobile only, floats over the image itself ──
+   Tall capsule (height clearly greater than width, not a circle), flush
+   with each edge — the OUTER corner (flush with the image's own boundary)
+   is square/flat, the INNER corner (facing into the image) is fully
+   rounded, so each button reads as a soft tab bulging in from that edge
+   rather than a rounded shape awkwardly clipped by the boundary. Brand
+   accent color, matching the site's other CTA buttons. Positioned absolute
+   against .galleryWrap rather than .mainImage so it stays put at a fixed
+   spot on screen instead of scrolling away with the slide track. Hidden by
+   default — revealed at ≤900px alongside the rest of the touch gallery UI. */
+.mobileNavBtn {
+  display: none;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 4;
+  width: 30px;
+  height: 84px;
+  border: none;
+  background: var(--color-accent);
+  color: #fff;
+  box-shadow: 0 2px 10px rgba(0, 24, 41, .18);
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: background .15s, transform .15s;
+}
+.mobileNavBtn:active { transform: translateY(-50%) scale(.94); background: color-mix(in srgb, var(--color-accent) 80%, black); }
+/* Flat edge flush with the left/screen edge, curved edge facing into the gallery. */
+.mobileNavPrev { left: 0; border-radius: 0 999px 999px 0; }
+/* Flat edge flush with the right/screen edge, curved edge facing into the gallery. */
+.mobileNavNext { right: 0; border-radius: 999px 0 0 999px; }
+
+/* Mobile dot indicators */
+.dots {
+  display: none;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 10px;
+}
+.dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  border: none;
+  background: color-mix(in srgb, var(--foreground) 18%, transparent);
+  cursor: pointer;
+  padding: 0;
+  transition: background .18s, transform .18s;
+}
+.dotActive { background: var(--color-primary); transform: scale(1.3); }
+
+/* Mobile horizontal thumbnail row — arrow-paged, shown ≤640px */
+.mobileStripWrap {
+  display: none; /* revealed as flex in the ≤640px block */
+  align-items: center;
+  gap: 8px;
+}
+.mobileStrip {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  scroll-behavior: smooth;
+}
+.mobileStrip::-webkit-scrollbar { display: none; }
+
+/* Left / right paging arrows */
+.mobileArrow {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--foreground) 18%, transparent);
+  background: var(--color-surface);
+  color: var(--foreground);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+  box-shadow: 0 1px 5px rgba(0, 24, 41, .10);
+  transition: background .15s, color .15s, transform .1s, opacity .18s;
+}
+.mobileArrow:active { transform: scale(.9); background: var(--color-primary); color: #fff; border-color: var(--color-primary); }
+/* At an end: dim rather than remove, so the row width stays stable while paging. */
+.mobileArrow:disabled { opacity: .32; cursor: default; box-shadow: none; }
+.mobileThumbs {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  flex-shrink: 0;
+  border-radius: 9px;
+  overflow: hidden;
+  border: 2px solid transparent;
+  background: var(--color-surface);
+  cursor: pointer;
+  padding: 0;
+  transition: border-color .18s;
+}
+.mobileThumbActive { border-color: var(--color-primary); }
+
+/* ── Placeholder (no images) ─────────────────────────────────────────────── */
+.placeholder {
+  aspect-ratio: 1;
+  border-radius: 18px;
+  background: var(--color-surface-tint);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* MINI FLOATING VIEWER                                                        */
+/* Fixed corner component that appears when the hero gallery collapses.        */
+/* Hidden on desktop; slides in bottom-right on ≤900px when compact = true.   */
+/* ─────────────────────────────────────────────────────────────────────────── */
+.miniViewer { display: none; }
+
+@media (max-width: 900px) {
+  .miniViewer {
+    display: block;
+    position: fixed;
+    top: calc(var(--header-offset, 84px) + 10px);
+    right: 12px;
+    width: 96px;
+    height: 96px;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 16px rgba(0, 24, 41, 0.18);
+    z-index: 45;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+
+  .miniViewerVisible {
+    opacity: 1;
+    pointer-events: all;
+  }
+}
+
+/* Image fill inside the mini viewer */
+.miniImage {
+  position: absolute;
+  inset: 0;
+  cursor: zoom-in;
+  background: var(--color-surface);
+}
+
+/* Bottom navigation strip: ‹ counter › */
+.miniOverlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 7px;
+  background: rgba(0, 0, 0, 0.48);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.miniBtn {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+.miniBtn:hover { background: rgba(255, 255, 255, 0.38); }
+
+.miniCounter {
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.92);
+  min-width: 26px;
+  text-align: center;
+  letter-spacing: 0.02em;
+}
+
+/* Small zoom / expand icon in top-right corner of the mini viewer */
+.miniExpandHint {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-primary);
+  pointer-events: none;
+}
+
+/* ── Lightbox ─────────────────────────────────────────────────────────────── */
+.lightboxBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 18, 30, .92);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: backdropIn .2s ease;
+}
+@keyframes backdropIn { from { opacity: 0; } to { opacity: 1; } }
+
+.lightboxInner {
+  position: relative;
+  width: min(90vw, 90vh);
+  height: min(90vw, 90vh);
+  border-radius: 16px;
+  overflow: hidden;
+  animation: lightboxIn .2s ease;
+}
+@keyframes lightboxIn { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: scale(1); } }
+
+.lightboxImg { object-fit: contain; }
+.lightboxVideo {
+  width: 100%; height: 100%;
+  object-fit: contain;
+  background: #000;
+}
+
+.lightboxClose {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,.14);
+  background: rgba(15,23,42,.55);
+  backdrop-filter: blur(4px);
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 10px rgba(0,0,0,.25);
+  transition: background .18s, transform .15s;
+  z-index: 1;
+}
+.lightboxClose:hover { background: rgba(15,23,42,.75); transform: scale(1.1); }
+
+.lightboxNav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,.14);
+  background: rgba(15,23,42,.55);
+  backdrop-filter: blur(4px);
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 10px rgba(0,0,0,.25);
+  transition: background .18s, transform .18s;
+  z-index: 1;
+}
+.lightboxNav:hover { background: rgba(15,23,42,.75); transform: translateY(-50%) scale(1.1); }
+.lightboxPrev { left: 14px; }
+.lightboxNext { right: 14px; }
+
+.lightboxCounter {
+  position: absolute;
+  bottom: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,.5);
+  backdrop-filter: blur(4px);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 4px 12px;
+  border-radius: 999px;
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────────── */
+
+/* ─ Desktop >900px: galleryCol (see ProductDetail.module.css) is pinned to
+   the full available viewport height instead of a plain aspect-ratio box.
+   The vertical thumbnail column is replaced by a horizontal strip pinned to
+   the bottom of that column, mirroring the mobile layout — main image and
+   strip share the fixed height via this flex chain: galleryWrap(column) →
+   gallery(flex:1, the image row) / mobileStripWrap(fixed height, bottom). ─ */
+@media (min-width: 901px) {
+  .galleryWrap {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+  .gallery {
+    flex: 1;
+    min-height: 0;
+  }
+  .mainImage {
+    aspect-ratio: unset;
+    height: 100%;
+  }
+  /* Thumbnails move below the image — the old vertical side column is redundant. */
+  .thumbColumn { display: none; }
+  .thumbColumn + .mainImage { margin-left: 0; }
+  /* The arrow+counter row duplicates the strip's own navigation once the
+     strip is visible here too — hidden, same as it already is on mobile. */
+  .navRow { display: none; }
+  /* Same edge capsule prev/next buttons already built for mobile, reused
+     here. They're positioned against .galleryWrap (a sibling of the strip
+     below), so top:50% would center them across image+strip together —
+     reset to an explicit top/bottom band matching just the strip's height
+     (thumb row ~136px + 26px top/bottom padding) so they land on the
+     image's own vertical center instead. */
+  .mobileNavBtn {
+    display: flex;
+    top: 0;
+    bottom: 166px;
+    transform: none;
+    margin: auto 0;
+  }
+  /* Base :active (line above) assumes the mobile resting transform
+     (translateY(-50%)) and re-applies it alongside the click scale — on
+     desktop the resting transform is none, so that translateY would jump
+     the button on click. Scale only, no translate. */
+  .mobileNavBtn:active { transform: scale(.94); }
+  .mobileStripWrap {
+    display: flex;
+    flex: 0 0 auto;
+    padding: 12px 2px 14px;
+  }
+  /* Slightly larger than the mobile strip's thumbnails — more spare width
+     to work with here, and the strip is now the primary way to browse
+     media rather than a compact touch-scroll row. */
+  .mobileThumbs { width: 132px; height: 132px; border-radius: 14px; }
+  .mobileArrow { width: 48px; height: 48px; }
+}
+
+/* ─ Tablet 641–900px: gallery is height-constrained by galleryCol (52vh).
+   The flex container and image must fill that height; nav is overlaid.     ─ */
+@media (max-width: 900px) {
+  .galleryWrap { height: 100%; }
+  .gallery     { height: 100%; }
+  /* Remove aspect-ratio so the image fills the fixed-height container */
+  .mainImage   { aspect-ratio: unset; height: 100%; border-radius: 0; }
+  /* Real native horizontal scroll-snap on touch, replacing the crossfade —
+     every slide is laid out side by side and scroll-snapped instead of
+     opacity-stacked; `current` syncs both ways (JS scroll listener → state
+     on swipe, and state → scrollTo for dot/thumbnail/keyboard navigation). */
+  .mainImage {
+    display: flex;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .mainImage::-webkit-scrollbar { display: none; }
+  .slideLayer {
+    position: relative;
+    flex: 0 0 100%;
+    width: 100%;
+    height: 100%;
+    scroll-snap-align: start;
+    opacity: 1;
+    pointer-events: auto;
+    transition: none;
+  }
+  /* Overlay nav arrows on the image — normal flow is clipped by galleryCol */
+  .navRow {
+    position: absolute;
+    bottom: 12px;
+    left: 0;
+    right: 0;
+    margin-top: 0;
+    pointer-events: none;
+    z-index: 3;
+  }
+  .navBtn { pointer-events: all; background: rgba(255,255,255,.88); backdrop-filter: blur(4px); }
+  .mobileNavBtn { display: flex; }
+  /* Mobile strip sits below the image in normal flow but is clipped by
+     galleryCol overflow:hidden — hide it explicitly for clarity */
+  .mobileStripWrap { display: none; }
+}
+
+/* ─ Mobile ≤640px: single-column flex; galleryCol is height:auto so the
+   horizontal thumbnail strip can render below the image in normal flow.
+   galleryWrap owns the height constraint here instead of galleryCol.        ─ */
+@media (max-width: 640px) {
+  /* galleryCol is height:auto — galleryWrap must set its own explicit height */
+  .galleryWrap {
+    height: 48vh;
+    min-height: 220px;
+    max-height: 400px;
+    overflow: hidden;
+  }
+  .gallery    { flex-direction: column; gap: 0; }
+  .thumbColumn { display: none; }
+  .thumbColumn + .mainImage { margin-left: 0; }
+  /* Hide arrow nav on touch — swipe + dots handle navigation */
+  .navRow { display: none; }
+  /* Dots overlaid at the bottom of the constrained image area */
+  .dots {
+    display: flex;
+    position: absolute;
+    bottom: 10px;
+    left: 0;
+    right: 0;
+    justify-content: center;
+    pointer-events: none;
+  }
+  .dot { pointer-events: all; }
+  /* Horizontal thumbnail strip — visible below galleryWrap in normal flow */
+  .mobileStripWrap {
+    display: flex;
+    padding: 8px 10px 4px;
+  }
+  .mobileStrip { padding: 2px 0; }
+}

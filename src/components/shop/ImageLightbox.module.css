@@ -1,0 +1,219 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   ImageLightbox — reusable fullscreen image viewer + carousel
+   Visual language matches the PDP gallery lightbox: dark scrim, frosted
+   round glass controls, pill counter, brand-tinted glow.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 12, 16, 0.92);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: lbBackdropIn 0.25s ease;
+}
+@keyframes lbBackdropIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ── Stage: image + caption, centered ── */
+.stage {
+  position: relative;
+  margin: 0;
+  width: min(88vw, 1100px);
+  height: min(80vh, 900px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  animation: lbStageIn 0.3s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+@keyframes lbStageIn {
+  from { opacity: 0; transform: scale(0.94); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* Consistent 1:1 brand glow behind the pictured object */
+.glow {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: min(60vh, 60vw);
+  aspect-ratio: 1 / 1;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(18, 156, 152, 0.26) 0%, rgba(217, 84, 140, 0.16) 45%, transparent 70%);
+  filter: blur(44px);
+  pointer-events: none;
+}
+
+.frame {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: lbSlideIn 0.3s ease;
+}
+@keyframes lbSlideIn {
+  from { opacity: 0; transform: translateY(10px) scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+
+.image {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 24px 48px rgba(0, 0, 0, 0.45));
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* ── Caption ── */
+.caption {
+  position: relative;
+  z-index: 1;
+  flex: none;
+  margin-top: 16px;
+  max-width: 62ch;
+  text-align: center;
+  animation: lbSlideIn 0.3s ease;
+}
+.captionTitle {
+  display: block;
+  font-size: 17px;
+  font-weight: 600;
+  color: #fff;
+}
+.captionText {
+  display: block;
+  margin-top: 5px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.72);
+  white-space: pre-line;
+}
+
+/* ── Glass controls (shared look) ── */
+.close,
+.nav {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(4px);
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+  transition: background 0.18s, transform 0.15s;
+  z-index: 2;
+}
+.close {
+  top: 16px;
+  right: 16px;
+  width: 40px;
+  height: 40px;
+}
+.close:hover { background: rgba(15, 23, 42, 0.75); transform: scale(1.1); }
+
+.nav {
+  top: 50%;
+  transform: translateY(-50%);
+  width: 46px;
+  height: 46px;
+}
+.nav:hover { background: rgba(15, 23, 42, 0.75); transform: translateY(-50%) scale(1.1); }
+.navPrev { left: 18px; }
+.navNext { right: 18px; }
+
+.counter {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 4px 12px;
+  border-radius: 999px;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* ── Thumbnail strip ── */
+.thumbs {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  max-width: min(92vw, 640px);
+  overflow-x: auto;
+  padding: 6px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(6px);
+  scrollbar-width: none;
+  z-index: 2;
+}
+.thumbs::-webkit-scrollbar { display: none; }
+
+.thumb {
+  flex: 0 0 auto;
+  width: 52px;
+  height: 52px;
+  padding: 3px;
+  border-radius: 9px;
+  border: 2px solid transparent;
+  background: rgba(255, 255, 255, 0.06);
+  cursor: pointer;
+  overflow: hidden;
+  opacity: 0.55;
+  transition: opacity 0.2s, border-color 0.2s;
+}
+.thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+.thumb:hover { opacity: 1; }
+.thumbActive {
+  border-color: rgba(18, 156, 152, 0.95);
+  opacity: 1;
+}
+
+/* ── Small screens ── */
+@media (max-width: 640px) {
+  .stage { width: 94vw; height: 72vh; }
+  .nav { width: 40px; height: 40px; }
+  .navPrev { left: 8px; }
+  .navNext { right: 8px; }
+  .captionTitle { font-size: 15px; }
+  .captionText { font-size: 13px; }
+  .thumb { width: 44px; height: 44px; }
+}
+
+/* ── Reduced motion ── */
+@media (prefers-reduced-motion: reduce) {
+  .backdrop,
+  .stage,
+  .frame,
+  .caption { animation: none; }
+}

@@ -50,6 +50,8 @@ interface MediaPickerProps {
   onSelectMulti?: (assets: PickedAsset[]) => void;
   /** Renders the trigger as a dashed square "add" tile (image + plus icon) instead of the default thumbnail-and-label trigger — for dropping into a media grid alongside existing item cards. */
   asAddTile?: boolean;
+  /** Extra class appended to the `asAddTile` trigger — lets a caller reshape it (e.g. a 9:16 "reel" tile for a video grid) without forking the component. */
+  className?: string;
 }
 
 function fmtSize(bytes: number): string {
@@ -75,7 +77,7 @@ function buildBreadcrumb(folders: FolderItem[], folderId: string | null): Folder
 
 const LIMIT = 40;
 
-export default function MediaPicker({ value, previewUrl, onChange, label = "Image", mediaType, multi = false, onSelectMulti, asAddTile = false }: MediaPickerProps) {
+export default function MediaPicker({ value, previewUrl, onChange, label = "Image", mediaType, multi = false, onSelectMulti, asAddTile = false, className }: MediaPickerProps) {
   const [open, setOpen] = useState(false);
   const [assets, setAssets] = useState<MediaAsset[]>([]);
   const [total, setTotal] = useState(0);
@@ -188,7 +190,7 @@ export default function MediaPicker({ value, previewUrl, onChange, label = "Imag
   return (
     <>
       {asAddTile ? (
-        <button type="button" className={styles.addTile} onClick={() => setOpen(true)}>
+        <button type="button" className={`${styles.addTile} ${className ?? ""}`} onClick={() => setOpen(true)}>
           <ImagePlus size={22} strokeWidth={1.5} />
           <span>{label}</span>
         </button>
