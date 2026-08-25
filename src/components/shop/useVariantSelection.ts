@@ -6,7 +6,10 @@ export interface VariantOptionValue {
   id: string;
   value: string;
   displayValue: string | null;
+  /** Global hex for "color" swatches; null for "image" ones. */
   swatchValue: string | null;
+  /** Per-product resolved image URL — only set for "image" swatches. */
+  swatchUrl: string | null;
   swatchType: "color" | "image" | null;
   sortOrder: number;
 }
@@ -43,6 +46,7 @@ export interface AttrOption {
   value: string;
   displayValue: string | null;
   swatchValue: string | null;
+  swatchUrl: string | null;
   swatchType: "color" | "image" | null;
   sortOrder: number;
 }
@@ -111,6 +115,7 @@ export function useVariantSelection(variants: SelectableVariant[]): VariantSelec
             value: o.value,
             displayValue: o.optionValue?.displayValue ?? null,
             swatchValue: o.optionValue?.swatchValue ?? null,
+            swatchUrl: o.optionValue?.swatchUrl ?? null,
             swatchType: o.optionValue?.swatchType ?? null,
             sortOrder: o.optionValue?.sortOrder ?? 0,
           });

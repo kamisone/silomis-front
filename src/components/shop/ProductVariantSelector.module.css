@@ -86,6 +86,53 @@
   padding: 0 2px;
 }
 
+/* ── Image swatches ──
+   Square thumbnails rather than the round colour dot: an image swatch shows the
+   product in that variation, so it needs the area to read as a photo. */
+.swatchBtnImage {
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  padding: 2px;
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.12s, box-shadow 0.15s;
+}
+.swatchBtnImage:hover:not(:disabled) {
+  transform: scale(1.06);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--foreground) 18%, transparent);
+}
+.swatchBtnImage.optionSelected {
+  border-color: var(--color-primary);
+  box-shadow: none;
+}
+.swatchBtnImageInner {
+  display: block;
+  width: 100%;
+  height: 100%;
+  position: relative;
+  border-radius: 8px;
+  background: var(--color-surface) center/cover no-repeat;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--foreground) 12%, transparent);
+}
+/* Checkmark overlay on the selected image swatch */
+.swatchBtnImageInner.selectedCheck::after {
+  content: "✓";
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.32);
+  border-radius: 8px;
+}
+
 /* ── Shared states ── */
 .optionSelected {
   border-color: var(--color-primary);

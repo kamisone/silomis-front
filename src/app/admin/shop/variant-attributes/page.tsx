@@ -170,7 +170,9 @@ export default function VariantAttributesPage() {
     const payload = {
       value: valueForm.value,
       displayValue: valueForm.displayValue || null,
-      swatchValue: valueForm.swatchValue || null,
+      // Image swatches keep no global value (the picture is per-product) — this
+      // also drops any legacy storage key left on an older row when it is edited.
+      swatchValue: valueForm.swatchType === "image" ? null : valueForm.swatchValue || null,
       swatchType: valueForm.swatchType || null,
       priceAdjustmentCents: valueForm.priceAdjustmentCents === "" ? null : Math.round(Number(valueForm.priceAdjustmentCents) * 100),
       sortOrder: valueForm.sortOrder,
@@ -254,7 +256,10 @@ export default function VariantAttributesPage() {
                 >
                   <ChevronDown size={14} className={`${styles.chevron} ${isOpen ? styles.chevronOpen : ""}`} />
                 </span>
-                <strong className={styles.attrName}>{attr.name}</strong>
+                <span className={styles.attrNameBlock}>
+                  <strong className={styles.attrName}>{attr.name}</strong>
+                  {attr.adminLabel && <span className={styles.attrAdminLabel}>{attr.adminLabel}</span>}
+                </span>
                 <span className={styles.valueCount} title={`${attr.optionValues.length} option value(s)`}>
                   {attr.optionValues.length}
                 </span>
@@ -335,22 +340,9 @@ export default function VariantAttributesPage() {
                               <span style={{ width: 16, height: 16, borderRadius: "50%", background: v.swatchValue, border: "1px solid var(--color-surface)", display: "inline-block" }} />
                               {v.swatchValue}
                             </span>
-                          ) : v.swatchType === "image" && v.swatchValue ? (
-                            <span style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem" }}>
-                              <span
-                                style={{
-                                  width: 24,
-                                  height: 24,
-                                  borderRadius: 4,
-                                  backgroundImage: `url(${v.swatchValue})`,
-                                  backgroundSize: "cover",
-                                  backgroundPosition: "center",
-                                  border: "1px solid var(--color-surface)",
-                                  display: "inline-block",
-                                }}
-                                title={v.swatchValue}
-                              />
-                              {v.swatchValue}
+                          ) : v.swatchType === "image" ? (
+                            <span className={styles.perProductNote} title="Set on each product under Variations">
+                              Image — per product
                             </span>
                           ) : (
                             "—"
@@ -510,21 +502,41 @@ export default function VariantAttributesPage() {
                 <select
                   className={ui.select}
                   value={valueForm.swatchType}
-                  onChange={(e) => setValueForm({ ...valueForm, swatchType: e.target.value as ValueFormState["swatchType"] })}
+                  // Switching type clears the value: a hex means nothing to an image
+                  // swatch and vice versa, so carrying it over only saves garbage.
+                  onChange={(e) => setValueForm({ ...valueForm, swatchType: e.target.value as ValueFormState["swatchType"], swatchValue: "" })}
                 >
                   <option value="">None</option>
                   <option value="color">Color</option>
-                  <option value="image">Image key</option>
+                  <option value="image">Image</option>
                 </select>
               </div>
               <div className={ui.field}>
                 <label className={ui.label}>Swatch value</label>
-                <input
-                  className={ui.input}
-                  value={valueForm.swatchValue}
-                  onChange={(e) => setValueForm({ ...valueForm, swatchValue: e.target.value })}
-                  placeholder={valueForm.swatchType === "color" ? "#000000" : "media storage key"}
-                />
+                {valueForm.swatchType === "color" ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                    <input
+                      type="color"
+                      className={styles.swatchColorInput}
+                      value={/^#[0-9a-fA-F]{6}$/.test(valueForm.swatchValue) ? valueForm.swatchValue : "#000000"}
+                      onChange={(e) => setValueForm({ ...valueForm, swatchValue: e.target.value })}
+                      aria-label="Pick swatch color"
+                    />
+                    <input
+                      className={ui.input}
+                      value={valueForm.swatchValue}
+                      onChange={(e) => setValueForm({ ...valueForm, swatchValue: e.target.value })}
+                      placeholder="#000000"
+                    />
+                  </div>
+                ) : valueForm.swatchType === "image" ? (
+                  // Image swatches are per-product — Product A's "Red" photo isn't
+                  // Product B's — so the picture is picked on the product itself
+                  // (Variations → option image), never stored globally here.
+                  <p className={styles.swatchImageHint}>Image is set per product, when linking this variation to a product.</p>
+                ) : (
+                  <input className={ui.input} value="" placeholder="—" disabled readOnly />
+                )}
               </div>
             </div>
             <div className={ui.field}>

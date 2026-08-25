@@ -360,7 +360,7 @@ export default function ShopProductDetail({
   const t = getTranslations(locale);
   const router = useRouter();
   const { cart, addItem, mutating } = useCart();
-  const gallery = useMemo(() => buildGallery(product), [product]);
+  const productGallery = useMemo(() => buildGallery(product), [product]);
   const hasVariants = useMemo(() => product.variants.some((v) => v.options.length > 0), [product]);
 
   // One selection shared by the inline picker and the sticky-bar picker below
@@ -410,6 +410,32 @@ export default function ShopProductDetail({
       clearTimeout(loadingTimer);
     };
   }, [hasVariants, selKey, product.slug, locale]);
+
+  // Which photo the gallery should focus for the current pick. The variant's
+  // own featured media wins; failing that, an "image"-type swatch stands in for
+  // it (Colour → Red focuses the red shot), so choosing a variation always
+  // changes the picture even for products that never got per-variant media.
+  // Image swatches are per-product, so their URL is swatchUrl — swatchValue
+  // only ever holds the global hex of a colour swatch.
+  const activeHeroUrl = useMemo(() => {
+    if (resolvedVariant?.featuredMediaUrl) return resolvedVariant.featuredMediaUrl;
+    for (const attr of variantSelection.attributes) {
+      const selectedKey = variantSelection.sel[attr.id];
+      const opt = attr.options.find((o) => o.key === selectedKey);
+      if (opt?.swatchType === "image" && opt.swatchUrl) return opt.swatchUrl;
+    }
+    return null;
+  }, [resolvedVariant, variantSelection]);
+
+  // ProductGallery navigates to whichever slide matches focusUrl, so the strip
+  // keeps its order on every pick. It only gets re-spliced when the hero isn't
+  // one of the product's own slides at all — a swatch-only image that was never
+  // uploaded to the main gallery, where there is no existing slide to focus.
+  const gallery = useMemo(() => {
+    if (!activeHeroUrl || productGallery.some((m) => m.url === activeHeroUrl)) return productGallery;
+    const rest = productGallery.filter((m) => m.url !== activeHeroUrl);
+    return [{ type: "image" as const, url: activeHeroUrl, posterUrl: null }, ...rest];
+  }, [activeHeroUrl, productGallery]);
 
   // Prefer resolved (real-time) data; fall back to the selector's own pick, then the product default.
   const activeId = resolvedVariant?.id ?? selectedVariant?.id ?? null;
@@ -633,7 +659,7 @@ export default function ShopProductDetail({
 
         <div className={styles.layout}>
           <div className={styles.galleryCol}>
-            <ProductGallery media={gallery} title={product.title} focusUrl={resolvedVariant?.featuredMediaUrl ?? null} />
+            <ProductGallery media={gallery} title={product.title} focusUrl={activeHeroUrl} />
           </div>
 
           <div className={styles.details}>

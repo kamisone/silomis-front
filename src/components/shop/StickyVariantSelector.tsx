@@ -63,8 +63,11 @@ export default function StickyVariantSelector({ selection, visible }: { selectio
                 {attr.options.map((o) => {
                   const state = optionState(attr.id, o.key);
                   const isSwatch = attr.displayType === "swatch";
+                  // Colour swatches carry a global hex in swatchValue; image swatches
+                  // carry a per-product resolved URL in swatchUrl — see ProductVariantSelector.
                   const isImage = o.swatchType === "image";
-                  const bg = o.swatchType === "color" ? o.swatchValue ?? undefined : isImage && o.swatchValue ? `url(${o.swatchValue}) center/cover` : undefined;
+                  const bg = isImage ? (o.swatchUrl ? `url(${o.swatchUrl}) center/cover` : undefined) : o.swatchValue ?? undefined;
+                  const isImageSwatch = isSwatch && isImage && !!bg;
                   return (
                     <button
                       key={o.key}
@@ -76,7 +79,7 @@ export default function StickyVariantSelector({ selection, visible }: { selectio
                       aria-pressed={state === "selected"}
                       tabIndex={visible ? 0 : -1}
                       className={[
-                        isSwatch ? styles.swatchBtn : styles.optionBtn,
+                        isImageSwatch ? styles.swatchBtnImage : isSwatch ? styles.swatchBtn : styles.optionBtn,
                         state === "selected" ? styles.optionSelected : "",
                         state === "oos" ? styles.optionOos : "",
                         state === "unavailable" ? styles.optionUnavailable : "",
@@ -84,7 +87,13 @@ export default function StickyVariantSelector({ selection, visible }: { selectio
                     >
                       {isSwatch ? (
                         <>
-                          {bg ? <span className={styles.swatchInner} style={{ background: bg }} /> : <span className={styles.swatchTextInner}>{o.displayValue ?? o.value}</span>}
+                          {isImageSwatch ? (
+                            <span className={styles.swatchBtnImageInner} style={{ background: bg }} />
+                          ) : bg ? (
+                            <span className={styles.swatchInner} style={{ background: bg }} />
+                          ) : (
+                            <span className={styles.swatchTextInner}>{o.displayValue ?? o.value}</span>
+                          )}
                           {state === "selected" && (
                             <span className={styles.check} aria-hidden="true">
                               <Check size={9} strokeWidth={3} />

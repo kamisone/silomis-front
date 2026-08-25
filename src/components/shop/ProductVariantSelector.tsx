@@ -58,8 +58,11 @@ export default function ProductVariantSelector({ selection }: { selection: Varia
               <div className={styles.optionRow}>
                 {attr.options.map((o) => {
                   const state = optionState(attr.id, o.key);
+                  // Colour swatches carry a global hex in swatchValue; image swatches
+                  // carry a per-product resolved URL in swatchUrl (swatchValue holds a
+                  // raw storage key server-side and is not exposed to the storefront).
                   const isImage = o.swatchType === "image";
-                  const bg = o.swatchType === "color" ? o.swatchValue ?? undefined : isImage && o.swatchValue ? `url(${o.swatchValue}) center/cover` : undefined;
+                  const bg = isImage ? (o.swatchUrl ? `url(${o.swatchUrl}) center/cover` : undefined) : o.swatchValue ?? undefined;
                   return (
                     <button
                       key={o.key}
@@ -69,9 +72,15 @@ export default function ProductVariantSelector({ selection }: { selection: Varia
                       title={o.displayValue ?? o.value}
                       aria-label={o.displayValue ?? o.value}
                       aria-pressed={state === "selected"}
-                      className={[styles.swatchBtn, state === "selected" ? styles.optionSelected : "", state === "oos" ? styles.optionOos : "", state === "unavailable" ? styles.optionUnavailable : ""].join(" ")}
+                      className={[isImage && bg ? styles.swatchBtnImage : styles.swatchBtn, state === "selected" ? styles.optionSelected : "", state === "oos" ? styles.optionOos : "", state === "unavailable" ? styles.optionUnavailable : ""].join(" ")}
                     >
-                      {bg ? <span className={styles.swatchInner} style={{ background: bg }} /> : <span className={styles.swatchTextInner}>{o.displayValue ?? o.value}</span>}
+                      {isImage && bg ? (
+                        <span className={[styles.swatchBtnImageInner, state === "selected" ? styles.selectedCheck : ""].join(" ")} style={{ background: bg }} />
+                      ) : bg ? (
+                        <span className={styles.swatchInner} style={{ background: bg }} />
+                      ) : (
+                        <span className={styles.swatchTextInner}>{o.displayValue ?? o.value}</span>
+                      )}
                     </button>
                   );
                 })}

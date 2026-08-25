@@ -59,9 +59,24 @@
   transform: rotate(180deg);
 }
 
+/* Name stacks over the internal label so the badges beside it stay on one row. */
+.attrNameBlock {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
 .attrName {
   font-weight: 700;
   color: var(--color-primary);
+}
+
+/* Admin-only disambiguator — quiet enough not to compete with the real name. */
+.attrAdminLabel {
+  margin-top: 2px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--color-secondary);
 }
 
 .valueCount {
@@ -104,4 +119,35 @@
   margin: 0;
   color: var(--color-secondary);
   font-size: 0.85rem;
+}
+
+/* ── Swatch fields ── */
+
+.swatchColorInput {
+  width: 44px;
+  height: 38px;
+  flex-shrink: 0;
+  padding: 2px;
+  border: 1px solid var(--color-surface);
+  border-radius: 8px;
+  background: var(--background);
+  cursor: pointer;
+}
+
+/* Image swatches have no global value — the picture is chosen per product. */
+.swatchImageHint {
+  margin: 0;
+  padding: 0.55rem 0.7rem;
+  border: 1px dashed var(--color-surface);
+  border-radius: 8px;
+  background: var(--color-surface-tint);
+  color: var(--color-secondary);
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.perProductNote {
+  color: var(--color-secondary);
+  font-size: 0.82rem;
+  font-style: italic;
 }
