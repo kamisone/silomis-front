@@ -1,6 +1,15 @@
 /* Section-level layout lives in components/home/Home.module.css — this file only
-   owns the page shell. */
+   owns the page shell.
+
+   The two tokens below are read by that stylesheet (.container, the rail's
+   scroll padding, the separator rule). They have to be declared here because
+   this is the class the page actually puts on <main>; Home.module.css also had
+   a .page rule carrying them, but nothing ever applied it, so every
+   var(--home-max) / var(--home-gutter) resolved to nothing and the whole home
+   page ran edge-to-edge with no max width. */
 .page {
+  --home-gutter: clamp(16px, 4vw, 40px);
+  --home-max: 1280px;
   display: flex;
   flex-direction: column;
 }

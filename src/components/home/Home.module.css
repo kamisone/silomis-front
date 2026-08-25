@@ -11,12 +11,9 @@
    defined once in globals.css.
    ────────────────────────────────────────────────────────────────────────── */
 
-.page {
-  --home-gutter: clamp(16px, 4vw, 40px);
-  --home-max: 1280px;
-  display: flex;
-  flex-direction: column;
-}
+/* --home-gutter / --home-max are declared on the storefront page's own .page
+   class (see (storefront)/page.module.css) — that is the class that actually
+   lands on <main>, so it is the only place a declaration here would reach. */
 
 /* Standard content width. Sections that bleed to the viewport edge (hero, promo)
    put this on an inner element instead. */
@@ -113,6 +110,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  /* The banner is a stage now rather than a strip of text: the copy sits in a
+     card off to one side, and that only reads as composed if there is picture
+     around it. Height is driven from here rather than from .heroInner's padding
+     so a short slide and a long one still stand the same. */
+  min-height: clamp(440px, 46vw, 620px);
 }
 
 /* Text-only slide — the original gradient treatment, kept so an editorial slide
@@ -158,16 +160,17 @@
   object-fit: cover;
 }
 
-/* Banner slides put light text on an unknown photo, so the scrim is what keeps
-   the copy legible whatever the admin uploads. */
+/* Much lighter than it used to be: contrast is the card's job now, so this only
+   has to settle the photo and give the panel something to sit against. Deepest
+   on the right, under the card, so its edge stays defined on a pale image. */
 .heroScrim {
   position: absolute;
   inset: 0;
   background: linear-gradient(
     100deg,
-    rgba(0, 0, 0, 0.62) 0%,
-    rgba(0, 0, 0, 0.42) 45%,
-    rgba(0, 0, 0, 0.18) 100%
+    rgba(0, 0, 0, 0.1) 0%,
+    rgba(0, 0, 0, 0.2) 55%,
+    rgba(0, 0, 0, 0.32) 100%
   );
 }
 
@@ -175,11 +178,38 @@
   position: relative;
   z-index: 1;
   display: flex;
+  justify-content: flex-end;
+  padding-block: clamp(32px, 5vw, 56px);
+}
+
+/* The copy as a panel pinned to the right of the picture.
+   It carries its own background, which is what makes the text readable over
+   whatever photo an admin uploads — previously that depended on a heavy scrim
+   and white text, which fell apart on a pale image. */
+.heroCard {
+  display: flex;
   flex-direction: column;
-  align-items: center;
-  text-align: center;
+  align-items: flex-start;
+  text-align: left;
   gap: 14px;
-  padding-block: clamp(56px, 10vw, 104px);
+  width: min(100%, 460px);
+  padding: clamp(24px, 3vw, 36px);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--background) 92%, transparent);
+  border: 1px solid color-mix(in srgb, var(--foreground) 8%, transparent);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(10px);
+}
+
+/* Below this the card is the whole width anyway, so pinning it right is
+   meaningless — centre it and let it read as a panel under the image. */
+@media (max-width: 720px) {
+  .heroInner {
+    justify-content: center;
+  }
+  .heroCard {
+    width: 100%;
+  }
 }
 
 .heroEyebrow {
@@ -198,51 +228,33 @@
 
 .heroTitle {
   margin: 0;
-  font-size: clamp(30px, 6vw, 52px);
+  /* Stepped down from the old full-bleed size: 52px inside a 460px card wraps a
+     three-word headline onto three lines. The card sets the measure, so the ch
+     cap that used to do it is gone. */
+  font-size: clamp(28px, 3.6vw, 42px);
   font-weight: 800;
-  line-height: 1.08;
+  line-height: 1.1;
   letter-spacing: -0.03em;
   color: var(--color-primary);
-  max-width: 16ch;
+  max-width: 100%;
 }
 
 .heroSubtitle {
   margin: 0;
-  font-size: clamp(15px, 2vw, 18px);
+  font-size: clamp(15px, 2vw, 17px);
   line-height: 1.55;
   color: color-mix(in srgb, var(--foreground) 72%, var(--background));
-  max-width: 46ch;
+  max-width: 100%;
 }
 
-/* On a photo the copy flips to white; the eyebrow becomes a translucent chip so
-   it reads as part of the image rather than a sticker on top of it. */
-.heroSlideImage .heroTitle,
-.heroSlideImage .heroSubtitle {
-  color: #fff;
-  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
-}
-.heroSlideImage .heroEyebrow {
-  background: rgba(255, 255, 255, 0.16);
-  border-color: rgba(255, 255, 255, 0.4);
-  color: #fff;
-  backdrop-filter: blur(4px);
-}
-.heroSlideImage .heroCtaSecondary {
-  background: rgba(255, 255, 255, 0.14);
-  border-color: rgba(255, 255, 255, 0.55);
-  color: #fff;
-  backdrop-filter: blur(4px);
-}
-.heroSlideImage .heroCtaSecondary:hover {
-  background: #fff;
-  color: var(--color-primary);
-  border-color: #fff;
-}
+/* No white-on-photo treatment any more. The copy sits on a light card on both
+   slide kinds, so a photo slide and a gradient slide now share one set of text
+   colours — white text here would land on the card, not the picture. */
 
 .heroActions {
   display: flex;
   flex-wrap: wrap;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 12px;
   margin-top: 10px;
 }
@@ -317,16 +329,13 @@
 .heroArrowNext {
   right: 10px;
 }
-@media (max-width: 640px) {
+/* Same breakpoint at which the copy card goes full-width: from here down the
+   arrows would sit on top of the headline, and there is no inset left to move
+   them into. The dots below stay, so the carousel is still navigable — and on a
+   touch screen they are the better target anyway. */
+@media (max-width: 720px) {
   .heroArrow {
-    width: 36px;
-    height: 36px;
-  }
-  .heroArrowPrev {
-    left: 6px;
-  }
-  .heroArrowNext {
-    right: 6px;
+    display: none;
   }
 }
 

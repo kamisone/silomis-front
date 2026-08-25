@@ -330,7 +330,8 @@
   isolation: isolate;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-end;
+  padding: 10px;
   aspect-ratio: 16 / 7;
   overflow: hidden;
   border-radius: 11px;
@@ -353,18 +354,24 @@
 .previewScrim {
   position: absolute;
   inset: 0;
-  background: linear-gradient(100deg, rgba(0, 0, 0, 0.62) 0%, rgba(0, 0, 0, 0.42) 45%, rgba(0, 0, 0, 0.18) 100%);
+  background: linear-gradient(100deg, rgba(0, 0, 0, 0.1) 0%, rgba(0, 0, 0, 0.2) 55%, rgba(0, 0, 0, 0.32) 100%);
 }
+/* The copy card, same as the storefront: pinned right, carrying its own
+   background rather than relying on the scrim. */
 .previewInner {
   position: relative;
   z-index: 1;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
   gap: 4px;
-  padding: 12px;
-  text-align: center;
-  max-width: 100%;
+  padding: 10px;
+  text-align: left;
+  width: min(100%, 58%);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--background) 92%, transparent);
+  border: 1px solid color-mix(in srgb, var(--foreground) 8%, transparent);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.14);
 }
 .previewEyebrow {
   padding: 2px 7px;
@@ -402,7 +409,7 @@
   gap: 5px;
   margin-top: 4px;
   flex-wrap: wrap;
-  justify-content: center;
+  justify-content: flex-start;
 }
 .previewCta,
 .previewCtaSecondary {
@@ -423,17 +430,8 @@
 }
 
 /* On a photo the copy flips to white, exactly as the storefront does. */
-.previewImage .previewTitle,
-.previewImage .previewSubtitle {
-  color: #fff;
-  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.45);
-}
-.previewImage .previewEyebrow,
-.previewImage .previewCtaSecondary {
-  background: rgba(255, 255, 255, 0.16);
-  border-color: rgba(255, 255, 255, 0.45);
-  color: #fff;
-}
+/* No photo-specific text colours: the copy is on a card on both slide kinds,
+   exactly as the storefront now draws it. */
 
 /* ── Media control ── */
 

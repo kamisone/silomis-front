@@ -159,35 +159,40 @@ export default function HomeHero({ slides, locale }: { slides: HeroSlide[]; loca
                 )}
 
                 <div className={`${styles.container} ${styles.heroInner}`}>
-                  {slide.eyebrow && (
-                    <span className={styles.heroEyebrow}>
-                      <Sparkles size={13} strokeWidth={2.25} aria-hidden="true" />
-                      {slide.eyebrow}
-                    </span>
-                  )}
-                  {/* Only the visible slide's headline is the page h1 — several
-                      h1s stacked in the DOM would confuse SEO and screen readers. */}
-                  {active ? (
-                    <h1 className={styles.heroTitle}>{slide.title}</h1>
-                  ) : (
-                    <p className={styles.heroTitle}>{slide.title}</p>
-                  )}
-                  {slide.subtitle && <p className={styles.heroSubtitle}>{slide.subtitle}</p>}
-                  {(slide.ctaLabel || slide.ctaSecondaryLabel) && (
-                    <div className={styles.heroActions}>
-                      {slide.ctaLabel && slide.ctaHref && (
-                        <Link href={resolveHref(slide.ctaHref, locale)} className={styles.heroCta}>
-                          {slide.ctaLabel}
-                          <ArrowRight size={17} strokeWidth={2.25} aria-hidden="true" />
-                        </Link>
-                      )}
-                      {slide.ctaSecondaryLabel && slide.ctaSecondaryHref && (
-                        <Link href={resolveHref(slide.ctaSecondaryHref, locale)} className={styles.heroCtaSecondary}>
-                          {slide.ctaSecondaryLabel}
-                        </Link>
-                      )}
-                    </div>
-                  )}
+                  {/* The copy is a panel over the picture, not a caption across
+                      it: it carries its own background, so legibility no longer
+                      depends on how busy the photo behind it happens to be. */}
+                  <div className={styles.heroCard}>
+                    {slide.eyebrow && (
+                      <span className={styles.heroEyebrow}>
+                        <Sparkles size={13} strokeWidth={2.25} aria-hidden="true" />
+                        {slide.eyebrow}
+                      </span>
+                    )}
+                    {/* Only the visible slide's headline is the page h1 — several
+                        h1s stacked in the DOM would confuse SEO and screen readers. */}
+                    {active ? (
+                      <h1 className={styles.heroTitle}>{slide.title}</h1>
+                    ) : (
+                      <p className={styles.heroTitle}>{slide.title}</p>
+                    )}
+                    {slide.subtitle && <p className={styles.heroSubtitle}>{slide.subtitle}</p>}
+                    {(slide.ctaLabel || slide.ctaSecondaryLabel) && (
+                      <div className={styles.heroActions}>
+                        {slide.ctaLabel && slide.ctaHref && (
+                          <Link href={resolveHref(slide.ctaHref, locale)} className={styles.heroCta}>
+                            {slide.ctaLabel}
+                            <ArrowRight size={17} strokeWidth={2.25} aria-hidden="true" />
+                          </Link>
+                        )}
+                        {slide.ctaSecondaryLabel && slide.ctaSecondaryHref && (
+                          <Link href={resolveHref(slide.ctaSecondaryHref, locale)} className={styles.heroCtaSecondary}>
+                            {slide.ctaSecondaryLabel}
+                          </Link>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             );

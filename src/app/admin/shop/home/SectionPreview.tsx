@@ -38,14 +38,16 @@ function L(props: { x: number; y: number; w: number; o?: number }) {
 }
 
 const PREVIEWS: Record<HomeSectionType, React.ReactNode> = {
-  // Full-bleed banner: centred headline, sub, two buttons, arrows at the edges.
+  // Full-bleed banner with the copy card pinned right, arrows at the edges.
   hero: (
     <>
       <B x={0} y={0} w={W} h={H} o={0.14} r={6} />
-      <L x={30} y={20} w={44} o={0.45} />
-      <L x={36} y={28} w={32} />
-      <B x={32} y={38} w={19} h={8} o={0.42} r={3} />
-      <B x={54} y={38} w={19} h={8} o={0.22} r={3} />
+      <B x={48} y={11} w={42} h={42} o={0.3} r={4} />
+      <L x={52} y={17} w={13} o={0.5} />
+      <L x={52} y={24} w={33} o={0.55} />
+      <L x={52} y={30} w={24} o={0.3} />
+      <B x={52} y={38} w={17} h={9} o={0.5} r={2} />
+      <B x={72} y={38} w={14} h={9} o={0.3} r={2} />
       <circle cx="8" cy="32" r="4" fill="currentColor" opacity={0.28} />
       <circle cx={W - 8} cy="32" r="4" fill="currentColor" opacity={0.28} />
     </>

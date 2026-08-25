@@ -16,9 +16,9 @@ export interface SlideShape {
  *
  * Not a wireframe: here the content *is* what's being configured, so the
  * preview mirrors the real hero — the same gradient, the same scrim over a
- * photo, the same white-on-image copy — at a size where the admin can judge
- * whether a headline fits and whether it stays readable on the picture they
- * picked. It updates as they type, before anything is saved.
+ * photo, the same copy card pinned to the right — at a size where the admin can
+ * judge whether a headline fits the card and whether the picture still reads
+ * around it. It updates as they type, before anything is saved.
  */
 export default function SlidePreview({ slide }: { slide: SlideShape }) {
   const hasImage = !!slide.imageUrl;
