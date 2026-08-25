@@ -1,12 +1,21 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import { notFound } from "next/navigation";
+import ProductCard, { type ProductListItem } from "@/components/shop/ProductCard";
+import { getTranslations, type Locale } from "@/lib/i18n";
 import styles from "./post.module.css";
 
 const API_BASE_URL = process.env.API_BASE_URL_SERVER ?? "http://127.0.0.1:4000";
 
 interface Category { id: string; name: string; color: string | null; }
 interface Tag { id: string; name: string; }
+
+/** Editorial product link — the backend already drops unpublished/deleted products. */
+interface ProductRef {
+  referenceId: string;
+  label: string | null;
+  product: ProductListItem;
+}
 
 interface Post {
   id: string;
@@ -23,6 +32,7 @@ interface Post {
   authorName: string | null;
   categories: Category[];
   tags: Tag[];
+  productRefs: ProductRef[];
 }
 
 async function fetchPost(slug: string, locale: string): Promise<Post | null> {
@@ -49,6 +59,9 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
   const { slug, locale } = await params;
   const post = await fetchPost(slug, locale);
   if (!post) notFound();
+
+  const t = getTranslations(locale);
+  const productRefs = post.productRefs ?? [];
 
   return (
     <article className={styles.page}>
@@ -78,9 +91,23 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
 
       {post.content && <div className={styles.body} dangerouslySetInnerHTML={{ __html: post.content }} />}
 
+      {productRefs.length > 0 && (
+        <section className={styles.featured}>
+          <h2 className={styles.featuredTitle}>{t.blog.featuredProducts}</h2>
+          <div className={styles.featuredGrid}>
+            {productRefs.map((ref) => (
+              <div key={ref.referenceId} className={styles.featuredItem}>
+                <ProductCard product={ref.product} promotion={null} locale={locale as Locale} t={t} />
+                {ref.label && <p className={styles.featuredLabel}>{ref.label}</p>}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       {post.tags.length > 0 && (
         <div className={styles.tags}>
-          {post.tags.map((t) => <span key={t.id} className={styles.tag}>#{t.name}</span>)}
+          {post.tags.map((tag) => <span key={tag.id} className={styles.tag}>#{tag.name}</span>)}
         </div>
       )}
     </article>

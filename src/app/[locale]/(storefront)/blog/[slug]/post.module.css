@@ -97,6 +97,42 @@
   font-style: italic;
 }
 
+/* ── Featured products ── */
+.featured {
+  margin-top: 3rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--color-surface);
+}
+
+.featuredTitle {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--foreground);
+  margin-bottom: 1.25rem;
+}
+
+.featuredGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 1.25rem;
+}
+
+.featuredItem {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.featuredLabel {
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: color-mix(in srgb, var(--foreground) 62%, transparent);
+  padding-left: 0.15rem;
+  border-left: 2px solid var(--color-accent);
+  padding-inline-start: 0.6rem;
+}
+
 .tags {
   display: flex;
   flex-wrap: wrap;

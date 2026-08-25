@@ -9,6 +9,7 @@ import { slugify } from "@/lib/slugify";
 import BilingualField from "@/components/admin/BilingualField";
 import MediaPicker from "@/components/admin/ui/MediaPicker";
 import Button from "@/components/admin/ui/Button";
+import BlogProductPicker, { type BlogProductRef } from "./BlogProductPicker";
 import { useEntityTranslations } from "@/hooks/useEntityTranslations";
 import { useToast } from "@/components/toast/ToastContext";
 import ui from "@/components/admin/ui/admin-ui.module.css";
@@ -40,6 +41,13 @@ interface Post {
   authorName: string | null;
   categories: Category[];
   tags: Tag[];
+  productRefs?: ApiProductRef[];
+}
+
+/** Shape returned by the blog API — flattened into BlogProductRef for the picker. */
+interface ApiProductRef {
+  label: string | null;
+  product: { id: string; title: string; status: string; featuredImageUrl: string | null };
 }
 
 interface Props { postId?: string; }
@@ -73,6 +81,7 @@ export default function BlogPostEditor({ postId }: Props) {
   const [allTags, setAllTags] = useState<Tag[]>([]);
   const [categoryIds, setCategoryIds] = useState<string[]>([]);
   const [tagIds, setTagIds] = useState<string[]>([]);
+  const [productRefs, setProductRefs] = useState<BlogProductRef[]>([]);
 
   const [entityId, setEntityId] = useState<string | null>(postId ?? null);
   const { translations, setTranslation, saveTranslations } = useEntityTranslations(ENTITY_TYPE, entityId);
@@ -107,6 +116,15 @@ export default function BlogPostEditor({ postId }: Props) {
         setAuthorName(p.authorName ?? "");
         setCategoryIds(p.categories.map((c) => c.id));
         setTagIds(p.tags.map((t) => t.id));
+        setProductRefs(
+          (p.productRefs ?? []).map((r) => ({
+            productId: r.product.id,
+            label: r.label ?? "",
+            title: r.product.title,
+            imageUrl: r.product.featuredImageUrl,
+            status: r.product.status,
+          })),
+        );
       })
       .catch(() => toast.error("Failed to load article"))
       .finally(() => setLoading(false));
@@ -133,7 +151,9 @@ export default function BlogPostEditor({ postId }: Props) {
     authorName: authorName || null,
     categoryIds,
     tagIds,
-  }), [title, slug, excerpt, content, seoTitle, seoDescription, canonicalUrl, featuredImageAlt, featuredImageKey, status, scheduledPublishAt, featured, authorName, categoryIds, tagIds]);
+    // Array order is authoritative — the backend assigns sortOrder from it.
+    productRefs: productRefs.map((r) => ({ productId: r.productId, label: r.label.trim() || null })),
+  }), [title, slug, excerpt, content, seoTitle, seoDescription, canonicalUrl, featuredImageAlt, featuredImageKey, status, scheduledPublishAt, featured, authorName, categoryIds, tagIds, productRefs]);
 
   async function save(opts: { publish?: boolean } = {}) {
     if (!title.trim()) { toast.error("Title is required"); return; }
@@ -236,6 +256,11 @@ export default function BlogPostEditor({ postId }: Props) {
               onTranslationChange={setTranslation}
               richText
             />
+          </div>
+
+          <div className={ui.card} style={{ padding: "1rem", display: "flex", flexDirection: "column", gap: "0.85rem" }}>
+            <div style={{ fontWeight: 700, color: "var(--color-primary)" }}>Featured products</div>
+            <BlogProductPicker value={productRefs} onChange={setProductRefs} />
           </div>
 
           <div className={ui.card} style={{ padding: "1rem", display: "flex", flexDirection: "column", gap: "1rem" }}>

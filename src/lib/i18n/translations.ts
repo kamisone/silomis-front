@@ -9,6 +9,9 @@
 export type Translations = typeof en;
 
 export const en = {
+  blog: {
+    featuredProducts: "Featured products",
+  },
   nav: {
     logoAriaLabel: "Silomis home",
     navAriaLabel: "Category navigation",
@@ -432,6 +435,9 @@ export const en = {
 };
 
 export const fr: Translations = {
+  blog: {
+    featuredProducts: "Produits à découvrir",
+  },
   nav: {
     logoAriaLabel: "Accueil Silomis",
     navAriaLabel: "Navigation des catégories",
@@ -840,6 +846,9 @@ export const fr: Translations = {
 };
 
 export const es: Translations = {
+  blog: {
+    featuredProducts: "Productos destacados",
+  },
   nav: {
     logoAriaLabel: "Silomis inicio",
     navAriaLabel: "Navegación de categorías",
@@ -1248,6 +1257,9 @@ export const es: Translations = {
 };
 
 export const it: Translations = {
+  blog: {
+    featuredProducts: "Prodotti in evidenza",
+  },
   nav: {
     logoAriaLabel: "Silomis home",
     navAriaLabel: "Navigazione categorie",
@@ -1656,6 +1668,9 @@ export const it: Translations = {
 };
 
 export const de: Translations = {
+  blog: {
+    featuredProducts: "Ausgewählte Produkte",
+  },
   nav: {
     logoAriaLabel: "Silomis Startseite",
     navAriaLabel: "Kategorienavigation",
@@ -2064,6 +2079,9 @@ export const de: Translations = {
 };
 
 export const nl: Translations = {
+  blog: {
+    featuredProducts: "Uitgelichte producten",
+  },
   nav: {
     logoAriaLabel: "Silomis home",
     navAriaLabel: "Categorienavigatie",
@@ -2472,6 +2490,9 @@ export const nl: Translations = {
 };
 
 export const pl: Translations = {
+  blog: {
+    featuredProducts: "Polecane produkty",
+  },
   nav: {
     logoAriaLabel: "Silomis strona główna",
     navAriaLabel: "Nawigacja kategorii",
