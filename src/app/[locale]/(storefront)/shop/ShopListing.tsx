@@ -87,11 +87,11 @@ export default function ShopListing() {
   }, []);
 
   useEffect(() => {
-    fetch("/next-api/public/shop/promotions/active")
+    fetch(`/next-api/public/shop/promotions/active?lang=${locale}`)
       .then((r) => (r.ok ? r.json() : []))
       .then((data) => setPromotions(Array.isArray(data) ? data : []))
       .catch(() => setPromotions([]));
-  }, []);
+  }, [locale]);
 
   useEffect(() => {
     let cancelled = false;

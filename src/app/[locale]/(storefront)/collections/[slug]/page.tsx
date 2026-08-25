@@ -98,9 +98,9 @@ async function fetchProducts(slug: string, locale: string, sort: Sort, page: num
   }
 }
 
-async function fetchActivePromotions(): Promise<ActivePromotion[]> {
+async function fetchActivePromotions(locale: string): Promise<ActivePromotion[]> {
   try {
-    const res = await fetch(`${API_BASE_URL}/shop/promotions/active`, { next: { revalidate } });
+    const res = await fetch(`${API_BASE_URL}/shop/promotions/active?lang=${locale}`, { next: { revalidate } });
     if (!res.ok) return [];
     const data = await res.json();
     return Array.isArray(data) ? data : [];
@@ -138,7 +138,7 @@ export default async function CollectionPage({ params, searchParams }: PageProps
   const collection = await fetchCollection(slug, locale);
   if (!collection) notFound();
 
-  const [{ items: products, total }, promotions] = await Promise.all([fetchProducts(slug, locale, sort, page), fetchActivePromotions()]);
+  const [{ items: products, total }, promotions] = await Promise.all([fetchProducts(slug, locale, sort, page), fetchActivePromotions(locale)]);
 
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
   // Banner is the purpose-made wide hero; the card image is the fallback so a

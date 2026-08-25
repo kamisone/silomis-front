@@ -5,7 +5,12 @@ import { api, ApiError } from "@/lib/api";
 import { useToast } from "@/components/toast/ToastContext";
 import Button from "@/components/admin/ui/Button";
 import Modal from "@/components/admin/ui/Modal";
+import BilingualField from "@/components/admin/BilingualField";
+import { useEntityTranslations } from "@/hooks/useEntityTranslations";
+import { useSectionGenerate } from "@/hooks/useSectionGenerate";
+import { summarizeGenerateErrors, type SectionTranslationOutcome } from "@/lib/sectionTranslate";
 import ui from "@/components/admin/ui/admin-ui.module.css";
+import styles from "./PromotionForm.module.css";
 
 type PromotionTrigger = "automatic" | "coupon";
 type PromotionScope = "site_wide" | "category" | "product";
@@ -83,6 +88,21 @@ interface CampaignLite {
   name: string;
 }
 
+/** `discountValue` is stored in cents for fixed_amount but is a plain number
+ * for percentage — these two only convert the money case, so a 10% promotion
+ * never gets divided by 100. */
+function discountValueToInput(type: PromotionDiscountType, storedValue: number): string {
+  return type === "fixed_amount" ? (storedValue / 100).toFixed(2) : String(storedValue);
+}
+
+function discountInputToStored(type: PromotionDiscountType, input: string): number {
+  if (type === "free_shipping") return 0;
+  const n = Number.parseFloat(input || "0");
+  if (!Number.isFinite(n)) return 0;
+  // Round after scaling — parseFloat("10.99") * 100 is 1098.9999... in binary FP.
+  return type === "fixed_amount" ? Math.round(n * 100) : Math.round(n);
+}
+
 function eur(cents: number): string {
   return (cents / 100).toLocaleString(undefined, { style: "currency", currency: "EUR" });
 }
@@ -131,6 +151,7 @@ const EMPTY_FORM: PromotionForm = {
 };
 
 const FORM_ID = "promotion-form";
+const ENTITY_TYPE = "shop_promotion";
 
 function promotionToForm(p: Promotion): PromotionForm {
   return {
@@ -142,7 +163,7 @@ function promotionToForm(p: Promotion): PromotionForm {
     trigger: p.trigger,
     code: p.code ?? "",
     discountType: p.discountType,
-    discountValue: String(p.discountValue),
+    discountValue: discountValueToInput(p.discountType, p.discountValue),
     scope: p.scope,
     minOrderCents: p.minOrderCents !== null ? String(p.minOrderCents) : "",
     maxUsesTotal: p.maxUsesTotal !== null ? String(p.maxUsesTotal) : "",
@@ -164,6 +185,28 @@ export default function PromotionsPage() {
   const [form, setForm] = useState<PromotionForm | null>(null);
   const [detail, setDetail] = useState<Promotion | null>(null);
   const [saving, setSaving] = useState(false);
+
+  // Overlay translations for the promotion being edited. A brand-new
+  // promotion has no id yet, so its overlays are held in memory and flushed
+  // against the created id right after the POST returns.
+  const { translations, setTranslation, saveTranslations } = useEntityTranslations(ENTITY_TYPE, form?.id ?? null);
+
+  const nameGen = useSectionGenerate<SectionTranslationOutcome<string>>("/next-api/admin/shop/promotions/sections/name/translate");
+  const descGen = useSectionGenerate<SectionTranslationOutcome<string>>("/next-api/admin/shop/promotions/sections/description/translate");
+  const [genErrors, setGenErrors] = useState<Record<string, string | null>>({});
+
+  async function applyGenerate(
+    gen: ReturnType<typeof useSectionGenerate<SectionTranslationOutcome<string>>>,
+    sourceText: string,
+    field: string,
+  ) {
+    const outcome = await gen.generate({ text: sourceText });
+    if (!outcome) return;
+    for (const [lang, value] of Object.entries(outcome.result) as [string, string][]) {
+      setTranslation(lang as never, field, value);
+    }
+    setGenErrors((prev) => ({ ...prev, [field]: summarizeGenerateErrors(outcome.errors) }));
+  }
 
   async function load() {
     setLoading(true);
@@ -220,7 +263,7 @@ export default function PromotionsPage() {
       trigger: form.trigger,
       code: form.trigger === "coupon" ? form.code.trim().toUpperCase() : null,
       discountType: form.discountType,
-      discountValue: form.discountType === "free_shipping" ? 0 : parseInt(form.discountValue || "0", 10),
+      discountValue: discountInputToStored(form.discountType, form.discountValue),
       scope: form.scope,
       minOrderCents: form.minOrderCents ? parseInt(form.minOrderCents, 10) : null,
       maxUsesTotal: form.maxUsesTotal ? parseInt(form.maxUsesTotal, 10) : null,
@@ -233,8 +276,10 @@ export default function PromotionsPage() {
     try {
       if (form.id) {
         await api.patch(`/next-api/admin/shop/promotions/${form.id}`, payload);
+        await saveTranslations(form.id, ["name", "description"]);
       } else {
-        await api.post("/next-api/admin/shop/promotions", payload);
+        const created = await api.post<Promotion>("/next-api/admin/shop/promotions", payload);
+        await saveTranslations(created.id, ["name", "description"]);
       }
       closeModal();
       await load();
@@ -374,6 +419,7 @@ export default function PromotionsPage() {
         <Modal
           title={form.id ? "Edit promotion" : "New promotion"}
           onClose={closeModal}
+          maxWidth={760}
           footer={
             <>
               <Button type="button" variant="secondary" onClick={closeModal}>
@@ -386,28 +432,50 @@ export default function PromotionsPage() {
           }
         >
           <form id={FORM_ID} onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-            <div className={ui.field}>
-              <label className={ui.label}>Name</label>
-              <input className={ui.input} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required autoFocus />
-            </div>
+            <BilingualField
+              label="Name"
+              field="name"
+              baseValue={form.name}
+              baseOnChange={(v) => setForm({ ...form, name: v })}
+              baseRequired
+              translations={translations}
+              onTranslationChange={setTranslation}
+              onGenerate={() => applyGenerate(nameGen, form.name, "name")}
+              generating={nameGen.generating}
+              generateError={nameGen.error ?? genErrors.name ?? null}
+            />
 
-            <div className={ui.field}>
-              <label className={ui.label}>Description (optional, admin-only)</label>
-              <textarea className={ui.textarea} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
-            </div>
+            <BilingualField
+              label="Description"
+              field="description"
+              baseValue={form.description}
+              baseOnChange={(v) => setForm({ ...form, description: v })}
+              translations={translations}
+              onTranslationChange={setTranslation}
+              multiline
+              rows={2}
+              onGenerate={() => applyGenerate(descGen, form.description, "description")}
+              generating={descGen.generating}
+              generateError={descGen.error ?? genErrors.description ?? null}
+            />
 
-            <div className={ui.formGrid}>
+            <div className={`${styles.section} ${styles.sectionFirst}`}>
+              <span className={styles.sectionTitle}>Storefront copy</span>
+              <div className={ui.formGrid}>
               <div className={ui.field}>
-                <label className={ui.label}>Marketing label (optional, storefront badge)</label>
+                <label className={ui.label}>Marketing label</label>
                 <input className={ui.input} value={form.marketingLabel} onChange={(e) => setForm({ ...form, marketingLabel: e.target.value })} placeholder="Summer Sale" />
               </div>
               <div className={ui.field}>
-                <label className={ui.label}>Banner text (optional, storefront copy)</label>
+                <label className={ui.label}>Banner text</label>
                 <input className={ui.input} value={form.bannerText} onChange={(e) => setForm({ ...form, bannerText: e.target.value })} />
+              </div>
               </div>
             </div>
 
-            <div className={ui.formGrid}>
+            <div className={styles.section}>
+              <span className={styles.sectionTitle}>Trigger &amp; discount</span>
+              <div className={ui.formGrid}>
               <div className={ui.field}>
                 <label className={ui.label}>Trigger</label>
                 <select
@@ -443,7 +511,17 @@ export default function PromotionsPage() {
                   value={form.discountType}
                   onChange={(e) => {
                     const discountType = e.target.value as PromotionDiscountType;
-                    setForm({ ...form, discountType, discountValue: discountType === "free_shipping" ? "0" : form.discountValue });
+                    // A percentage and a money amount aren't convertible, so
+                    // switching type keeps the number the admin is looking at
+                    // (10% -> €10.00) and only restyles it for the new unit.
+                    const shown = Number.parseFloat(form.discountValue || "0");
+                    const magnitude = Number.isFinite(shown) ? shown : 0;
+                    setForm({
+                      ...form,
+                      discountType,
+                      discountValue:
+                        discountType === "free_shipping" ? "0" : discountType === "fixed_amount" ? magnitude.toFixed(2) : String(Math.round(magnitude)),
+                    });
                   }}
                 >
                   <option value="percentage">Percentage</option>
@@ -452,59 +530,66 @@ export default function PromotionsPage() {
                 </select>
               </div>
               <div className={ui.field}>
-                <label className={ui.label}>Discount value{form.discountType === "percentage" ? " (%)" : form.discountType === "fixed_amount" ? " (cents)" : ""}</label>
+                <label className={ui.label}>Discount value{form.discountType === "percentage" ? " (%)" : form.discountType === "fixed_amount" ? " (€)" : ""}</label>
                 <input
                   className={ui.input}
                   type="number"
                   min={0}
                   max={form.discountType === "percentage" ? 100 : undefined}
+                  step={form.discountType === "fixed_amount" ? "0.01" : "1"}
                   value={form.discountValue}
                   onChange={(e) => setForm({ ...form, discountValue: e.target.value })}
                   disabled={form.discountType === "free_shipping"}
                 />
               </div>
+              </div>
             </div>
 
+            <div className={styles.section}>
+              <span className={styles.sectionTitle}>Scope</span>
             <div className={ui.field}>
-              <label className={ui.label}>Scope</label>
+              <label className={ui.label}>Applies to</label>
               <select className={ui.select} value={form.scope} onChange={(e) => setForm({ ...form, scope: e.target.value as PromotionScope })}>
                 <option value="site_wide">Site-wide</option>
                 <option value="category">Category</option>
                 <option value="product">Product</option>
               </select>
+              <span className={styles.hint}>
+                Category and product scopes are linked from the promotion&apos;s detail view once it is saved.
+              </span>
+            </div>
             </div>
 
-            <div className={ui.formGrid}>
+            <div className={styles.section}>
+              <span className={styles.sectionTitle}>Limits &amp; schedule</span>
+              <div className={ui.formGrid}>
               <div className={ui.field}>
                 <label className={ui.label}>Priority</label>
                 <input className={ui.input} type="number" value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })} />
               </div>
               <div className={ui.field}>
-                <label className={ui.label}>Min order (cents, optional)</label>
-                <input className={ui.input} type="number" min={0} value={form.minOrderCents} onChange={(e) => setForm({ ...form, minOrderCents: e.target.value })} />
+                <label className={ui.label}>Min order (cents)</label>
+                <input className={ui.input} type="number" min={0} value={form.minOrderCents} onChange={(e) => setForm({ ...form, minOrderCents: e.target.value })} placeholder="No minimum" />
               </div>
-            </div>
-
-            <div className={ui.formGrid}>
               <div className={ui.field}>
-                <label className={ui.label}>Max uses (optional, empty = unlimited)</label>
-                <input className={ui.input} type="number" min={0} value={form.maxUsesTotal} onChange={(e) => setForm({ ...form, maxUsesTotal: e.target.value })} />
+                <label className={ui.label}>Max uses</label>
+                <input className={ui.input} type="number" min={0} value={form.maxUsesTotal} onChange={(e) => setForm({ ...form, maxUsesTotal: e.target.value })} placeholder="Unlimited" />
               </div>
-            </div>
-
-            <div className={ui.formGrid}>
               <div className={ui.field}>
-                <label className={ui.label}>Starts at (optional)</label>
+                <label className={ui.label}>Starts at</label>
                 <input className={ui.input} type="datetime-local" value={form.startsAt} onChange={(e) => setForm({ ...form, startsAt: e.target.value })} />
               </div>
               <div className={ui.field}>
-                <label className={ui.label}>Expires at (optional)</label>
+                <label className={ui.label}>Expires at</label>
                 <input className={ui.input} type="datetime-local" value={form.expiresAt} onChange={(e) => setForm({ ...form, expiresAt: e.target.value })} />
+              </div>
               </div>
             </div>
 
+            <div className={styles.section}>
+              <span className={styles.sectionTitle}>Grouping &amp; status</span>
             <div className={ui.field}>
-              <label className={ui.label}>Campaign (optional)</label>
+              <label className={ui.label}>Campaign</label>
               <select className={ui.select} value={form.campaignId} onChange={(e) => setForm({ ...form, campaignId: e.target.value })}>
                 <option value="">No campaign</option>
                 {campaigns.map((c) => (
@@ -519,6 +604,7 @@ export default function PromotionsPage() {
               <input type="checkbox" checked={form.isActive} onChange={(e) => setForm({ ...form, isActive: e.target.checked })} />
               Active
             </label>
+            </div>
 
             {detail && form.scope === "category" && (
               <div className={ui.field}>

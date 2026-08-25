@@ -1,0 +1,30 @@
+/* Groups the promotion modal's long field list into labelled sections so the
+   form scans as a few short blocks instead of one flat run of inputs. */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--color-surface);
+}
+/* The first section follows the name/description block, which supplies its
+   own spacing — no rule needed above it. */
+.sectionFirst {
+  padding-top: 0;
+  border-top: none;
+}
+
+.sectionTitle {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-secondary);
+}
+
+/* Inline help under a control, for rules that aren't obvious from the label. */
+.hint {
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--color-secondary);
+}
