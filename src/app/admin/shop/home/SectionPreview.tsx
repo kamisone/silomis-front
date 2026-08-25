@@ -110,6 +110,33 @@ const PREVIEWS: Record<HomeSectionType, React.ReactNode> = {
       <B x={72} y={27} w={24} h={11} o={0.62} r={3} />
     </>
   ),
+  // A chapter title alone in its band: eyebrow, big heading with its icon, lead.
+  section_heading: (
+    <>
+      <L x={6} y={17} w={16} o={0.5} />
+      <B x={6} y={25} w={9} h={9} o={0.34} r={2} />
+      <L x={19} y={28} w={46} o={0.55} />
+      <L x={6} y={41} w={62} o={0.24} />
+      <L x={6} y={47} w={38} o={0.24} />
+    </>
+  ),
+  // Two bands with air between them — what the block actually contributes.
+  separator: (
+    <>
+      <B x={0} y={0} w={W} h={22} o={0.22} r={0} />
+      <B x={0} y={42} w={W} h={22} o={0.22} r={0} />
+      <rect x={22} y={32} width={60} height="1.5" rx="0.75" fill="currentColor" opacity={0.3} />
+    </>
+  ),
+  // A short heading over a dense block of small copy.
+  seo_text: (
+    <>
+      <L x={6} y={12} w={28} o={0.42} />
+      {[22, 29, 36, 43, 50].map((y, i) => (
+        <L key={y} x={6} y={y} w={i === 4 ? 44 : 92} o={0.18} />
+      ))}
+    </>
+  ),
   // Three article cards: wide image, category line, headline.
   blog_posts: (
     <>

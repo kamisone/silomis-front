@@ -8,6 +8,9 @@ import FeaturedCollections, { type HomeCollection } from "@/components/home/Feat
 import ProductRail from "@/components/home/ProductRail";
 import PromoBanner, { type HomePromotion } from "@/components/home/PromoBanner";
 import BlogTeasers, { type HomePost } from "@/components/home/BlogTeasers";
+import SectionHeading from "@/components/home/SectionHeading";
+import SectionSeparator from "@/components/home/SectionSeparator";
+import SeoText from "@/components/home/SeoText";
 import {
   DEFAULT_HOME_SECTIONS,
   sectionLimit,
@@ -192,6 +195,24 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
 
           case "promo_banner":
             return <PromoBanner key={section.id} promotion={promotions[0] ?? null} locale={locale} t={t} />;
+
+          // The editorial blocks render nothing but the admin's own copy, so
+          // they need no data and no fetch above.
+          case "section_heading":
+            // Deliberately outside the tint rotation: a chapter title has to
+            // share a band with whatever it introduces, so it paints its own.
+            return <SectionHeading key={section.id} config={section.config} locale={locale} />;
+
+          case "separator":
+            // Consuming a tint slot is the point of `flipTint` — it is how an
+            // admin decides where the next white / off-white band starts.
+            if (section.config.flipTint) tintIndex++;
+            return <SectionSeparator key={section.id} config={section.config} />;
+
+          case "seo_text":
+            return (
+              <SeoText key={section.id} config={section.config} locale={locale} tinted={tintIndex++ % 2 === 1} />
+            );
 
           case "blog_posts":
             return (

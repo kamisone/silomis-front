@@ -750,6 +750,154 @@
   overflow: hidden;
 }
 
+/* ── Chapter heading ── */
+
+/* Tighter than .section on purpose: this block introduces the one below it, so
+   the gap underneath has to read as "these belong together", not as another
+   band of the page. */
+.chapter {
+  padding-block: clamp(32px, 5vw, 56px) clamp(4px, 1vw, 10px);
+}
+
+.chapterCentered {
+  text-align: center;
+}
+
+.chapterEyebrow {
+  margin: 0 0 8px;
+  font-size: 12.5px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-primary);
+}
+
+.chapterTitle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  font-size: clamp(24px, 3.6vw, 36px);
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+  color: var(--foreground);
+}
+
+.chapterCentered .chapterTitle {
+  justify-content: center;
+}
+
+/* Sized in em so the icon scales with the clamped heading rather than shrinking
+   away from it on wide screens. */
+.chapterIcon {
+  flex-shrink: 0;
+  width: auto;
+  height: 1.15em;
+  object-fit: contain;
+}
+
+.chapterSubtitle {
+  max-width: 62ch;
+  margin: 10px 0 0;
+  font-size: 15.5px;
+  line-height: 1.6;
+  color: color-mix(in srgb, var(--foreground) 62%, var(--background));
+}
+
+.chapterCentered .chapterSubtitle {
+  margin-inline: auto;
+}
+
+/* ── Separator ── */
+
+.separator {
+  display: flex;
+  align-items: center;
+}
+
+.separatorSm {
+  height: clamp(16px, 2.5vw, 28px);
+}
+.separatorMd {
+  height: clamp(28px, 4.5vw, 52px);
+}
+.separatorLg {
+  height: clamp(44px, 7vw, 88px);
+}
+
+.separatorLine {
+  width: 100%;
+  max-width: var(--home-max);
+  margin-inline: auto;
+  border-top: 1px solid color-mix(in srgb, var(--foreground) 10%, transparent);
+}
+
+/* ── SEO text ── */
+
+/* Deliberately quiet: narrower measure, smaller type, muted colour. It is the
+   last thing on the page and should never pull attention off the products. */
+.seoText {
+  max-width: 78ch;
+}
+
+.seoTitle {
+  margin: 0 0 14px;
+  font-size: clamp(18px, 2.2vw, 22px);
+  font-weight: 800;
+  letter-spacing: -0.015em;
+  color: var(--foreground);
+}
+
+.seoBody {
+  font-size: 14.5px;
+  line-height: 1.75;
+  color: color-mix(in srgb, var(--foreground) 66%, var(--background));
+}
+
+.seoBody :global(h2),
+.seoBody :global(h3) {
+  margin: 26px 0 8px;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--foreground);
+}
+
+.seoBody :global(h2):first-child,
+.seoBody :global(h3):first-child {
+  margin-top: 0;
+}
+
+.seoBody :global(p) {
+  margin: 0 0 12px;
+}
+
+.seoBody :global(p):last-child {
+  margin-bottom: 0;
+}
+
+.seoBody :global(ul),
+.seoBody :global(ol) {
+  margin: 0 0 12px;
+  padding-left: 22px;
+}
+
+.seoBody :global(li) {
+  margin-bottom: 4px;
+}
+
+.seoBody :global(a) {
+  color: var(--color-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.seoBody :global(strong) {
+  font-weight: 700;
+  color: var(--foreground);
+}
+
 /* ── Reduced motion ── */
 
 @media (prefers-reduced-motion: reduce) {

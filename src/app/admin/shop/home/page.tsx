@@ -12,10 +12,16 @@ import {
   HOME_SECTION_TYPES,
   SECTION_DEFAULT_LIMIT,
   SECTION_META,
+  isEmptyText,
+  localized,
+  newSectionConfig,
   type HomeSectionConfig,
   type HomeSectionType,
+  type LocalizedText,
 } from "@/components/home/sectionTypes";
+import { DEFAULT_LOCALE, LOCALES } from "@/lib/i18n";
 import SectionPreview from "./SectionPreview";
+import SectionSettings from "./SectionSettings";
 import styles from "./HomeSections.module.css";
 
 interface HomeSection {
@@ -32,15 +38,57 @@ function errMessage(err: unknown, fallback: string): string {
   return err instanceof ApiError ? String((err.body as { message?: string })?.message ?? fallback) : fallback;
 }
 
+const SEPARATOR_TONE_LABEL = { plain: "Empty space", tint: "Tinted band", line: "Hairline rule" } as const;
+const SEPARATOR_HEIGHT_LABEL = { sm: "small", md: "medium", lg: "large" } as const;
+
+/** Which languages a block has been written in — the question an editor asks
+ *  about copy that lives in seven of them. */
+function languageSummary(...texts: Array<LocalizedText | null | undefined>): string | null {
+  const written = LOCALES.filter((l) =>
+    texts.some((text) => (typeof text === "string" ? l === DEFAULT_LOCALE && !!text.trim() : !!text?.[l]?.trim())),
+  );
+  if (written.length === 0) return null;
+  if (written.length === LOCALES.length) return "all languages";
+  return written.map((l) => l.toUpperCase()).join(", ");
+}
+
 /** One-line summary of a section's settings, shown in the card header so the
  *  admin can scan the whole page without opening anything. */
 function settingsSummary(section: HomeSection): string | null {
   const parts: string[] = [];
+  const { config } = section;
+
   if (section.type === "product_rail") {
-    parts.push(section.config.source === "featured" ? "Featured products" : "Newest first");
-    if (section.config.title?.trim()) parts.push(`“${section.config.title.trim()}”`);
+    parts.push(config.source === "featured" ? "Featured products" : "Newest first");
+    if (config.title?.trim()) parts.push(`“${config.title.trim()}”`);
   }
-  const limit = section.config.limit ?? SECTION_DEFAULT_LIMIT[section.type];
+
+  if (section.type === "section_heading") {
+    const title = localized(config.heading, DEFAULT_LOCALE);
+    parts.push(title ? `“${title}”` : "No title yet");
+    if (config.align === "center") parts.push("centred");
+    if (config.tinted) parts.push("tinted");
+    const langs = languageSummary(config.eyebrow, config.heading, config.subtitle);
+    if (langs) parts.push(langs);
+  }
+
+  if (section.type === "separator") {
+    parts.push(SEPARATOR_TONE_LABEL[config.tone ?? "plain"]);
+    parts.push(`${SEPARATOR_HEIGHT_LABEL[config.height ?? "md"]} gap`);
+    if (config.flipTint) parts.push("restarts the banding");
+  }
+
+  if (section.type === "seo_text") {
+    const title = localized(config.heading, DEFAULT_LOCALE);
+    if (title) parts.push(`“${title}”`);
+    if (isEmptyText(config.body)) parts.push("Nothing written yet");
+    else {
+      const langs = languageSummary(config.heading, config.body);
+      if (langs) parts.push(langs);
+    }
+  }
+
+  const limit = config.limit ?? SECTION_DEFAULT_LIMIT[section.type];
   if (limit && SECTION_META[section.type].fields.includes("limit")) parts.push(`${limit} items`);
   return parts.length ? parts.join(" · ") : null;
 }
@@ -109,7 +157,7 @@ export default function HomeSectionsPage() {
       const created = await api.post<HomeSection>(BASE, {
         type,
         isActive: true,
-        config: SECTION_DEFAULT_LIMIT[type] ? { limit: SECTION_DEFAULT_LIMIT[type] } : {},
+        config: newSectionConfig(type),
       });
       setSections((list) => [...list, created]);
       setPicking(false);
@@ -275,59 +323,13 @@ export default function HomeSectionsPage() {
                       </div>
                     </div>
 
-                    {meta.fields.length > 0 && (
-                      <div className={styles.settings}>
-                        {meta.fields.includes("source") && (
-                          <label className={styles.field}>
-                            <span className={styles.fieldLabel}>Products</span>
-                            <select
-                              className={ui.select}
-                              value={section.config.source ?? "newest"}
-                              onChange={(e) => patchSection(section.id, { config: { ...section.config, source: e.target.value as "newest" | "featured" } })}
-                              disabled={saving}
-                            >
-                              <option value="newest">Newest first</option>
-                              <option value="featured">Featured products</option>
-                            </select>
-                          </label>
-                        )}
-                        {meta.fields.includes("title") && (
-                          <label className={`${styles.field} ${styles.fieldWide}`}>
-                            <span className={styles.fieldLabel}>Heading</span>
-                            <input
-                              className={ui.input}
-                              defaultValue={section.config.title ?? ""}
-                              placeholder="Leave blank for the translated default"
-                              onBlur={(e) => {
-                                const value = e.target.value.trim();
-                                if (value === (section.config.title ?? "")) return;
-                                patchSection(section.id, { config: { ...section.config, title: value || null } });
-                              }}
-                              disabled={saving}
-                            />
-                          </label>
-                        )}
-                        {meta.fields.includes("limit") && (
-                          <label className={`${styles.field} ${styles.fieldNarrow}`}>
-                            <span className={styles.fieldLabel}>Items</span>
-                            <input
-                              className={ui.input}
-                              type="number"
-                              min={1}
-                              max={24}
-                              defaultValue={section.config.limit ?? SECTION_DEFAULT_LIMIT[section.type] ?? 8}
-                              onBlur={(e) => {
-                                const value = Number.parseInt(e.target.value, 10);
-                                if (!Number.isFinite(value) || value === section.config.limit) return;
-                                patchSection(section.id, { config: { ...section.config, limit: Math.min(24, Math.max(1, value)) } });
-                              }}
-                              disabled={saving}
-                            />
-                          </label>
-                        )}
-                        <span className={styles.settingsNote}>Changes save as you leave each field.</span>
-                      </div>
-                    )}
+                    <SectionSettings
+                      type={section.type}
+                      config={section.config}
+                      saving={saving}
+                      onChange={(patch) => patchSection(section.id, { config: { ...section.config, ...patch } })}
+                    />
+
                   </div>
                 </li>
               );
