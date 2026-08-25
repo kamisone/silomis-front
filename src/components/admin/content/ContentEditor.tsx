@@ -20,7 +20,7 @@ interface PageContentData {
   sections: PageSection[];
 }
 
-type Slug = "about" | "privacy-policy" | "legal" | "cookies";
+type Slug = "about" | "privacy-policy" | "legal" | "cookies" | "sale";
 
 const LOCALE_LABEL: Record<Locale, string> = {
   en: "🇬🇧 English", fr: "🇫🇷 Français", es: "🇪🇸 Español",
@@ -32,6 +32,11 @@ const PAGES: { slug: Slug; label: string }[] = [
   { slug: "privacy-policy", label: "Privacy Policy" },
   { slug: "legal", label: "Legal" },
   { slug: "cookies", label: "Cookie Policy" },
+  // Unlike the policy pages above, `sale` overrides nothing: the /sale listing
+  // has no built-in editorial copy, so what is saved here — title, intro, and
+  // the long-form sections under the product grid — is the only copy that page
+  // has, per locale. Left empty, the storefront falls back to its own strings.
+  { slug: "sale", label: "Sale page" },
 ];
 
 const EMPTY: PageContentData = { title: "", intro: "", sections: [] };
