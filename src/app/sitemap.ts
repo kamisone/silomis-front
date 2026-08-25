@@ -14,6 +14,10 @@ interface PublicProductListResponse {
   total: number;
 }
 
+interface PublicCollection {
+  slug: string;
+}
+
 async function fetchAllActiveProducts(): Promise<PublicProduct[]> {
   const products: PublicProduct[] = [];
   let offset = 0;
@@ -38,12 +42,25 @@ async function fetchAllActiveProducts(): Promise<PublicProduct[]> {
   return products;
 }
 
+/** Active collections only — the public endpoint already filters by isActive. */
+async function fetchActiveCollections(): Promise<PublicCollection[]> {
+  try {
+    const res = await fetch(`${API}/shop/collections`, { next: { revalidate: 3600 } });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data) ? (data as PublicCollection[]) : [];
+  } catch {
+    return [];
+  }
+}
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const products = await fetchAllActiveProducts();
+  const [products, collections] = await Promise.all([fetchAllActiveProducts(), fetchActiveCollections()]);
 
   const staticPages: MetadataRoute.Sitemap = [
     { url: `${BASE_URL}/`, lastModified: new Date(), changeFrequency: "daily", priority: 1.0 },
     { url: `${BASE_URL}/shop`, lastModified: new Date(), changeFrequency: "daily", priority: 0.9 },
+    { url: `${BASE_URL}/collections`, lastModified: new Date(), changeFrequency: "weekly", priority: 0.7 },
     { url: `${BASE_URL}/shop/cart`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.3 },
   ];
 
@@ -54,5 +71,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.8,
   }));
 
-  return [...staticPages, ...productPages];
+  const collectionPages: MetadataRoute.Sitemap = collections.map((collection) => ({
+    url: `${BASE_URL}/collections/${collection.slug}`,
+    lastModified: new Date(),
+    changeFrequency: "weekly" as const,
+    priority: 0.7,
+  }));
+
+  return [...staticPages, ...collectionPages, ...productPages];
 }

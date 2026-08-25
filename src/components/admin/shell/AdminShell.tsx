@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import AdminSidebar from "./AdminSidebar";
 import AdminTopBar from "./AdminTopBar";
@@ -13,6 +13,26 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const pathname = usePathname();
+  const topBarRef = useRef<HTMLDivElement>(null);
+  const shellRef = useRef<HTMLDivElement>(null);
+
+  /* The top bar is sticky at top:0, so anything else that wants to stick has
+     to clear it. Publishing its measured height as --admin-topbar-height
+     keeps those offsets correct if the bar's contents ever change height,
+     rather than each page guessing a px value. Written straight to the DOM
+     node — no state, so no re-render and no set-state-in-effect. */
+  useEffect(() => {
+    const shell = shellRef.current;
+    // The wrapper is display:contents so it never affects layout, which also
+    // means it has no box of its own — measure the real bar inside it.
+    const bar = topBarRef.current?.firstElementChild;
+    if (!bar || !shell) return;
+    const apply = () => shell.style.setProperty("--admin-topbar-height", `${Math.round(bar.getBoundingClientRect().height)}px`);
+    apply();
+    const ro = new ResizeObserver(apply);
+    ro.observe(bar);
+    return () => ro.disconnect();
+  }, []);
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth <= MOBILE_BREAKPOINT);
@@ -34,7 +54,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
   const effectiveCollapsed = isMobile ? !mobileOpen : collapsed;
 
   return (
-    <div className={`${styles.shell} ${effectiveCollapsed ? styles.collapsed : ""}`}>
+    <div ref={shellRef} className={`${styles.shell} ${effectiveCollapsed ? styles.collapsed : ""}`}>
       {isMobile && mobileOpen && <div className={styles.backdrop} onClick={() => setMobileOpen(false)} aria-hidden="true" />}
 
       <AdminSidebar
@@ -45,7 +65,9 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
       />
 
       <div className={styles.main}>
-        <AdminTopBar onMobileMenuOpen={() => setMobileOpen(true)} />
+        <div ref={topBarRef} className={styles.topBarSlot}>
+          <AdminTopBar onMobileMenuOpen={() => setMobileOpen(true)} />
+        </div>
         <div className={styles.content}>{children}</div>
       </div>
     </div>

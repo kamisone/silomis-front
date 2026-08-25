@@ -124,6 +124,7 @@ export default function CommerceCategoryNav({ locale, className }: Props) {
   }, [locale]);
 
   const onShopPage = pathname === `/${locale}/shop`;
+  const onCollectionsPage = pathname.startsWith(`/${locale}/collections`);
   const activeCategory = onShopPage ? searchParams.get("category") : null;
   const tree = buildCategoryTree(categories);
   const ancestorIds = new Set(getAncestorIds(categories, activeCategory));
@@ -182,7 +183,9 @@ export default function CommerceCategoryNav({ locale, className }: Props) {
 
   const openNode = openId ? (tree.find((n) => n.id === openId) ?? null) : null;
 
-  if (!categories.length) return null;
+  // Collections are independent of categories, so the nav still renders when
+  // no categories exist — only the category items are skipped.
+  const hasCategories = categories.length > 0;
 
   return (
     <div className={styles.nav} ref={navRef}>
@@ -192,7 +195,10 @@ export default function CommerceCategoryNav({ locale, className }: Props) {
       >
         {t.allProducts}
       </Link>
-      {tree.map((node) => {
+      <Link href={`/${locale}/collections`} className={`${styles.item} ${className ?? ""} ${onCollectionsPage ? styles.active : ""}`}>
+        {t.collectionsTitle}
+      </Link>
+      {hasCategories && tree.map((node) => {
         const hasChildren = node.children.length > 0;
         const isActive = activeCategory === node.id || ancestorIds.has(node.id);
 

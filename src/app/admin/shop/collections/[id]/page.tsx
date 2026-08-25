@@ -9,9 +9,11 @@ import MediaPicker from "@/components/admin/ui/MediaPicker";
 import BilingualField from "@/components/admin/BilingualField";
 import { useEntityTranslations } from "@/hooks/useEntityTranslations";
 import ui from "@/components/admin/ui/admin-ui.module.css";
+import styles from "./CollectionEdit.module.css";
 import { useToast } from "@/components/toast/ToastContext";
 
 const ENTITY_TYPE = "shop_collection";
+const FORM_ID = "collection-form";
 
 interface CollectionProductLink {
   id: string;
@@ -27,6 +29,8 @@ interface Collection {
   description: string | null;
   imageKey: string | null;
   imageUrl: string | null;
+  bannerImageKey: string | null;
+  bannerImageUrl: string | null;
   seoTitle: string | null;
   seoDescription: string | null;
   metaKeywords: string | null;
@@ -91,6 +95,7 @@ export default function CollectionDetailPage() {
         slug: collection.slug,
         description: collection.description,
         imageKey: collection.imageKey,
+        bannerImageKey: collection.bannerImageKey,
         seoTitle: collection.seoTitle,
         seoDescription: collection.seoDescription,
         metaKeywords: collection.metaKeywords,
@@ -172,20 +177,28 @@ export default function CollectionDetailPage() {
 
   return (
     <div className={ui.page}>
-      <div className={ui.pageHeader}>
-        <div>
-          <Link href="/admin/shop/collections" style={{ fontSize: "0.85rem", color: "var(--color-secondary)" }}>
+      {/* Sticky so Save stays reachable from anywhere in a long form —
+          offset by the admin top bar's own sticky height. */}
+      <div className={`${ui.pageHeader} ${styles.stickyHeader}`}>
+        <div className={styles.headerTitle}>
+          <Link href="/admin/shop/collections" className={styles.backLink}>
             ← Collections
           </Link>
           <h1 className={ui.pageTitle}>{collection.name}</h1>
         </div>
-        <Button variant="danger" onClick={handleDelete}>
-          Delete
-        </Button>
+        <div className={styles.headerActions}>
+          <Button variant="danger" onClick={handleDelete}>
+            Delete
+          </Button>
+          {/* Outside the form, bound to it by id — the form is further down the page. */}
+          <Button type="submit" form={FORM_ID} disabled={saving}>
+            {saving ? "Saving…" : "Save"}
+          </Button>
+        </div>
       </div>
 
       <div className={ui.card}>
-        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem", maxWidth: 640 }}>
+        <form id={FORM_ID} onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem", maxWidth: 640 }}>
           <BilingualField
             label="Name"
             field="name"
@@ -212,13 +225,35 @@ export default function CollectionDetailPage() {
           />
 
           <div className={ui.field}>
-            <label className={ui.label}>Image</label>
-            <MediaPicker
-              value={collection.imageKey}
-              previewUrl={collection.imageUrl}
-              onChange={(key, url) => setCollection({ ...collection, imageKey: key, imageUrl: url })}
-              label="collection image"
-            />
+            <label className={ui.label}>Images</label>
+            <div className={styles.imageSlots}>
+              <div className={styles.imageSlot}>
+                <span className={styles.imageSlotLabel}>Card image</span>
+                <span className={styles.imageSlotHint}>Shown on the collections listing.</span>
+                <MediaPicker
+                  value={collection.imageKey}
+                  previewUrl={collection.imageUrl}
+                  onChange={(key, url) => setCollection({ ...collection, imageKey: key, imageUrl: url })}
+                  label="Card image"
+                  mediaType="image"
+                  asAddTile
+                />
+              </div>
+
+              <div className={styles.imageSlot}>
+                <span className={styles.imageSlotLabel}>Banner</span>
+                <span className={styles.imageSlotHint}>Wide hero on the collection page. Falls back to the card image.</span>
+                <MediaPicker
+                  value={collection.bannerImageKey}
+                  previewUrl={collection.bannerImageUrl}
+                  onChange={(key, url) => setCollection({ ...collection, bannerImageKey: key, bannerImageUrl: url })}
+                  label="Banner"
+                  mediaType="image"
+                  asAddTile
+                  className={styles.bannerTile}
+                />
+              </div>
+            </div>
           </div>
 
           <div className={ui.formGrid}>
@@ -297,12 +332,6 @@ export default function CollectionDetailPage() {
             multiline
             rows={6}
           />
-
-          <div>
-            <Button type="submit" disabled={saving}>
-              {saving ? "Saving…" : "Save"}
-            </Button>
-          </div>
         </form>
       </div>
 

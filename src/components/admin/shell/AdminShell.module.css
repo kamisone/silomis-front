@@ -55,3 +55,10 @@
     to   { opacity: 1; }
   }
 }
+
+/* Wrapper that exists purely to measure AdminTopBar's height (see AdminShell's
+   ResizeObserver). It must not introduce its own stacking or box, so the
+   sticky bar inside keeps behaving exactly as before. */
+.topBarSlot {
+  display: contents;
+}

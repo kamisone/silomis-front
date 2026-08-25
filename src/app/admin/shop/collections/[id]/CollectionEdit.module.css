@@ -1,0 +1,90 @@
+/* Two single-image slots side by side: the square card image and the wide
+   banner. Each is a MediaPicker in `asAddTile` mode — a dashed "+" tile when
+   empty, the chosen image once set. */
+.imageSlots {
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.imageSlot {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.imageSlotLabel {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.imageSlotHint {
+  margin-bottom: 8px;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: var(--color-secondary);
+}
+
+/* The banner is a wide hero, so its tile mirrors that shape rather than the
+   picker's default square. */
+.bannerTile {
+  aspect-ratio: 16 / 6;
+}
+
+@media (max-width: 640px) {
+  .imageSlots {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  .bannerTile {
+    aspect-ratio: 16 / 7;
+  }
+}
+
+/* ── Sticky page header ──
+   Keeps the back link, Delete and Save reachable anywhere in a long form.
+   Sits directly under AdminTopBar, which is itself sticky at top:0 — the
+   offset comes from the height AdminShell measures onto the shell, so this
+   stays correct if the bar's contents change. z-index stays below the bar's
+   10 so the bar always wins if the two ever meet. */
+.stickyHeader {
+  position: sticky;
+  top: var(--admin-topbar-height, 66px);
+  z-index: 5;
+  /* Bleed over .content's padding so scrolling rows don't peek at the sides. */
+  margin: -1.5rem -1.5rem 0;
+  padding: 1rem 1.5rem;
+  background: var(--background);
+  border-bottom: 1px solid var(--color-surface);
+}
+
+.headerTitle {
+  min-width: 0;
+}
+
+.backLink {
+  font-size: 0.85rem;
+  color: var(--color-secondary);
+}
+.backLink:hover {
+  color: var(--color-primary);
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+@media (max-width: 720px) {
+  .stickyHeader {
+    /* .content drops to 1rem padding at this width — match it. */
+    margin: -1rem -1rem 0;
+    padding: 0.75rem 1rem;
+    flex-wrap: wrap;
+  }
+}

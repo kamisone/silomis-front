@@ -9,6 +9,8 @@ import Modal from "@/components/admin/ui/Modal";
 import BilingualField from "@/components/admin/BilingualField";
 import { useEntityTranslations } from "@/hooks/useEntityTranslations";
 import ui from "@/components/admin/ui/admin-ui.module.css";
+import MediaPicker from "@/components/admin/ui/MediaPicker";
+import styles from "./[id]/CollectionEdit.module.css";
 import { useToast } from "@/components/toast/ToastContext";
 
 const ENTITY_TYPE = "shop_collection";
@@ -20,6 +22,8 @@ interface Collection {
   isActive: boolean;
   isFeatured: boolean;
   sortOrder: number;
+  /** Every linked product, drafts included — the admin's membership figure. */
+  productCount: number;
   createdAt: string;
 }
 
@@ -40,6 +44,8 @@ export default function CollectionsPage() {
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [slugEdited, setSlugEdited] = useState(false);
+  const [image, setImage] = useState<{ key: string | null; url: string | null }>({ key: null, url: null });
+  const [banner, setBanner] = useState<{ key: string | null; url: string | null }>({ key: null, url: null });
   const [saving, setSaving] = useState(false);
 
   const { translations, setTranslation, saveTranslations } = useEntityTranslations(ENTITY_TYPE, null);
@@ -62,6 +68,8 @@ export default function CollectionsPage() {
     setName("");
     setSlug("");
     setSlugEdited(false);
+    setImage({ key: null, url: null });
+    setBanner({ key: null, url: null });
     setCreating(true);
   }
 
@@ -69,7 +77,12 @@ export default function CollectionsPage() {
     e.preventDefault();
     setSaving(true);
     try {
-      const created = await api.post<Collection>("/next-api/admin/shop/collections", { name, slug: slug || slugify(name) });
+      const created = await api.post<Collection>("/next-api/admin/shop/collections", {
+        name,
+        slug: slug || slugify(name),
+        imageKey: image.key,
+        bannerImageKey: banner.key,
+      });
       await saveTranslations(created.id, ["name"]);
       toast.success("Collection created");
       router.push(`/admin/shop/collections/${created.id}`);
@@ -112,6 +125,8 @@ export default function CollectionsPage() {
               <tr>
                 <th>Name</th>
                 <th>Slug</th>
+                <th>Products</th>
+                <th>Order</th>
                 <th>Featured</th>
                 <th>Status</th>
                 <th />
@@ -124,6 +139,8 @@ export default function CollectionsPage() {
                     <Link href={`/admin/shop/collections/${c.id}`}>{c.name}</Link>
                   </td>
                   <td>{c.slug}</td>
+                  <td>{c.productCount}</td>
+                  <td>{c.sortOrder}</td>
                   <td>{c.isFeatured ? "Yes" : "—"}</td>
                   <td>
                     <span className={c.isActive ? ui.badgeActive : ui.badgeInactive}>{c.isActive ? "active" : "inactive"}</span>
@@ -185,6 +202,38 @@ export default function CollectionsPage() {
                 required
               />
             </div>
+            <div className={ui.field}>
+              <label className={ui.label}>Images</label>
+              <div className={styles.imageSlots}>
+                <div className={styles.imageSlot}>
+                  <span className={styles.imageSlotLabel}>Card image</span>
+                  <span className={styles.imageSlotHint}>Shown on the collections listing.</span>
+                  <MediaPicker
+                    value={image.key}
+                    previewUrl={image.url}
+                    onChange={(key, url) => setImage({ key, url })}
+                    label="Card image"
+                    mediaType="image"
+                    asAddTile
+                  />
+                </div>
+
+                <div className={styles.imageSlot}>
+                  <span className={styles.imageSlotLabel}>Banner</span>
+                  <span className={styles.imageSlotHint}>Wide hero on the collection page. Falls back to the card image.</span>
+                  <MediaPicker
+                    value={banner.key}
+                    previewUrl={banner.url}
+                    onChange={(key, url) => setBanner({ key, url })}
+                    label="Banner"
+                    mediaType="image"
+                    asAddTile
+                    className={styles.bannerTile}
+                  />
+                </div>
+              </div>
+            </div>
+
             <p style={{ fontSize: "0.8rem", color: "var(--color-secondary)" }}>You&apos;ll set the description, SEO copy, and products next.</p>
           </form>
         </Modal>

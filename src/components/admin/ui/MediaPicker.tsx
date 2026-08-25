@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronRight, Check, Folder, FolderOpen, ImagePlus, Play } from "lucide-react";
+import { ChevronRight, Check, Folder, FolderOpen, ImagePlus, Play, X } from "lucide-react";
 import { api } from "@/lib/api";
 import Modal from "./Modal";
 import styles from "./MediaPicker.module.css";
@@ -48,7 +48,7 @@ interface MediaPickerProps {
   /** Multi-select mode — for adding several items at once (e.g. a media gallery). Requires `onSelectMulti`. */
   multi?: boolean;
   onSelectMulti?: (assets: PickedAsset[]) => void;
-  /** Renders the trigger as a dashed square "add" tile (image + plus icon) instead of the default thumbnail-and-label trigger — for dropping into a media grid alongside existing item cards. */
+  /** Renders the trigger as a dashed square "add" tile (image + plus icon) instead of the default thumbnail-and-label trigger — for dropping into a media grid alongside existing item cards. With a `value`/`previewUrl` set the same tile shows the chosen image instead, with hover-to-change and a corner remove button, which makes it usable as a standalone single-image field. */
   asAddTile?: boolean;
   /** Extra class appended to the `asAddTile` trigger — lets a caller reshape it (e.g. a 9:16 "reel" tile for a video grid) without forking the component. */
   className?: string;
@@ -190,10 +190,36 @@ export default function MediaPicker({ value, previewUrl, onChange, label = "Imag
   return (
     <>
       {asAddTile ? (
-        <button type="button" className={`${styles.addTile} ${className ?? ""}`} onClick={() => setOpen(true)}>
-          <ImagePlus size={22} strokeWidth={1.5} />
-          <span>{label}</span>
-        </button>
+        // With a value set the tile becomes the image itself, with a hover
+        // overlay to swap and a corner button to clear — every existing
+        // caller is a grid "add another" button that passes value={null}, so
+        // they keep the plain dashed-plus tile.
+        previewUrl || value ? (
+          <div className={`${styles.filledTile} ${className ?? ""}`}>
+            <button type="button" className={styles.filledTileBtn} onClick={() => setOpen(true)} title={`Change ${label.toLowerCase()}`}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={previewUrl ?? value ?? undefined} alt="" className={styles.filledTileImg} />
+              <span className={styles.filledTileOverlay}>
+                <ImagePlus size={20} strokeWidth={1.75} />
+                <span>Change</span>
+              </span>
+            </button>
+            <button
+              type="button"
+              className={styles.filledTileRemove}
+              onClick={() => onChange?.(null, null)}
+              aria-label={`Remove ${label.toLowerCase()}`}
+              title={`Remove ${label.toLowerCase()}`}
+            >
+              <X size={13} strokeWidth={2.5} />
+            </button>
+          </div>
+        ) : (
+          <button type="button" className={`${styles.addTile} ${className ?? ""}`} onClick={() => setOpen(true)}>
+            <ImagePlus size={22} strokeWidth={1.5} />
+            <span>{label}</span>
+          </button>
+        )
       ) : (
         <div className={styles.trigger} onClick={() => setOpen(true)}>
           {previewUrl || value ? (
