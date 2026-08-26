@@ -60,14 +60,74 @@
   background: #f59e0b;
 }
 
+/* ── Section heading row ──
+   The heading and the one action it offers, on the same line — a "write a
+   review" button floating below the summary read as a stray control rather
+   than as this section's call to action. */
+.headingRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+/* The shared .sectionTitle carries the gap under it; the row owns that now.
+
+   Doubled class on purpose: .sectionTitle lives in ProductDetail.module.css and
+   sets `margin-bottom: 16px` at the same specificity, so a single class here
+   only won when the bundler happened to emit this module last — which left the
+   heading sitting 8px above the button it is supposed to be level with. */
+.heading.heading {
+  margin-bottom: 0;
+}
+
+/* The storefront's secondary button: outlined in the brand colour, filling on
+   hover — the same treatment "Buy now" uses on this page, so the two read as
+   one system rather than as two designers. */
 .writeButton {
-  padding: 10px 18px;
-  border-radius: 8px;
-  border: 1px solid color-mix(in srgb, var(--foreground) 20%, transparent);
-  background: var(--color-surface, #fff);
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 16px;
+  border-radius: 999px;
+  border: 1.5px solid var(--color-primary);
+  background: transparent;
+  color: var(--color-primary);
+  font-size: 13.5px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
   cursor: pointer;
-  font-weight: 600;
-  margin-bottom: 20px;
+  white-space: nowrap;
+  transition:
+    background 0.16s,
+    color 0.16s,
+    box-shadow 0.16s;
+}
+.writeButton:hover {
+  background: var(--color-primary);
+  color: #fff;
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--color-primary) 28%, transparent);
+}
+.writeButton:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+.writeButton:active {
+  transform: translateY(1px);
+}
+
+@media (max-width: 520px) {
+  /* Still one line — even a phone has room for a short heading and this button,
+     and the heading's own text wraps before the row ever needs to. */
+  .headingRow {
+    gap: 10px;
+  }
+  .writeButton {
+    padding: 8px 14px;
+    font-size: 12.5px;
+  }
 }
 
 .empty {
@@ -75,68 +135,144 @@
   margin-bottom: 16px;
 }
 
-.list {
+/* ── Reviews carousel ─────────────────────────────────────────────────────────
+   A row of equal-height cards rather than a vertical stack: reviews are read by
+   sampling a few, not by scrolling past all of them, and a stack of twenty
+   pushed the rest of the page out of reach.
+
+   Every card is the same height (the tallest in the row wins, via stretch), and
+   the copy is the only part that gives — its header and byline stay pinned, so
+   the stars line up across the row and the bylines sit on one baseline. */
+.carousel {
+  margin-top: 4px;
+}
+
+.viewport {
+  position: relative;
+}
+
+.track {
   display: flex;
-  flex-direction: column;
   gap: 16px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-padding-left: 2px;
+  scrollbar-width: none;
+  /* Room for the cards' hover lift and focus rings, which would otherwise be
+     clipped by the scroll container. */
+  padding: 4px 2px 8px;
+}
+.track::-webkit-scrollbar {
+  display: none;
+}
+.track:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 4px;
+  border-radius: 12px;
+}
+/* Set while a mouse drag is in progress: kills the snap so the card follows the
+   cursor, and stops the text under it being selected instead. */
+.dragging {
+  scroll-snap-type: none;
+  cursor: grabbing;
+  user-select: none;
+}
+
+.slide {
+  flex: 0 0 auto;
+  width: 33.333%;
+  min-width: 264px;
+  scroll-snap-align: start;
+  /* Stretch, so a short review's card matches its neighbours. */
+  display: flex;
 }
 
 .card {
-  border: 1px solid color-mix(in srgb, var(--foreground) 10%, transparent);
-  border-radius: 10px;
-  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 16px 18px;
+  border: 1px solid color-mix(in srgb, var(--foreground) 11%, transparent);
+  border-radius: 14px;
+  background: var(--background);
+  transition:
+    box-shadow 0.18s,
+    border-color 0.18s;
+}
+.card:hover {
+  border-color: color-mix(in srgb, var(--foreground) 18%, transparent);
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--foreground) 9%, transparent);
 }
 
 .cardHeader {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 10px;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
 .verifiedBadge {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 0.75rem;
-  color: #16a34a;
+  font-size: 0.72rem;
   font-weight: 600;
+  color: #16a34a;
+  white-space: nowrap;
 }
 
-.cardAuthorRow {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.8rem;
-  color: color-mix(in srgb, var(--foreground) 65%, var(--background));
-  margin-bottom: 6px;
-}
-.cardAuthor {
-  font-weight: 700;
-  color: var(--foreground);
-}
-.cardDate {
-  color: color-mix(in srgb, var(--foreground) 50%, var(--background));
+/* Takes the slack in a short card, so the byline is pushed to the bottom edge
+   and every card's footer lands on the same line. */
+.cardCopy {
+  flex: 1;
+  min-height: 0;
 }
 
 .cardTitle {
+  margin: 0 0 4px;
+  font-size: 0.95rem;
   font-weight: 700;
-  margin: 4px 0;
+  line-height: 1.35;
+  color: var(--foreground);
+  /* One line: a title is a headline, and a wrapped one starts competing with
+     the body underneath it. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .cardBody {
-  margin: 4px 0;
-  line-height: 1.5;
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: color-mix(in srgb, var(--foreground) 78%, var(--background));
+  /* Clamped rather than scrolled: an essay must not decide the height of every
+     other card in the row. */
+  display: -webkit-box;
+  -webkit-line-clamp: 5;
+  line-clamp: 5;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .cardMedia {
   display: flex;
   gap: 8px;
-  margin: 8px 0;
+  margin-top: 12px;
+  /* Photos are the part shoppers actually stop for, so they get a scrollable
+     strip rather than being wrapped onto a second row that changes the card's
+     height. */
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.cardMedia::-webkit-scrollbar {
+  display: none;
 }
 
 .mediaThumbBtn {
   position: relative;
+  flex: none;
   padding: 0;
   border: none;
   border-radius: 8px;
@@ -145,13 +281,21 @@
   background: none;
   line-height: 0;
 }
+.mediaThumbBtn:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
 
 .cardMediaItem {
-  width: 72px;
-  height: 72px;
+  width: 64px;
+  height: 64px;
   object-fit: cover;
   border-radius: 8px;
   display: block;
+  transition: transform 0.3s ease;
+}
+.mediaThumbBtn:hover .cardMediaItem {
+  transform: scale(1.06);
 }
 
 .mediaPlayBadge {
@@ -163,6 +307,127 @@
   color: #fff;
   background: rgba(0, 0, 0, 0.25);
   pointer-events: none;
+}
+
+.cardFooter {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid color-mix(in srgb, var(--foreground) 8%, transparent);
+}
+
+.avatar {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.cardAuthorRow {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.3;
+}
+.cardAuthor {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cardDate {
+  font-size: 0.73rem;
+  color: color-mix(in srgb, var(--foreground) 52%, var(--background));
+}
+
+/* ── Arrows ── */
+.arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 3;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--foreground) 12%, transparent);
+  background: color-mix(in srgb, var(--background) 92%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: var(--foreground);
+  cursor: pointer;
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--foreground) 14%, transparent);
+  transition:
+    background 0.16s,
+    color 0.16s,
+    opacity 0.16s;
+}
+.arrow:hover:not(:disabled) {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+}
+.arrow:disabled {
+  opacity: 0;
+  pointer-events: none;
+}
+.arrow:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+/* Matching the related-products carousel: just far enough onto the row to read
+   as belonging to it, and never far enough out to be clipped by a narrow page
+   gutter. */
+.arrowPrev {
+  left: -6px;
+}
+.arrowNext {
+  right: -6px;
+}
+
+/* Touch devices swipe; arrows would only cover the cards. */
+@media (hover: none) {
+  .arrow {
+    display: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .slide {
+    width: 50%;
+  }
+}
+
+@media (max-width: 620px) {
+  .slide {
+    /* A sliver of the next card showing is what tells a thumb the row moves. */
+    width: 84%;
+    min-width: 0;
+  }
+  .track {
+    gap: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .cardMediaItem,
+  .arrow,
+  .writeButton {
+    transition: none;
+  }
 }
 
 /* ── Media viewer overlay ── */

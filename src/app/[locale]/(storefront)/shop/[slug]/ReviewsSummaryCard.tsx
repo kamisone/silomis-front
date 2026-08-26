@@ -142,7 +142,10 @@ export default function ReviewsSummaryCard({
         <div className={styles.mediaStrip}>
           {mediaStrip.map(({ media, reviewId }) => (
             <button
-              key={media.key}
+              /* Scoped to the review: this strip is flattened across reviews,
+                 and two shoppers photographing the same thing can upload the
+                 same asset, which made the media key alone non-unique here. */
+              key={`${reviewId}-${media.key}`}
               type="button"
               className={styles.mediaTile}
               onClick={() => setViewerTarget({ reviewId, mediaKey: media.key })}

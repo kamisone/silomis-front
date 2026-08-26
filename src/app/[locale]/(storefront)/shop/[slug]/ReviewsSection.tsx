@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { BadgeCheck, Play } from "lucide-react";
+import { BadgeCheck, ChevronLeft, ChevronRight, PenLine, Play } from "lucide-react";
+import { useCarousel } from "@/components/shop/useCarousel";
 import WriteReviewForm from "./WriteReviewForm";
 import ReviewMediaViewer, { type ViewerTarget } from "./ReviewMediaViewer";
 import { getTranslations, toBcp47, type Locale } from "@/lib/i18n";
@@ -48,6 +49,34 @@ function Stars({ rating, size = 16 }: { rating: number; size?: number }) {
   );
 }
 
+/**
+ * The reviewer's initials over a colour picked from their name.
+ *
+ * A stable hash rather than a random pick, so the same person keeps the same
+ * colour between renders and pages; the hue wheel is sampled at a fixed
+ * saturation and lightness so every avatar sits at the same weight and none of
+ * them fights the star row above it.
+ */
+function Avatar({ name }: { name: string }) {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) % 360;
+  const initials = name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? "")
+    .join("");
+  return (
+    <span
+      className={reviewStyles.avatar}
+      style={{ background: `hsl(${hash} 58% 92%)`, color: `hsl(${hash} 52% 32%)` }}
+      aria-hidden="true"
+    >
+      {initials || "?"}
+    </span>
+  );
+}
+
 interface Props {
   productId: string;
   locale: Locale;
@@ -62,6 +91,7 @@ export default function ReviewsSection({ productId, locale, stats, initialReview
   const [loadingMore, setLoadingMore] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [viewerTarget, setViewerTarget] = useState<ViewerTarget | null>(null);
+  const carousel = useCarousel({ count: reviews.length, draggingClass: reviewStyles.dragging });
 
   const distribution = stats.distribution ?? {};
   const maxCount = Math.max(1, ...[1, 2, 3, 4, 5].map((n) => distribution[String(n)] ?? 0));
@@ -91,7 +121,13 @@ export default function ReviewsSection({ productId, locale, stats, initialReview
 
   return (
     <section id="reviews" className={styles.section}>
-      <h2 className={styles.sectionTitle}>{t.shop.reviewsHeading}</h2>
+      <div className={reviewStyles.headingRow}>
+        <h2 className={`${styles.sectionTitle} ${reviewStyles.heading}`}>{t.shop.reviewsHeading}</h2>
+        <button type="button" className={reviewStyles.writeButton} onClick={() => setShowForm(true)}>
+          <PenLine size={14} strokeWidth={2.25} aria-hidden="true" />
+          {t.shop.reviewsWriteBtn}
+        </button>
+      </div>
 
       {stats.count > 0 && (
         <div className={reviewStyles.summary}>
@@ -119,58 +155,103 @@ export default function ReviewsSection({ productId, locale, stats, initialReview
         </div>
       )}
 
-      <button type="button" className={reviewStyles.writeButton} onClick={() => setShowForm(true)}>
-        {t.shop.reviewsWriteBtn}
-      </button>
-
       {reviews.length === 0 && <p className={reviewStyles.empty}>{t.shop.reviewsEmpty}</p>}
 
-      <div className={reviewStyles.list}>
-        {reviews.map((r) => (
-          <div key={r.id} className={reviewStyles.card}>
-            <div className={reviewStyles.cardHeader}>
-              <Stars rating={r.rating} />
-              {r.isVerifiedPurchase && (
-                <span className={reviewStyles.verifiedBadge}>
-                  <BadgeCheck size={13} strokeWidth={2} /> {t.shop.reviewVerifiedBadge}
-                </span>
-              )}
-            </div>
-            <div className={reviewStyles.cardAuthorRow}>
-              <span className={reviewStyles.cardAuthor}>{r.authorName}</span>
-              <span aria-hidden="true">·</span>
-              <span className={reviewStyles.cardDate}>{formatDate(r.createdAt, locale)}</span>
-            </div>
-            {r.title && <p className={reviewStyles.cardTitle}>{r.title}</p>}
-            {r.body && <p className={reviewStyles.cardBody}>{r.body}</p>}
-            {r.media.length > 0 && (
-              <div className={reviewStyles.cardMedia}>
-                {r.media.map((m) => (
-                  <button
-                    key={m.key}
-                    type="button"
-                    className={reviewStyles.mediaThumbBtn}
-                    onClick={() => setViewerTarget({ reviewId: r.id, mediaKey: m.key })}
-                    aria-label={m.type === "video" ? "Play video" : "View image"}
-                  >
-                    {m.type === "video" ? (
-                      <video src={m.url} muted playsInline className={reviewStyles.cardMediaItem} />
-                    ) : (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={m.url} alt={m.altText ?? ""} loading="lazy" className={reviewStyles.cardMediaItem} />
+      {reviews.length > 0 && (
+        <div className={reviewStyles.carousel}>
+          <div className={reviewStyles.viewport}>
+            <div
+              {...carousel.trackProps}
+              className={reviewStyles.track}
+              role="group"
+              aria-roledescription="carousel"
+              aria-label={t.shop.reviewsHeading}
+              tabIndex={0}
+            >
+              {reviews.map((r, i) => (
+                <article key={r.id} ref={carousel.setSlideRef(i)} className={reviewStyles.slide}>
+                  <div className={reviewStyles.card}>
+                    <div className={reviewStyles.cardHeader}>
+                      <Stars rating={r.rating} />
+                      {r.isVerifiedPurchase && (
+                        <span className={reviewStyles.verifiedBadge}>
+                          <BadgeCheck size={13} strokeWidth={2} /> {t.shop.reviewVerifiedBadge}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* The copy is what varies wildly in length, so it is the part
+                        that scrolls — the header and the byline stay pinned, which
+                        is what keeps a row of cards reading as a row. */}
+                    <div className={reviewStyles.cardCopy}>
+                      {r.title && <p className={reviewStyles.cardTitle}>{r.title}</p>}
+                      {r.body && <p className={reviewStyles.cardBody}>{r.body}</p>}
+                    </div>
+
+                    {r.media.length > 0 && (
+                      <div className={reviewStyles.cardMedia}>
+                        {r.media.map((m) => (
+                          <button
+                            key={m.key}
+                            type="button"
+                            className={reviewStyles.mediaThumbBtn}
+                            onClick={() => setViewerTarget({ reviewId: r.id, mediaKey: m.key })}
+                            aria-label={m.type === "video" ? "Play video" : "View image"}
+                          >
+                            {m.type === "video" ? (
+                              <video src={m.url} muted playsInline className={reviewStyles.cardMediaItem} />
+                            ) : (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={m.url} alt={m.altText ?? ""} loading="lazy" className={reviewStyles.cardMediaItem} />
+                            )}
+                            {m.type === "video" && (
+                              <span className={reviewStyles.mediaPlayBadge} aria-hidden="true">
+                                <Play size={16} fill="currentColor" />
+                              </span>
+                            )}
+                          </button>
+                        ))}
+                      </div>
                     )}
-                    {m.type === "video" && (
-                      <span className={reviewStyles.mediaPlayBadge} aria-hidden="true">
-                        <Play size={16} fill="currentColor" />
+
+                    <footer className={reviewStyles.cardFooter}>
+                      <Avatar name={r.authorName} />
+                      <span className={reviewStyles.cardAuthorRow}>
+                        <span className={reviewStyles.cardAuthor}>{r.authorName}</span>
+                        <span className={reviewStyles.cardDate}>{formatDate(r.createdAt, locale)}</span>
                       </span>
-                    )}
-                  </button>
-                ))}
-              </div>
+                    </footer>
+                  </div>
+                </article>
+              ))}
+            </div>
+
+            {reviews.length > 1 && (
+              <>
+                <button
+                  type="button"
+                  className={`${reviewStyles.arrow} ${reviewStyles.arrowPrev}`}
+                  onClick={() => carousel.scrollByCard(-1)}
+                  disabled={!carousel.canScrollPrev}
+                  aria-label={t.shop.reviewsPrev}
+                >
+                  <ChevronLeft size={20} strokeWidth={2.25} />
+                </button>
+                <button
+                  type="button"
+                  className={`${reviewStyles.arrow} ${reviewStyles.arrowNext}`}
+                  onClick={() => carousel.scrollByCard(1)}
+                  disabled={!carousel.canScrollNext}
+                  aria-label={t.shop.reviewsNext}
+                >
+                  <ChevronRight size={20} strokeWidth={2.25} />
+                </button>
+              </>
             )}
           </div>
-        ))}
-      </div>
+
+        </div>
+      )}
 
       {reviews.length < total && (
         <button type="button" className={reviewStyles.loadMore} onClick={loadMore} disabled={loadingMore}>

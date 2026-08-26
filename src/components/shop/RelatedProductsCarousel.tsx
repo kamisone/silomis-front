@@ -1,10 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import WishlistButton from "./WishlistButton";
+import { useCarousel } from "./useCarousel";
 import { centsToAmount } from "./ProductCard";
 import { getTranslations, type Locale } from "@/lib/i18n";
 import styles from "./RelatedProductsCarousel.module.css";
@@ -63,91 +63,7 @@ function Card({ item, locale, viewLabel, freeShippingLabel, setSlideRef }: {
  */
 export default function RelatedProductsCarousel({ items, locale, title }: { items: RelatedProduct[]; locale: Locale; title: string }) {
   const t = getTranslations(locale);
-  const trackRef = useRef<HTMLDivElement>(null);
-  const slideRefs = useRef<Array<HTMLElement | null>>([]);
-  const dragRef = useRef({ down: false, startX: 0, startScroll: 0, moved: false });
-
-  const [activeIndex, setActiveIndex] = useState(0);
-  const [canScrollPrev, setCanScrollPrev] = useState(false);
-  const [canScrollNext, setCanScrollNext] = useState(false);
-
-  /** Recomputes arrow enablement and the active dot from scroll position.
-   * Deriving the dot from scrollLeft rather than an IntersectionObserver is
-   * deliberate: several cards are ≥60% visible at once, so an observer has no
-   * unambiguous winner and whichever entry it reports last would take the dot.
-   * The leftmost card in view is the one the dots should track. */
-  const syncToScroll = useCallback(() => {
-    const el = trackRef.current;
-    if (!el) return;
-    setCanScrollPrev(el.scrollLeft > 4);
-    setCanScrollNext(el.scrollLeft < el.scrollWidth - el.clientWidth - 4);
-
-    const trackLeft = el.getBoundingClientRect().left;
-    let nearest = 0;
-    let best = Infinity;
-    slideRefs.current.forEach((slide, i) => {
-      if (!slide) return;
-      const delta = Math.abs(slide.getBoundingClientRect().left - trackLeft);
-      if (delta < best) {
-        best = delta;
-        nearest = i;
-      }
-    });
-    setActiveIndex(nearest);
-  }, []);
-
-  useEffect(() => {
-    const el = trackRef.current;
-    if (!el) return;
-    // Deferred so the first measurement doesn't setState during the effect
-    // that mounts the track (react-hooks/set-state-in-effect).
-    const initial = setTimeout(syncToScroll, 0);
-    el.addEventListener("scroll", syncToScroll, { passive: true });
-    const ro = new ResizeObserver(syncToScroll);
-    ro.observe(el);
-    return () => {
-      clearTimeout(initial);
-      el.removeEventListener("scroll", syncToScroll);
-      ro.disconnect();
-    };
-  }, [syncToScroll, items.length]);
-
-  function scrollByCard(dir: 1 | -1) {
-    const el = trackRef.current;
-    const first = slideRefs.current[0];
-    if (!el || !first) return;
-    const gap = parseFloat(getComputedStyle(el).gap || "16");
-    el.scrollBy({ left: dir * (first.getBoundingClientRect().width + gap), behavior: "smooth" });
-  }
-
-  // Mouse drag-to-scroll; touch devices already get native swipe via scroll-snap.
-  function onPointerDown(e: React.PointerEvent) {
-    if (e.pointerType !== "mouse") return;
-    const el = trackRef.current;
-    if (!el) return;
-    dragRef.current = { down: true, startX: e.clientX, startScroll: el.scrollLeft, moved: false };
-    el.classList.add(styles.dragging);
-  }
-  function onPointerMove(e: React.PointerEvent) {
-    const state = dragRef.current;
-    const el = trackRef.current;
-    if (!state.down || !el) return;
-    const dx = e.clientX - state.startX;
-    if (Math.abs(dx) > 4) state.moved = true;
-    el.scrollLeft = state.startScroll - dx;
-  }
-  function endDrag() {
-    trackRef.current?.classList.remove(styles.dragging);
-    dragRef.current.down = false;
-  }
-  /** Swallow the click that ends a drag so it doesn't open the card underneath. */
-  function onTrackClickCapture(e: React.MouseEvent) {
-    if (dragRef.current.moved) {
-      e.preventDefault();
-      e.stopPropagation();
-      dragRef.current.moved = false;
-    }
-  }
+  const carousel = useCarousel({ count: items.length, draggingClass: styles.dragging });
 
   if (!items.length) return null;
 
@@ -157,17 +73,12 @@ export default function RelatedProductsCarousel({ items, locale, title }: { item
 
       <div className={styles.viewport}>
         <div
-          ref={trackRef}
+          {...carousel.trackProps}
           className={styles.track}
           role="group"
           aria-roledescription="carousel"
           aria-label={title}
           tabIndex={0}
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={endDrag}
-          onPointerLeave={endDrag}
-          onClickCapture={onTrackClickCapture}
         >
           {items.map((item, i) => (
             <Card
@@ -176,19 +87,17 @@ export default function RelatedProductsCarousel({ items, locale, title }: { item
               locale={locale}
               viewLabel={t.shop.viewProduct}
               freeShippingLabel={t.shop.freeShippingBadge}
-              setSlideRef={(el) => {
-                slideRefs.current[i] = el;
-              }}
+              setSlideRef={carousel.setSlideRef(i)}
             />
           ))}
         </div>
 
         {items.length > 1 && (
           <>
-            <button type="button" className={`${styles.arrow} ${styles.arrowPrev}`} onClick={() => scrollByCard(-1)} disabled={!canScrollPrev} aria-label={t.shop.carouselPrev}>
+            <button type="button" className={`${styles.arrow} ${styles.arrowPrev}`} onClick={() => carousel.scrollByCard(-1)} disabled={!carousel.canScrollPrev} aria-label={t.shop.carouselPrev}>
               <ChevronLeft size={20} strokeWidth={2.25} />
             </button>
-            <button type="button" className={`${styles.arrow} ${styles.arrowNext}`} onClick={() => scrollByCard(1)} disabled={!canScrollNext} aria-label={t.shop.carouselNext}>
+            <button type="button" className={`${styles.arrow} ${styles.arrowNext}`} onClick={() => carousel.scrollByCard(1)} disabled={!carousel.canScrollNext} aria-label={t.shop.carouselNext}>
               <ChevronRight size={20} strokeWidth={2.25} />
             </button>
           </>
@@ -201,10 +110,10 @@ export default function RelatedProductsCarousel({ items, locale, title }: { item
             <button
               key={item.id}
               type="button"
-              className={`${styles.dot} ${i === activeIndex ? styles.dotActive : ""}`}
-              onClick={() => slideRefs.current[i]?.scrollIntoView({ behavior: "smooth", inline: "start", block: "nearest" })}
+              className={`${styles.dot} ${i === carousel.activeIndex ? styles.dotActive : ""}`}
+              onClick={() => carousel.scrollToIndex(i)}
               aria-label={`${t.shop.goToProduct} ${i + 1}`}
-              aria-current={i === activeIndex}
+              aria-current={i === carousel.activeIndex}
             />
           ))}
         </div>
