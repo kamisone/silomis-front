@@ -1,11 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { Plus, Search, Store, X } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import Button from "@/components/admin/ui/Button";
 import Modal from "@/components/admin/ui/Modal";
+import MediaPicker from "@/components/admin/ui/MediaPicker";
+import StarRatingInput from "@/components/admin/ui/StarRatingInput";
 import ui from "@/components/admin/ui/admin-ui.module.css";
+import styles from "./Reviews.module.css";
 import { useToast } from "@/components/toast/ToastContext";
 
 type ReviewStatus = "pending" | "approved" | "rejected" | "hidden";
@@ -20,7 +24,10 @@ interface Review {
   id: string;
   productId: string;
   authorName: string;
-  authorEmail: string;
+  /** Null for imported reviews — there is no customer behind them. */
+  authorEmail: string | null;
+  source?: "customer" | "imported";
+  sourceUrl?: string | null;
   rating: number;
   title: string | null;
   body: string | null;
@@ -42,8 +49,72 @@ const TABS: Array<{ key: ReviewStatus | ""; label: string }> = [
 
 const COUNTED_STATUSES: ReviewStatus[] = ["pending", "approved", "rejected", "hidden"];
 
+/** Matches the API's cap on a review's media array. */
+const MAX_MEDIA = 8;
+
 function stars(rating: number): string {
   return "★".repeat(rating) + "☆".repeat(5 - rating);
+}
+
+interface ProductOption {
+  id: string;
+  title: string;
+  sku?: string | null;
+  featuredImageUrl?: string | null;
+}
+
+interface ReviewFormMedia {
+  key: string;
+  type: "image" | "video";
+  url: string | null;
+}
+
+interface ReviewForm {
+  productId: string;
+  authorName: string;
+  rating: number;
+  title: string;
+  body: string;
+  /** yyyy-mm-dd, as <input type="date"> gives it. */
+  date: string;
+  sourceUrl: string;
+  media: ReviewFormMedia[];
+}
+
+/**
+ * Which modal is open, and over what.
+ *
+ * Both modes render the same fields from the same state — the edit dialog
+ * having drifted to a third of the create dialog's is exactly what one shared
+ * form prevents from happening again.
+ */
+type FormMode = { kind: "create" } | { kind: "edit"; review: Review };
+
+/** Today in the local calendar, formatted for <input type="date">. Built from
+ *  the parts rather than toISOString(), which would shift the day for anyone
+ *  east or west of UTC around midnight. */
+function todayInputValue(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function emptyReviewForm(): ReviewForm {
+  return { productId: "", authorName: "", rating: 5, title: "", body: "", date: todayInputValue(), sourceUrl: "", media: [] };
+}
+
+/** An existing review, in the shape the form edits. */
+function formFromReview(r: Review): ReviewForm {
+  const d = new Date(r.createdAt);
+  return {
+    productId: r.productId,
+    authorName: r.authorName,
+    rating: r.rating,
+    title: r.title ?? "",
+    body: r.body ?? "",
+    date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`,
+    sourceUrl: r.sourceUrl ?? "",
+    media: r.media.map((m) => ({ key: m.key, type: m.type, url: m.url })),
+  };
 }
 
 export default function ReviewsAdminPage() {
@@ -56,11 +127,24 @@ export default function ReviewsAdminPage() {
 
   const [rejecting, setRejecting] = useState<Review | null>(null);
   const [rejectReason, setRejectReason] = useState("");
-  const [editing, setEditing] = useState<Review | null>(null);
-  const [editRating, setEditRating] = useState("5");
-  const [editTitle, setEditTitle] = useState("");
-  const [editBody, setEditBody] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<Review | null>(null);
+
+  // ── The add / edit form ──
+  const [formMode, setFormMode] = useState<FormMode | null>(null);
+  const [form, setForm] = useState<ReviewForm>(emptyReviewForm);
+  const [formSaving, setFormSaving] = useState(false);
+  const [products, setProducts] = useState<ProductOption[]>([]);
+  const [productQuery, setProductQuery] = useState("");
+
+  const isEdit = formMode?.kind === "edit";
+  const selectedProduct = products.find((p) => p.id === form.productId) ?? null;
+  const productMatches = useMemo(() => {
+    const q = productQuery.trim().toLowerCase();
+    if (!q) return products.slice(0, 6);
+    return products
+      .filter((p) => p.title.toLowerCase().includes(q) || (p.sku ?? "").toLowerCase().includes(q))
+      .slice(0, 6);
+  }, [products, productQuery]);
 
   async function load() {
     setLoading(true);
@@ -96,10 +180,83 @@ export default function ReviewsAdminPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab]);
 
+  // Counts are per-status totals, unaffected by which tab is showing — fetching
+  // them again on every tab change would be four requests for the same answer.
   useEffect(() => {
     const t = setTimeout(loadCounts, 0);
     return () => clearTimeout(t);
   }, []);
+
+  /** Loaded once the form is first opened rather than with the page — the
+   *  catalogue is only needed by this one modal. */
+  async function loadProducts() {
+    if (products.length > 0) return;
+    const data = await api
+      .get<{ items: ProductOption[] }>("/next-api/admin/shop/products?limit=200")
+      .catch(() => null);
+    setProducts(data?.items ?? []);
+  }
+
+  function openCreate() {
+    setForm(emptyReviewForm());
+    setProductQuery("");
+    setFormMode({ kind: "create" });
+    loadProducts();
+  }
+
+  function openEdit(review: Review) {
+    setForm(formFromReview(review));
+    setFormMode({ kind: "edit", review });
+    loadProducts();
+  }
+
+  /** Photos land through `multi`, so a batch arrives at once. Keys already on
+   *  the review are skipped rather than duplicated. */
+  function addMedia(assets: Array<{ storageKey: string; url: string; mediaType: "image" | "video" | "other" }>) {
+    setForm((f) => {
+      const have = new Set(f.media.map((m) => m.key));
+      const added = assets
+        .filter((a) => !have.has(a.storageKey) && a.mediaType !== "other")
+        .map((a) => ({ key: a.storageKey, type: a.mediaType as "image" | "video", url: a.url }));
+      return { ...f, media: [...f.media, ...added].slice(0, MAX_MEDIA) };
+    });
+  }
+
+  async function submitForm() {
+    if (!formMode) return;
+    if (!form.productId || !form.authorName.trim()) return;
+    setFormSaving(true);
+    // Midday rather than midnight: the date is displayed in the visitor's own
+    // zone, and a midnight timestamp reads as the previous day west of the shop.
+    const payload = {
+      authorName: form.authorName.trim(),
+      rating: form.rating,
+      title: form.title.trim() || null,
+      body: form.body.trim() || null,
+      createdAt: new Date(`${form.date}T12:00:00`).toISOString(),
+      sourceUrl: form.sourceUrl.trim() || null,
+      media: form.media.map((m) => ({ key: m.key, type: m.type })),
+    };
+    try {
+      if (formMode.kind === "edit") {
+        await api.patch(`/next-api/admin/shop/reviews/${formMode.review.id}`, payload);
+        toast.success("Review updated");
+      } else {
+        await api.post("/next-api/admin/shop/reviews", { ...payload, productId: form.productId });
+        toast.success("Review added");
+      }
+      setFormMode(null);
+      await load();
+    } catch (err) {
+      toast.error(
+        err instanceof ApiError
+          ? String((err.body as { message?: string })?.message ?? "Failed to save review")
+          : "Failed to save review",
+      );
+    } finally {
+      setFormSaving(false);
+    }
+  }
 
   async function moderate(id: string, status: ReviewStatus, rejectionReason?: string) {
     try {
@@ -117,26 +274,6 @@ export default function ReviewsAdminPage() {
     await moderate(rejecting.id, "rejected", rejectReason || undefined);
     setRejecting(null);
     setRejectReason("");
-  }
-
-  function openEdit(r: Review) {
-    setEditing(r);
-    setEditRating(String(r.rating));
-    setEditTitle(r.title ?? "");
-    setEditBody(r.body ?? "");
-  }
-
-  async function handleEditSave(e: React.FormEvent) {
-    e.preventDefault();
-    if (!editing) return;
-    try {
-      await api.patch(`/next-api/admin/shop/reviews/${editing.id}`, { rating: parseInt(editRating, 10), title: editTitle || null, body: editBody || null });
-      toast.success("Review updated");
-      setEditing(null);
-      await load();
-    } catch (err) {
-      toast.error(err instanceof ApiError ? String((err.body as { message?: string })?.message ?? "Failed to update review") : "Failed to update review");
-    }
   }
 
   async function confirmDelete() {
@@ -161,6 +298,10 @@ export default function ReviewsAdminPage() {
             {total} {tab || "total"} reviews
           </span>
         </div>
+        <Button onClick={openCreate}>
+          <Plus size={14} strokeWidth={2.5} />
+          Add a review
+        </Button>
       </div>
 
       <div className={ui.toolbar}>
@@ -216,7 +357,16 @@ export default function ReviewsAdminPage() {
                   <td>
                     {r.authorName}
                     <br />
-                    <span style={{ fontSize: "0.8rem", color: "var(--color-secondary)" }}>{r.authorEmail}</span>
+                    {/* An imported review has no email to show; saying where it
+                        came from instead is the more useful line. */}
+                    {r.source === "imported" ? (
+                      <span className={styles.sourceBadge} title={r.sourceUrl ?? "Entered in admin from a supplier listing"}>
+                        <Store size={10} strokeWidth={2.5} />
+                        sourced
+                      </span>
+                    ) : (
+                      <span style={{ fontSize: "0.8rem", color: "var(--color-secondary)" }}>{r.authorEmail}</span>
+                    )}
                     {r.isVerifiedPurchase && (
                       <>
                         <br />
@@ -325,44 +475,6 @@ export default function ReviewsAdminPage() {
         </Modal>
       )}
 
-      {editing && (
-        <Modal
-          title="Edit review"
-          onClose={() => setEditing(null)}
-          footer={
-            <>
-              <Button type="button" variant="secondary" onClick={() => setEditing(null)}>
-                Cancel
-              </Button>
-              <Button type="submit" form="edit-review-form">
-                Save
-              </Button>
-            </>
-          }
-        >
-          <form id="edit-review-form" onSubmit={handleEditSave} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-            <div className={ui.field}>
-              <label className={ui.label}>Rating</label>
-              <select className={ui.select} value={editRating} onChange={(e) => setEditRating(e.target.value)}>
-                {[1, 2, 3, 4, 5].map((n) => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className={ui.field}>
-              <label className={ui.label}>Title</label>
-              <input className={ui.input} value={editTitle} onChange={(e) => setEditTitle(e.target.value)} />
-            </div>
-            <div className={ui.field}>
-              <label className={ui.label}>Body</label>
-              <textarea className={ui.textarea} value={editBody} onChange={(e) => setEditBody(e.target.value)} />
-            </div>
-          </form>
-        </Modal>
-      )}
-
       {deleteTarget && (
         <Modal
           title="Delete this review?"
@@ -383,6 +495,239 @@ export default function ReviewsAdminPage() {
           </p>
         </Modal>
       )}
+
+      {formMode && (
+        <Modal
+          title={isEdit ? "Edit review" : "Add a review"}
+          onClose={() => setFormMode(null)}
+          footer={
+            <>
+              <Button type="button" variant="secondary" onClick={() => setFormMode(null)}>
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={submitForm}
+                disabled={formSaving || !form.productId || !form.authorName.trim()}
+              >
+                {formSaving ? "Saving…" : isEdit ? "Save changes" : "Add review"}
+              </Button>
+            </>
+          }
+        >
+          <div className={styles.form}>
+            {!isEdit && (
+              <p className={styles.formIntro}>
+                For a review copied from a supplier or marketplace listing for this same product. It publishes
+                immediately and counts toward the product&rsquo;s rating, and is never marked as a verified purchase.
+              </p>
+            )}
+
+            <div className={styles.field}>
+              <span className={styles.label}>Product</span>
+              {/* Fixed once the review exists: moving one between products would
+                  silently rewrite both products' ratings. */}
+              {isEdit ? (
+                <div className={`${styles.picked} ${styles.pickedLocked}`}>
+                  {selectedProduct?.featuredImageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={selectedProduct.featuredImageUrl} alt="" className={styles.pickedThumb} />
+                  ) : (
+                    <span className={`${styles.pickedThumb} ${styles.pickedThumbBlank}`} aria-hidden="true">
+                      <Store size={14} strokeWidth={2} />
+                    </span>
+                  )}
+                  <span className={styles.pickedText}>
+                    <span className={styles.pickedTitle}>
+                      {selectedProduct?.title ?? formMode.review.product.title}
+                    </span>
+                    <span className={styles.pickedSub}>Can&rsquo;t be changed after the review exists</span>
+                  </span>
+                </div>
+              ) : selectedProduct ? (
+                <div className={styles.picked}>
+                  {selectedProduct.featuredImageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={selectedProduct.featuredImageUrl} alt="" className={styles.pickedThumb} />
+                  ) : (
+                    <span className={`${styles.pickedThumb} ${styles.pickedThumbBlank}`} aria-hidden="true">
+                      <Store size={14} strokeWidth={2} />
+                    </span>
+                  )}
+                  <span className={styles.pickedText}>
+                    <span className={styles.pickedTitle}>{selectedProduct.title}</span>
+                    {selectedProduct.sku && <span className={styles.pickedSub}>{selectedProduct.sku}</span>}
+                  </span>
+                  <button
+                    type="button"
+                    className={styles.pickedClear}
+                    onClick={() => setForm({ ...form, productId: "" })}
+                    aria-label="Choose a different product"
+                  >
+                    <X size={14} strokeWidth={2.4} />
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div className={styles.searchRow}>
+                    <Search size={14} strokeWidth={2} className={styles.searchIcon} />
+                    <input
+                      className={styles.searchInput}
+                      value={productQuery}
+                      onChange={(e) => setProductQuery(e.target.value)}
+                      placeholder="Search products by name or SKU…"
+                      autoFocus
+                    />
+                  </div>
+                  {productMatches.length === 0 ? (
+                    <p className={styles.searchEmpty}>
+                      {products.length === 0 ? "Loading products…" : "Nothing matches that."}
+                    </p>
+                  ) : (
+                    <ul className={styles.results}>
+                      {productMatches.map((p) => (
+                        <li key={p.id}>
+                          <button
+                            type="button"
+                            className={styles.result}
+                            onClick={() => setForm({ ...form, productId: p.id })}
+                          >
+                            {p.featuredImageUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={p.featuredImageUrl} alt="" className={styles.resultThumb} />
+                            ) : (
+                              <span className={`${styles.resultThumb} ${styles.pickedThumbBlank}`} aria-hidden="true" />
+                            )}
+                            <span className={styles.pickedText}>
+                              <span className={styles.pickedTitle}>{p.title}</span>
+                              {p.sku && <span className={styles.pickedSub}>{p.sku}</span>}
+                            </span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </>
+              )}
+            </div>
+
+            <div className={styles.row}>
+              <div className={styles.field}>
+                <span className={styles.label}>Reviewer name</span>
+                <input
+                  className={ui.input}
+                  value={form.authorName}
+                  onChange={(e) => setForm({ ...form, authorName: e.target.value })}
+                  placeholder="Sarah M."
+                  maxLength={300}
+                />
+              </div>
+              <div className={styles.field}>
+                <span className={styles.label}>Date</span>
+                <input
+                  className={ui.input}
+                  type="date"
+                  value={form.date}
+                  max={todayInputValue()}
+                  onChange={(e) => setForm({ ...form, date: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className={styles.field}>
+              <span className={styles.label}>Rating</span>
+              <StarRatingInput
+                value={form.rating}
+                onChange={(rating) => setForm({ ...form, rating })}
+                ariaLabel="Rating out of five"
+              />
+            </div>
+
+            <div className={styles.field}>
+              <span className={styles.label}>Title</span>
+              <input
+                className={ui.input}
+                value={form.title}
+                onChange={(e) => setForm({ ...form, title: e.target.value })}
+                placeholder="Optional — the review's headline"
+                maxLength={500}
+              />
+            </div>
+
+            <div className={styles.field}>
+              <span className={styles.label}>Comment</span>
+              <textarea
+                className={ui.textarea}
+                value={form.body}
+                onChange={(e) => setForm({ ...form, body: e.target.value })}
+                rows={4}
+                placeholder="What the reviewer wrote"
+                maxLength={5000}
+              />
+            </div>
+
+            <div className={styles.field}>
+              <span className={styles.label}>
+                Photos
+                <span className={styles.labelCount}>
+                  {form.media.length} / {MAX_MEDIA}
+                </span>
+              </span>
+              <div className={styles.mediaRow}>
+                {form.media.map((m) => (
+                  <div key={m.key} className={styles.mediaTile}>
+                    {m.type === "video" ? (
+                      <video src={m.url ?? undefined} muted playsInline className={styles.mediaImg} />
+                    ) : (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      m.url && <img src={m.url} alt="" className={styles.mediaImg} />
+                    )}
+                    <button
+                      type="button"
+                      className={styles.mediaRemove}
+                      onClick={() => setForm({ ...form, media: form.media.filter((x) => x.key !== m.key) })}
+                      aria-label="Remove photo"
+                    >
+                      <X size={12} strokeWidth={2.6} />
+                    </button>
+                  </div>
+                ))}
+                {form.media.length < MAX_MEDIA && (
+                  <MediaPicker
+                    value={null}
+                    mediaType="image"
+                    label="photos"
+                    // Multi-select: a review usually arrives with a batch of
+                    // photos, and adding them one dialog at a time is the slow
+                    // part of entering one.
+                    multi
+                    onSelectMulti={addMedia}
+                    asAddTile
+                    className={styles.mediaAdd}
+                  />
+                )}
+              </div>
+              <span className={styles.hint}>
+                Upload the reviewer&rsquo;s photos to the media library first, then pick them here — you can select
+                several at once. Up to {MAX_MEDIA}.
+              </span>
+            </div>
+
+            <div className={styles.field}>
+              <span className={styles.label}>Source link</span>
+              <input
+                className={ui.input}
+                value={form.sourceUrl}
+                onChange={(e) => setForm({ ...form, sourceUrl: e.target.value })}
+                placeholder="https://… — where you copied it from"
+                maxLength={1000}
+              />
+              <span className={styles.hint}>Your own record of where this came from. Never shown to customers.</span>
+            </div>
+          </div>
+        </Modal>
+      )}
+
     </div>
   );
 }

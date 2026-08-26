@@ -16,6 +16,7 @@ import { getTrustBadgeIcon } from "@/lib/shop/trustBadgeIcons";
 import { useCart } from "@/components/shop/CartContext";
 import ProductGallery, { type GalleryMediaItem } from "./ProductGallery";
 import ReviewsSection, { type ReviewItem } from "./ReviewsSection";
+import ReviewsSummaryCard from "./ReviewsSummaryCard";
 import ZoomedImagesGallery, { type ZoomedImageItem } from "./ZoomedImagesGallery";
 import ReturnsGuarantee from "./ReturnsGuarantee";
 import DeliveryDetails from "./DeliveryDetails";
@@ -799,6 +800,15 @@ export default function ShopProductDetail({
             />
 
             <PackageContents locale={locale} items={product.packageContents ?? []} />
+
+            {/* Above the description on purpose: rating is a buying signal and
+                the description is where attention starts to drop. */}
+            <ReviewsSummaryCard
+              stats={reviewStats ?? { average: 0, count: 0 }}
+              reviews={initialReviews?.items ?? []}
+              locale={locale}
+              t={t}
+            />
 
             {product.description && (
               <div className={styles.descSection}>

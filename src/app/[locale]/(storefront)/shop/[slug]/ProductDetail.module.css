@@ -388,6 +388,9 @@
   margin-top: 40px;
   padding-top: 32px;
   border-top: 1px solid color-mix(in srgb, var(--foreground) 12%, transparent);
+  /* The header is fixed, so an anchor scroll (e.g. "Read more reviews" jumping
+     to #reviews) would otherwise land the heading underneath it. */
+  scroll-margin-top: calc(var(--header-offset, 84px) + 20px);
 }
 
 /* Zoomed Images has no divider of its own even in the full-width fallback

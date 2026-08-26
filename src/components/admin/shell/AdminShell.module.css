@@ -21,7 +21,10 @@
 }
 
 .content {
-  padding: 1.5rem;
+  /* Published so a page can bleed a sticky toolbar out to the column edges
+     without hardcoding this value and drifting from it at the breakpoint. */
+  --admin-gutter: 1.5rem;
+  padding: var(--admin-gutter);
   flex: 1;
 }
 
@@ -38,7 +41,7 @@
   }
 
   .content {
-    padding: 1rem;
+    --admin-gutter: 1rem;
   }
 
   .backdrop {

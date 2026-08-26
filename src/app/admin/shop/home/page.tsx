@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowDown, ArrowUp, Check, ChevronDown, Eye, EyeOff, Images, Plus, RotateCcw, Settings2, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Check, ChevronDown, CloudAlert, ExternalLink, Eye, EyeOff, Images, Loader2, Plus, RotateCcw, Settings2, Trash2, X } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import Button from "@/components/admin/ui/Button";
 import ui from "@/components/admin/ui/admin-ui.module.css";
@@ -40,6 +40,10 @@ interface HomeSection {
 }
 
 const BASE = "/next-api/admin/shop/home-sections";
+
+/** "idle" until the first write of the session — a page nobody has touched yet
+ *  has nothing truthful to say about saving. */
+type SaveState = "idle" | "saving" | "saved" | "error";
 
 function errMessage(err: unknown, fallback: string): string {
   return err instanceof ApiError ? String((err.body as { message?: string })?.message ?? fallback) : fallback;
@@ -167,11 +171,46 @@ function settingsSummary(section: HomeSection, catalogue: Catalogue): string | n
   return parts.length ? parts.join(" \u00b7 ") : null;
 }
 
+/**
+ * Stands in for the Save button this page does not have.
+ *
+ * Every control here writes as it changes, so the question an admin actually
+ * has is not "did I press save?" but "did that land?" — which is what this
+ * answers. Silent until the first write, because a page nobody has edited yet
+ * has nothing to report.
+ */
+function SaveIndicator({ state }: { state: SaveState }) {
+  if (state === "idle") return null;
+  if (state === "saving") {
+    return (
+      <span className={`${styles.save} ${styles.saveBusy}`} role="status">
+        <Loader2 size={13} strokeWidth={2.4} className={styles.saveSpin} />
+        Saving…
+      </span>
+    );
+  }
+  if (state === "error") {
+    return (
+      <span className={`${styles.save} ${styles.saveError}`} role="status">
+        <CloudAlert size={13} strokeWidth={2.2} />
+        Not saved
+      </span>
+    );
+  }
+  return (
+    <span className={`${styles.save} ${styles.saveOk}`} role="status">
+      <Check size={13} strokeWidth={3} />
+      All changes saved
+    </span>
+  );
+}
+
 export default function HomeSectionsPage() {
   const { toast } = useToast();
   const [sections, setSections] = useState<HomeSection[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [saveState, setSaveState] = useState<SaveState>("idle");
   const [picking, setPicking] = useState(false);
   // Everything the section pickers choose from, loaded once for the whole page
   // rather than per card — a page of eight rails would otherwise fetch the
@@ -234,17 +273,34 @@ export default function HomeSectionsPage() {
   const usingDefaults = !loading && sections.length === 0;
   const visibleCount = sections.filter((s) => s.isActive).length;
 
-  async function patchSection(id: string, body: Partial<Pick<HomeSection, "isActive" | "config">>) {
+  /**
+   * Runs one mutation, keeping `saving` and the header's save indicator in step.
+   *
+   * Everything on this screen persists the moment it changes — there is no Save
+   * button to press — so that indicator is the only confirmation a write landed.
+   * Routing all five mutations through here is what keeps it honest: a reorder
+   * that failed must not leave the header saying "All changes saved".
+   */
+  async function save<T>(run: () => Promise<T>, failure: string): Promise<{ ok: true; value: T } | { ok: false }> {
     setSaving(true);
+    setSaveState("saving");
     try {
-      const updated = await api.patch<HomeSection>(`${BASE}/${id}`, body);
-      setSections((list) => list.map((s) => (s.id === id ? updated : s)));
+      const value = await run();
+      setSaveState("saved");
+      return { ok: true, value };
     } catch (err) {
-      toast.error(errMessage(err, "Failed to save section"));
-      await load();
+      setSaveState("error");
+      toast.error(errMessage(err, failure));
+      return { ok: false };
     } finally {
       setSaving(false);
     }
+  }
+
+  async function patchSection(id: string, body: Partial<Pick<HomeSection, "isActive" | "config">>) {
+    const res = await save(() => api.patch<HomeSection>(`${BASE}/${id}`, body), "Failed to save section");
+    if (res.ok) setSections((list) => list.map((s) => (s.id === id ? res.value : s)));
+    else await load();
   }
 
   /** Optimistic: the list reorders immediately, then persists. A failed save
@@ -255,77 +311,87 @@ export default function HomeSectionsPage() {
     const next = [...sections];
     [next[index], next[target]] = [next[target], next[index]];
     setSections(next);
-    setSaving(true);
-    try {
-      await api.patch(`${BASE}/reorder`, { ids: next.map((s) => s.id) });
-    } catch (err) {
-      toast.error(errMessage(err, "Failed to reorder sections"));
-      await load();
-    } finally {
-      setSaving(false);
-    }
+    const res = await save(
+      () => api.patch(`${BASE}/reorder`, { ids: next.map((s) => s.id) }),
+      "Failed to reorder sections",
+    );
+    if (!res.ok) await load();
   }
 
   async function addSection(type: HomeSectionType) {
-    setSaving(true);
-    try {
-      const created = await api.post<HomeSection>(BASE, {
-        type,
-        isActive: true,
-        config: newSectionConfig(type),
-      });
-      setSections((list) => [...list, created]);
-      setPicking(false);
-      toast.success(`${SECTION_META[type].label} added at the bottom`);
-    } catch (err) {
-      toast.error(errMessage(err, "Failed to add section"));
-    } finally {
-      setSaving(false);
-    }
+    const res = await save(
+      () => api.post<HomeSection>(BASE, { type, isActive: true, config: newSectionConfig(type) }),
+      "Failed to add section",
+    );
+    if (!res.ok) return;
+    setSections((list) => [...list, res.value]);
+    setPicking(false);
+    toast.success(`${SECTION_META[type].label} added at the bottom`);
   }
 
   async function removeSection(section: HomeSection) {
     if (!confirm(`Remove the "${SECTION_META[section.type].label}" section from the home page?`)) return;
-    setSaving(true);
-    try {
-      await api.delete(`${BASE}/${section.id}`);
-      setSections((list) => list.filter((s) => s.id !== section.id));
-      toast.success("Section removed");
-    } catch (err) {
-      toast.error(errMessage(err, "Failed to remove section"));
-    } finally {
-      setSaving(false);
-    }
+    const res = await save(() => api.delete(`${BASE}/${section.id}`), "Failed to remove section");
+    if (!res.ok) return;
+    setSections((list) => list.filter((s) => s.id !== section.id));
+    toast.success("Section removed");
   }
 
   async function restoreDefaults() {
     if (sections.length > 0 && !confirm("Replace the current layout with the default one? This cannot be undone.")) return;
-    setSaving(true);
-    try {
-      setSections(await api.post<HomeSection[]>(`${BASE}/restore-defaults`, {}));
-      toast.success("Default layout restored");
-    } catch (err) {
-      toast.error(errMessage(err, "Failed to restore defaults"));
-    } finally {
-      setSaving(false);
-    }
+    const res = await save(
+      () => api.post<HomeSection[]>(`${BASE}/restore-defaults`, {}),
+      "Failed to restore defaults",
+    );
+    if (!res.ok) return;
+    setSections(res.value);
+    toast.success("Default layout restored");
   }
 
   return (
     <div className={ui.page}>
-      <div className={ui.pageHeader}>
-        <div>
-          <h1 className={ui.pageTitle}>Home page</h1>
-          <p className={styles.pageHint}>
-            The storefront home page, top to bottom. Reorder the cards to move blocks up and down the page. A section
-            with nothing to show — no featured collections, no active promotion — hides itself automatically.
-          </p>
+      {/* Sticky under the admin top bar: on a page that is one long stack, the
+          counts and the actions have to stay reachable from anywhere in it. */}
+      <header className={styles.bar}>
+        <div className={styles.barLeft}>
+          <h1 className={styles.barTitle}>Home page</h1>
+          {!loading && !usingDefaults && (
+            <p className={styles.barMeta}>
+              <span>
+                <strong>{sections.length}</strong> section{sections.length === 1 ? "" : "s"}
+              </span>
+              <span className={styles.barDot} aria-hidden="true" />
+              <span>
+                <strong>{visibleCount}</strong> visible
+              </span>
+              {visibleCount === 0 && <span className={styles.barWarn}>the page is empty</span>}
+            </p>
+          )}
         </div>
-        <Button variant="secondary" onClick={restoreDefaults} disabled={saving}>
-          <RotateCcw size={14} strokeWidth={2} />
-          {usingDefaults ? "Start customizing" : "Restore defaults"}
-        </Button>
-      </div>
+
+        <div className={styles.barRight}>
+          <SaveIndicator state={saveState} />
+          <a
+            className={styles.barLink}
+            href={`/${DEFAULT_LOCALE}`}
+            target="_blank"
+            rel="noreferrer"
+            title="Open the storefront home page in a new tab"
+          >
+            <ExternalLink size={14} strokeWidth={2} />
+            View page
+          </a>
+          <Button variant="secondary" onClick={restoreDefaults} disabled={saving}>
+            <RotateCcw size={14} strokeWidth={2} />
+            {usingDefaults ? "Start customizing" : "Restore defaults"}
+          </Button>
+        </div>
+      </header>
+
+      <p className={styles.pageHint}>
+        The storefront home page, top to bottom. Reorder the cards to move blocks up and down the page. A section with
+        nothing to show — no featured collections, no active promotion — hides itself automatically.
+      </p>
 
       {loading ? (
         <div className={ui.card}>
@@ -350,14 +416,6 @@ export default function HomeSectionsPage() {
         </div>
       ) : (
         <>
-          <div className={styles.statusBar}>
-            <span className={styles.statusCount}>
-              <strong>{sections.length}</strong> section{sections.length === 1 ? "" : "s"} ·{" "}
-              <strong>{visibleCount}</strong> visible
-            </span>
-            {visibleCount === 0 && <span className={styles.statusWarn}>Every section is hidden — the page is empty.</span>}
-          </div>
-
           <ol className={styles.stack}>
             {sections.map((section, index) => {
               const meta = SECTION_META[section.type];

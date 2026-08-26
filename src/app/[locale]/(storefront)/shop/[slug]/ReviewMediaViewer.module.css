@@ -1,0 +1,416 @@
+/* Full-screen review photo viewer.
+
+   Desktop is a three-column grid — thumbnail rail, stage, review panel — which
+   is what lets the quote sit beside the picture it belongs to instead of under
+   it. Below the grid breakpoint the same three parts stack. */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: color-mix(in srgb, #0b1216 78%, transparent);
+  backdrop-filter: blur(4px);
+  animation: fade 0.16s ease-out;
+}
+
+.overlay:focus {
+  outline: none;
+}
+
+.surface {
+  position: relative;
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr) 330px;
+  gap: 18px;
+  width: min(1180px, 100%);
+  height: min(760px, 100%);
+  padding: 20px;
+  border-radius: 24px;
+  background: var(--background);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.4);
+  animation: rise 0.18s ease-out;
+}
+
+/* A review with no photos: the panel is the whole content, so it takes the
+   full surface and shrinks to a readable column rather than stretching. */
+.surfaceTextOnly {
+  grid-template-columns: minmax(0, 1fr);
+  width: min(560px, 100%);
+  height: auto;
+  max-height: 100%;
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overlay,
+  .surface {
+    animation: none;
+  }
+}
+
+.close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--color-surface);
+  border-radius: 50%;
+  background: var(--background);
+  color: var(--foreground);
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+  transition: background 0.13s ease;
+}
+
+.close:hover {
+  background: var(--color-surface-tint);
+}
+
+/* ── Thumbnail rail ── */
+
+.rail {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding-right: 2px;
+}
+.rail::-webkit-scrollbar {
+  display: none;
+}
+
+.thumb {
+  position: relative;
+  flex-shrink: 0;
+  width: 68px;
+  height: 68px;
+  padding: 0;
+  border: none;
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--color-surface-tint);
+  cursor: pointer;
+  transition: transform 0.13s ease;
+}
+
+/* The ring lives on an overlay, not on the button: the thumbnail fills the tile
+   edge to edge, so an inset shadow on the button itself is painted underneath
+   the image and never seen. Ring rather than border so the tile never changes
+   size when it becomes the selected one. */
+.thumb::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--foreground) 12%, transparent);
+  transition: box-shadow 0.13s ease;
+}
+
+.thumb:hover {
+  transform: scale(1.04);
+}
+
+.thumbActive::after {
+  box-shadow: inset 0 0 0 2.5px var(--color-primary);
+}
+
+.thumb:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.thumbMedia {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.thumbPlay {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+}
+
+/* ── Stage ── */
+
+.stage {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 0;
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--foreground) 5%, transparent);
+  overflow: hidden;
+}
+
+.stageMedia {
+  max-width: 100%;
+  max-height: 100%;
+  /* `contain`, not `cover`: this is the view someone opened to see the whole
+     picture, so cropping it here would defeat the click. */
+  object-fit: contain;
+  display: block;
+}
+
+/* Paging lives under the review, bottom-right of the panel — not floating over
+   the picture, where it would cover the thing it is there to help you look at. */
+.navRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-surface);
+}
+
+.navButtons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--color-surface);
+  border-radius: 50%;
+  background: var(--background);
+  color: var(--foreground);
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  transition: background 0.13s ease, border-color 0.13s ease;
+}
+
+.nav:hover:not(:disabled) {
+  background: var(--color-surface-tint);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+/* Dimmed rather than hidden: at either end the pair has to stay a pair, or the
+   remaining button jumps sideways into the space the other one left. */
+.nav:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.nav:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.counter {
+  font-size: 0.76rem;
+  font-weight: 650;
+  color: var(--color-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* "3 / 7 · 2/3" — the second pair says where you are inside *this* review's own
+   photos, which the running total cannot tell you once one review has several. */
+.counterSub {
+  font-weight: 500;
+  color: color-mix(in srgb, var(--color-secondary) 70%, transparent);
+}
+
+/* ── Review panel ── */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding-top: 44px;
+}
+
+.surfaceTextOnly .panel {
+  padding-top: 34px;
+}
+
+.panelScroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.panelHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.stars {
+  display: inline-flex;
+  gap: 2px;
+  line-height: 0;
+}
+
+.starOn {
+  color: #f5a623;
+}
+
+.starOff {
+  color: color-mix(in srgb, var(--foreground) 15%, transparent);
+}
+
+.verified {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+  color: var(--color-primary);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.panelTitle {
+  margin: 0 0 6px;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--foreground);
+}
+
+.panelBody {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.6;
+  /* Reviews are typed with hard line breaks; collapsing them loses the
+     paragraphing the reviewer intended. */
+  white-space: pre-line;
+  color: var(--color-secondary);
+}
+
+.author {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--color-surface);
+  min-width: 0;
+}
+
+.avatar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.authorName {
+  font-size: 0.8rem;
+  color: var(--color-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Stacked layout ── */
+
+@media (max-width: 960px) {
+  .overlay {
+    padding: 0;
+  }
+
+  .surface,
+  .surfaceTextOnly {
+    grid-template-columns: minmax(0, 1fr);
+    /* Rail under the stage: on a narrow screen the picture is the thing worth
+       the height, and a vertical rail would eat a third of the width. */
+    grid-template-rows: minmax(0, 1fr) auto auto;
+    width: 100%;
+    height: 100%;
+    max-height: none;
+    border-radius: 0;
+    padding: 14px;
+    gap: 12px;
+  }
+
+  .surface .stage {
+    grid-row: 1;
+  }
+
+  .rail {
+    grid-row: 2;
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 0 0 2px;
+  }
+
+  .thumb {
+    width: 52px;
+    height: 52px;
+    border-radius: 11px;
+  }
+
+  .panel {
+    grid-row: 3;
+    max-height: 38vh;
+    padding-top: 0;
+  }
+
+  .surfaceTextOnly .panel {
+    grid-row: 1;
+    max-height: none;
+    padding-top: 40px;
+  }
+
+  /* The buttons stay: swiping the rail is not the only way to page, and on a
+     phone the pair is the discoverable one. */
+  .navRow {
+    margin-top: 10px;
+    padding-top: 10px;
+  }
+}

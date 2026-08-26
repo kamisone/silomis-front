@@ -1,0 +1,48 @@
+.wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.stars {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.star {
+  display: flex;
+  padding: 2px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  /* Unfilled stars stay visible as outlines rather than disappearing — the
+     control has to read as "5 stars, 3 chosen", not "3 stars". */
+  color: color-mix(in srgb, var(--color-secondary) 22%, transparent);
+  cursor: pointer;
+  transition: color 0.1s ease, transform 0.1s ease;
+}
+
+.star:hover:not(:disabled) {
+  transform: scale(1.12);
+}
+
+.star:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 55%, transparent);
+}
+
+.star:disabled {
+  cursor: not-allowed;
+}
+
+.starOn {
+  color: #f5a623;
+}
+
+.value {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--color-secondary);
+  font-variant-numeric: tabular-nums;
+}

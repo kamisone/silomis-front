@@ -9,35 +9,155 @@
    ────────────────────────────────────────────────────────────────────────── */
 
 .pageHint {
-  margin: 6px 0 0;
+  margin: 0;
   max-width: 76ch;
   font-size: 0.85rem;
   line-height: 1.5;
   color: var(--color-secondary);
 }
 
-/* ── Status bar ── */
+/* ── Sticky header ── */
 
-.statusBar {
+/* Bleeds out through .content's gutter so the bar spans the column edge to
+   edge — inset, the cards would scroll visibly through the strips either side
+   of it. Sticks under the admin top bar, whose height the shell measures and
+   publishes rather than each page guessing a pixel value. */
+.bar {
+  position: sticky;
+  top: var(--admin-topbar-height, 0px);
+  z-index: 9;
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin: calc(var(--admin-gutter, 1.5rem) * -1) calc(var(--admin-gutter, 1.5rem) * -1) 0;
+  padding: 12px var(--admin-gutter, 1.5rem);
+  background: color-mix(in srgb, var(--background) 88%, transparent);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--color-surface);
+}
+
+.barLeft {
+  display: flex;
+  align-items: baseline;
   gap: 12px;
   flex-wrap: wrap;
-  margin-bottom: 12px;
-  font-size: 0.82rem;
+  min-width: 0;
+}
+
+.barTitle {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--color-primary);
+  white-space: nowrap;
+}
+
+.barMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 0.8rem;
   color: var(--color-secondary);
 }
-.statusCount strong {
+.barMeta strong {
   color: var(--foreground);
+  font-variant-numeric: tabular-nums;
 }
-.statusWarn {
-  display: inline-flex;
-  align-items: center;
-  padding: 3px 10px;
+
+.barDot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--color-secondary) 45%, transparent);
+}
+
+.barWarn {
+  padding: 2px 9px;
   border-radius: 999px;
   background: color-mix(in srgb, var(--color-accent) 14%, transparent);
   color: var(--color-accent);
   font-weight: 700;
+}
+
+.barRight {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.barLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border: 1px solid var(--color-surface);
+  border-radius: 9px;
+  font-size: 0.8rem;
+  font-weight: 650;
+  color: var(--color-secondary);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: border-color 0.13s ease, color 0.13s ease;
+}
+.barLink:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+/* ── Save indicator ── */
+
+/* Reserves its own width so the bar's buttons do not shuffle sideways each
+   time the label changes between "Saving…" and "All changes saved". */
+.save {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 128px;
+  font-size: 0.78rem;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.saveBusy {
+  color: var(--color-secondary);
+}
+
+.saveOk {
+  color: var(--color-primary);
+}
+
+.saveError {
+  color: var(--color-error);
+}
+
+.saveSpin {
+  animation: saveSpin 0.9s linear infinite;
+}
+
+@keyframes saveSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .saveSpin {
+    animation: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .bar {
+    align-items: flex-start;
+  }
+  .save {
+    min-width: 0;
+  }
 }
 
 /* ── The stack ── */

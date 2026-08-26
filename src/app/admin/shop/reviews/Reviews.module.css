@@ -1,0 +1,271 @@
+/* ── Add-a-review form ── */
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.formIntro {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--color-info-bg);
+  border: 1px solid var(--color-info-border);
+  font-size: 0.78rem;
+  line-height: 1.55;
+  color: var(--color-secondary);
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr 170px;
+  gap: 14px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.78rem;
+  font-weight: 650;
+  color: var(--foreground);
+}
+
+.labelCount {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--color-surface-tint);
+  color: var(--color-secondary);
+  font-size: 0.68rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.hint {
+  font-size: 0.73rem;
+  line-height: 1.5;
+  color: var(--color-secondary);
+}
+
+/* ── Product search ── */
+
+.searchRow {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 10px;
+  color: var(--color-secondary);
+  pointer-events: none;
+}
+
+.searchInput {
+  width: 100%;
+  padding: 0.55rem 0.7rem 0.55rem 2rem;
+  border: 1px solid color-mix(in srgb, var(--color-secondary) 17%, var(--background));
+  border-radius: 8px;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: inherit;
+  font-size: 0.88rem;
+}
+
+.searchInput:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 18%, transparent);
+}
+
+.searchEmpty {
+  margin: 0;
+  padding: 10px 2px;
+  font-size: 0.8rem;
+  color: var(--color-secondary);
+}
+
+.results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 232px;
+  overflow-y: auto;
+}
+
+.result {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 8px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.result:hover {
+  background: var(--color-surface-tint);
+  border-color: color-mix(in srgb, var(--color-primary) 25%, transparent);
+}
+
+.resultThumb,
+.pickedThumb {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 7px;
+  object-fit: cover;
+  background: var(--color-surface-tint);
+}
+
+.pickedThumbBlank {
+  color: color-mix(in srgb, var(--color-secondary) 50%, transparent);
+}
+
+/* The chosen product replaces the search box entirely: leaving both on screen
+   would leave it ambiguous which one the review is actually going to. */
+.picked {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 30%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--color-primary) 6%, transparent);
+}
+
+.pickedText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.pickedTitle {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pickedSub {
+  font-size: 0.72rem;
+  color: var(--color-secondary);
+}
+
+.pickedLocked {
+  border-color: var(--color-surface);
+  background: var(--color-surface-tint);
+}
+
+.pickedClear {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  margin-left: auto;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--color-secondary);
+  cursor: pointer;
+}
+
+.pickedClear:hover {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+/* ── Photos ── */
+
+.mediaRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.mediaTile {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--color-surface);
+  background: var(--color-surface-tint);
+}
+
+.mediaImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.mediaRemove {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 19px;
+  height: 19px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  cursor: pointer;
+}
+
+.mediaRemove:hover {
+  background: rgba(0, 0, 0, 0.8);
+}
+
+.mediaAdd.mediaAdd {
+  width: 64px;
+  height: 64px;
+  aspect-ratio: auto;
+}
+
+/* ── Source badge in the list ── */
+
+.sourceBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-accent-secondary) 26%, transparent);
+  color: color-mix(in srgb, var(--color-secondary) 88%, transparent);
+  font-size: 0.66rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+@media (max-width: 560px) {
+  .row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

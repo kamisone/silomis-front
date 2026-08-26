@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { createPortal } from "react-dom";
-import { BadgeCheck, Play, X } from "lucide-react";
+import { BadgeCheck, Play } from "lucide-react";
 import WriteReviewForm from "./WriteReviewForm";
+import ReviewMediaViewer, { type ViewerTarget } from "./ReviewMediaViewer";
 import { getTranslations, toBcp47, type Locale } from "@/lib/i18n";
 import styles from "./ProductDetail.module.css";
 import reviewStyles from "./ReviewsSection.module.css";
@@ -61,7 +61,7 @@ export default function ReviewsSection({ productId, locale, stats, initialReview
   const [total, setTotal] = useState(initialReviews.total);
   const [loadingMore, setLoadingMore] = useState(false);
   const [showForm, setShowForm] = useState(false);
-  const [viewerMedia, setViewerMedia] = useState<ReviewMedia | null>(null);
+  const [viewerTarget, setViewerTarget] = useState<ViewerTarget | null>(null);
 
   const distribution = stats.distribution ?? {};
   const maxCount = Math.max(1, ...[1, 2, 3, 4, 5].map((n) => distribution[String(n)] ?? 0));
@@ -150,7 +150,7 @@ export default function ReviewsSection({ productId, locale, stats, initialReview
                     key={m.key}
                     type="button"
                     className={reviewStyles.mediaThumbBtn}
-                    onClick={() => setViewerMedia(m)}
+                    onClick={() => setViewerTarget({ reviewId: r.id, mediaKey: m.key })}
                     aria-label={m.type === "video" ? "Play video" : "View image"}
                   >
                     {m.type === "video" ? (
@@ -187,23 +187,16 @@ export default function ReviewsSection({ productId, locale, stats, initialReview
         />
       )}
 
-      {viewerMedia &&
-        createPortal(
-          <div className={reviewStyles.viewerOverlay} onMouseDown={(e) => e.target === e.currentTarget && setViewerMedia(null)}>
-            <div className={reviewStyles.viewerPanel} role="dialog" aria-modal="true" aria-label="Media viewer">
-              <button type="button" className={reviewStyles.viewerClose} onClick={() => setViewerMedia(null)} aria-label={t.shop.reviewClose}>
-                <X size={18} strokeWidth={2} />
-              </button>
-              {viewerMedia.type === "video" ? (
-                <video src={viewerMedia.url} controls autoPlay className={reviewStyles.viewerMedia} />
-              ) : (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={viewerMedia.url} alt={viewerMedia.altText ?? ""} className={reviewStyles.viewerMedia} />
-              )}
-            </div>
-          </div>,
-          document.body,
-        )}
+      {viewerTarget && (
+        <ReviewMediaViewer
+          reviews={reviews}
+          target={viewerTarget}
+          onClose={() => setViewerTarget(null)}
+          locale={locale}
+          t={t}
+        />
+      )}
+
     </section>
   );
 }
