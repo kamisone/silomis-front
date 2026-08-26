@@ -1132,3 +1132,134 @@
     transform: none;
   }
 }
+
+/* ── Offer banners ("En ce moment") ──
+   Two columns by three rows, five pictures:
+
+     ┌───────────┬───────────┐   col 1 spans rows 1-2 with the tall picture;
+     │           │  topRight │   two short ones stack in col 2; two more run
+     │   tall    ├───────────┤   along row 3.
+     │           │ midRight  │
+     ├───────────┼───────────┤   Every cell is placed explicitly, so a picture
+     │ bottomL   │ bottomR   │   the admin has not supplied leaves its own cell
+     └───────────┴───────────┘   empty rather than shifting the others.
+
+   The short cells carry the aspect ratio (roughly 3:1, the shape this artwork
+   is usually supplied at) and so size the rows; the tall one takes no ratio of
+   its own and stretches across the two rows it spans, which is what keeps its
+   bottom edge level with the middle-right picture.
+
+   The row gap is deliberately larger than the column gap: each picture's button
+   hangs off its bottom edge, and the gap is the room that overhang needs. */
+.offerGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: clamp(16px, 3.4vw, 46px);
+  row-gap: clamp(38px, 4.2vw, 56px);
+}
+
+.offerCellTall {
+  grid-area: 1 / 1 / 3 / 2;
+  /* Only reached when the tall picture is the section's one and only — with
+     nothing beside it there are no rows to stretch to. */
+  min-height: 240px;
+}
+.offerCellTopRight {
+  grid-area: 1 / 2 / 2 / -1;
+}
+.offerCellMidRight {
+  grid-area: 2 / 2 / 3 / -1;
+}
+.offerCellBottomLeft {
+  grid-area: 3 / 1 / 4 / 2;
+}
+.offerCellBottomRight {
+  grid-area: 3 / 2 / 4 / -1;
+}
+
+/* Deliberately not `overflow: hidden` — the button hangs off the bottom edge,
+   and clipping here is what would cut it in half. The rounding and the crop
+   belong to .offerFrame instead. */
+.offerTile {
+  position: relative;
+  display: block;
+  text-decoration: none;
+}
+/* The four short cells; the tall one is excluded so it can stretch. */
+.offerCellTopRight,
+.offerCellMidRight,
+.offerCellBottomLeft,
+.offerCellBottomRight {
+  aspect-ratio: 577 / 200;
+}
+
+.offerFrame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--color-surface);
+}
+
+.offerImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.4s ease;
+}
+.offerTile:hover .offerImage {
+  transform: scale(1.03);
+}
+
+/* Centred on the bottom edge, half on the picture and half off it. Sitting on
+   the seam rather than inside the artwork is what keeps it legible over any
+   image an admin uploads — these banners are finished compositions, and a
+   button dropped into a corner lands on whatever happens to be there. */
+.offerCta {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translate(-50%, 50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 24px;
+  border-radius: 999px;
+  background: var(--background);
+  border: 1px solid color-mix(in srgb, var(--foreground) 12%, transparent);
+  color: var(--foreground);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  box-shadow: 0 3px 12px color-mix(in srgb, var(--foreground) 14%, transparent);
+  transition:
+    background 0.18s,
+    border-color 0.18s,
+    color 0.18s;
+}
+.offerTile:hover .offerCta {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+}
+
+@media (max-width: 720px) {
+  /* One column, every placement dropped: each picture gets the full width, so
+     a phone crop (when one is set) is what shows. */
+  .offerGrid {
+    grid-template-columns: 1fr;
+  }
+  .offerCellTall,
+  .offerCellTopRight,
+  .offerCellMidRight,
+  .offerCellBottomLeft,
+  .offerCellBottomRight {
+    grid-area: auto;
+    aspect-ratio: 400 / 200;
+    min-height: 0;
+  }
+}

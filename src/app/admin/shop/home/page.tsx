@@ -123,6 +123,19 @@ function settingsSummary(section: HomeSection, catalogue: Catalogue): string | n
     parts.push(config.promotionId ? `Pinned: ${pinned?.name ?? "deleted promotion"}` : "Highest priority active");
   }
 
+  if (section.type === "offer_banners") {
+    const banners = config.offerBanners ?? [];
+    // The grid has five cells, so a count alone does not say whether it is
+    // finished — "3 of 5 banners" does.
+    parts.push(banners.length ? `${banners.length} of 5 banners` : "No banners yet");
+    // Two failure modes, and they differ: a banner with no picture leaves its
+    // cell empty, one with no collection shows without a button.
+    const noImage = banners.filter((b) => !b.imageUrl).length;
+    if (noImage) parts.push(`${noImage} without an image`);
+    const noTarget = banners.filter((b) => b.imageUrl && !b.collectionId).length;
+    if (noTarget) parts.push(`${noTarget} going nowhere`);
+  }
+
   if (section.type === "trust_bar") {
     const items = config.trustItems ?? [];
     parts.push(items.length ? countLabel(items.length, "reassurance") : "Built-in four");

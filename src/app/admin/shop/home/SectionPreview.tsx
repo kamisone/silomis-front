@@ -139,6 +139,20 @@ const PREVIEWS: Record<HomeSectionType, React.ReactNode> = {
       ))}
     </>
   ),
+  // Two bands: a tall picture with two beside it, then a pair under them.
+  offer_banners: (
+    <>
+      <L x={6} y={7} w={26} o={0.42} />
+      <B x={6} y={14} w={44} h={28} />
+      <B x={9} y={33} w={13} h={6} o={0.5} r={3} />
+      <B x={54} y={14} w={44} h={13} />
+      <B x={57} y={18} w={11} h={5} o={0.5} r={3} />
+      <B x={54} y={29} w={44} h={13} />
+      <B x={57} y={33} w={11} h={5} o={0.5} r={3} />
+      <B x={6} y={46} w={44} h={12} />
+      <B x={54} y={46} w={44} h={12} />
+    </>
+  ),
   // Three article cards: wide image, category line, headline.
   blog_posts: (
     <>

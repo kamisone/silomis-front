@@ -10,6 +10,7 @@ import TrustBadgeIconSelect from "@/components/admin/shop/TrustBadgeIconSelect";
 import type { TrustBadgeIconName } from "@/lib/shop/productContent.types";
 import ui from "@/components/admin/ui/admin-ui.module.css";
 import {
+  OFFER_SLOTS,
   SECTION_DEFAULT_LIMIT,
   SECTION_META,
   type HomeSectionConfig,
@@ -18,7 +19,7 @@ import {
   type SectionField,
 } from "@/components/home/sectionTypes";
 import LocalizedTextField from "@/components/admin/ui/LocalizedTextField";
-import type { TrustBarItem } from "@/components/home/sectionTypes";
+import type { OfferBanner, TrustBarItem } from "@/components/home/sectionTypes";
 import styles from "./HomeSections.module.css";
 
 // Every text field on this page is ordinary copy, so one endpoint serves them
@@ -77,6 +78,17 @@ function categoryOptions(items: CatalogueCategory[]): PickerOption[] {
     // no per-category screen to open.
   }));
 }
+
+/** What each cell of the offer-banner grid is called in the panel, and the class
+ *  that puts it where the storefront puts it. Both mirror OFFER_SLOTS. */
+const OFFER_SLOT_LABELS = ["Tall, top left", "Top right", "Middle right", "Bottom left", "Bottom right"];
+const OFFER_CELL_CLASS: Record<(typeof OFFER_SLOTS)[number], string> = {
+  tall: styles.offerCellTall,
+  topRight: styles.offerCellTopRight,
+  midRight: styles.offerCellMidRight,
+  bottomLeft: styles.offerCellBottomLeft,
+  bottomRight: styles.offerCellBottomRight,
+};
 
 /** The rail sources, each with the sentence a native <option> had nowhere to
  *  put — "Hand-picked" behaves very differently from the other three. */
@@ -226,6 +238,7 @@ export default function SectionSettings({
     (has("categories") && (config.categoryIds?.length ?? 0) > 0) ||
     (has("collections") && (config.collectionIds?.length ?? 0) > 0);
   const trustItems = config.trustItems ?? [];
+  const offerBanners = config.offerBanners ?? [];
 
   // The storefront's banner reads /shop/promotions/active, which returns only
   // automatic-trigger promotions — so offering a code-triggered one here would
@@ -258,6 +271,39 @@ export default function SectionSettings({
   }
   function patchTrustItem(id: string, patch: Partial<TrustBarItem>) {
     setTrustItems(trustItems.map((it) => (it.id === id ? { ...it, ...patch } : it)));
+  }
+
+  /** Every collection, plus whatever a banner already points at — a collection
+   *  that was deleted must stay visible in its own select rather than silently
+   *  reading as "Nowhere" and losing the setting on the next edit. */
+  function bannerTargetOptions(picked: string | null | undefined): SelectOption<string>[] {
+    const options: SelectOption<string>[] = [
+      { value: "", label: "Nowhere yet", description: "The picture shows without a button." },
+      ...catalogue.collections.map((c) => ({
+        value: c.id,
+        label: c.name,
+        description: c.isActive === false ? "Inactive — the storefront hides it." : undefined,
+      })),
+    ];
+    if (picked && !catalogue.collections.some((c) => c.id === picked)) {
+      options.push({ value: picked, label: "Deleted collection", description: "No longer in the catalogue." });
+    }
+    return options;
+  }
+
+  /* Five fixed cells rather than a list you add to: every one is optional, and
+     a picture's cell is its position — so the editor is the grid itself, with
+     each slot either holding a picture or offering to take one. Writing keeps
+     the array five long so slot 4 stays slot 4 when slot 2 is empty. */
+  function patchOfferSlot(index: number, patch: Partial<OfferBanner>) {
+    const next: OfferBanner[] = OFFER_SLOTS.map(
+      (_, i) => offerBanners[i] ?? { id: `b${i}${Date.now().toString(36)}` },
+    );
+    next[index] = { ...next[index], ...patch };
+    // Trailing empties carry no information — drop them so a section with one
+    // picture stores one entry rather than five mostly-blank ones.
+    while (next.length && !next[next.length - 1].imageKey && !next[next.length - 1].imageUrl) next.pop();
+    onChange({ offerBanners: next });
   }
 
   /* The subtitle belongs directly under the heading it qualifies — which is
@@ -441,13 +487,87 @@ export default function SectionSettings({
           </Field>
         )}
 
+        {has("offerBanners") && (
+          <div className={styles.fieldFull}>
+            <span className={styles.fieldLabel}>Banners</span>
+            <p className={styles.offerHint}>
+              Five pictures, laid out here the way they land on the page. Every one is optional — an empty cell simply
+              stays empty. Each picture opens the collection you pick under it.
+            </p>
+
+            <div className={styles.offerEditor}>
+              {OFFER_SLOTS.map((slot, i) => {
+                const banner = offerBanners[i];
+                return (
+                  <div key={slot} className={`${styles.offerCell} ${OFFER_CELL_CLASS[slot]}`}>
+                    <span className={styles.offerCellLabel}>{OFFER_SLOT_LABELS[i]}</span>
+
+                    <MediaPicker
+                      value={banner?.imageKey ?? null}
+                      previewUrl={banner?.imageUrl ?? null}
+                      onChange={(imageKey, imageUrl) => patchOfferSlot(i, { imageKey, imageUrl })}
+                      label="banner"
+                      mediaType="image"
+                      asAddTile
+                      /* Cut to the cell's real proportions, so the panel is a
+                         map of the grid rather than a description of it. */
+                      className={slot === "tall" ? styles.offerTileTall : styles.offerTileWide}
+                    />
+
+                    {/* Nothing to point anywhere until there is a picture. */}
+                    {banner?.imageUrl && (
+                      <div className={styles.offerCellFields}>
+                        <Field label="Opens">
+                          <Select
+                            value={banner.collectionId ?? ""}
+                            options={bannerTargetOptions(banner.collectionId)}
+                            onChange={(collectionId) => patchOfferSlot(i, { collectionId: collectionId || null })}
+                            ariaLabel={`Collection the ${OFFER_SLOT_LABELS[i].toLowerCase()} banner opens`}
+                            disabled={saving}
+                          />
+                        </Field>
+
+                        <LocalizedTextField
+                          label="Button"
+                          value={banner.ctaLabel}
+                          onCommit={(ctaLabel) => patchOfferSlot(i, { ctaLabel })}
+                          placeholder="Discover"
+                          translateEndpoint={TRANSLATE_TEXT}
+                          disabled={saving}
+                        />
+
+                        <div className={styles.offerPhoneRow}>
+                          <MediaPicker
+                            value={banner.mobileImageKey ?? null}
+                            previewUrl={banner.mobileImageUrl ?? null}
+                            onChange={(mobileImageKey, mobileImageUrl) =>
+                              patchOfferSlot(i, { mobileImageKey, mobileImageUrl })
+                            }
+                            label="phone banner"
+                            mediaType="image"
+                            asAddTile
+                            className={styles.offerTilePhone}
+                          />
+                          <span className={styles.offerSlotHint}>
+                            Optional phone crop — the picture above is used at every size if you leave this empty.
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {has("trustItems") && (
           <div className={styles.fieldFull}>
-            <div className={styles.trustHead}>
+            <div className={styles.repeaterHead}>
               <span className={styles.fieldLabel}>Reassurances</span>
               <button
                 type="button"
-                className={styles.trustAdd}
+                className={styles.repeaterAdd}
                 onClick={() =>
                   setTrustItems([
                     ...trustItems,
@@ -462,23 +582,23 @@ export default function SectionSettings({
             </div>
 
             {trustItems.length === 0 ? (
-              <p className={styles.trustEmpty}>
+              <p className={styles.repeaterEmpty}>
                 Using the built-in four — free delivery, easy returns, secure payment, and support. Add one to take the
                 row over; you then own all of it.
               </p>
             ) : (
-              <ol className={styles.trustList}>
+              <ol className={styles.repeaterList}>
                 {trustItems.map((item, i) => (
-                  <li key={item.id} className={styles.trustItem}>
-                    <div className={styles.trustItemHead}>
-                      <span className={styles.trustRank}>{i + 1}</span>
+                  <li key={item.id} className={styles.repeaterItem}>
+                    <div className={styles.repeaterItemHead}>
+                      <span className={styles.repeaterRank}>{i + 1}</span>
                       <TrustBadgeIconSelect
                         value={item.icon as TrustBadgeIconName}
                         onChange={(icon) => patchTrustItem(item.id, { icon })}
                       />
                       <button
                         type="button"
-                        className={styles.trustRemove}
+                        className={styles.repeaterRemove}
                         onClick={() => setTrustItems(trustItems.filter((it) => it.id !== item.id))}
                         disabled={saving}
                         aria-label="Remove reassurance"
@@ -486,7 +606,7 @@ export default function SectionSettings({
                         <X size={13} strokeWidth={2.4} />
                       </button>
                     </div>
-                    <div className={styles.trustFields}>
+                    <div className={styles.repeaterFields}>
                       <LocalizedTextField
                         label="Label"
                         value={item.label}

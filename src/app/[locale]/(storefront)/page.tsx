@@ -5,6 +5,7 @@ import HomeHero, { type HeroSlide } from "@/components/home/HomeHero";
 import TrustBar from "@/components/home/TrustBar";
 import CategoryTiles, { type HomeCategory } from "@/components/home/CategoryTiles";
 import FeaturedCollections, { type HomeCollection } from "@/components/home/FeaturedCollections";
+import OfferBanners from "@/components/home/OfferBanners";
 import ProductRail from "@/components/home/ProductRail";
 import PromoBanner, { type HomePromotion } from "@/components/home/PromoBanner";
 import BlogTeasers, { type HomePost } from "@/components/home/BlogTeasers";
@@ -161,7 +162,11 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   // hand-picked section with an automatic one genuinely needs both.
   const collectionSections = layout.filter((s) => s.type === "featured_collections");
   const needsFeaturedCollections = collectionSections.some((s) => !s.config.collectionIds?.length);
-  const needsAllCollections = collectionSections.some((s) => (s.config.collectionIds?.length ?? 0) > 0);
+  // The offer banners resolve their picked collection ids to slugs out of the
+  // same full list, so either kind of section is a reason to fetch it.
+  const needsAllCollections =
+    collectionSections.some((s) => (s.config.collectionIds?.length ?? 0) > 0) ||
+    layout.some((s) => s.type === "offer_banners" && (s.config.offerBanners?.length ?? 0) > 0);
   const [heroSlides, categories, featuredCollections, allCollections, promotions, posts, railProducts] = await Promise.all([
     present("hero") ? fetchHeroSlides(locale, t) : [],
     present("categories") ? fetchJson<HomeCategory[]>("/shop/categories", []) : [],
@@ -179,6 +184,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   ]);
 
   const productsByRailId = new Map(railSections.map((s, i) => [s.id, railProducts[i] ?? []]));
+  const collectionsById = new Map(allCollections.map((c) => [c.id, c]));
   const promotionFor = (product: ProductListItem) => findMatchingPromotion(promotions, product);
 
   // Tint alternates across the sections that support a background, so the page
@@ -231,6 +237,20 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
                 title={localized(section.config.title, locale) || undefined}
                 subtitle={localized(section.config.subtitle, locale) || undefined}
                 href={resolveConfigHref(section.config.viewAllHref, locale)}
+                tinted={tintIndex++ % 2 === 1}
+              />
+            );
+
+          case "offer_banners":
+            return (
+              <OfferBanners
+                key={section.id}
+                banners={section.config.offerBanners ?? []}
+                targets={collectionsById}
+                locale={locale}
+                t={t}
+                title={localized(section.config.title, locale) || undefined}
+                subtitle={localized(section.config.subtitle, locale) || undefined}
                 tinted={tintIndex++ % 2 === 1}
               />
             );

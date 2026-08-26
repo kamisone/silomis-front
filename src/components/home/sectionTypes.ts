@@ -16,6 +16,7 @@ export const HOME_SECTION_TYPES = [
   "featured_collections",
   "product_rail",
   "promo_banner",
+  "offer_banners",
   "blog_posts",
   "section_heading",
   "separator",
@@ -34,6 +35,46 @@ export interface TrustBarItem {
   label?: LocalizedText;
   sub?: LocalizedText;
 }
+
+/**
+ * One picture in the "En ce moment" grid: an image that opens a collection, with
+ * a button printed over it. Which cell it fills is its position in the list.
+ *
+ * The image URL is stored beside its key for the same reason the chapter
+ * heading's icon is — `media/` objects resolve to stable public CDN URLs that
+ * never expire, so the storefront can print one without a round-trip and the
+ * backend keeps treating config as opaque.
+ */
+export interface OfferBanner {
+  id: string;
+  imageKey?: string | null;
+  imageUrl?: string | null;
+  /** Optional taller crop for phones. Absent means the desktop image is used at
+   *  both sizes, which is fine for a picture that is already fairly square. */
+  mobileImageKey?: string | null;
+  mobileImageUrl?: string | null;
+  /** The collection this banner opens. */
+  collectionId?: string | null;
+  /** Button copy; empty falls back to the translated "Discover". */
+  ctaLabel?: LocalizedText;
+}
+
+/**
+ * The five cells of the offer-banner grid, in the order they are configured.
+ *
+ * Two columns by three rows: the first picture stands tall down the left across
+ * rows 1 and 2, two short ones stack beside it, and a further two sit side by
+ * side along the bottom.
+ *
+ *   ┌───────────┬───────────┐
+ *   │           │  topRight │
+ *   │   tall    ├───────────┤
+ *   │           │ midRight  │
+ *   ├───────────┼───────────┤
+ *   │ bottomL   │ bottomR   │
+ *   └───────────┴───────────┘
+ */
+export const OFFER_SLOTS = ["tall", "topRight", "midRight", "bottomLeft", "bottomRight"] as const;
 
 /**
  * Copy the admin typed, keyed by locale.
@@ -103,6 +144,17 @@ export interface HomeSectionConfig {
 
   /** trust_bar only: the reassurances, in order. Absent means the built-in four. */
   trustItems?: TrustBarItem[];
+
+  /**
+   * offer_banners only: the five pictures, in slot order — see OFFER_SLOTS.
+   *
+   * Position in this list *is* the position in the grid, so a picture left out
+   * leaves its cell empty rather than promoting the next one. Empty altogether
+   * means the section renders nothing: there is no automatic source behind it,
+   * so an unconfigured block has nothing to show and should not leave a
+   * stranded heading on the page.
+   */
+  offerBanners?: OfferBanner[];
 
   /** List sections: where the "view all" link goes. Locale-less storefront
    *  path; absent means the section's own default destination. */
@@ -216,6 +268,7 @@ export type SectionField =
   | "collections"
   | "promotion"
   | "trustItems"
+  | "offerBanners"
   | "viewAll"
   | "title"
   | "eyebrow"
@@ -263,6 +316,11 @@ export const SECTION_META: Record<
     label: "Promotion banner",
     description: "A promotion, full width. The highest-priority active one by default, or a specific one you pin.",
     fields: ["promotion"],
+  },
+  offer_banners: {
+    label: "Offer banners",
+    description: "A five-picture grid — one tall, two beside it, two along the bottom — each opening a collection through its own button.",
+    fields: ["title", "subtitle", "offerBanners"],
   },
   blog_posts: {
     label: "Blog posts",
