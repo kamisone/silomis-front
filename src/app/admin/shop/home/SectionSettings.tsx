@@ -29,8 +29,8 @@ const TRANSLATE_HTML = "/next-api/admin/shop/home-sections/sections/html/transla
 // ── What the pickers choose from ─────────────────────────────────────────────
 
 export interface CatalogueProduct { id: string; title: string; sku?: string | null; featuredImageUrl?: string | null }
-export interface CatalogueCategory { id: string; name: string; parentId?: string | null }
-export interface CatalogueCollection { id: string; name: string; slug?: string | null; isActive?: boolean }
+export interface CatalogueCategory { id: string; name: string; parentId?: string | null; imageUrl?: string | null }
+export interface CatalogueCollection { id: string; name: string; slug?: string | null; isActive?: boolean; imageUrl?: string | null }
 export interface CataloguePromotion { id: string; name: string; isActive?: boolean; trigger?: string; scope?: string }
 
 export interface Catalogue {
@@ -45,7 +45,23 @@ export const EMPTY_CATALOGUE: Catalogue = { products: [], categories: [], collec
 /** Ids are stable; the labels beside them are whatever the catalogue call
  *  returned, so a picker still works when that call failed. */
 function productOptions(items: CatalogueProduct[]): PickerOption[] {
-  return items.map((p) => ({ id: p.id, label: p.title, sublabel: p.sku || null, imageUrl: p.featuredImageUrl ?? null }));
+  return items.map((p) => ({
+    id: p.id,
+    label: p.title,
+    sublabel: p.sku || null,
+    imageUrl: p.featuredImageUrl ?? null,
+    href: `/admin/shop/products/${p.id}`,
+  }));
+}
+
+function collectionOptions(items: CatalogueCollection[]): PickerOption[] {
+  return items.map((c) => ({
+    id: c.id,
+    label: c.name,
+    sublabel: c.isActive === false ? "Inactive" : (c.slug ?? null),
+    imageUrl: c.imageUrl ?? null,
+    href: `/admin/shop/collections/${c.id}`,
+  }));
 }
 
 function categoryOptions(items: CatalogueCategory[]): PickerOption[] {
@@ -56,6 +72,9 @@ function categoryOptions(items: CatalogueCategory[]): PickerOption[] {
     // Two categories can share a name under different parents; the parent is
     // what tells them apart.
     sublabel: c.parentId ? (byId.get(c.parentId)?.name ?? null) : "Top level",
+    imageUrl: c.imageUrl ?? null,
+    // No href: categories are edited in a modal on the list page, so there is
+    // no per-category screen to open.
   }));
 }
 
@@ -326,11 +345,7 @@ export default function SectionSettings({
             <EntityPicker
               label="Collections"
               hint="Leave empty to show whichever collections are flagged as featured."
-              options={catalogue.collections.map((c) => ({
-                id: c.id,
-                label: c.name,
-                sublabel: c.isActive === false ? "Inactive" : (c.slug ?? null),
-              }))}
+              options={collectionOptions(catalogue.collections)}
               value={config.collectionIds ?? []}
               onChange={(collectionIds) => onChange({ collectionIds })}
               placeholder="Search collections…"

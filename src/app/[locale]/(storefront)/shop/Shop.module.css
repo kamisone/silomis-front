@@ -106,3 +106,21 @@
     margin-bottom: 14px;
   }
 }
+
+/* ── Full-bleed on phones ──
+   The home page's hero meets the viewport edges, and an inset, rounded one on
+   every other page reads as a different kind of thing. Pulling it back through
+   the container's 20px gutter lines the two up. Only the picture bleeds — the
+   text below keeps its gutter. */
+@media (max-width: 640px) {
+  .banner {
+    /* The width is explicit because this hero is an <img>: a replaced element
+       resolves `width: 100%` against its containing block and does not stretch
+       from negative margins the way the <div> heroes on other pages do, so the
+       margin alone shifted it left and left a gap on the right. */
+    width: calc(100% + 40px);
+    max-width: none;
+    margin-inline: -20px;
+    border-radius: 0;
+  }
+}

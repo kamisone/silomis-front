@@ -231,3 +231,15 @@
 .bodyHtml :global(a) {
   color: var(--color-primary);
 }
+
+/* ── Full-bleed on phones ──
+   The home page's hero meets the viewport edges, and an inset, rounded one on
+   every other page reads as a different kind of thing. Pulling it back through
+   the container's 20px gutter lines the two up. Only the picture bleeds — the
+   text below keeps its gutter. */
+@media (max-width: 640px) {
+  .hero {
+    margin-inline: -20px;
+    border-radius: 0;
+  }
+}

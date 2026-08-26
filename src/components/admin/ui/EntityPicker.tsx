@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, Plus, Search, X } from "lucide-react";
+import Link from "next/link";
+import { ArrowDown, ArrowUp, ExternalLink, Plus, Search, X } from "lucide-react";
 import styles from "./EntityPicker.module.css";
 
 export interface PickerOption {
@@ -10,6 +11,11 @@ export interface PickerOption {
   /** Optional second line — a SKU, a price, a parent category. */
   sublabel?: string | null;
   imageUrl?: string | null;
+  /** Admin page for this entity. Given one, the chosen row's name becomes a
+   *  link to it — the picker names things the admin often needs to go and edit,
+   *  and hunting them down through the sidebar is the slow way there. Only the
+   *  chosen rows link; a search result's click has to mean "pick this". */
+  href?: string | null;
 }
 
 /**
@@ -112,10 +118,26 @@ export default function EntityPicker({
               ) : (
                 <span className={`${styles.thumb} ${styles.thumbBlank}`} aria-hidden="true" />
               )}
-              <span className={styles.chosenText}>
-                <span className={styles.chosenLabel}>{item.label}</span>
-                {item.sublabel && <span className={styles.chosenSub}>{item.sublabel}</span>}
-              </span>
+              {item.href ? (
+                <Link
+                  href={item.href}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={`${styles.chosenText} ${styles.chosenLink}`}
+                  title={`Open ${item.label}`}
+                >
+                  <span className={styles.chosenLabel}>
+                    {item.label}
+                    <ExternalLink size={11} strokeWidth={2.2} className={styles.chosenLinkIcon} aria-hidden="true" />
+                  </span>
+                  {item.sublabel && <span className={styles.chosenSub}>{item.sublabel}</span>}
+                </Link>
+              ) : (
+                <span className={styles.chosenText}>
+                  <span className={styles.chosenLabel}>{item.label}</span>
+                  {item.sublabel && <span className={styles.chosenSub}>{item.sublabel}</span>}
+                </span>
+              )}
               <span className={styles.chosenActions}>
                 <button type="button" className={styles.iconBtn} onClick={() => move(i, -1)} disabled={i === 0 || disabled} aria-label="Move up">
                   <ArrowUp size={13} strokeWidth={2.4} />

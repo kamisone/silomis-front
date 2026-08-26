@@ -198,7 +198,7 @@ export default function CollectionDetailPage() {
       </div>
 
       <div className={ui.card}>
-        <form id={FORM_ID} onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem", maxWidth: 640 }}>
+        <form id={FORM_ID} onSubmit={handleSubmit} className={styles.form}>
           <BilingualField
             label="Name"
             field="name"

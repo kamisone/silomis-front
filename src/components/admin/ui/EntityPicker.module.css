@@ -267,3 +267,45 @@
   line-height: 1.45;
   color: var(--color-secondary);
 }
+
+/* ── Chosen row links to its admin page ── */
+
+/* No underline, as a row in a list rather than prose — the affordance is the
+   colour shift and the arrow on hover, which is quieter next to the move and
+   remove buttons sharing the row. */
+.chosenLink {
+  text-decoration: none;
+  color: inherit;
+  border-radius: 6px;
+  transition: color 0.13s ease;
+}
+
+.chosenLink:hover .chosenLabel,
+.chosenLink:focus-visible .chosenLabel {
+  color: var(--color-primary);
+}
+
+.chosenLink:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.chosenLink .chosenLabel {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* Always visible, just quiet. Hidden-until-hover would read cleaner but is
+   invisible on a tablet, where there is no hover at all — and the whole point
+   of the icon is telling the admin the row goes somewhere. */
+.chosenLinkIcon {
+  flex-shrink: 0;
+  opacity: 0.4;
+  transition: opacity 0.13s ease;
+}
+
+.chosenLink:hover .chosenLinkIcon,
+.chosenLink:focus-visible .chosenLinkIcon {
+  opacity: 1;
+}
