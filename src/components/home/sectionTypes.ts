@@ -72,8 +72,9 @@ export interface HomeSectionConfig {
   limit?: number;
   /** product_rail only: which catalogue query feeds it. */
   source?: ProductRailSource;
-  /** product_rail only: plain-text heading override; falls back to the localized default. */
-  title?: string | null;
+  /** product_rail only: heading override in the admin's own words, per locale;
+   *  falls back to the built-in translated default when left empty. */
+  title?: LocalizedText | null;
 
   // ── section_heading / seo_text ──
   /** Small line above the heading ("New in", "Our pick"). */

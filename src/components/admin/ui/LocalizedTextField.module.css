@@ -1,0 +1,190 @@
+/* One localized field: a soft header rail carrying the label, a language
+   switcher and the Generate pill, over a single input. The rail is what makes
+   seven languages fit in the space of one field — everything that would
+   otherwise be seven stacked rows lives in the strip instead. */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+
+.label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-secondary);
+}
+
+/* How many of the seven are written. The single most useful number on this
+   field, so it sits with the label rather than hiding in a tooltip. */
+.meter {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-secondary) 12%, transparent);
+  color: var(--color-secondary);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+  text-transform: none;
+  transition: background 0.18s, color 0.18s;
+}
+
+.meterFull {
+  background: color-mix(in srgb, #10b981 16%, transparent);
+  color: #047857;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Language switcher, not navigation: one language is on screen at a time. The
+   inset well groups the seven as one control instead of seven loose buttons. */
+.tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--color-surface-tint);
+  box-shadow: inset 0 1px 2px color-mix(in srgb, var(--foreground) 7%, transparent);
+}
+
+.tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 7px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: var(--color-secondary);
+  cursor: pointer;
+  /* Untranslated languages read as absent rather than as an error — a shop that
+     only sells in two of them is a normal shop, not a broken one. */
+  opacity: 0.5;
+  transition: opacity 0.14s, background 0.14s, box-shadow 0.14s, color 0.14s;
+}
+
+.tab:hover {
+  opacity: 1;
+  background: color-mix(in srgb, var(--background) 70%, transparent);
+}
+
+.tabFilled {
+  opacity: 1;
+}
+
+.tabActive,
+.tabActive:hover {
+  opacity: 1;
+  background: var(--background);
+  color: var(--color-primary);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--foreground) 12%, transparent);
+}
+
+.tabCode {
+  font-size: 0.62rem;
+}
+
+/* A written language keeps its dot even when it is the active tab, so the
+   strip never loses a mark just because you looked at it. */
+.tabDot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #10b981;
+}
+
+.inputWrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.inputWrap > :global(input),
+.inputWrap > :global(textarea) {
+  width: 100%;
+}
+
+/* Generation replaces the text under the cursor, so the field is visibly
+   busy rather than silently swapping out from under a click. */
+.busyVeil {
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+  pointer-events: none;
+  background: linear-gradient(
+    100deg,
+    transparent 20%,
+    color-mix(in srgb, #a855f7 14%, transparent) 50%,
+    transparent 80%
+  );
+  background-size: 220% 100%;
+  animation: localized-field-sweep 1.1s linear infinite;
+}
+
+@keyframes localized-field-sweep {
+  from { background-position: 120% 0; }
+  to   { background-position: -120% 0; }
+}
+
+.error {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: #dc2626;
+}
+
+.hint {
+  margin: 0;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: var(--color-secondary);
+}
+
+@media (max-width: 720px) {
+  .head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  /* The strip scrolls sideways rather than wrapping into two rows and pushing
+     the input down the page. */
+  .controls {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .tabs {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .tabs::-webkit-scrollbar {
+    display: none;
+  }
+}

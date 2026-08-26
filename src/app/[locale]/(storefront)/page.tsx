@@ -13,6 +13,7 @@ import SectionSeparator from "@/components/home/SectionSeparator";
 import SeoText from "@/components/home/SeoText";
 import {
   DEFAULT_HOME_SECTIONS,
+  localized,
   sectionLimit,
   type HomeSectionSpec,
   type HomeSectionType,
@@ -182,7 +183,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             return (
               <ProductRail
                 key={section.id}
-                title={section.config.title?.trim() || (source === "featured" ? t.shop.homeFeaturedTitle : t.shop.homeNewArrivalsTitle)}
+                title={localized(section.config.title, locale) || (source === "featured" ? t.shop.homeFeaturedTitle : t.shop.homeNewArrivalsTitle)}
                 products={productsByRailId.get(section.id) ?? []}
                 href={source === "featured" ? `/${locale}/shop` : `/${locale}/shop?sort=newest`}
                 locale={locale}

@@ -60,7 +60,10 @@ function settingsSummary(section: HomeSection): string | null {
 
   if (section.type === "product_rail") {
     parts.push(config.source === "featured" ? "Featured products" : "Newest first");
-    if (config.title?.trim()) parts.push(`“${config.title.trim()}”`);
+    const title = localized(config.title, DEFAULT_LOCALE);
+    if (title) parts.push(`“${title}”`);
+    const langs = languageSummary(config.title);
+    if (langs) parts.push(langs);
   }
 
   if (section.type === "section_heading") {

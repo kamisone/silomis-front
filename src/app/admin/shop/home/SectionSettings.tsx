@@ -9,8 +9,13 @@ import {
   type HomeSectionConfig,
   type HomeSectionType,
 } from "@/components/home/sectionTypes";
-import LocalizedTextField from "./LocalizedTextField";
+import LocalizedTextField from "@/components/admin/ui/LocalizedTextField";
 import styles from "./HomeSections.module.css";
+
+// Every text field on this page is ordinary copy, so one endpoint serves them
+// all — plain fields post `{ text }`, the rich-text body posts `{ html }`.
+const TRANSLATE_TEXT = "/next-api/admin/shop/home-sections/sections/text/translate";
+const TRANSLATE_HTML = "/next-api/admin/shop/home-sections/sections/html/translate";
 
 /**
  * The settings band under a section card.
@@ -60,20 +65,15 @@ export default function SectionSettings({
       )}
 
       {fields.includes("title") && (
-        <label className={`${styles.field} ${styles.fieldWide}`}>
-          <span className={styles.fieldLabel}>Heading</span>
-          <input
-            className={ui.input}
-            defaultValue={config.title ?? ""}
-            placeholder="Leave blank for the translated default"
-            onBlur={(e) => {
-              const value = e.target.value.trim();
-              if (value === (config.title ?? "")) return;
-              onChange({ title: value || null });
-            }}
-            disabled={saving}
-          />
-        </label>
+        <LocalizedTextField
+          className={styles.fieldWide}
+          label="Heading"
+          value={config.title}
+          onCommit={(title) => onChange({ title })}
+          placeholder="Leave blank for the translated default"
+          translateEndpoint={TRANSLATE_TEXT}
+          disabled={saving}
+        />
       )}
 
       {fields.includes("limit") && (
@@ -100,6 +100,7 @@ export default function SectionSettings({
           label="Eyebrow"
           value={config.eyebrow}
           onCommit={(eyebrow) => onChange({ eyebrow })}
+          translateEndpoint={TRANSLATE_TEXT}
           placeholder="New this season"
           disabled={saving}
         />
@@ -110,6 +111,7 @@ export default function SectionSettings({
           label={type === "seo_text" ? "Heading" : "Title"}
           value={config.heading}
           onCommit={(heading) => onChange({ heading })}
+          translateEndpoint={TRANSLATE_TEXT}
           placeholder={type === "seo_text" ? "About our collection" : "Our favourites right now"}
           disabled={saving}
         />
@@ -120,6 +122,7 @@ export default function SectionSettings({
           label="Subtitle"
           value={config.subtitle}
           onCommit={(subtitle) => onChange({ subtitle })}
+          translateEndpoint={TRANSLATE_TEXT}
           placeholder="One line of context under the title"
           multiline
           disabled={saving}
@@ -132,6 +135,7 @@ export default function SectionSettings({
           hint="Written for search engines as much as for readers — a few paragraphs about what you sell, with the words customers actually search for."
           value={config.body}
           onCommit={(body) => onChange({ body })}
+          translateEndpoint={TRANSLATE_HTML}
           richText
           disabled={saving}
         />
