@@ -22,6 +22,7 @@ export default function FeaturedCollections({
   locale,
   t,
   title,
+  subtitle,
   href,
   tinted = false,
 }: {
@@ -31,6 +32,10 @@ export default function FeaturedCollections({
   /** Admin overrides; absent means this section's own built-in wording and
    *  destination. */
   title?: string;
+  /** Admin's own line under the heading. Unlike `title` this has no built-in
+   *  default: nothing typed means no subtitle, so an admin who clears it gets a
+   *  bare heading rather than shipped-in marketing copy coming back. */
+  subtitle?: string;
   href?: string;
   tinted?: boolean;
 }) {
@@ -41,7 +46,7 @@ export default function FeaturedCollections({
       <div className={styles.container}>
         <SectionHead
           title={title || t.shop.homeCollectionsTitle}
-          subtitle={t.shop.homeCollectionsSubtitle}
+          subtitle={subtitle}
           href={href || `/${locale}/collections`}
           linkLabel={t.shop.homeViewAll}
         />

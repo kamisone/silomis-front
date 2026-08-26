@@ -229,6 +229,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
                 locale={locale}
                 t={t}
                 title={localized(section.config.title, locale) || undefined}
+                subtitle={localized(section.config.subtitle, locale) || undefined}
                 href={resolveConfigHref(section.config.viewAllHref, locale)}
                 tinted={tintIndex++ % 2 === 1}
               />

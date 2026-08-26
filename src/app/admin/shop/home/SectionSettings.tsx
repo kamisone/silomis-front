@@ -260,6 +260,25 @@ export default function SectionSettings({
     setTrustItems(trustItems.map((it) => (it.id === id ? { ...it, ...patch } : it)));
   }
 
+  /* The subtitle belongs directly under the heading it qualifies — which is
+     "Heading" on the list sections and "Title" on the editorial ones, and those
+     sit at opposite ends of the panel. One control, rendered at whichever of the
+     two anchors this section actually has. */
+  const subtitleField = has("subtitle") ? (
+    <Field label="Subtitle" span="full">
+      <LocalizedTextField
+        label="Subtitle"
+        hideLabel
+        value={config.subtitle}
+        onCommit={(subtitle) => onChange({ subtitle })}
+        translateEndpoint={TRANSLATE_TEXT}
+        placeholder="Leave blank to show no subtitle"
+        multiline
+        disabled={saving}
+      />
+    </Field>
+  ) : null;
+
   const showAppearance = APPEARANCE_FIELDS.some(has);
   const showLink = LINK_FIELDS.some(has);
 
@@ -282,6 +301,8 @@ export default function SectionSettings({
             />
           </Field>
         )}
+
+        {has("title") && subtitleField}
 
         {has("source") && (
           <Field label="Fill with">
@@ -400,20 +421,7 @@ export default function SectionSettings({
           </Field>
         )}
 
-        {has("subtitle") && (
-          <Field label="Subtitle" span="full">
-            <LocalizedTextField
-              label="Subtitle"
-              hideLabel
-              value={config.subtitle}
-              onCommit={(subtitle) => onChange({ subtitle })}
-              translateEndpoint={TRANSLATE_TEXT}
-              placeholder="One line of context under the title"
-              multiline
-              disabled={saving}
-            />
-          </Field>
-        )}
+        {!has("title") && subtitleField}
 
         {has("body") && (
           <Field

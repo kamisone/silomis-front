@@ -113,7 +113,14 @@ export interface HomeSectionConfig {
   eyebrow?: LocalizedText;
   /** The H2 itself. */
   heading?: LocalizedText;
-  /** One-line lead under the heading. */
+  /**
+   * One-line lead under the heading. Used by the chapter heading and by
+   * featured_collections, whose subtitle used to be a fixed translated string.
+   *
+   * Empty in every locale means no subtitle at all — the section renders its
+   * heading alone rather than falling back to built-in copy, because a line the
+   * admin deleted should stay deleted.
+   */
   subtitle?: LocalizedText;
   /** seo_text only: long-form HTML from the rich-text editor. */
   body?: LocalizedText;
@@ -245,7 +252,7 @@ export const SECTION_META: Record<
   featured_collections: {
     label: "Featured collections",
     description: "Collections flagged as featured, or exactly the ones you choose, in your order.",
-    fields: ["title", "collections", "limit", "viewAll"],
+    fields: ["title", "subtitle", "collections", "limit", "viewAll"],
   },
   product_rail: {
     label: "Product rail",
