@@ -1,0 +1,221 @@
+/* ── Last-seen product card ──────────────────────────────────────────────────
+   Bottom-right, sitting above the support launcher (62px tall at bottom 24) so
+   the two stack rather than overlap. The back-to-top button owns the opposite
+   corner, and the cookie banner owns the full width below — the component hides
+   itself until that banner has been answered.
+
+   z-index is below the support widget's 9000 and the banner's 1000 on purpose:
+   a chat in progress and a consent decision both outrank a suggestion. */
+.card {
+  position: fixed;
+  right: 24px;
+  bottom: 98px;
+  z-index: 900;
+  width: 272px;
+  max-width: calc(100vw - 32px);
+  background: var(--background);
+  border: 1px solid color-mix(in srgb, var(--foreground) 11%, transparent);
+  border-radius: 16px;
+  box-shadow:
+    0 12px 32px color-mix(in srgb, var(--foreground) 16%, transparent),
+    0 2px 8px color-mix(in srgb, var(--foreground) 8%, transparent);
+  opacity: 0;
+  transform: translateY(14px) scale(0.97);
+  pointer-events: none;
+  transition:
+    opacity 0.28s ease,
+    transform 0.28s cubic-bezier(0.22, 0.61, 0.36, 1),
+    box-shadow 0.2s ease;
+}
+
+.cardShown {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+
+.card:hover {
+  box-shadow:
+    0 16px 40px color-mix(in srgb, var(--foreground) 20%, transparent),
+    0 2px 8px color-mix(in srgb, var(--foreground) 8%, transparent);
+}
+
+/* The whole card is the target, not just the title — a floating suggestion this
+   small is frustrating to aim at any other way. */
+.link {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  border-radius: inherit;
+}
+.link:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.media {
+  display: block;
+  aspect-ratio: 16 / 10;
+  /* Matches the card's radius on the two corners it actually touches. */
+  border-radius: 15px 15px 0 0;
+  overflow: hidden;
+  background: var(--color-surface);
+}
+
+.image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.4s ease;
+}
+.link:hover .image {
+  transform: scale(1.04);
+}
+
+.imageFallback {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    150deg,
+    color-mix(in srgb, var(--color-primary) 16%, var(--background)),
+    color-mix(in srgb, var(--color-accent) 14%, var(--background))
+  );
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 11px 13px 13px;
+  min-width: 0;
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-primary);
+}
+
+.title {
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--foreground);
+  /* Two lines and then an ellipsis: a long product name must not turn a small
+     card into a paragraph. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.price {
+  margin-top: 2px;
+  font-size: 13.5px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--foreground);
+}
+
+/* Outside the link, so closing the card can never be mistaken for opening the
+   product. Sits half over the top-right corner, clear of the artwork. */
+.close {
+  position: absolute;
+  top: -9px;
+  right: -9px;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--foreground) 12%, transparent);
+  background: var(--background);
+  color: var(--color-secondary);
+  cursor: pointer;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--foreground) 16%, transparent);
+  transition:
+    background 0.15s,
+    color 0.15s,
+    border-color 0.15s;
+}
+.close:hover {
+  background: var(--color-secondary);
+  border-color: var(--color-secondary);
+  color: #fff;
+}
+.close:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* ── Phones ──
+   A tall card would cover most of a small screen, so it becomes a low bar
+   beside the support launcher (56px at bottom 70, right 16) rather than above
+   it: at this size stacking would push the card halfway up the viewport. */
+@media (max-width: 640px) {
+  .card {
+    left: 16px;
+    /* Clears the support launcher (56px at right 16) plus the close button that
+       hangs off this card's own corner. */
+    right: 96px;
+    bottom: 70px;
+    width: auto;
+    max-width: none;
+    border-radius: 14px;
+  }
+
+  .link {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+  }
+
+  .media {
+    flex: none;
+    width: 62px;
+    aspect-ratio: 1;
+    border-radius: 13px 0 0 13px;
+  }
+
+  .body {
+    padding: 8px 10px 8px 0;
+    gap: 1px;
+  }
+
+  .title {
+    font-size: 12.5px;
+    -webkit-line-clamp: 1;
+    line-clamp: 1;
+  }
+
+  .price {
+    margin-top: 0;
+    font-size: 12.5px;
+  }
+
+  .close {
+    top: -8px;
+    right: -8px;
+    width: 24px;
+    height: 24px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card {
+    transition: opacity 0.2s ease;
+    transform: none;
+  }
+  .link:hover .image {
+    transform: none;
+  }
+}

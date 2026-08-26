@@ -7,6 +7,7 @@ import CommerceHeader from "@/components/layout/CommerceHeader";
 import CommerceFooter from "@/components/layout/CommerceFooter";
 import CookieConsentProvider from "@/components/consent/CookieConsentProvider";
 import SupportWidget from "@/components/support/SupportWidget";
+import LastSeenProductCard from "@/components/shop/LastSeenProductCard";
 import MetaPixelLoader from "@/components/tracking/MetaPixelLoader";
 import TikTokPixelLoader from "@/components/tracking/TikTokPixelLoader";
 import { getMetaPixelConfig, getTikTokPixelConfig } from "@/lib/platformSettings";
@@ -39,6 +40,7 @@ export default async function StorefrontLayout({ children, params }: { children:
           <CommerceFooter locale={locale} />
           <CartDrawer locale={locale} />
           <SupportWidget locale={locale} />
+          <LastSeenProductCard locale={locale} />
         </WishlistProvider>
       </CartProvider>
     </CookieConsentProvider>

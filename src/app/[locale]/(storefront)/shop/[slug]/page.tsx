@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import Script from "next/script";
 import ShopProductDetail, { type Product } from "./ShopProductDetail";
 import RelatedSection from "@/components/shop/RelatedSection";
+import RecordProductView from "@/components/shop/RecordProductView";
 import RelatedProductsSkeleton from "@/components/shop/RelatedProductsSkeleton";
 import type { PromotionInfo } from "@/components/shop/PromotionBadge";
 import { isValidLocale, DEFAULT_LOCALE } from "@/lib/i18n";
@@ -194,6 +195,18 @@ export default async function ProductPage({ params }: PageProps) {
           {JSON.stringify(faqJsonLd)}
         </Script>
       )}
+      {/* Remembers this product for the floating "recently viewed" card. The
+          price mirrors what the listing card prints — the default variant's,
+          falling back to the base price — so the two never disagree. */}
+      <RecordProductView
+        id={product.id}
+        slug={product.slug}
+        title={product.title}
+        imageUrl={product.featuredImageUrl}
+        priceCents={
+          product.variants?.find((v) => v.isDefault)?.priceCents ?? product.variants?.[0]?.priceCents ?? product.basePriceCents
+        }
+      />
       <ShopProductDetail key={product.id} product={product} locale={locale} reviewStats={reviewStats} activePromotion={activePromotion} initialReviews={initialReviews} />
       <Suspense fallback={<RelatedProductsSkeleton />}>
         <RelatedSection slug={product.slug} locale={locale} />

@@ -340,6 +340,8 @@ export const en = {
     homeFeaturedTitle: "Our picks",
     homeBlogTitle: "From the journal",
     homeViewAll: "View all",
+    lastSeenTitle: "Recently viewed",
+    lastSeenDismiss: "Hide",
     homePromoCta: "Shop the offer",
   },
   footer: {
@@ -804,6 +806,8 @@ export const fr: Translations = {
     homeFeaturedTitle: "Nos coups de cœur",
     homeBlogTitle: "Le journal",
     homeViewAll: "Tout voir",
+    lastSeenTitle: "Vu récemment",
+    lastSeenDismiss: "Masquer",
     homePromoCta: "Profiter de l'offre",
   },
   footer: {
@@ -1268,6 +1272,8 @@ export const es: Translations = {
     homeFeaturedTitle: "Nuestra selección",
     homeBlogTitle: "Del diario",
     homeViewAll: "Ver todo",
+    lastSeenTitle: "Visto recientemente",
+    lastSeenDismiss: "Ocultar",
     homePromoCta: "Aprovechar la oferta",
   },
   footer: {
@@ -1732,6 +1738,8 @@ export const it: Translations = {
     homeFeaturedTitle: "I nostri preferiti",
     homeBlogTitle: "Dal diario",
     homeViewAll: "Vedi tutto",
+    lastSeenTitle: "Visto di recente",
+    lastSeenDismiss: "Nascondi",
     homePromoCta: "Approfitta dell'offerta",
   },
   footer: {
@@ -2196,6 +2204,8 @@ export const de: Translations = {
     homeFeaturedTitle: "Unsere Favoriten",
     homeBlogTitle: "Aus dem Journal",
     homeViewAll: "Alle ansehen",
+    lastSeenTitle: "Zuletzt angesehen",
+    lastSeenDismiss: "Ausblenden",
     homePromoCta: "Angebot sichern",
   },
   footer: {
@@ -2660,6 +2670,8 @@ export const nl: Translations = {
     homeFeaturedTitle: "Onze favorieten",
     homeBlogTitle: "Uit het journaal",
     homeViewAll: "Bekijk alles",
+    lastSeenTitle: "Onlangs bekeken",
+    lastSeenDismiss: "Verbergen",
     homePromoCta: "Profiteer van de actie",
   },
   footer: {
@@ -3124,6 +3136,8 @@ export const pl: Translations = {
     homeFeaturedTitle: "Nasze typy",
     homeBlogTitle: "Z dziennika",
     homeViewAll: "Zobacz wszystko",
+    lastSeenTitle: "Ostatnio oglądane",
+    lastSeenDismiss: "Ukryj",
     homePromoCta: "Skorzystaj z oferty",
   },
   footer: {
