@@ -20,11 +20,17 @@ export default function CategoryTiles({
   categories,
   locale,
   t,
+  title,
+  href,
   tinted = false,
 }: {
   categories: HomeCategory[];
   locale: string;
   t: ReturnType<typeof getTranslations>;
+  /** Admin overrides; absent means this section's own built-in wording and
+   *  destination. */
+  title?: string;
+  href?: string;
   tinted?: boolean;
 }) {
   if (categories.length === 0) return null;
@@ -32,7 +38,7 @@ export default function CategoryTiles({
   return (
     <section className={`${styles.section} ${tinted ? styles.sectionTinted : ""}`}>
       <div className={styles.container}>
-        <SectionHead title={t.shop.homeCategoriesTitle} href={`/${locale}/shop`} linkLabel={t.shop.homeViewAll} />
+        <SectionHead title={title || t.shop.homeCategoriesTitle} href={href || `/${locale}/shop`} linkLabel={t.shop.homeViewAll} />
         <div className={styles.categoryGrid}>
           {categories.map((category) => (
             <Link key={category.id} href={`/${locale}/shop?category=${category.id}`} className={styles.categoryTile}>

@@ -1,0 +1,58 @@
+.group {
+  display: inline-flex;
+  align-items: stretch;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--field-border, color-mix(in srgb, var(--color-secondary) 17%, var(--background)));
+  border-radius: 9px;
+  background: var(--color-surface-tint);
+}
+
+.option {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0.36rem 0.7rem;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-secondary);
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.13s ease, color 0.13s ease, box-shadow 0.13s ease;
+}
+
+.option:hover:not(:disabled):not(.optionActive) {
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--foreground) 5%, transparent);
+}
+
+.option:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 55%, transparent);
+}
+
+/* The selected option is a raised chip on a recessed track — the same
+   affordance a physical segmented switch has, and readable without relying on
+   colour alone. */
+.optionActive {
+  background: var(--background);
+  color: var(--color-primary);
+  box-shadow:
+    0 1px 2px color-mix(in srgb, var(--foreground) 12%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--color-primary) 22%, transparent);
+}
+
+.option:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.icon {
+  display: inline-flex;
+  align-items: center;
+}

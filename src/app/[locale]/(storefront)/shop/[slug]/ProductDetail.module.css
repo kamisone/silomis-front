@@ -37,11 +37,11 @@
 }
 
 /* ── Gallery / details split-scroll ──
-   Gallery column stays sticky below the fixed header while the details
-   column scrolls independently — see Shop.module.css .sidebar for why this
-   tracks --header-offset instead of a guessed px value. Sticky positioning
-   here depends on globals.css using overflow-x: clip (not hidden) on
-   html/body — see that file's comment for why. */
+   The gallery column stays sticky below the fixed header while the details
+   column scrolls past it — on the *page's* scrollbar, not one of its own.
+   See Shop.module.css .sidebar for why this tracks --header-offset instead of
+   a guessed px value. Sticky positioning here depends on globals.css using
+   overflow-x: clip (not hidden) on html/body — see that file's comment. */
 .galleryCol {
   min-width: 0;
   position: sticky;
@@ -57,14 +57,15 @@
   flex-direction: column;
 }
 
+/* Deliberately not its own scroll container. A nested scrollbar here meant the
+   wheel did nothing until the pointer was over the right half, the page's
+   scrollbar never reflected how much was left to read, and deep-linking to
+   anything below the fold could not work. The column simply flows, and the
+   sticky gallery beside it holds its place while the page moves. */
 .details {
   display: flex;
   flex-direction: column;
-  position: sticky;
-  top: calc(var(--header-offset, 84px) + 16px);
-  max-height: calc(100vh - var(--header-offset, 84px) - 32px);
-  overflow-y: auto;
-  z-index: 1;
+  min-width: 0;
 }
 
 @media (max-width: 900px) {
@@ -76,12 +77,6 @@
     overflow: hidden;
     border-radius: 0;
     background: none;
-  }
-  .details {
-    position: relative;
-    top: auto;
-    max-height: none;
-    overflow: visible;
   }
 }
 @media (max-width: 640px) {

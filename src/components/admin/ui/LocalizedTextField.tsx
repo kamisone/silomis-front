@@ -76,6 +76,8 @@ export default function LocalizedTextField({
   rows = 2,
   translateEndpoint,
   className,
+  maxLength,
+  hideLabel = false,
 }: {
   label: string;
   hint?: string;
@@ -85,6 +87,7 @@ export default function LocalizedTextField({
   /** Fired on every keystroke, for callers driving a live preview. */
   onDraftChange?: (next: LocalizedTextMap) => void;
   multiline?: boolean;
+  /** Render the rich-text (HTML) editor instead of an input or textarea. */
   richText?: boolean;
   placeholder?: string;
   disabled?: boolean;
@@ -93,6 +96,14 @@ export default function LocalizedTextField({
    *  a SectionTranslationOutcome. Omit to hide the Generate button. */
   translateEndpoint?: string;
   className?: string;
+  /** Hard cap per locale, matching whatever the API accepts for this field.
+   *  Enforced here so an over-long entry is impossible rather than a 400. */
+  maxLength?: number;
+  /** Drop the visible label when the surrounding field already prints one.
+   *  The translation meter stays: it answers a different question from the
+   *  label, and it is the only place that answer appears. `label` is still
+   *  required — it names the control for assistive tech either way. */
+  hideLabel?: boolean;
 }) {
   const [lang, setLang] = useState<Locale>(DEFAULT_LOCALE);
   const [draft, setDraft] = useState<LocalizedTextMap>(() => toLocalizedMap(value));
@@ -149,9 +160,9 @@ export default function LocalizedTextField({
 
   return (
     <div className={`${styles.field} ${className ?? ""}`}>
-      <div className={styles.head}>
+      <div className={`${styles.head} ${hideLabel ? styles.headCompact : ""}`}>
         <span className={styles.label}>
-          {label}
+          {hideLabel ? <span className={styles.srOnly}>{label}</span> : label}
           <span className={`${styles.meter} ${filledCount === LOCALES.length ? styles.meterFull : ""}`}>
             {filledCount === LOCALES.length && <Check size={9} strokeWidth={3.5} />}
             {filledCount}/{LOCALES.length}
@@ -215,6 +226,7 @@ export default function LocalizedTextField({
           <textarea
             className={ui.textarea}
             value={current}
+            maxLength={maxLength}
             onChange={(e) => set(e.target.value)}
             placeholder={lang === DEFAULT_LOCALE ? placeholder : "Leave blank to fall back to English"}
             rows={rows}
@@ -224,6 +236,7 @@ export default function LocalizedTextField({
           <input
             className={ui.input}
             value={current}
+            maxLength={maxLength}
             onChange={(e) => set(e.target.value)}
             placeholder={lang === DEFAULT_LOCALE ? placeholder : "Leave blank to fall back to English"}
             disabled={disabled}

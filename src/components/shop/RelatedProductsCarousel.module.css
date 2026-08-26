@@ -1,11 +1,7 @@
 .section {
   max-width: 1200px;
   margin: 0 auto;
-  /* The footer's wave is absolutely positioned at `bottom: 100%` and so
-     overlaps whatever precedes it by its own height — see CommerceFooter's
-     `.wave svg`, whose clamp() is mirrored here. Without this the pagination
-     dots (and the bottom of the cards) disappear under the curve. */
-  padding: 40px 20px calc(clamp(36px, 6vw, 84px) + 20px);
+  padding: 40px 20px;
   width: 100%;
 }
 

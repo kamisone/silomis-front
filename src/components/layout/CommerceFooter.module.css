@@ -1,5 +1,32 @@
 .footer {
   position: relative;
+  margin-top: auto;
+}
+
+/* ── Wavy top edge ──
+   The curve reads as the boundary between page content and footer instead of a
+   hard horizontal line.
+
+   It is a normal block in the flow, not absolutely positioned. It used to hang
+   out of flow at `bottom: 100%`, which meant nothing in the layout knew it was
+   there and it sat on top of whatever section came last — the home page's trust
+   bar lost its second line to it, and RelatedProductsCarousel had to mirror this
+   clamp() in its own padding to escape. Occupying real height fixes that for
+   every page at once, and needs no page to know the footer exists.
+
+   The dark ground therefore lives on .footerBody rather than on <footer>: the
+   strip the wave occupies has to show the *page* behind the curve, not the
+   footer's own background. */
+.wave {
+  line-height: 0;
+  pointer-events: none;
+  /* Overlap .footerBody by a hair — flush alone lets sub-pixel rounding
+     (a viewport width not landing on a whole pixel) show a thin sliver of the
+     page background between the SVG's flat base and the block below it. */
+  margin-bottom: -1px;
+}
+
+.footerBody {
   /* Soft white glow washed into the dark base — keeps the footer grounded
      while still carrying the brand's white/pastel feel instead of reading
      as a flat, lightless block. The first glow's center is pinned a fixed
@@ -13,25 +40,6 @@
     radial-gradient(620px 320px at 90% 100%, color-mix(in srgb, white 14%, transparent) 0%, transparent 60%),
     var(--color-secondary);
   padding: 2rem 0 1.5rem;
-  margin-top: auto;
-}
-
-/* ── Wavy top edge ──
-   Sits just above the footer's flat top, overlapping the section before it,
-   so the curve reads as the boundary between page content and footer
-   instead of a hard horizontal line. */
-.wave {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 100%;
-  /* Nudge down 1px so the SVG always overlaps the footer's top edge by a
-     hair — bottom: 100% alone leaves the two flush, and sub-pixel rounding
-     (viewport width not landing on a whole pixel) can then show a thin
-     sliver of the page background between them. */
-  transform: translateY(1px);
-  line-height: 0;
-  pointer-events: none;
 }
 
 .wave svg {

@@ -323,137 +323,248 @@
 
 /* ── Settings band ── */
 
-.settings {
+/* ── Settings disclosure ── */
+
+/* The row that opens the panel. Full width and flush to the card's bottom edge
+   so it reads as the lid of the card rather than another action beside Delete. */
+.disclosure {
   display: flex;
-  align-items: flex-end;
-  flex-wrap: wrap;
-  gap: 10px;
-  padding: 12px 16px;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 9px 16px;
+  border: none;
   border-top: 1px solid var(--color-surface);
+  background: transparent;
+  color: var(--color-secondary);
+  font-family: inherit;
+  font-size: 0.76rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.13s ease, color 0.13s ease;
+}
+
+.disclosure:hover {
+  background: var(--color-surface-tint);
+  color: var(--color-primary);
+}
+
+.disclosure:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+.disclosureOpen {
+  color: var(--color-primary);
   background: var(--color-surface-tint);
 }
 
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 150px;
-}
-.fieldWide {
-  flex: 1;
-  min-width: 220px;
-}
-.fieldNarrow {
-  min-width: 90px;
-  max-width: 110px;
-}
-
-.fieldLabel {
-  font-size: 0.7rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--color-secondary);
-}
-
-.settingsNote {
+.disclosureChevron {
   margin-left: auto;
-  padding-bottom: 9px;
-  font-size: 0.72rem;
-  color: var(--color-secondary);
+  transition: transform 0.16s ease;
 }
 
-/* ── Editorial settings ── */
+.disclosureOpen .disclosureChevron {
+  transform: rotate(180deg);
+}
 
-/* The commerce sections fit three controls on one line. The editorial ones are
-   a form — seven-language copy, a picker, a couple of switches — so they stack
-   and get room to breathe instead of wrapping into an unreadable row. */
-.settingsStack {
+.settingsWrap {
+  /* Read by the shared controls (Select, Segmented, Switch) and by the native
+     inputs below. The panel is tinted, so the card-edge grey they default to
+     leaves a text field with no visible boundary at all. */
+  --field-border: color-mix(in srgb, var(--color-secondary) 17%, var(--background));
+  padding: 16px 16px 4px;
+  border-top: 1px solid var(--color-surface);
+  background: var(--color-surface-tint);
+  animation: settingsIn 0.16s ease-out;
+}
+
+.settingsWrap input:not([type="checkbox"]),
+.settingsWrap textarea {
+  border-color: var(--field-border);
+  background: var(--background);
+}
+
+@keyframes settingsIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settingsWrap {
+    animation: none;
+  }
+}
+
+.settings {
   display: flex;
   flex-direction: column;
-  align-items: stretch;
-  gap: 16px;
-  padding: 16px;
+  gap: 20px;
 }
 
-.settingsStack .settingsNote {
+/* ── Groups ── */
+
+/* Content / Appearance / Link. The band label plus its rule is the separation
+   the panel used to lack: without it every control read as equally important
+   and equally unrelated to its neighbours. */
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+}
+
+.groupTitle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   margin: 0;
-  padding: 0;
+  font-size: 0.67rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--color-primary);
 }
 
-.locField {
+.groupRule {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(
+    to right,
+    color-mix(in srgb, var(--color-primary) 30%, transparent),
+    transparent
+  );
+}
+
+/* Two columns, and fields declare how much they need. Fixed tracks rather than
+   auto-fit: a heading and a dropdown that land on the same row must share one
+   edge, which auto-fit cannot promise once the labels differ in length. */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 16px;
+  align-items: start;
+}
+
+.field {
   display: flex;
   flex-direction: column;
   gap: 6px;
   min-width: 0;
 }
 
-.locHead {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 8px;
+.fieldFull {
+  grid-column: 1 / -1;
+  min-width: 0;
 }
 
-/* Language switcher, not navigation: one field is on screen at a time and the
-   strip answers "what still needs translating?" without stacking seven inputs. */
-.locTabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 3px;
+.fieldNarrow {
+  max-width: 190px;
 }
 
-.locTab {
+.fieldLabel {
+  font-size: 0.78rem;
+  font-weight: 650;
+  line-height: 1.3;
+  color: var(--foreground);
+}
+
+.fieldHint {
+  font-size: 0.73rem;
+  line-height: 1.55;
+  color: var(--color-secondary);
+}
+
+.code {
+  padding: 0.05rem 0.3rem;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--color-primary) 9%, transparent);
+  color: var(--color-primary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.92em;
+}
+
+.settingsNote {
+  margin: 4px 0 0;
+  padding: 12px 0;
+  border-top: 1px dashed color-mix(in srgb, var(--color-secondary) 22%, transparent);
+  font-size: 0.72rem;
+  color: var(--color-secondary);
+}
+
+/* ── Stepper ── */
+
+.stepper {
   display: inline-flex;
+  align-items: stretch;
+  width: fit-content;
+  border: 1px solid var(--field-border, color-mix(in srgb, var(--color-secondary) 17%, var(--background)));
+  border-radius: 8px;
+  background: var(--background);
+  overflow: hidden;
+}
+
+.stepper:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 18%, transparent);
+}
+
+.stepperBtn {
+  display: flex;
   align-items: center;
-  gap: 3px;
-  padding: 3px 6px;
-  border: 1px solid transparent;
-  border-radius: 5px;
+  justify-content: center;
+  width: 30px;
+  border: none;
   background: transparent;
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.03em;
   color: var(--color-secondary);
   cursor: pointer;
-  /* Untranslated languages read as absent rather than as an error — a shop that
-     only sells in two of them is a normal shop, not a broken one. */
-  opacity: 0.55;
-  transition: opacity 0.12s, background 0.12s, border-color 0.12s;
+  transition: background 0.12s ease, color 0.12s ease;
 }
 
-.locTab:hover {
-  opacity: 1;
-  background: var(--color-surface);
-}
-
-.locTabFilled {
-  opacity: 1;
-}
-
-.locTabActive {
-  opacity: 1;
-  border-color: color-mix(in srgb, var(--color-primary) 45%, transparent);
+.stepperBtn:hover:not(:disabled) {
   background: color-mix(in srgb, var(--color-primary) 10%, transparent);
   color: var(--color-primary);
 }
 
-.locTabCode {
-  font-size: 0.62rem;
+.stepperBtn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
 }
 
-.locHint {
+.stepperInput {
+  width: 46px;
+  padding: 0.45rem 0;
+  border: none;
+  border-left: 1px solid var(--color-surface);
+  border-right: 1px solid var(--color-surface);
+  background: transparent;
+  color: var(--foreground);
+  font-family: inherit;
+  font-size: 0.86rem;
+  font-weight: 650;
+  text-align: center;
+  /* The native spinners duplicate the buttons either side of this field. */
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.stepperInput::-webkit-outer-spin-button,
+.stepperInput::-webkit-inner-spin-button {
+  appearance: none;
   margin: 0;
-  font-size: 0.72rem;
-  line-height: 1.5;
-  color: var(--color-secondary);
+}
+
+.stepperInput:focus {
+  outline: none;
 }
 
 .iconRow {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
+  gap: 14px;
 }
 
 .iconTile {
@@ -462,39 +573,19 @@
   height: 64px;
 }
 
-.switchRow {
-  display: flex;
-  align-items: flex-end;
-  flex-wrap: wrap;
-  gap: 16px;
-}
-
-.check {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  max-width: 52ch;
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: var(--foreground);
-  cursor: pointer;
-}
-
-.check input {
-  margin-top: 2px;
-  width: 15px;
-  height: 15px;
-  accent-color: var(--color-primary);
-  cursor: pointer;
-}
-
-.checkHint {
-  display: block;
-  margin-top: 2px;
-  font-size: 0.72rem;
-  font-weight: 400;
-  line-height: 1.5;
+.iconHint {
+  font-size: 0.73rem;
+  line-height: 1.55;
   color: var(--color-secondary);
+}
+
+@media (max-width: 720px) {
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .fieldNarrow {
+    max-width: none;
+  }
 }
 
 /* ── Add a section ── */
@@ -537,10 +628,21 @@
   margin-bottom: 12px;
 }
 .pickerTitle {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
   font-size: 0.8rem;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  color: var(--color-secondary);
+}
+
+.pickerSub {
+  font-size: 0.74rem;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
   color: var(--color-secondary);
 }
 .pickerClose {
@@ -564,7 +666,7 @@
    so choosing is recognition rather than recall. */
 .pickerGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(196px, 1fr));
   gap: 10px;
 }
 
@@ -572,7 +674,7 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 8px;
+  gap: 6px;
   padding: 10px;
   border: 1px solid var(--color-surface);
   border-radius: 11px;
@@ -599,6 +701,20 @@
   flex-wrap: wrap;
   font-size: 0.8rem;
   font-weight: 700;
+}
+
+/* Clamped rather than truncated to one line: the first two lines of each
+   description are what actually distinguish "Shop by category" from "Featured
+   collections", and a single ellipsised line cuts most of them mid-phrase. */
+.pickerDesc {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 0.73rem;
+  line-height: 1.45;
+  color: var(--color-secondary);
 }
 
 .pickerUsed {
@@ -701,5 +817,116 @@
   }
   .pickerOption:hover:not(:disabled) {
     transform: none;
+  }
+}
+
+/* ── Trust bar editor ────────────────────────────────────────────────────────
+   The one section whose config is a list of composed items rather than a set of
+   switches, so it gets a stack of cards instead of a row of fields. */
+.trustHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.trustAdd {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 30%, transparent);
+  border-radius: 999px;
+  background: var(--background);
+  color: var(--color-primary);
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.trustAdd:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+}
+.trustAdd:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* Says plainly that the row is currently the built-in one — an empty list here
+   is a working state, not an unfinished one. */
+.trustEmpty {
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px dashed color-mix(in srgb, var(--foreground) 16%, transparent);
+  border-radius: 10px;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--color-secondary);
+}
+
+.trustList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.trustItem {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--color-surface);
+  border-radius: 12px;
+  background: var(--background);
+}
+
+.trustItemHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.trustRank {
+  flex: none;
+  width: 20px;
+  text-align: center;
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: color-mix(in srgb, var(--foreground) 45%, transparent);
+  font-variant-numeric: tabular-nums;
+}
+
+.trustRemove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  margin-left: auto;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--color-secondary);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.trustRemove:hover:not(:disabled) {
+  background: color-mix(in srgb, #ef4444 12%, transparent);
+  color: #dc2626;
+}
+
+.trustFields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 720px) {
+  .trustFields {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

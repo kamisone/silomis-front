@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowDown, ArrowUp, Check, Eye, EyeOff, Images, Plus, RotateCcw, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Check, ChevronDown, Eye, EyeOff, Images, Plus, RotateCcw, Settings2, Trash2, X } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import Button from "@/components/admin/ui/Button";
 import ui from "@/components/admin/ui/admin-ui.module.css";
@@ -21,7 +21,14 @@ import {
 } from "@/components/home/sectionTypes";
 import { DEFAULT_LOCALE, LOCALES } from "@/lib/i18n";
 import SectionPreview from "./SectionPreview";
-import SectionSettings from "./SectionSettings";
+import SectionSettings, {
+  EMPTY_CATALOGUE,
+  type Catalogue,
+  type CatalogueCategory,
+  type CatalogueCollection,
+  type CatalogueProduct,
+  type CataloguePromotion,
+} from "./SectionSettings";
 import styles from "./HomeSections.module.css";
 
 interface HomeSection {
@@ -52,23 +59,82 @@ function languageSummary(...texts: Array<LocalizedText | null | undefined>): str
   return written.map((l) => l.toUpperCase()).join(", ");
 }
 
+const RAIL_SOURCE_LABEL = {
+  newest: "Newest first",
+  featured: "Featured products",
+  on_sale: "On sale",
+  manual: "Hand-picked",
+} as const;
+
+/** "3 products", "1 category" — the count is the useful part, but a bare number
+ *  beside a section name reads as ambiguous. */
+function countLabel(n: number, noun: string, plural = `${noun}s`): string {
+  return `${n} ${n === 1 ? noun : plural}`;
+}
+
 /** One-line summary of a section's settings, shown in the card header so the
- *  admin can scan the whole page without opening anything. */
-function settingsSummary(section: HomeSection): string | null {
+ *  admin can scan the whole page without opening anything.
+ *
+ * `catalogue` is only used to name a pinned promotion; every other part of the
+ * summary reads from the config alone, so the line is still correct while the
+ * catalogue is still loading.
+ */
+function settingsSummary(section: HomeSection, catalogue: Catalogue): string | null {
   const parts: string[] = [];
   const { config } = section;
+  const fields = SECTION_META[section.type].fields;
+
+  // Hand-picked lists describe themselves by their count; an automatic one
+  // describes itself by the query that fills it.
+  const picked =
+    section.type === "product_rail"
+      ? (config.source === "manual" ? config.productIds ?? [] : null)
+      : section.type === "categories"
+        ? (config.categoryIds?.length ? config.categoryIds : null)
+        : section.type === "featured_collections"
+          ? (config.collectionIds?.length ? config.collectionIds : null)
+          : null;
 
   if (section.type === "product_rail") {
-    parts.push(config.source === "featured" ? "Featured products" : "Newest first");
+    const source = config.source ?? "newest";
+    if (source === "manual") {
+      parts.push(picked?.length ? countLabel(picked.length, "product") : "Nothing picked yet");
+    } else {
+      parts.push(RAIL_SOURCE_LABEL[source]);
+    }
+  }
+
+  if (section.type === "categories") {
+    parts.push(picked ? countLabel(picked.length, "category", "categories") : "Top level, automatic");
+  }
+
+  if (section.type === "featured_collections") {
+    parts.push(picked ? countLabel(picked.length, "collection") : "Featured, automatic");
+  }
+
+  if (section.type === "promo_banner") {
+    const pinned = config.promotionId ? catalogue.promotions.find((p) => p.id === config.promotionId) : undefined;
+    // A pinned id whose promotion is gone still says "pinned" — the storefront
+    // falls back, and calling it automatic here would hide the stale setting.
+    parts.push(config.promotionId ? `Pinned: ${pinned?.name ?? "deleted promotion"}` : "Highest priority active");
+  }
+
+  if (section.type === "trust_bar") {
+    const items = config.trustItems ?? [];
+    parts.push(items.length ? countLabel(items.length, "reassurance") : "Built-in four");
+  }
+
+  if (fields.includes("title")) {
     const title = localized(config.title, DEFAULT_LOCALE);
-    if (title) parts.push(`“${title}”`);
+    if (title) parts.push(`\u201c${title}\u201d`);
     const langs = languageSummary(config.title);
     if (langs) parts.push(langs);
   }
 
   if (section.type === "section_heading") {
     const title = localized(config.heading, DEFAULT_LOCALE);
-    parts.push(title ? `“${title}”` : "No title yet");
+    parts.push(title ? `\u201c${title}\u201d` : "No title yet");
+    if (config.iconImageUrl) parts.push("with icon");
     if (config.align === "center") parts.push("centred");
     if (config.tinted) parts.push("tinted");
     const langs = languageSummary(config.eyebrow, config.heading, config.subtitle);
@@ -83,7 +149,7 @@ function settingsSummary(section: HomeSection): string | null {
 
   if (section.type === "seo_text") {
     const title = localized(config.heading, DEFAULT_LOCALE);
-    if (title) parts.push(`“${title}”`);
+    if (title) parts.push(`\u201c${title}\u201d`);
     if (isEmptyText(config.body)) parts.push("Nothing written yet");
     else {
       const langs = languageSummary(config.heading, config.body);
@@ -91,9 +157,14 @@ function settingsSummary(section: HomeSection): string | null {
     }
   }
 
+  // The cap is only real for an automatic list — a hand-picked one renders
+  // exactly what was chosen, so printing a limit beside it would be a lie.
   const limit = config.limit ?? SECTION_DEFAULT_LIMIT[section.type];
-  if (limit && SECTION_META[section.type].fields.includes("limit")) parts.push(`${limit} items`);
-  return parts.length ? parts.join(" · ") : null;
+  if (limit && fields.includes("limit") && !picked) parts.push(`${limit} items`);
+
+  if (config.viewAllHref) parts.push(`\u2192 ${config.viewAllHref}`);
+
+  return parts.length ? parts.join(" \u00b7 ") : null;
 }
 
 export default function HomeSectionsPage() {
@@ -102,6 +173,23 @@ export default function HomeSectionsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [picking, setPicking] = useState(false);
+  // Everything the section pickers choose from, loaded once for the whole page
+  // rather than per card — a page of eight rails would otherwise fetch the
+  // catalogue eight times.
+  const [catalogue, setCatalogue] = useState<Catalogue>(EMPTY_CATALOGUE);
+  // Settings are collapsed by default. This screen's primary job is arranging
+  // the page — eight sections' worth of open forms buries that under a wall of
+  // controls, and the header summary already answers "how is this one set up?".
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+
+  function toggleExpanded(id: string) {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   // No synchronous setState: `loading` starts true and the first write lands
   // after the await. Re-fetches from error paths are covered by `saving`.
@@ -113,8 +201,32 @@ export default function HomeSectionsPage() {
     }
   }
 
+  /** Best-effort: a picker that cannot load its options still lets the section
+   *  run on its automatic source, so this never blocks the page. */
+  async function loadCatalogue() {
+    const [products, categories, collections, promotions] = await Promise.all([
+      api.get<{ items: CatalogueProduct[] }>("/next-api/admin/shop/products?limit=200").catch(() => null),
+      api.get<CatalogueCategory[]>("/next-api/admin/shop/categories").catch(() => null),
+      api.get<{ items: CatalogueCollection[] }>("/next-api/admin/shop/collections?limit=200").catch(() => null),
+      api.get<{ items: CataloguePromotion[] }>("/next-api/admin/shop/promotions?limit=200").catch(() => null),
+    ]);
+    setCatalogue({
+      products: products?.items ?? [],
+      categories: categories ?? [],
+      collections: collections?.items ?? [],
+      promotions: promotions?.items ?? [],
+    });
+  }
+
   useEffect(() => {
-    load();
+    // Deferred a tick rather than run in the effect body — same shape the rest
+    // of the admin uses, and what keeps these fetches' setState out of the
+    // render that scheduled them.
+    const t = setTimeout(() => {
+      load();
+      loadCatalogue();
+    }, 0);
+    return () => clearTimeout(t);
   }, []);
 
   /** True while the table is empty: the storefront is rendering its built-in
@@ -250,7 +362,9 @@ export default function HomeSectionsPage() {
             {sections.map((section, index) => {
               const meta = SECTION_META[section.type];
               if (!meta) return null;
-              const summary = settingsSummary(section);
+              const summary = settingsSummary(section, catalogue);
+              const configurable = meta.fields.length > 0;
+              const isOpen = expanded.has(section.id);
               return (
                 <li key={section.id} className={`${styles.card} ${section.isActive ? "" : styles.cardOff}`}>
                   {/* Position rail: the number is the page order, the arrows move it. */}
@@ -326,13 +440,38 @@ export default function HomeSectionsPage() {
                       </div>
                     </div>
 
-                    <SectionSettings
-                      type={section.type}
-                      config={section.config}
-                      saving={saving}
-                      onChange={(patch) => patchSection(section.id, { config: { ...section.config, ...patch } })}
-                    />
+                    {/* The hero has no inline settings — its content is a list of
+                        slides on its own screen — so it gets no disclosure. */}
+                    {configurable && (
+                      <>
+                        <button
+                          type="button"
+                          className={`${styles.disclosure} ${isOpen ? styles.disclosureOpen : ""}`}
+                          onClick={() => toggleExpanded(section.id)}
+                          aria-expanded={isOpen}
+                          aria-controls={`settings-${section.id}`}
+                        >
+                          <Settings2 size={13} strokeWidth={2.2} />
+                          <span>{isOpen ? "Hide settings" : "Settings"}</span>
+                          <ChevronDown size={14} strokeWidth={2.4} className={styles.disclosureChevron} />
+                        </button>
 
+                        {isOpen && (
+                          <div id={`settings-${section.id}`} className={styles.settingsWrap}>
+                            <SectionSettings
+                              type={section.type}
+                              config={section.config}
+                              catalogue={catalogue}
+                              saving={saving}
+                              onChange={(patch) =>
+                                patchSection(section.id, { config: { ...section.config, ...patch } })
+                              }
+                            />
+                            <p className={styles.settingsNote}>Changes save as you leave each field.</p>
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
                 </li>
               );
@@ -344,7 +483,10 @@ export default function HomeSectionsPage() {
           {picking ? (
             <div className={styles.picker}>
               <div className={styles.pickerHead}>
-                <span className={styles.pickerTitle}>Add a section</span>
+                <span className={styles.pickerTitle}>
+                  Add a section
+                  <span className={styles.pickerSub}>It lands at the bottom — move it up from there.</span>
+                </span>
                 <button type="button" className={styles.pickerClose} onClick={() => setPicking(false)} aria-label="Cancel">
                   <X size={15} strokeWidth={2.25} />
                 </button>
@@ -372,6 +514,7 @@ export default function HomeSectionsPage() {
                           </span>
                         )}
                       </span>
+                      <span className={styles.pickerDesc}>{SECTION_META[type].description}</span>
                     </button>
                   );
                 })}

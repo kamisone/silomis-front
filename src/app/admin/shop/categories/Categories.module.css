@@ -35,3 +35,42 @@
   color: var(--color-secondary);
   margin-top: 0.25rem;
 }
+
+/* ── Image ── */
+
+.imageField {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+/* Doubled class on purpose: MediaPicker's own .addTile / .filledTile set
+   `width: 100%; aspect-ratio: 1`, and a single class here would only win by
+   whichever module the bundler happened to emit last. Portrait matches the
+   storefront tile, so the crop an admin sees is the crop the home page applies. */
+.imageTile.imageTile {
+  flex-shrink: 0;
+  width: 96px;
+  height: 128px;
+  aspect-ratio: auto;
+}
+
+.thumbHead {
+  width: 56px;
+}
+
+.thumb {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 44px;
+  border-radius: 6px;
+  object-fit: cover;
+  background: var(--color-surface-tint);
+}
+
+.thumbEmpty {
+  border: 1px dashed color-mix(in srgb, var(--color-secondary) 30%, transparent);
+  color: color-mix(in srgb, var(--color-secondary) 55%, transparent);
+}

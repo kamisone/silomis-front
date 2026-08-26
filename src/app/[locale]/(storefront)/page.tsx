@@ -50,12 +50,44 @@ async function fetchJson<T>(path: string, fallback: T): Promise<T> {
   }
 }
 
-async function fetchProducts(locale: string, source: ProductRailSource, limit: number): Promise<ProductListItem[]> {
-  const qs = new URLSearchParams({ limit: String(limit), lang: locale });
+async function fetchProducts(section: HomeSectionSpec, locale: string): Promise<ProductListItem[]> {
+  const source: ProductRailSource = section.config.source ?? "newest";
+  const ids = section.config.productIds ?? [];
+
+  // Hand-picked means exactly these, in exactly this order — so the limit is
+  // ignored and the API's own ordering is re-applied here.
+  if (source === "manual") {
+    if (ids.length === 0) return [];
+    const qs = new URLSearchParams({ ids: ids.join(","), limit: String(ids.length), lang: locale });
+    const data = await fetchJson<{ items?: ProductListItem[] }>(`/shop/products?${qs}`, {});
+    const items = Array.isArray(data.items) ? data.items : [];
+    const rank = new Map(ids.map((id, i) => [id, i]));
+    return items.sort((a, b) => (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0));
+  }
+
+  const qs = new URLSearchParams({ limit: String(sectionLimit(section)), lang: locale });
   if (source === "featured") qs.set("featured", "true");
+  else if (source === "on_sale") qs.set("onSale", "true");
   else qs.set("sort", "newest");
   const data = await fetchJson<{ items?: ProductListItem[] }>(`/shop/products?${qs}`, {});
   return Array.isArray(data.items) ? data.items : [];
+}
+
+/** Keeps only the chosen ids, in the admin's order. An id whose entity has
+ *  since been deleted simply drops out. */
+function pickOrdered<T extends { id: string }>(items: T[], ids: string[] | undefined): T[] | null {
+  if (!ids?.length) return null;
+  const byId = new Map(items.map((i) => [i.id, i]));
+  return ids.map((id) => byId.get(id)).filter((i): i is T => !!i);
+}
+
+/** A locale-less storefront path from the admin ("/sale") becomes a real one.
+ *  Absolute URLs pass through; blank means "use the section's default". */
+function resolveConfigHref(href: string | null | undefined, locale: string): string | undefined {
+  const value = href?.trim();
+  if (!value) return undefined;
+  if (/^https?:\/\//.test(value)) return value;
+  return `/${locale}${value.startsWith("/") ? value : `/${value}`}`;
 }
 
 /**
@@ -87,8 +119,9 @@ async function fetchHeroSlides(locale: Locale, t: ReturnType<typeof getTranslati
       imageUrl: null,
       imageAlt: null,
       eyebrow: t.shop.homeHeroEyebrow,
-      title: t.shop.homeTitle,
-      subtitle: t.shop.homeSubtitle,
+      // The same shape the editor produces, so a fresh install's hero and an
+      // authored one render through one code path.
+      content: `<h2>${t.shop.homeTitle}</h2><p>${t.shop.homeSubtitle}</p>`,
       ctaLabel: t.shop.homeCta,
       ctaHref: "/shop",
       ctaSecondaryLabel: t.shop.homeCtaSecondary,
@@ -122,10 +155,18 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   // Only fetch what the configured layout actually renders — switching a section
   // off in admin removes its query too, rather than paying for data nobody sees.
   const railSections = layout.filter((s) => s.type === "product_rail");
-  const [heroSlides, categories, collections, promotions, posts, railProducts] = await Promise.all([
+  // The two collection lists are fetched separately rather than filtering one
+  // down to the other: the public DTO carries no `isFeatured`, so the full list
+  // cannot be narrowed back to the featured set client-side. A page that mixes a
+  // hand-picked section with an automatic one genuinely needs both.
+  const collectionSections = layout.filter((s) => s.type === "featured_collections");
+  const needsFeaturedCollections = collectionSections.some((s) => !s.config.collectionIds?.length);
+  const needsAllCollections = collectionSections.some((s) => (s.config.collectionIds?.length ?? 0) > 0);
+  const [heroSlides, categories, featuredCollections, allCollections, promotions, posts, railProducts] = await Promise.all([
     present("hero") ? fetchHeroSlides(locale, t) : [],
     present("categories") ? fetchJson<HomeCategory[]>("/shop/categories", []) : [],
-    present("featured_collections") ? fetchJson<HomeCollection[]>(`/shop/collections/featured?lang=${locale}`, []) : [],
+    needsFeaturedCollections ? fetchJson<HomeCollection[]>(`/shop/collections/featured?lang=${locale}`, []) : [],
+    needsAllCollections ? fetchJson<HomeCollection[]>(`/shop/collections?lang=${locale}`, []) : [],
     // The banner needs the promotion list, but so do the rails' per-product
     // badges — fetch it if either kind of section is on the page.
     present("promo_banner") || railSections.length > 0
@@ -134,7 +175,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
     present("blog_posts")
       ? fetchJson<{ items?: HomePost[] }>(`/blog/posts?limit=12&lang=${locale}`, {}).then((d) => d.items ?? [])
       : [],
-    Promise.all(railSections.map((s) => fetchProducts(locale, s.config.source ?? "newest", sectionLimit(s)))),
+    Promise.all(railSections.map((s) => fetchProducts(s, locale))),
   ]);
 
   const productsByRailId = new Map(railSections.map((s, i) => [s.id, railProducts[i] ?? []]));
@@ -152,17 +193,24 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             return <HomeHero key={section.id} slides={heroSlides} locale={locale} />;
 
           case "trust_bar":
-            return <TrustBar key={section.id} t={t} />;
+            return <TrustBar key={section.id} t={t} locale={locale} items={section.config.trustItems} />;
 
           case "categories":
             return (
               <CategoryTiles
                 key={section.id}
-                // Top-level only — subcategory drill-down already lives in the
-                // header nav, and a flat list of every leaf reads as clutter.
-                categories={categories.filter((c) => !c.parentId).slice(0, sectionLimit(section))}
+                categories={
+                  // Hand-picked wins, in the admin's order and with no cap.
+                  // Otherwise top-level only — subcategory drill-down already
+                  // lives in the header nav, and a flat list of every leaf
+                  // reads as clutter.
+                  pickOrdered(categories, section.config.categoryIds) ??
+                  categories.filter((c) => !c.parentId).slice(0, sectionLimit(section))
+                }
                 locale={locale}
                 t={t}
+                title={localized(section.config.title, locale) || undefined}
+                href={resolveConfigHref(section.config.viewAllHref, locale)}
                 tinted={tintIndex++ % 2 === 1}
               />
             );
@@ -171,21 +219,38 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             return (
               <FeaturedCollections
                 key={section.id}
-                collections={collections.slice(0, sectionLimit(section))}
+                collections={
+                  // Hand-picked resolves against the full list, since a chosen
+                  // collection need not be flagged featured; automatic takes the
+                  // featured list, which is already in the admin's sortOrder.
+                  pickOrdered(allCollections, section.config.collectionIds) ??
+                  featuredCollections.slice(0, sectionLimit(section))
+                }
                 locale={locale}
                 t={t}
+                title={localized(section.config.title, locale) || undefined}
+                href={resolveConfigHref(section.config.viewAllHref, locale)}
                 tinted={tintIndex++ % 2 === 1}
               />
             );
 
           case "product_rail": {
             const source = section.config.source ?? "newest";
+            const defaultHref =
+              source === "on_sale"
+                ? `/${locale}/sale`
+                : source === "newest"
+                  ? `/${locale}/shop?sort=newest`
+                  : `/${locale}/shop`;
             return (
               <ProductRail
                 key={section.id}
-                title={localized(section.config.title, locale) || (source === "featured" ? t.shop.homeFeaturedTitle : t.shop.homeNewArrivalsTitle)}
+                title={
+                  localized(section.config.title, locale) ||
+                  (source === "featured" ? t.shop.homeFeaturedTitle : t.shop.homeNewArrivalsTitle)
+                }
                 products={productsByRailId.get(section.id) ?? []}
-                href={source === "featured" ? `/${locale}/shop` : `/${locale}/shop?sort=newest`}
+                href={resolveConfigHref(section.config.viewAllHref, locale) ?? defaultHref}
                 locale={locale}
                 t={t}
                 promotionFor={promotionFor}
@@ -194,8 +259,15 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             );
           }
 
-          case "promo_banner":
-            return <PromoBanner key={section.id} promotion={promotions[0] ?? null} locale={locale} t={t} />;
+          case "promo_banner": {
+            // A pinned promotion that has expired is no longer in this list, so
+            // the fallback keeps the band showing something rather than
+            // vanishing the section the admin placed.
+            const pinned = section.config.promotionId
+              ? promotions.find((p) => p.id === section.config.promotionId)
+              : undefined;
+            return <PromoBanner key={section.id} promotion={pinned ?? promotions[0] ?? null} locale={locale} t={t} />;
+          }
 
           // The editorial blocks render nothing but the admin's own copy, so
           // they need no data and no fetch above.
@@ -222,6 +294,8 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
                 posts={posts.slice(0, sectionLimit(section))}
                 locale={locale}
                 t={t}
+                title={localized(section.config.title, locale) || undefined}
+                href={resolveConfigHref(section.config.viewAllHref, locale)}
                 tinted={tintIndex++ % 2 === 1}
               />
             );

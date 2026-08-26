@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
+import { ImageOff } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import Button from "@/components/admin/ui/Button";
 import Modal from "@/components/admin/ui/Modal";
 import BilingualField from "@/components/admin/BilingualField";
+import MediaPicker from "@/components/admin/ui/MediaPicker";
 import { useEntityTranslations } from "@/hooks/useEntityTranslations";
 import ui from "@/components/admin/ui/admin-ui.module.css";
 import styles from "./Categories.module.css";
@@ -19,6 +21,9 @@ interface Category {
   slug: string;
   description: string | null;
   imageKey: string | null;
+  /** Resolved by the API — `imageKey` alone is a storage key the browser
+   *  cannot render. */
+  imageUrl: string | null;
   parentId: string | null;
   sortOrder: number;
   isActive: boolean;
@@ -33,12 +38,26 @@ interface FormState {
   name: string;
   slug: string;
   description: string;
+  /** What gets saved. */
+  imageKey: string | null;
+  /** What gets shown while editing — never sent. */
+  imageUrl: string | null;
   parentId: string;
   sortOrder: number;
   isActive: boolean;
 }
 
-const EMPTY_FORM: FormState = { id: null, name: "", slug: "", description: "", parentId: "", sortOrder: 0, isActive: true };
+const EMPTY_FORM: FormState = {
+  id: null,
+  name: "",
+  slug: "",
+  description: "",
+  imageKey: null,
+  imageUrl: null,
+  parentId: "",
+  sortOrder: 0,
+  isActive: true,
+};
 const FORM_ID = "category-form";
 
 /** Depth-first flattening of the category list into parent/child rows for indented table display.
@@ -97,6 +116,9 @@ export default function CategoriesPage() {
       name: form.name,
       slug: form.slug || undefined,
       description: form.description || null,
+      // Explicitly null rather than omitted: clearing the image has to reach the
+      // API as "unset this", and an absent key would leave the old one in place.
+      imageKey: form.imageKey,
       parentId: form.parentId || null,
       sortOrder: form.sortOrder,
       isActive: form.isActive,
@@ -149,6 +171,7 @@ export default function CategoriesPage() {
           <table className={ui.table}>
             <thead>
               <tr>
+                <th className={styles.thumbHead}>Image</th>
                 <th>Name</th>
                 <th>Slug</th>
                 <th>Sort order</th>
@@ -159,6 +182,16 @@ export default function CategoriesPage() {
             <tbody>
               {treeRows.map((c) => (
                 <tr key={c.id}>
+                  <td>
+                    {c.imageUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={c.imageUrl} alt="" className={styles.thumb} />
+                    ) : (
+                      <span className={`${styles.thumb} ${styles.thumbEmpty}`} title="No image — the home page tile falls back to a plain panel">
+                        <ImageOff size={14} strokeWidth={2} />
+                      </span>
+                    )}
+                  </td>
                   <td>
                     <div className={styles.depthIndent} style={{ paddingLeft: c.depth * 20 }}>
                       {c.depth > 0 && <span className={styles.depthLine} />}
@@ -180,6 +213,8 @@ export default function CategoriesPage() {
                             name: c.name,
                             slug: c.slug,
                             description: c.description ?? "",
+                            imageKey: c.imageKey,
+                            imageUrl: c.imageUrl,
                             parentId: c.parentId ?? "",
                             sortOrder: c.sortOrder,
                             isActive: c.isActive,
@@ -239,6 +274,25 @@ export default function CategoriesPage() {
               multiline
               rows={3}
             />
+            <div className={ui.field}>
+              <label className={ui.label}>Image</label>
+              <div className={styles.imageField}>
+                <MediaPicker
+                  value={form.imageKey}
+                  previewUrl={form.imageUrl}
+                  mediaType="image"
+                  label="category image"
+                  asAddTile
+                  className={styles.imageTile}
+                  onChange={(imageKey, imageUrl) => setForm({ ...form, imageKey, imageUrl })}
+                />
+                <span className={styles.hint}>
+                  Shown as the tile for this category in the home page&rsquo;s &ldquo;Shop by category&rdquo; section.
+                  Tiles are tall and cropped to fill, so a portrait image works best. Without one the tile falls back to
+                  a plain coloured panel.
+                </span>
+              </div>
+            </div>
             <div className={ui.field}>
               <label className={ui.label}>Parent category</label>
               <select className={ui.select} value={form.parentId} onChange={(e) => setForm({ ...form, parentId: e.target.value })}>

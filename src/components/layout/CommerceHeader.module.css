@@ -52,11 +52,14 @@
   object-fit: contain;
 }
 
+/* Fills whatever the logo, quick links and icon cluster leave rather than
+   sitting in a fixed 480px well with dead space either side. .inner's own
+   1280px cap is what actually bounds it, so it can't run away on a wide
+   monitor; the min-width keeps it usable when the row gets tight. */
 .searchDesktop {
   order: 1;
   flex: 1;
-  max-width: 480px;
-  margin: 0 auto;
+  min-width: 240px;
 }
 
 .searchMobile {

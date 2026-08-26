@@ -1,0 +1,193 @@
+/* Custom listbox. The trigger deliberately matches .input / .select metrics in
+   admin-ui.module.css so a Select and a text field sitting side by side line up
+   on the same baseline and share one border language. */
+
+.trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 36px;
+  padding: 0.5rem 0.6rem 0.5rem 0.7rem;
+  border: 1px solid var(--field-border, color-mix(in srgb, var(--color-secondary) 17%, var(--background)));
+  border-radius: 8px;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: inherit;
+  font-size: 0.86rem;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.13s ease, box-shadow 0.13s ease, background 0.13s ease;
+}
+
+.trigger:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--color-primary) 45%, var(--color-surface));
+}
+
+.trigger:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 18%, transparent);
+}
+
+/* Open reads as "this is the thing the menu belongs to" — without it, a menu
+   floating near two adjacent fields is ambiguous about which it came from. */
+.triggerOpen {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 18%, transparent);
+}
+
+.trigger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: var(--color-surface-tint);
+}
+
+.triggerText {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.triggerPlaceholder {
+  color: color-mix(in srgb, var(--color-secondary) 65%, transparent);
+  font-weight: 400;
+}
+
+.chevron {
+  flex-shrink: 0;
+  color: var(--color-secondary);
+  transition: transform 0.15s ease;
+}
+
+.triggerOpen .chevron {
+  transform: rotate(180deg);
+  color: var(--color-primary);
+}
+
+/* ── Menu ── */
+
+.menu {
+  position: fixed;
+  z-index: 120;
+  /* The inline width tracks the trigger; these clamp it. A full-width trigger
+     would otherwise open a menu the width of the panel for four short labels,
+     and a narrow one would crush the descriptions into a column. Stylesheet
+     min/max still bound an inline width. */
+  min-width: 240px;
+  max-width: 460px;
+  margin: 0;
+  padding: 5px;
+  list-style: none;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 22%, var(--color-surface));
+  border-radius: 11px;
+  background: var(--background);
+  box-shadow:
+    0 1px 2px color-mix(in srgb, var(--foreground) 6%, transparent),
+    0 12px 32px -6px color-mix(in srgb, var(--foreground) 22%, transparent);
+  animation: menuIn 0.12s ease-out;
+}
+
+/* Anchored by its bottom edge when flipped, so `top` is the trigger's top. */
+.menuAbove {
+  transform: translateY(-100%);
+  animation-name: menuInAbove;
+}
+
+@keyframes menuIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes menuInAbove {
+  from {
+    opacity: 0;
+    transform: translateY(calc(-100% + 4px));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menu,
+  .menuAbove {
+    animation: none;
+  }
+}
+
+.option {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 7px 9px;
+  border-radius: 7px;
+  cursor: pointer;
+  scroll-margin: 5px;
+}
+
+/* One highlight for both pointer and keyboard — they're kept in sync in JS, so
+   a second hover style would only ever contradict this one. */
+.optionActive {
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+}
+
+.optionDisabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.optionCheck {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 18px;
+  color: var(--color-primary);
+}
+
+.optionBody {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.optionLabel {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--foreground);
+}
+
+.optionSelected .optionLabel {
+  font-weight: 650;
+  color: var(--color-primary);
+}
+
+.optionIcon {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--color-secondary);
+}
+
+.optionSelected .optionIcon {
+  color: var(--color-primary);
+}
+
+.optionDesc {
+  font-size: 0.74rem;
+  line-height: 1.45;
+  color: var(--color-secondary);
+}

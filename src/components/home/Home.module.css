@@ -95,6 +95,11 @@
    handled here by the row itself rather than by avoiding the movement. */
 .heroViewport {
   overflow: hidden;
+  /* Vertical stays the browser's — the page must still scroll under a finger —
+     while horizontal panning is ours to handle. This is also what makes the
+     browser hand the gesture back via pointercancel the moment it decides the
+     drag was really a scroll. */
+  touch-action: pan-y;
 }
 .heroTrack {
   display: flex;
@@ -201,14 +206,92 @@
   backdrop-filter: blur(10px);
 }
 
-/* Below this the card is the whole width anyway, so pinning it right is
-   meaningless — centre it and let it read as a panel under the image. */
+/* ── Hero: stacked on small screens ──────────────────────────────────────────
+   On a phone the card-over-photo composition stops working: at full width the
+   panel covers the picture it is supposed to sit on, so the visitor pays for a
+   banner they never see. Below this breakpoint the slide becomes a column
+   instead — banner on top, copy in a full-bleed panel tucked under it — and
+   because both still live inside the same .heroSlide, the pair slides across
+   together as one unit. */
 @media (max-width: 720px) {
-  .heroInner {
-    justify-content: center;
+  .hero {
+    --hero-banner-h: clamp(200px, 56vw, 320px);
   }
+
+  .heroSlide {
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    /* Height now comes from the banner plus the copy. The flex row still
+       stretches every slide to the tallest, so the hero keeps one height
+       across the rotation. */
+    min-height: 0;
+  }
+
+  /* Out of the absolute layer and into the column: this is a real block now,
+     the first one in the slide. */
+  .heroImage {
+    position: static;
+    flex: none;
+    height: var(--hero-banner-h);
+  }
+
+  /* Nothing sits on the photo any more, so there is nothing left to darken —
+     and the banner reads better at full brightness. */
+  .heroScrim {
+    display: none;
+  }
+
+  .heroInner {
+    flex: 1;
+    justify-content: stretch;
+    /* Full-bleed: the panel's own padding is the breathing room now, so the
+       page gutter here would only narrow the copy for no reason. */
+    padding-inline: 0;
+    padding-block: 0;
+  }
+
   .heroCard {
+    flex: 1;
     width: 100%;
+    /* Every slide stretches to the tallest, so a slide with no subtitle used to
+       leave its copy pinned to the top over a void. Centred, a short slide
+       reads as composed rather than unfinished. */
+    justify-content: center;
+    padding: clamp(22px, 6vw, 28px) clamp(20px, 5vw, 28px) clamp(26px, 7vw, 34px);
+    border: none;
+    border-radius: 0;
+    background: var(--background);
+    backdrop-filter: none;
+  }
+
+  /* Square and flush against the banner. The overlap that used to sit here went
+     with the rounded corners — it existed only to carry them over the photo,
+     and with a straight edge it is indistinguishable from a shorter banner. A
+     soft shadow still lifts the panel off the picture. */
+  .heroSlideImage .heroCard {
+    box-shadow: 0 -8px 22px rgba(0, 0, 0, 0.10);
+  }
+
+  /* A text-only slide has no banner to sit under, so the panel stops pretending
+     to be one and lets the gradient show through. */
+  .heroSlideGradient .heroCard {
+    background: transparent;
+    box-shadow: none;
+  }
+
+}
+
+/* Two buttons of different lengths wrap raggedly in a narrow panel. Stacked
+   full-width they read as a clear primary/secondary pair and are far easier to
+   hit with a thumb. */
+@media (max-width: 480px) {
+  .heroActions {
+    gap: 10px;
+  }
+  .heroCta,
+  .heroCtaSecondary {
+    flex: 1 1 100%;
   }
 }
 
@@ -226,12 +309,36 @@
   letter-spacing: 0.02em;
 }
 
-.heroTitle {
+/* The card's copy is one HTML block from the admin's editor, so the rhythm is
+   set here by element rather than by a class per field. The stack gap the card
+   already has does the spacing; the elements only carry their own type. */
+.heroCopy {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  min-width: 0;
+  /* The editor can set a size inline ("Huge" is 1.6em) and an inline style wins
+     over anything here — so rather than fight it, guarantee the thing that
+     actually matters: a long word can never push out of the card. */
+  overflow-wrap: break-word;
+}
+
+/* The visible slide's first heading is raised to h1 in HomeHero; every other
+   slide keeps its h2. Both are the same headline, so they are styled together
+   rather than left to diverge. */
+/* Sizes here are flat, not fluid: above the stacking breakpoint the card is a
+   fixed 460px at every viewport width, so scaling the type against the viewport
+   was measuring the wrong thing — it left the whole 320–720px range pinned to
+   the clamp's floor. The mobile block below is where the copy actually scales,
+   because that is where the card's width really does track the screen. */
+.heroCopy :global(h1),
+.heroCopy :global(h2) {
   margin: 0;
   /* Stepped down from the old full-bleed size: 52px inside a 460px card wraps a
      three-word headline onto three lines. The card sets the measure, so the ch
      cap that used to do it is gone. */
-  font-size: clamp(28px, 3.6vw, 42px);
+  font-size: 42px;
   font-weight: 800;
   line-height: 1.1;
   letter-spacing: -0.03em;
@@ -239,12 +346,123 @@
   max-width: 100%;
 }
 
-.heroSubtitle {
+.heroCopy :global(h3) {
   margin: 0;
-  font-size: clamp(15px, 2vw, 17px);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--color-primary);
+}
+
+.heroCopy :global(h4) {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--color-primary);
+}
+
+.heroCopy :global(h5),
+.heroCopy :global(h6) {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.35;
+  color: color-mix(in srgb, var(--color-primary) 85%, var(--foreground));
+}
+
+.heroCopy :global(p) {
+  margin: 0;
+  font-size: 17px;
   line-height: 1.55;
   color: color-mix(in srgb, var(--foreground) 72%, var(--background));
   max-width: 100%;
+}
+
+.heroCopy :global(ul),
+.heroCopy :global(ol) {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 17px;
+  line-height: 1.55;
+  color: color-mix(in srgb, var(--foreground) 72%, var(--background));
+}
+
+.heroCopy :global(li) {
+  margin: 0 0 4px;
+}
+
+/* A headline is already 800; bold inside one has to go further to read as
+   emphasis at all. */
+.heroCopy :global(h1) :global(strong),
+.heroCopy :global(h2) :global(strong) {
+  font-weight: 900;
+}
+
+.heroCopy :global(a) {
+  color: var(--color-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* Below the stacking breakpoint the card is full-bleed, so its width tracks the
+   viewport from a 320px phone to a 720px tablet — more than double. One flat
+   size across that range gave a small screen desktop-sized headlines and a
+   large one copy far smaller than it could carry; these scale with the card
+   instead. Relative sizes set in the editor ride on top and stay proportional.
+
+   Declared here rather than in the layout block above, or the base rules would
+   win on equal specificity simply by coming later in the file. */
+@media (max-width: 720px) {
+  .heroCopy {
+    /* The multiplier behind every size the editor set by hand. A font-size of
+       64 is stored as `calc(64 * var(--rt-unit, 1px))`, so shrinking the unit
+       here scales all of them together — 1px at 720px down to 0.55px at 320px,
+       which turns that 64 into 35. Nothing else in the app defines the
+       variable, so those sizes stay exactly as typed everywhere else. */
+    --rt-unit: clamp(0.55px, 0.1125vw + 0.19px, 1px);
+  }
+  .heroCopy :global(h1),
+  .heroCopy :global(h2) {
+    font-size: clamp(22px, 6.6vw, 40px);
+  }
+  .heroCopy :global(h3) {
+    font-size: clamp(15px, 3.6vw, 20px);
+  }
+  .heroCopy :global(h4) {
+    font-size: clamp(14px, 3.1vw, 18px);
+  }
+  .heroCopy :global(h5),
+  .heroCopy :global(h6),
+  .heroCopy :global(p),
+  .heroCopy :global(ul),
+  .heroCopy :global(ol),
+  .heroCopy :global(blockquote) {
+    font-size: clamp(14px, 3.9vw, 17px);
+  }
+}
+
+/* The rest of what the editor's toolbar can produce. Alignment and text size
+   arrive as inline styles on the element itself, so they need nothing here. */
+.heroCopy :global(u) {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.heroCopy :global(blockquote) {
+  margin: 0;
+  padding-left: 14px;
+  border-left: 3px solid color-mix(in srgb, var(--color-accent) 55%, transparent);
+  font-size: 17px;
+  line-height: 1.55;
+  color: color-mix(in srgb, var(--foreground) 80%, var(--background));
+}
+
+.heroCopy :global(hr) {
+  width: 100%;
+  margin: 0;
+  border: none;
+  border-top: 1px solid color-mix(in srgb, var(--foreground) 16%, transparent);
 }
 
 /* No white-on-photo treatment any more. The copy sits on a light card on both
@@ -331,41 +549,12 @@
 }
 /* Same breakpoint at which the copy card goes full-width: from here down the
    arrows would sit on top of the headline, and there is no inset left to move
-   them into. The dots below stay, so the carousel is still navigable — and on a
-   touch screen they are the better target anyway. */
+   them into. Swipe takes over — it reaches the whole banner rather than one
+   corner of it. */
 @media (max-width: 720px) {
   .heroArrow {
     display: none;
   }
-}
-
-.heroDots {
-  position: absolute;
-  z-index: 2;
-  left: 50%;
-  bottom: 16px;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 7px;
-}
-.heroDot {
-  width: 8px;
-  height: 8px;
-  padding: 0;
-  border: none;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--foreground) 28%, transparent);
-  cursor: pointer;
-  transition: width 0.2s, background 0.2s;
-}
-.heroDot:hover {
-  background: color-mix(in srgb, var(--color-primary) 60%, transparent);
-}
-/* The active dot stretches instead of just changing colour — position stays
-   readable at a glance even against a busy photo. */
-.heroDotActive {
-  width: 22px;
-  background: var(--color-primary);
 }
 
 /* ── Trust bar ── */
@@ -375,9 +564,11 @@
   background: var(--background);
 }
 
+/* Four is the built-in row, but an admin can author three or six — auto-fit
+   keeps them evenly spread instead of leaving a hole where the fourth was. */
 .trustGrid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 4px;
   padding-block: 18px;
 }

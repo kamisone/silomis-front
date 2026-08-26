@@ -21,11 +21,17 @@ export default function FeaturedCollections({
   collections,
   locale,
   t,
+  title,
+  href,
   tinted = false,
 }: {
   collections: HomeCollection[];
   locale: string;
   t: ReturnType<typeof getTranslations>;
+  /** Admin overrides; absent means this section's own built-in wording and
+   *  destination. */
+  title?: string;
+  href?: string;
   tinted?: boolean;
 }) {
   if (collections.length === 0) return null;
@@ -34,9 +40,9 @@ export default function FeaturedCollections({
     <section className={`${styles.section} ${tinted ? styles.sectionTinted : ""}`}>
       <div className={styles.container}>
         <SectionHead
-          title={t.shop.homeCollectionsTitle}
+          title={title || t.shop.homeCollectionsTitle}
           subtitle={t.shop.homeCollectionsSubtitle}
-          href={`/${locale}/shop`}
+          href={href || `/${locale}/collections`}
           linkLabel={t.shop.homeViewAll}
         />
         <div className={styles.collectionGrid}>

@@ -23,6 +23,9 @@ export default function CommerceFooter({ locale }: { locale: Locale }) {
           />
         </svg>
       </div>
+      {/* The wave is a real block in the flow, so the dark ground has to start
+          below it rather than on <footer> itself — see the module's comment. */}
+      <div className={styles.footerBody}>
       <div className={styles.footerInner}>
 
         <div className={styles.footerGrid}>
@@ -137,6 +140,7 @@ export default function CommerceFooter({ locale }: { locale: Locale }) {
           </div>
         </div>
 
+      </div>
       </div>
     </footer>
   );

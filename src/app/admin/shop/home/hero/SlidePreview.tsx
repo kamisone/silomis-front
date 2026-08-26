@@ -1,10 +1,10 @@
+import { stripHtml } from "@/lib/html";
 import styles from "./HeroSlides.module.css";
 
 export interface SlideShape {
   imageUrl: string | null;
   eyebrow: string | null;
-  title: string;
-  subtitle: string | null;
+  content: string | null;
   ctaLabel: string | null;
   ctaHref: string | null;
   ctaSecondaryLabel: string | null;
@@ -38,8 +38,13 @@ export default function SlidePreview({ slide }: { slide: SlideShape }) {
       )}
       <div className={styles.previewInner}>
         {slide.eyebrow?.trim() && <span className={styles.previewEyebrow}>{slide.eyebrow.trim()}</span>}
-        <span className={styles.previewTitle}>{slide.title.trim() || "Untitled slide"}</span>
-        {slide.subtitle?.trim() && <span className={styles.previewSubtitle}>{slide.subtitle.trim()}</span>}
+        {/* The same HTML the storefront renders, so a coloured word or a second
+            line shows here as it will there — which is the point of a preview. */}
+        {stripHtml(slide.content) ? (
+          <div className={styles.previewCopy} dangerouslySetInnerHTML={{ __html: slide.content ?? "" }} />
+        ) : (
+          <span className={styles.previewTitle}>Untitled slide</span>
+        )}
         {(primary || secondary) && (
           <span className={styles.previewActions}>
             {primary && <span className={styles.previewCta}>{primary}</span>}

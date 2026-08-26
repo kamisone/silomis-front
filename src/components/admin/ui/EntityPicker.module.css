@@ -1,0 +1,269 @@
+.picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-secondary);
+}
+
+/* Says which of the two modes the section is in — "auto" is a real state here,
+   not an absence, and the admin has to be able to see it at a glance. */
+.count {
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-secondary) 12%, transparent);
+  color: var(--color-secondary);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  font-variant-numeric: tabular-nums;
+}
+.countOn {
+  background: color-mix(in srgb, var(--color-primary) 14%, transparent);
+  color: var(--color-primary);
+}
+
+.clear {
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--color-secondary);
+  cursor: pointer;
+}
+.clear:hover {
+  color: var(--color-accent);
+}
+
+.empty {
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px dashed color-mix(in srgb, var(--foreground) 16%, transparent);
+  border-radius: 10px;
+  font-size: 0.78rem;
+  color: var(--color-secondary);
+}
+
+/* ── The chosen list ── */
+.chosen {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.chosenItem {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 6px 8px;
+  border: 1px solid var(--color-surface);
+  border-radius: 10px;
+  background: var(--background);
+}
+
+/* The number is the point of the list — this is the order the row renders in. */
+.rank {
+  flex: none;
+  width: 18px;
+  text-align: center;
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: color-mix(in srgb, var(--foreground) 45%, transparent);
+  font-variant-numeric: tabular-nums;
+}
+
+.thumb {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 7px;
+  object-fit: cover;
+  background: var(--color-surface-tint);
+}
+.thumbBlank {
+  background: linear-gradient(135deg, var(--color-surface-tint), var(--color-surface));
+}
+
+.chosenText {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+
+.chosenLabel {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chosenSub {
+  font-size: 0.68rem;
+  color: var(--color-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chosenActions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+}
+
+.iconBtn,
+.removeBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-secondary);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.iconBtn:hover:not(:disabled) {
+  background: var(--color-surface);
+  color: var(--foreground);
+}
+.removeBtn:hover:not(:disabled) {
+  background: color-mix(in srgb, #ef4444 12%, transparent);
+  color: #dc2626;
+}
+.iconBtn:disabled,
+.removeBtn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+/* ── Adding ── */
+.searchWrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 10px;
+  display: flex;
+  color: var(--color-secondary);
+  pointer-events: none;
+}
+
+.search {
+  width: 100%;
+  padding: 8px 10px 8px 32px;
+  border: 1px solid var(--color-surface);
+  border-radius: 9px;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: inherit;
+  font-size: 0.82rem;
+}
+.search:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+/* Only shown while there is something typed — an always-open list of every
+   product would bury the chosen ones under the catalogue. */
+.results {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  border: 1px solid var(--color-surface);
+  border-radius: 10px;
+  background: var(--color-surface-tint);
+  max-height: 232px;
+  overflow-y: auto;
+}
+
+.result {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.result:hover:not(:disabled) {
+  background: var(--background);
+}
+
+.resultPlus {
+  flex: none;
+  color: var(--color-primary);
+}
+
+.resultText {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.resultLabel {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.resultSub {
+  font-size: 0.68rem;
+  color: var(--color-secondary);
+}
+
+.noMatch {
+  padding: 10px;
+  font-size: 0.76rem;
+  color: var(--color-secondary);
+}
+
+.hint {
+  margin: 0;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: var(--color-secondary);
+}

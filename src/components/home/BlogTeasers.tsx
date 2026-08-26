@@ -23,11 +23,17 @@ export default function BlogTeasers({
   posts,
   locale,
   t,
+  title,
+  href,
   tinted = false,
 }: {
   posts: HomePost[];
   locale: string;
   t: ReturnType<typeof getTranslations>;
+  /** Admin overrides; absent means this section's own built-in wording and
+   *  destination. */
+  title?: string;
+  href?: string;
   tinted?: boolean;
 }) {
   if (posts.length === 0) return null;
@@ -35,7 +41,7 @@ export default function BlogTeasers({
   return (
     <section className={`${styles.section} ${tinted ? styles.sectionTinted : ""}`}>
       <div className={styles.container}>
-        <SectionHead title={t.shop.homeBlogTitle} href={`/${locale}/blog`} linkLabel={t.shop.homeViewAll} />
+        <SectionHead title={title || t.shop.homeBlogTitle} href={href || `/${locale}/blog`} linkLabel={t.shop.homeViewAll} />
         <div className={styles.blogGrid}>
           {posts.map((post) => (
             <Link key={post.id} href={`/${locale}/blog/${post.slug}`} className={styles.blogCard}>

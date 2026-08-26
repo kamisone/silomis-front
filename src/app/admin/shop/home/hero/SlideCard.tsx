@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ArrowDown, ArrowUp, Eye, EyeOff, Languages, Trash2 } from "lucide-react";
 import MediaPicker from "@/components/admin/ui/MediaPicker";
 import LocalizedTextField, { type LocalizedTextMap } from "@/components/admin/ui/LocalizedTextField";
 import ui from "@/components/admin/ui/admin-ui.module.css";
 import { useLocalizedEntity } from "@/hooks/useLocalizedEntity";
+import { stripHtml } from "@/lib/html";
 import { DEFAULT_LOCALE, LOCALES } from "@/lib/i18n";
 import SlidePreview from "./SlidePreview";
 import styles from "./HeroSlides.module.css";
@@ -18,8 +19,8 @@ export interface HeroSlide {
   imageUrl: string | null;
   imageAlt: string | null;
   eyebrow: string | null;
-  title: string;
-  subtitle: string | null;
+  /** The card's copy as one HTML block from the WYSIWYG. */
+  content: string | null;
   ctaLabel: string | null;
   ctaHref: string | null;
   ctaSecondaryLabel: string | null;
@@ -28,7 +29,7 @@ export interface HeroSlide {
 
 /** Copy fields: written in English on the slide itself, then in six more
  *  languages as translation rows. */
-type LocalizedField = "imageAlt" | "eyebrow" | "title" | "subtitle" | "ctaLabel" | "ctaSecondaryLabel";
+type LocalizedField = "imageAlt" | "eyebrow" | "content" | "ctaLabel" | "ctaSecondaryLabel";
 
 /** Links are addresses, not copy — the same path serves every language. */
 type PlainField = "ctaHref" | "ctaSecondaryHref";
@@ -37,7 +38,17 @@ type PlainField = "ctaHref" | "ctaSecondaryHref";
  *  HeroSlidesService.publicList. */
 const ENTITY_TYPE = "shop_home_hero_slide";
 
+/** The card header wants a name, not markup — and never an empty strip. */
+function slideLabel(content: string | null | undefined): string {
+  const text = stripHtml(content);
+  if (!text) return "Untitled slide";
+  return text.length > 60 ? `${text.slice(0, 60)}…` : text;
+}
+
 const TRANSLATE_TEXT = "/next-api/admin/shop/hero-slides/sections/text/translate";
+/** The card's copy is HTML, so it goes through the endpoint that translates
+ *  around the markup rather than the plain-text one. */
+const TRANSLATE_HTML = "/next-api/admin/shop/hero-slides/sections/html/translate";
 
 /**
  * One slide in the hero rotation.
@@ -56,6 +67,7 @@ export default function SlideCard({
   onMove,
   onDelete,
   onError,
+  onDirtyChange,
 }: {
   slide: HeroSlide;
   index: number;
@@ -65,6 +77,8 @@ export default function SlideCard({
   onMove: (index: number, delta: -1 | 1) => void;
   onDelete: (slide: HeroSlide) => void;
   onError: (message: string) => void;
+  /** Lets the sticky bar say whether anything is still uncommitted. */
+  onDirtyChange?: (id: string, dirty: boolean) => void;
 }) {
   const { mapFor, saveField } = useLocalizedEntity(ENTITY_TYPE, slide.id);
   // Unsaved English keystrokes. Lets the preview follow what is being typed
@@ -74,6 +88,22 @@ export default function SlideCard({
   const view = { ...slide, ...draft };
   const dirty = Object.keys(draft).length > 0;
 
+  // Mirrored in a ref so the parent can be told synchronously, from the same
+  // event that changed the draft. Reporting from an effect would be a setState
+  // during render's commit, and reporting from inside a state updater would
+  // make the updater impure — both are exactly what the lint rules forbid.
+  const dirtyFields = useRef<Set<string>>(new Set());
+  function markDirty(field: string, isDirty: boolean) {
+    if (isDirty) dirtyFields.current.add(field);
+    else dirtyFields.current.delete(field);
+    onDirtyChange?.(slide.id, dirtyFields.current.size > 0);
+  }
+
+  function noteDraft(field: keyof HeroSlide, value: string | null) {
+    setDraft((d) => ({ ...d, [field]: value }));
+    markDirty(field, true);
+  }
+
   function clearDraft(field: keyof HeroSlide) {
     setDraft((d) => {
       if (!(field in d)) return d;
@@ -81,6 +111,7 @@ export default function SlideCard({
       delete rest[field];
       return rest;
     });
+    markDirty(field, false);
   }
 
   /** English lands on the slide, the other six become translation rows. Both
@@ -88,12 +119,12 @@ export default function SlideCard({
    *  a dozen pointless requests. */
   async function commitLocalized(field: LocalizedField, map: LocalizedTextMap) {
     const base = map[DEFAULT_LOCALE]?.trim() ?? "";
-    if (field === "title" && !base) {
-      onError("A slide needs a title");
-      clearDraft("title");
+    if (field === "content" && !stripHtml(base)) {
+      onError("A slide needs some copy");
+      clearDraft("content");
       return;
     }
-    setDraft((d) => ({ ...d, [field]: base || null }));
+    noteDraft(field, base || null);
     try {
       if (base !== ((slide[field] as string | null) ?? "")) {
         await onPatch(slide.id, { [field]: base || null } as Partial<HeroSlide>);
@@ -115,7 +146,7 @@ export default function SlideCard({
   // How much of this slide exists beyond English — the one thing the card
   // header can say about seven languages in the space of a pill.
   const translatedLangs = LOCALES.filter(
-    (l) => l !== DEFAULT_LOCALE && (["eyebrow", "title", "subtitle", "ctaLabel", "ctaSecondaryLabel"] as const).some(
+    (l) => l !== DEFAULT_LOCALE && (["eyebrow", "content", "ctaLabel", "ctaSecondaryLabel"] as const).some(
       (f) => mapFor(f, null)[l]?.trim(),
     ),
   );
@@ -148,7 +179,7 @@ export default function SlideCard({
       <div className={styles.cardMain}>
         <div className={styles.cardHead}>
           <div className={styles.cardTitleRow}>
-            <h2 className={styles.cardTitle}>{view.title.trim() || "Untitled slide"}</h2>
+            <h2 className={styles.cardTitle}>{slideLabel(view.content)}</h2>
             <span className={slide.imageKey ? styles.pillBanner : styles.pillGradient}>
               {slide.imageKey ? "Banner" : "Gradient"}
             </span>
@@ -225,34 +256,25 @@ export default function SlideCard({
               <legend className={styles.groupTitle}>Content</legend>
               <div className={styles.groupBody}>
                 <LocalizedTextField
-                  className={styles.locSlotThird}
+                  className={styles.locSlot}
                   label="Eyebrow"
+                  hint="Plain text — it renders as a small pill beside an icon, which markup would only fight."
                   value={mapFor("eyebrow", slide.eyebrow)}
                   onCommit={(map) => commitLocalized("eyebrow", map)}
-                  onDraftChange={(map) => setDraft((d) => ({ ...d, eyebrow: map[DEFAULT_LOCALE] ?? null }))}
+                  onDraftChange={(map) => noteDraft("eyebrow", map[DEFAULT_LOCALE] ?? null)}
                   placeholder="New season"
                   translateEndpoint={TRANSLATE_TEXT}
                   disabled={saving}
                 />
                 <LocalizedTextField
-                  className={styles.locSlotTwoThirds}
-                  label="Title *"
-                  value={mapFor("title", slide.title)}
-                  onCommit={(map) => commitLocalized("title", map)}
-                  onDraftChange={(map) => setDraft((d) => ({ ...d, title: map[DEFAULT_LOCALE] ?? "" }))}
-                  placeholder="Welcome to Silomis"
-                  translateEndpoint={TRANSLATE_TEXT}
-                  disabled={saving}
-                />
-                <LocalizedTextField
                   className={styles.locSlot}
-                  label="Subtitle"
-                  value={mapFor("subtitle", slide.subtitle)}
-                  onCommit={(map) => commitLocalized("subtitle", map)}
-                  onDraftChange={(map) => setDraft((d) => ({ ...d, subtitle: map[DEFAULT_LOCALE] ?? null }))}
-                  placeholder="Quality products, delivered to your door."
-                  multiline
-                  translateEndpoint={TRANSLATE_TEXT}
+                  label="Card copy *"
+                  hint="The whole card: a heading, a line under it, a list if you want one. The first heading becomes the page's H1 on the visible slide."
+                  value={mapFor("content", slide.content)}
+                  onCommit={(map) => commitLocalized("content", map)}
+                  onDraftChange={(map) => noteDraft("content", map[DEFAULT_LOCALE] ?? null)}
+                  richText
+                  translateEndpoint={TRANSLATE_HTML}
                   disabled={saving}
                 />
                 {slide.imageKey && (
@@ -280,7 +302,7 @@ export default function SlideCard({
                     label="Label"
                     value={mapFor("ctaLabel", slide.ctaLabel)}
                     onCommit={(map) => commitLocalized("ctaLabel", map)}
-                    onDraftChange={(map) => setDraft((d) => ({ ...d, ctaLabel: map[DEFAULT_LOCALE] ?? null }))}
+                    onDraftChange={(map) => noteDraft("ctaLabel", map[DEFAULT_LOCALE] ?? null)}
                     placeholder="Shop now"
                     translateEndpoint={TRANSLATE_TEXT}
                     disabled={saving}
@@ -303,9 +325,7 @@ export default function SlideCard({
                     label="Label"
                     value={mapFor("ctaSecondaryLabel", slide.ctaSecondaryLabel)}
                     onCommit={(map) => commitLocalized("ctaSecondaryLabel", map)}
-                    onDraftChange={(map) =>
-                      setDraft((d) => ({ ...d, ctaSecondaryLabel: map[DEFAULT_LOCALE] ?? null }))
-                    }
+                    onDraftChange={(map) => noteDraft("ctaSecondaryLabel", map[DEFAULT_LOCALE] ?? null)}
                     placeholder="Browse collections"
                     translateEndpoint={TRANSLATE_TEXT}
                     disabled={saving}

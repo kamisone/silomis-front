@@ -22,8 +22,10 @@
   color: var(--color-primary);
 }
 
+/* Sits under the sticky header now rather than inside it — the bar has to stay
+   short enough to be worth sticking. */
 .pageHint {
-  margin: 6px 0 0;
+  margin: 0;
   max-width: 76ch;
   font-size: 0.85rem;
   line-height: 1.5;
@@ -399,6 +401,63 @@
   font-size: 0.55rem;
   font-weight: 700;
 }
+/* The miniature of the card's HTML block: the same elements the storefront
+   renders, at a size where an admin can judge whether the copy fits. */
+.previewCopy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  /* Four lines then ellipsis — the same squeeze the real hero applies, so copy
+     that overruns shows up here rather than on the live site. */
+  max-height: 5.2rem;
+  overflow: hidden;
+}
+.previewCopy :global(h1),
+.previewCopy :global(h2) {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  color: var(--color-primary);
+}
+.previewCopy :global(h3),
+.previewCopy :global(h4),
+.previewCopy :global(h5),
+.previewCopy :global(h6) {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--color-primary);
+}
+.previewCopy :global(p) {
+  margin: 0;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: color-mix(in srgb, var(--foreground) 72%, var(--background));
+}
+.previewCopy :global(ul),
+.previewCopy :global(ol),
+.previewCopy :global(blockquote) {
+  margin: 0;
+  padding-left: 14px;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: color-mix(in srgb, var(--foreground) 72%, var(--background));
+}
+.previewCopy :global(blockquote) {
+  border-left: 2px solid color-mix(in srgb, var(--color-accent) 55%, transparent);
+}
+.previewCopy :global(hr) {
+  margin: 2px 0;
+  border: none;
+  border-top: 1px solid color-mix(in srgb, var(--foreground) 18%, transparent);
+}
+.previewCopy :global(a) {
+  color: var(--color-accent);
+}
+
 .previewTitle {
   font-size: 0.95rem;
   font-weight: 800;
@@ -708,5 +767,88 @@
 @media (prefers-reduced-motion: reduce) {
   .card {
     transition: none;
+  }
+}
+
+/* ── Sticky page header ──────────────────────────────────────────────────────
+   The slide cards are tall — a preview, an image picker and three localized
+   fields each — so Add slide and the save state would otherwise be a full
+   scroll away from whatever is being edited. Sits directly under AdminTopBar,
+   which is itself sticky at top:0; the offset is the height AdminShell
+   measures onto the shell, so it stays right if that bar ever changes. z-index
+   stays under the bar's 10 so the bar wins if the two ever meet. */
+.stickyHeader {
+  position: sticky;
+  top: var(--admin-topbar-height, 66px);
+  z-index: 5;
+  /* Bleed over .content's padding so scrolling cards don't peek at the sides. */
+  margin: -1.5rem -1.5rem 0;
+  padding: 0.85rem 1.5rem;
+  background: color-mix(in srgb, var(--background) 92%, transparent);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--color-surface);
+}
+
+.headerTitle {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+/* The page has always saved on blur; this is what makes that legible instead
+   of something an editor has to take on faith. */
+.saveState {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  transition: background 0.18s, color 0.18s;
+}
+
+.saveStateClean {
+  background: color-mix(in srgb, #10b981 14%, transparent);
+  color: #047857;
+}
+.saveStateDirty {
+  background: color-mix(in srgb, #d97706 16%, transparent);
+  color: #b45309;
+}
+.saveStateBusy {
+  background: var(--color-surface);
+  color: var(--color-secondary);
+}
+
+.spin {
+  animation: hero-save-spin 0.8s linear infinite;
+}
+@keyframes hero-save-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+@media (max-width: 720px) {
+  .stickyHeader {
+    /* .content drops to 1rem padding at this width — match it. */
+    margin: -1rem -1rem 0;
+    padding: 0.7rem 1rem;
+    flex-wrap: wrap;
+  }
+  /* The state pill is the first thing to go: the two buttons are the controls,
+     and the pill's message survives in the toast either way. */
+  .saveState {
+    display: none;
   }
 }

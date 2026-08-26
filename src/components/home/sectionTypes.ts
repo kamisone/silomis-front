@@ -24,7 +24,16 @@ export const HOME_SECTION_TYPES = [
 
 export type HomeSectionType = (typeof HOME_SECTION_TYPES)[number];
 
-export type ProductRailSource = "newest" | "featured";
+export type ProductRailSource = "newest" | "featured" | "on_sale" | "manual";
+
+/** One reassurance in the trust bar. `icon` names a lucide icon from the same
+ *  set the product trust badges use, so the two stay visually consistent. */
+export interface TrustBarItem {
+  id: string;
+  icon: string;
+  label?: LocalizedText;
+  sub?: LocalizedText;
+}
 
 /**
  * Copy the admin typed, keyed by locale.
@@ -68,13 +77,36 @@ export type SeparatorTone = "plain" | "tint" | "line";
 export type SeparatorHeight = "sm" | "md" | "lg";
 
 export interface HomeSectionConfig {
-  /** Item count for the list-bearing sections. */
+  /** Item count for the list-bearing sections. Ignored when the section is
+   *  hand-picked — the chosen list is the list. */
   limit?: number;
   /** product_rail only: which catalogue query feeds it. */
   source?: ProductRailSource;
-  /** product_rail only: heading override in the admin's own words, per locale;
-   *  falls back to the built-in translated default when left empty. */
+  /** Heading override in the admin's own words, per locale; falls back to the
+   *  built-in translated default when left empty. Used by every list section. */
   title?: LocalizedText | null;
+
+  /**
+   * Hand-picked contents, in the admin's own order.
+   *
+   * Empty or absent means "let the section's own query decide" — which is the
+   * default for every list section, so a fresh block still fills itself.
+   */
+  productIds?: string[];
+  categoryIds?: string[];
+  collectionIds?: string[];
+
+  /** promo_banner only: a specific promotion, or null for the highest-priority
+   *  active one. A pinned promotion that stops being active falls back too,
+   *  rather than leaving an empty band. */
+  promotionId?: string | null;
+
+  /** trust_bar only: the reassurances, in order. Absent means the built-in four. */
+  trustItems?: TrustBarItem[];
+
+  /** List sections: where the "view all" link goes. Locale-less storefront
+   *  path; absent means the section's own default destination. */
+  viewAllHref?: string | null;
 
   // ── section_heading / seo_text ──
   /** Small line above the heading ("New in", "Our pick"). */
@@ -172,6 +204,12 @@ export const EDITORIAL_SECTION_TYPES = ["section_heading", "separator", "seo_tex
 export type SectionField =
   | "limit"
   | "source"
+  | "products"
+  | "categories"
+  | "collections"
+  | "promotion"
+  | "trustItems"
+  | "viewAll"
   | "title"
   | "eyebrow"
   | "heading"
@@ -196,33 +234,33 @@ export const SECTION_META: Record<
   },
   trust_bar: {
     label: "Trust bar",
-    description: "Delivery, returns, secure payment and support reassurances.",
-    fields: [],
+    description: "Delivery, returns, secure payment and support reassurances. Leave the list empty to keep the built-in four.",
+    fields: ["trustItems"],
   },
   categories: {
     label: "Shop by category",
-    description: "Picture tiles for the top-level categories.",
-    fields: ["limit"],
+    description: "Picture tiles. Top-level categories by default, or exactly the ones you choose.",
+    fields: ["title", "categories", "limit", "viewAll"],
   },
   featured_collections: {
     label: "Featured collections",
-    description: "Collections flagged as featured, in their own sort order.",
-    fields: ["limit"],
+    description: "Collections flagged as featured, or exactly the ones you choose, in your order.",
+    fields: ["title", "collections", "limit", "viewAll"],
   },
   product_rail: {
     label: "Product rail",
-    description: "A scrollable row of products, with an add-to-cart on every card.",
-    fields: ["source", "title", "limit"],
+    description: "A scrollable row of products, with an add-to-cart on every card. Newest, featured, on sale — or a list you pick by hand.",
+    fields: ["title", "source", "products", "limit", "viewAll"],
   },
   promo_banner: {
     label: "Promotion banner",
-    description: "The highest-priority active promotion, full width.",
-    fields: [],
+    description: "A promotion, full width. The highest-priority active one by default, or a specific one you pin.",
+    fields: ["promotion"],
   },
   blog_posts: {
     label: "Blog posts",
     description: "The latest published articles.",
-    fields: ["limit"],
+    fields: ["title", "limit", "viewAll"],
   },
   section_heading: {
     label: "Chapter heading",
