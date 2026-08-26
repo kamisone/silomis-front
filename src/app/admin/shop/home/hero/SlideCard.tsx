@@ -312,7 +312,7 @@ export default function SlideCard({
                     <input
                       className={ui.input}
                       defaultValue={slide.ctaHref ?? ""}
-                      placeholder="/shop"
+                      placeholder="/collections"
                       onBlur={(e) => commitPlain("ctaHref", e.target.value)}
                       disabled={saving}
                     />

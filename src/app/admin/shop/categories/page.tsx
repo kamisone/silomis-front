@@ -24,6 +24,8 @@ interface Category {
   /** Resolved by the API — `imageKey` alone is a storage key the browser
    *  cannot render. */
   imageUrl: string | null;
+  bannerKey: string | null;
+  bannerUrl: string | null;
   parentId: string | null;
   sortOrder: number;
   isActive: boolean;
@@ -42,6 +44,8 @@ interface FormState {
   imageKey: string | null;
   /** What gets shown while editing — never sent. */
   imageUrl: string | null;
+  bannerKey: string | null;
+  bannerUrl: string | null;
   parentId: string;
   sortOrder: number;
   isActive: boolean;
@@ -54,6 +58,8 @@ const EMPTY_FORM: FormState = {
   description: "",
   imageKey: null,
   imageUrl: null,
+  bannerKey: null,
+  bannerUrl: null,
   parentId: "",
   sortOrder: 0,
   isActive: true,
@@ -119,6 +125,7 @@ export default function CategoriesPage() {
       // Explicitly null rather than omitted: clearing the image has to reach the
       // API as "unset this", and an absent key would leave the old one in place.
       imageKey: form.imageKey,
+      bannerKey: form.bannerKey,
       parentId: form.parentId || null,
       sortOrder: form.sortOrder,
       isActive: form.isActive,
@@ -215,6 +222,8 @@ export default function CategoriesPage() {
                             description: c.description ?? "",
                             imageKey: c.imageKey,
                             imageUrl: c.imageUrl,
+                            bannerKey: c.bannerKey,
+                            bannerUrl: c.bannerUrl,
                             parentId: c.parentId ?? "",
                             sortOrder: c.sortOrder,
                             isActive: c.isActive,
@@ -275,7 +284,7 @@ export default function CategoriesPage() {
               rows={3}
             />
             <div className={ui.field}>
-              <label className={ui.label}>Image</label>
+              <label className={ui.label}>Tile image</label>
               <div className={styles.imageField}>
                 <MediaPicker
                   value={form.imageKey}
@@ -290,6 +299,25 @@ export default function CategoriesPage() {
                   Shown as the tile for this category in the home page&rsquo;s &ldquo;Shop by category&rdquo; section.
                   Tiles are tall and cropped to fill, so a portrait image works best. Without one the tile falls back to
                   a plain coloured panel.
+                </span>
+              </div>
+            </div>
+
+            <div className={ui.field}>
+              <label className={ui.label}>Banner</label>
+              <div className={styles.imageField}>
+                <MediaPicker
+                  value={form.bannerKey}
+                  previewUrl={form.bannerUrl}
+                  mediaType="image"
+                  label="category banner"
+                  asAddTile
+                  className={styles.bannerTile}
+                  onChange={(bannerKey, bannerUrl) => setForm({ ...form, bannerKey, bannerUrl })}
+                />
+                <span className={styles.hint}>
+                  Printed across the top of this category&rsquo;s listing page. A wide crop — roughly 3:1 — since it is
+                  cut to a shallow band. Leave empty and the page simply starts with the heading.
                 </span>
               </div>
             </div>

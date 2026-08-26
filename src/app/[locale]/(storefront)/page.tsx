@@ -123,9 +123,9 @@ async function fetchHeroSlides(locale: Locale, t: ReturnType<typeof getTranslati
       // authored one render through one code path.
       content: `<h2>${t.shop.homeTitle}</h2><p>${t.shop.homeSubtitle}</p>`,
       ctaLabel: t.shop.homeCta,
-      ctaHref: "/shop",
+      ctaHref: "/collections",
       ctaSecondaryLabel: t.shop.homeCtaSecondary,
-      ctaSecondaryHref: "/shop",
+      ctaSecondaryHref: "/collections",
     },
   ];
 }
@@ -237,11 +237,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
           case "product_rail": {
             const source = section.config.source ?? "newest";
             const defaultHref =
-              source === "on_sale"
-                ? `/${locale}/sale`
-                : source === "newest"
-                  ? `/${locale}/shop?sort=newest`
-                  : `/${locale}/shop`;
+              source === "on_sale" ? `/${locale}/sale` : `/${locale}/collections`;
             return (
               <ProductRail
                 key={section.id}

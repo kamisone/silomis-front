@@ -57,7 +57,7 @@ function CategoryDropdownItem({
     <li>
       <div className={styles.dropdownRow}>
         <Link
-          href={`/${locale}/shop?category=${node.id}`}
+          href={`/${locale}/shop?categoryId=${node.id}`}
           className={`${styles.dropdownLink} ${isActive ? styles.dropdownLinkActive : ""}`}
           onClick={onNavigate}
         >
@@ -125,7 +125,7 @@ export default function CommerceCategoryNav({ locale, className }: Props) {
 
   const onShopPage = pathname === `/${locale}/shop`;
   const onCollectionsPage = pathname.startsWith(`/${locale}/collections`);
-  const activeCategory = onShopPage ? searchParams.get("category") : null;
+  const activeCategory = onShopPage ? searchParams.get("categoryId") : null;
   const tree = buildCategoryTree(categories);
   const ancestorIds = new Set(getAncestorIds(categories, activeCategory));
 
@@ -189,12 +189,6 @@ export default function CommerceCategoryNav({ locale, className }: Props) {
 
   return (
     <div className={styles.nav} ref={navRef}>
-      <Link
-        href={`/${locale}/shop`}
-        className={`${styles.item} ${className ?? ""} ${onShopPage && !activeCategory ? styles.active : ""}`}
-      >
-        {t.allProducts}
-      </Link>
       <Link href={`/${locale}/collections`} className={`${styles.item} ${className ?? ""} ${onCollectionsPage ? styles.active : ""}`}>
         {t.collectionsTitle}
       </Link>
@@ -206,7 +200,7 @@ export default function CommerceCategoryNav({ locale, className }: Props) {
           return (
             <Link
               key={node.id}
-              href={`/${locale}/shop?category=${node.id}`}
+              href={`/${locale}/shop?categoryId=${node.id}`}
               className={`${styles.item} ${className ?? ""} ${activeCategory === node.id ? styles.active : ""}`}
             >
               {node.name}
@@ -225,7 +219,7 @@ export default function CommerceCategoryNav({ locale, className }: Props) {
             className={styles.dropdownWrap}
           >
             <Link
-              href={`/${locale}/shop?category=${node.id}`}
+              href={`/${locale}/shop?categoryId=${node.id}`}
               className={`${styles.item} ${className ?? ""} ${isActive ? styles.active : ""}`}
             >
               {node.name}

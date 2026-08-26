@@ -85,7 +85,7 @@ export default function CommerceFooter({ locale }: { locale: Locale }) {
               <Link href={`/${locale}/about`} className={styles.footerLink}>
                 {t.footer.about}
               </Link>
-              <Link href={`/${locale}/shop`} className={styles.footerLink}>
+              <Link href={`/${locale}/collections`} className={styles.footerLink}>
                 {t.footer.shop}
               </Link>
               <Link href={`/${locale}/shop/orders/track`} className={styles.footerLink}>

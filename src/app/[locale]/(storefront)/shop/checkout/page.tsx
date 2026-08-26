@@ -600,7 +600,7 @@ export default function CheckoutPage() {
           </div>
           <h2 className={styles.emptyTitle}>{t.shop.checkoutEmpty}</h2>
           <p className={styles.emptySub}>{t.shop.checkoutEmptySub}</p>
-          <Link href={`/${locale}/shop`} className={styles.emptyCta}>
+          <Link href={`/${locale}`} className={styles.emptyCta}>
             {t.shop.continueShopping}
           </Link>
         </div>

@@ -114,7 +114,7 @@ export default function HeroSlidesPage() {
         content: "<h2>New slide</h2>",
         isActive: false,
         ctaLabel: "Shop now",
-        ctaHref: "/shop",
+        ctaHref: "/collections",
       });
       setSlides((list) => [...list, created]);
       toast.success("Slide added — fill it in, then switch it on");

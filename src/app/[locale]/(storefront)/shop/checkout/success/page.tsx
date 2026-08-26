@@ -86,7 +86,7 @@ function SuccessContent() {
       <div className={styles.page}>
         <div className={styles.card}>
           <p className={styles.errorMsg}>{t.shop.orderNotFoundConfirm}</p>
-          <Link href={`/${locale}/shop`} className={styles.backLink}>
+          <Link href={`/${locale}`} className={styles.backLink}>
             {t.shop.backToShop}
           </Link>
         </div>
@@ -146,7 +146,7 @@ function SuccessContent() {
         <Link href={`/${locale}/shop/orders/track/${order.orderNumber}${token ? `?token=${token}` : ""}`} className={styles.trackLink}>
           {t.shop.trackThisOrder}
         </Link>
-        <Link href={`/${locale}/shop`} className={styles.backLink}>
+        <Link href={`/${locale}`} className={styles.backLink}>
           {t.shop.continueShoppingCta}
         </Link>
       </div>

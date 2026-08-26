@@ -100,7 +100,7 @@ export default function CartPage() {
           </div>
           <h2 className={styles.emptyTitle}>{t.shop.cartEmpty}</h2>
           <p className={styles.emptySub}>{t.shop.cartEmptyBrowse}</p>
-          <Link href={`/${locale}/shop`} className={styles.emptyCta}>
+          <Link href={`/${locale}`} className={styles.emptyCta}>
             {t.shop.browseProducts}
           </Link>
         </div>
@@ -195,7 +195,7 @@ export default function CartPage() {
           <Link href={`/${locale}/shop/checkout`} className={styles.checkoutBtn}>
             {t.shop.proceedToCheckout}
           </Link>
-          <Link href={`/${locale}/shop`} className={styles.continueLink}>
+          <Link href={`/${locale}`} className={styles.continueLink}>
             {t.shop.continueShopping}
           </Link>
         </div>

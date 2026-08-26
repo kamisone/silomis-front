@@ -50,7 +50,7 @@ function demoteHeadings(html: string): string {
   return html.replace(/<(\/?)h1(\s|>)/gi, "<$1h2$2");
 }
 
-/** Slide hrefs are stored locale-less ("/shop"); absolute URLs pass through. */
+/** Slide hrefs are stored locale-less ("/collections"); absolute URLs pass through. */
 function resolveHref(href: string, locale: string): string {
   return /^https?:\/\//.test(href) ? href : `/${locale}${href.startsWith("/") ? href : `/${href}`}`;
 }

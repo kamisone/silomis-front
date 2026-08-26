@@ -47,7 +47,7 @@ export default function PromoBanner({
           <p className={styles.promoTitle}>{promotion.name}</p>
           {promotion.description && <p className={styles.promoDesc}>{promotion.description}</p>}
         </div>
-        <Link href={`/${locale}/shop`} className={styles.promoCta}>
+        <Link href={`/${locale}/sale`} className={styles.promoCta}>
           {t.shop.homePromoCta}
         </Link>
       </div>

@@ -652,7 +652,7 @@ export default function ShopProductDetail({
       <div className={styles.container}>
         {breadcrumbCategory && (
           <nav className={styles.breadcrumbs} aria-label="Breadcrumb">
-            <Link href={`/${locale}/shop`}>{t.shop.shopBreadcrumb}</Link>
+            <Link href={`/${locale}`}>{t.shop.homeBreadcrumb}</Link>
             <span className={styles.breadcrumbSep}>/</span>
             <Link href={`/${locale}/shop?categoryId=${breadcrumbCategory.id}`}>{breadcrumbCategory.name}</Link>
           </nav>

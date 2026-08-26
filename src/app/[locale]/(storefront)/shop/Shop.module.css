@@ -5,74 +5,11 @@
   width: 100%;
 }
 
+/* Single column since the category sidebar moved into the header nav, which
+   already carries the whole tree. Kept as a wrapper rather than removed so the
+   banner, heading and grid keep one shared width. */
 .layout {
-  display: grid;
-  grid-template-columns: 220px 1fr;
-  gap: 32px;
-  align-items: start;
-}
-
-@media (max-width: 800px) {
-  .layout {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* ── Sidebar ──
-   Sticks just below the fixed header. Tracks the header's real, measured
-   height via --header-offset (set by ScrollAwareHeader — collapses to 0px
-   while the header is auto-hidden on scroll-down) rather than a guessed px
-   value, which drifted out of sync with the header's actual height. */
-.sidebar {
-  position: sticky;
-  top: calc(var(--header-offset, 84px) + 20px);
-}
-
-@media (max-width: 800px) {
-  .sidebar {
-    display: none;
-  }
-}
-
-.sidebarTitle {
-  font-size: 13px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: color-mix(in srgb, var(--foreground) 60%, var(--background));
-  margin-bottom: 10px;
-}
-
-.categoryList,
-.categorySublist {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.categorySublist {
-  margin: 2px 0 4px 14px;
-  border-left: 1.5px solid color-mix(in srgb, var(--foreground) 14%, transparent);
-  padding-left: 10px;
-}
-
-.categoryLink {
   display: block;
-  padding: 7px 10px;
-  border-radius: 8px;
-  font-size: 14px;
-  color: var(--foreground);
-  transition: background 0.15s, color 0.15s;
-}
-.categoryLink:hover {
-  background: var(--color-surface-tint);
-}
-
-.activeCategory {
-  background: var(--color-surface);
-  color: var(--color-primary);
-  font-weight: 700;
 }
 
 /* ── Main column ── */
@@ -132,4 +69,40 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 18px;
+}
+
+/* ── Category banner ── */
+
+/* Full width of the main column, sitting under the breadcrumbs and above the
+   heading. A shallow band rather than a hero: this page's job is the product
+   grid, and a tall picture would push the first row below the fold. */
+.banner {
+  display: block;
+  width: 100%;
+  aspect-ratio: 3 / 1;
+  /* Capped because the column runs full width now that the category sidebar is
+     gone — at 3:1 unbounded, the band alone pushes the first row of products
+     below the fold. `cover` crops to the cap rather than squashing the art. */
+  max-height: 260px;
+  object-fit: cover;
+  border-radius: 16px;
+  margin-bottom: 18px;
+  background: var(--color-surface-tint);
+}
+
+.categoryTitle {
+  margin: 0 0 4px;
+  font-size: clamp(1.35rem, 3vw, 1.8rem);
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--foreground);
+}
+
+@media (max-width: 700px) {
+  .banner {
+    /* Squarer on a phone: at 3:1 across a narrow column the band is a sliver. */
+    aspect-ratio: 2 / 1;
+    border-radius: 12px;
+    margin-bottom: 14px;
+  }
 }

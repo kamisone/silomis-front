@@ -74,3 +74,12 @@
   border: 1px dashed color-mix(in srgb, var(--color-secondary) 30%, transparent);
   color: color-mix(in srgb, var(--color-secondary) 55%, transparent);
 }
+
+/* Wide, matching the shallow band it becomes on the listing page — the shape
+   here is the shape there. */
+.bannerTile.bannerTile {
+  flex-shrink: 0;
+  width: 168px;
+  height: 60px;
+  aspect-ratio: auto;
+}

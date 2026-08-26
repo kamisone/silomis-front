@@ -139,7 +139,7 @@ export default function CartDrawer({ locale }: { locale: Locale }) {
               </svg>
               <p className={styles.emptyTitle}>{t.shop.cartEmpty}</p>
               <p className={styles.emptySub}>{t.shop.cartEmptySub}</p>
-              <Link href={`/${locale}/shop`} onClick={closeDrawer} className={styles.continueShoppingBtn}>
+              <Link href={`/${locale}`} onClick={closeDrawer} className={styles.continueShoppingBtn}>
                 {t.shop.continueShopping}
               </Link>
             </div>

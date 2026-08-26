@@ -38,10 +38,10 @@ export default function CategoryTiles({
   return (
     <section className={`${styles.section} ${tinted ? styles.sectionTinted : ""}`}>
       <div className={styles.container}>
-        <SectionHead title={title || t.shop.homeCategoriesTitle} href={href || `/${locale}/shop`} linkLabel={t.shop.homeViewAll} />
+        <SectionHead title={title || t.shop.homeCategoriesTitle} href={href} linkLabel={t.shop.homeViewAll} />
         <div className={styles.categoryGrid}>
           {categories.map((category) => (
-            <Link key={category.id} href={`/${locale}/shop?category=${category.id}`} className={styles.categoryTile}>
+            <Link key={category.id} href={`/${locale}/shop?categoryId=${category.id}`} className={styles.categoryTile}>
               {category.imageUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={category.imageUrl} alt="" className={styles.categoryImage} loading="lazy" />

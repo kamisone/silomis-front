@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { buildCategoryTree, getAncestorIds, type CategoryNode as BaseCategoryNode } from "@/lib/shop/categoryTree";
+import { getAncestorIds } from "@/lib/shop/categoryTree";
 import ProductCard, { type ProductListItem } from "@/components/shop/ProductCard";
 import type { PromotionInfo } from "@/components/shop/PromotionBadge";
 import { trackSearch } from "@/lib/shop/behaviorTracking";
@@ -39,26 +39,9 @@ interface Category {
   id: string;
   name: string;
   parentId?: string | null;
-}
-
-type CategoryNode = BaseCategoryNode<Category>;
-
-function CategoryTreeItem({ node, activeCategory, buildUrl }: { node: CategoryNode; activeCategory?: string; buildUrl: (params: Record<string, string | undefined>) => string }) {
-  const isActive = activeCategory === node.id;
-  return (
-    <li>
-      <Link href={buildUrl({ categoryId: node.id })} className={`${styles.categoryLink} ${isActive ? styles.activeCategory : ""}`}>
-        {node.name}
-      </Link>
-      {node.children.length > 0 && (
-        <ul className={styles.categorySublist}>
-          {node.children.map((child) => (
-            <CategoryTreeItem key={child.id} node={child} activeCategory={activeCategory} buildUrl={buildUrl} />
-          ))}
-        </ul>
-      )}
-    </li>
-  );
+  /** Wide picture across the top of this category's listing. Resolved by the
+   *  API — `bannerKey` alone is a storage key the browser cannot render. */
+  bannerUrl?: string | null;
 }
 
 function toPromotionInfo(promotion: ActivePromotion | null): PromotionInfo | null {
@@ -146,7 +129,7 @@ export default function ShopListing() {
     };
   }, [categoryId, search, featured]);
 
-  const categoryTree = useMemo(() => buildCategoryTree(categories), [categories]);
+  const activeCategory = categoryId ? categories.find((c) => c.id === categoryId) ?? null : null;
 
   const categoryPath = useMemo(() => {
     if (!categoryId) return [] as Category[];
@@ -172,25 +155,11 @@ export default function ShopListing() {
   return (
     <div className={styles.container}>
       <div className={styles.layout}>
-        <aside className={styles.sidebar}>
-          <h4 className={styles.sidebarTitle}>{t.shop.categoriesLabel}</h4>
-          <ul className={styles.categoryList}>
-            <li>
-              <Link href={buildUrl({ categoryId: undefined })} className={`${styles.categoryLink} ${!categoryId ? styles.activeCategory : ""}`}>
-                {t.shop.allProducts}
-              </Link>
-            </li>
-            {categoryTree.map((node) => (
-              <CategoryTreeItem key={node.id} node={node} activeCategory={categoryId} buildUrl={buildUrl} />
-            ))}
-          </ul>
-        </aside>
-
         <div className={styles.main}>
           {categoryPath.length > 0 && (
             <nav className={styles.breadcrumbs} aria-label={t.shop.categoriesLabel}>
-              <Link href={buildUrl({ categoryId: undefined })} className={styles.breadcrumbLink}>
-                {t.shop.allProducts}
+              <Link href={`/${locale}`}>
+                {t.shop.homeBreadcrumb}
               </Link>
               {categoryPath.map((cat, i) => (
                 <span key={cat.id} className={styles.breadcrumbSegment}>
@@ -200,6 +169,15 @@ export default function ShopListing() {
               ))}
             </nav>
           )}
+
+          {/* The category's own banner, above its heading. Absent for a category
+              with no banner set — the page then simply starts at the title. */}
+          {activeCategory?.bannerUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={activeCategory.bannerUrl} alt="" className={styles.banner} />
+          )}
+
+          {activeCategory && <h1 className={styles.categoryTitle}>{activeCategory.name}</h1>}
 
           {search && (
             <p className={styles.searchNotice}>
