@@ -1,20 +1,130 @@
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* ── Tree rows ───────────────────────────────────────────────────────────────
+   Indentation shows depth; the chevron in front of a parent opens it. Both are
+   driven by the row's own depth and child count, so a sub-sub-category behaves
+   exactly like a top-level one. */
+/* The indent belongs to the row, not to one cell: a sub-category whose name is
+   pushed right while its thumbnail stays flush left does not read as nested.
+   Both leading cells take their offset from this one variable, so they cannot
+   drift apart; the trailing columns keep their own alignment, which is what
+   makes the table still scan as columns. */
+.row {
+  --depth-indent: 0px;
+}
+
+/* Added to the table's own 1rem cell padding rather than replacing it. */
+.row > td:first-child {
+  padding-left: calc(1rem + var(--depth-indent));
+}
+
 .depthIndent {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  padding-left: var(--depth-indent);
+}
+
+.disclosure {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-secondary);
+  cursor: pointer;
+  transition:
+    background 0.14s,
+    color 0.14s;
+}
+.disclosure:hover {
+  background: var(--color-surface-tint);
+  color: var(--color-primary);
+}
+.disclosure:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+.chevron {
+  transition: transform 0.16s ease;
+}
+.chevronOpen {
+  transform: rotate(90deg);
+}
+
+/* Same width as the chevron button, so a leaf's name lines up with the name of
+   a sibling that has children. */
+.disclosureSpacer {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  flex-shrink: 0;
 }
 
 .depthLine {
   display: inline-block;
-  width: 16px;
+  width: 10px;
   height: 1.5px;
-  background: var(--color-surface);
+  background: color-mix(in srgb, var(--foreground) 22%, transparent);
   flex-shrink: 0;
+}
+
+/* The name is a second target for the same toggle: a 22px chevron is a small
+   thing to hit when the obvious thing to click is the category itself. */
+.catNameToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+.catNameToggle:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
 .catName {
   font-weight: 600;
   color: var(--color-primary);
+}
+
+/* How many sit underneath — the question a collapsed row otherwise hides. */
+.childCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--color-surface-tint);
+  color: var(--color-secondary);
+  font-size: 0.68rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chevron,
+  .disclosure {
+    transition: none;
+  }
 }
 
 .catSlug {

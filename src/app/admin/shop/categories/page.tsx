@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { ImageOff } from "lucide-react";
+import { ChevronRight, ImageOff } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import Button from "@/components/admin/ui/Button";
 import Modal from "@/components/admin/ui/Modal";
 import BilingualField from "@/components/admin/BilingualField";
 import MediaPicker from "@/components/admin/ui/MediaPicker";
 import { useEntityTranslations } from "@/hooks/useEntityTranslations";
+import { getAncestorIds, visibleRows } from "@/lib/shop/categoryTree";
 import { useCopyGenerate } from "@/hooks/useCopyGenerate";
 import ui from "@/components/admin/ui/admin-ui.module.css";
 import styles from "./Categories.module.css";
@@ -34,6 +35,8 @@ interface Category {
 
 interface CategoryRow extends Category {
   depth: number;
+  /** Drives the disclosure control — a row with none is a leaf. */
+  childCount: number;
 }
 
 interface FormState {
@@ -75,11 +78,11 @@ function buildTree(categories: Category[]): CategoryRow[] {
   const rows: CategoryRow[] = [];
 
   function traverse(category: Category, depth: number) {
-    rows.push({ ...category, depth });
-    categories
+    const children = categories
       .filter((c) => c.parentId === category.id)
-      .sort((a, b) => a.sortOrder - b.sortOrder)
-      .forEach((child) => traverse(child, depth + 1));
+      .sort((a, b) => a.sortOrder - b.sortOrder);
+    rows.push({ ...category, depth, childCount: children.length });
+    children.forEach((child) => traverse(child, depth + 1));
   }
 
   categories
@@ -87,7 +90,9 @@ function buildTree(categories: Category[]): CategoryRow[] {
     .sort((a, b) => a.sortOrder - b.sortOrder)
     .forEach((c) => traverse(c, 0));
 
-  categories.filter((c) => c.parentId && !idSet.has(c.parentId)).forEach((c) => rows.push({ ...c, depth: 0 }));
+  categories
+    .filter((c) => c.parentId && !idSet.has(c.parentId))
+    .forEach((c) => rows.push({ ...c, depth: 0, childCount: 0 }));
 
   return rows;
 }
@@ -98,18 +103,32 @@ export default function CategoriesPage() {
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState<FormState | null>(null);
   const [saving, setSaving] = useState(false);
+  /* Which parents are open. Collapsed by default: the table's job is to show
+     the shape of the tree, and a deep catalogue expanded on arrival is a wall
+     of rows with the top level lost inside it. */
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   const { translations, setTranslation, saveTranslations } = useEntityTranslations(ENTITY_TYPE, form?.id ?? null);
   const gen = useCopyGenerate(setTranslation);
 
-  async function load() {
+  async function load(): Promise<Category[]> {
     setLoading(true);
     try {
       const data = await api.get<Category[]>("/next-api/admin/shop/categories");
       setCategories(data);
+      return data;
     } finally {
       setLoading(false);
     }
+  }
+
+  function toggle(id: string) {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   }
 
   useEffect(() => {
@@ -143,7 +162,13 @@ export default function CategoriesPage() {
       if (savedId) await saveTranslations(savedId, TRANSLATION_FIELDS);
       toast.success(form.id ? "Category updated" : "Category created");
       setForm(null);
-      await load();
+      const fresh = await load();
+      // A child saved under a collapsed parent would otherwise vanish the
+      // moment it was created, which reads as the save having failed.
+      if (savedId) {
+        const path = getAncestorIds(fresh, savedId);
+        if (path.length) setExpanded((prev) => new Set([...prev, ...path]));
+      }
     } catch (err) {
       toast.error(err instanceof ApiError ? String((err.body as { message?: string })?.message ?? "Failed to save category") : "Failed to save category");
     } finally {
@@ -163,12 +188,22 @@ export default function CategoriesPage() {
   }
 
   const treeRows = buildTree(categories);
+  const rows = visibleRows(treeRows, expanded);
+  const parentIds = treeRows.filter((r) => r.childCount > 0).map((r) => r.id);
+  const allExpanded = parentIds.length > 0 && parentIds.every((id) => expanded.has(id));
 
   return (
     <div className={ui.page}>
       <div className={ui.pageHeader}>
         <h1 className={ui.pageTitle}>Categories</h1>
-        <Button onClick={() => setForm({ ...EMPTY_FORM })}>New category</Button>
+        <div className={styles.headerActions}>
+          {parentIds.length > 0 && (
+            <Button variant="secondary" onClick={() => setExpanded(allExpanded ? new Set() : new Set(parentIds))}>
+              {allExpanded ? "Collapse all" : "Expand all"}
+            </Button>
+          )}
+          <Button onClick={() => setForm({ ...EMPTY_FORM })}>New category</Button>
+        </div>
       </div>
 
       <div className={ui.card}>
@@ -189,8 +224,12 @@ export default function CategoriesPage() {
               </tr>
             </thead>
             <tbody>
-              {treeRows.map((c) => (
-                <tr key={c.id}>
+              {rows.map((c) => (
+                <tr
+                  key={c.id}
+                  className={styles.row}
+                  style={{ "--depth-indent": `${c.depth * 22}px` } as React.CSSProperties}
+                >
                   <td>
                     {c.imageUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -202,9 +241,37 @@ export default function CategoriesPage() {
                     )}
                   </td>
                   <td>
-                    <div className={styles.depthIndent} style={{ paddingLeft: c.depth * 20 }}>
-                      {c.depth > 0 && <span className={styles.depthLine} />}
-                      <span className={styles.catName}>{c.name}</span>
+                    <div className={styles.depthIndent}>
+                      {c.childCount > 0 ? (
+                        <button
+                          type="button"
+                          className={styles.disclosure}
+                          onClick={() => toggle(c.id)}
+                          aria-expanded={expanded.has(c.id)}
+                          aria-label={`${expanded.has(c.id) ? "Collapse" : "Expand"} ${c.name}`}
+                        >
+                          <ChevronRight
+                            size={14}
+                            strokeWidth={2.4}
+                            className={`${styles.chevron} ${expanded.has(c.id) ? styles.chevronOpen : ""}`}
+                          />
+                        </button>
+                      ) : (
+                        /* Keeps every name on the same left edge whether or not
+                           its row has a control in front of it. */
+                        <span className={styles.disclosureSpacer} aria-hidden="true">
+                          {c.depth > 0 && <span className={styles.depthLine} />}
+                        </span>
+                      )}
+
+                      {c.childCount > 0 ? (
+                        <button type="button" className={styles.catNameToggle} onClick={() => toggle(c.id)}>
+                          <span className={styles.catName}>{c.name}</span>
+                          <span className={styles.childCount}>{c.childCount}</span>
+                        </button>
+                      ) : (
+                        <span className={styles.catName}>{c.name}</span>
+                      )}
                     </div>
                   </td>
                   <td className={styles.catSlug}>{c.slug}</td>
