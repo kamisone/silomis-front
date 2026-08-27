@@ -90,12 +90,148 @@
   background: var(--color-surface-tint);
 }
 
-.categoryTitle {
-  margin: 0 0 4px;
-  font-size: clamp(1.35rem, 3vw, 1.8rem);
+/* ── Subcategory cards ────────────────────────────────────────────────────────
+   Shown instead of products when the category has children. Bigger than the
+   home page's picture tiles because these are a step in the journey rather than
+   an invitation to it: the name needs room, and the description under it is
+   what tells a shopper which branch to take.
+
+   Uses the category's list image, never its banner — the banner is cut for a
+   3:1 band across the top of a page and would be unreadable at card size. */
+.categoryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 18px;
+}
+
+.categoryCard {
+  display: flex;
+  flex-direction: column;
+  border-radius: 16px;
+  overflow: hidden;
+  background: var(--background);
+  border: 1px solid color-mix(in srgb, var(--foreground) 11%, transparent);
+  text-decoration: none;
+  color: inherit;
+  transition:
+    transform 0.18s,
+    box-shadow 0.18s,
+    border-color 0.18s;
+}
+.categoryCard:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--color-primary) 40%, transparent);
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--foreground) 14%, transparent);
+}
+.categoryCard:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+}
+
+.categoryMedia {
+  display: block;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  background: var(--color-surface);
+}
+
+.categoryImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.4s ease;
+}
+.categoryCard:hover .categoryImage {
+  transform: scale(1.05);
+}
+
+.categoryImageFallback {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    150deg,
+    color-mix(in srgb, var(--color-primary) 16%, var(--background)),
+    color-mix(in srgb, var(--color-accent) 14%, var(--background))
+  );
+}
+
+.categoryBody {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  /* Takes the slack so the cue sits on the bottom edge of every card, whether
+     or not the category has a description. */
+  flex: 1;
+  padding: 14px 16px 15px;
+}
+
+.categoryName {
+  font-size: 15.5px;
   font-weight: 700;
-  line-height: 1.2;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
   color: var(--foreground);
+}
+
+.categoryDesc {
+  font-size: 13px;
+  line-height: 1.55;
+  color: color-mix(in srgb, var(--foreground) 62%, var(--background));
+  /* Two lines: a long description must not decide the height of the whole row. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.categoryCue {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: auto;
+  padding-top: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-primary);
+  transition: gap 0.16s;
+}
+.categoryCard:hover .categoryCue {
+  gap: 9px;
+}
+
+@media (max-width: 520px) {
+  .categoryGrid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 12px;
+  }
+  .categoryBody {
+    padding: 11px 12px 12px;
+  }
+  .categoryName {
+    font-size: 14px;
+  }
+  .categoryDesc {
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    font-size: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .categoryCard,
+  .categoryImage,
+  .categoryCue {
+    transition: none;
+  }
+  .categoryCard:hover {
+    transform: none;
+  }
+  .categoryCard:hover .categoryImage {
+    transform: none;
+  }
 }
 
 @media (max-width: 700px) {

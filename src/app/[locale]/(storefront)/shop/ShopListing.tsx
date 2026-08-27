@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { ArrowRight } from "lucide-react";
 import { getAncestorIds } from "@/lib/shop/categoryTree";
 import ProductCard, { type ProductListItem } from "@/components/shop/ProductCard";
 import type { PromotionInfo } from "@/components/shop/PromotionBadge";
@@ -39,6 +40,12 @@ interface Category {
   id: string;
   name: string;
   parentId?: string | null;
+  description?: string | null;
+  sortOrder?: number;
+  /** The card picture, used when this category is shown as a tile inside its
+   *  parent's listing. Distinct from `bannerUrl`, which is the wide band across
+   *  the top of the category's own page. */
+  imageUrl?: string | null;
   /** Wide picture across the top of this category's listing. Resolved by the
    *  API — `bannerKey` alone is a storage key the browser cannot render. */
   bannerUrl?: string | null;
@@ -61,12 +68,22 @@ export default function ShopListing() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [promotions, setPromotions] = useState<ActivePromotion[]>([]);
   const [loading, setLoading] = useState(true);
+  /* Whether this category has children decides what the page shows, so the
+     product request waits for the tree rather than firing a query whose result
+     may turn out not to belong on the page at all. */
+  const [categoriesLoaded, setCategoriesLoaded] = useState(false);
 
   useEffect(() => {
     fetch("/next-api/public/shop/categories")
       .then((r) => (r.ok ? r.json() : []))
-      .then((data) => setCategories(Array.isArray(data) ? data : []))
-      .catch(() => setCategories([]));
+      .then((data) => {
+        setCategories(Array.isArray(data) ? data : []);
+        setCategoriesLoaded(true);
+      })
+      .catch(() => {
+        setCategories([]);
+        setCategoriesLoaded(true);
+      });
   }, []);
 
   useEffect(() => {
@@ -76,10 +93,34 @@ export default function ShopListing() {
       .catch(() => setPromotions([]));
   }, [locale]);
 
+  /**
+   * This category's immediate children, in the admin's order.
+   *
+   * A branch category shows its children; only a leaf shows products. Browsing
+   * "Apparel" and being handed every shirt, coat and pair of trousers at once
+   * skips the step the tree exists for.
+   */
+  const subcategories = useMemo(() => {
+    if (!categoryId) return [] as Category[];
+    return categories
+      .filter((c) => c.parentId === categoryId)
+      .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.name.localeCompare(b.name));
+  }, [categories, categoryId]);
+
+  const showsSubcategories = subcategories.length > 0;
+
   useEffect(() => {
     let cancelled = false;
 
     function load() {
+      // Nothing to ask for: a branch category renders its children, and a
+      // request whose answer cannot be shown is a request worth not making.
+      if (!categoriesLoaded || showsSubcategories) {
+        setProducts([]);
+        setTotal(0);
+        setLoading(false);
+        return;
+      }
       setLoading(true);
       const qs = new URLSearchParams();
       if (categoryId) qs.set("categoryId", categoryId);
@@ -127,7 +168,7 @@ export default function ShopListing() {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [categoryId, search, featured]);
+  }, [categoryId, search, featured, categoriesLoaded, showsSubcategories]);
 
   const activeCategory = categoryId ? categories.find((c) => c.id === categoryId) ?? null : null;
 
@@ -177,21 +218,46 @@ export default function ShopListing() {
             <img src={activeCategory.bannerUrl} alt="" className={styles.banner} />
           )}
 
-          {activeCategory && <h1 className={styles.categoryTitle}>{activeCategory.name}</h1>}
-
           {search && (
             <p className={styles.searchNotice}>
               {t.shop.searchResultsFor} &ldquo;{search}&rdquo;
             </p>
           )}
 
-          {!loading && (
+          {/* A count of products belongs only where products are shown; over a
+              grid of categories it would be counting the wrong thing. */}
+          {!loading && !showsSubcategories && (
             <p className={styles.resultCount}>
               {total} {total === 1 ? t.shop.resultSingular : t.shop.resultPlural}
             </p>
           )}
 
-          {loading ? (
+          {showsSubcategories ? (
+            <div className={styles.categoryGrid}>
+              {subcategories.map((cat) => (
+                <Link key={cat.id} href={buildUrl({ categoryId: cat.id })} className={styles.categoryCard}>
+                  <span className={styles.categoryMedia}>
+                    {cat.imageUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={cat.imageUrl} alt="" className={styles.categoryImage} loading="lazy" />
+                    ) : (
+                      // A tinted panel rather than a hole in the grid, so an
+                      // unfinished catalogue still looks deliberate.
+                      <span className={styles.categoryImageFallback} aria-hidden="true" />
+                    )}
+                  </span>
+                  <span className={styles.categoryBody}>
+                    <span className={styles.categoryName}>{cat.name}</span>
+                    {cat.description && <span className={styles.categoryDesc}>{cat.description}</span>}
+                    <span className={styles.categoryCue}>
+                      {t.shop.browseCategory}
+                      <ArrowRight size={14} strokeWidth={2.25} aria-hidden="true" />
+                    </span>
+                  </span>
+                </Link>
+              ))}
+            </div>
+          ) : loading ? (
             <div className={styles.empty}>{t.shop.loading}</div>
           ) : products.length === 0 ? (
             <div className={styles.empty}>{t.shop.noProductsFound}</div>
