@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { ArrowRight } from "lucide-react";
 import { getAncestorIds } from "@/lib/shop/categoryTree";
 import ProductCard, { type ProductListItem } from "@/components/shop/ProductCard";
+import CategoryHero from "@/components/shop/CategoryHero";
 import type { PromotionInfo } from "@/components/shop/PromotionBadge";
 import { trackSearch } from "@/lib/shop/behaviorTracking";
 import { pixelTrack, trackServerEvent } from "@/lib/metaPixel";
@@ -171,6 +172,8 @@ export default function ShopListing() {
   }, [categoryId, search, featured, categoriesLoaded, showsSubcategories]);
 
   const activeCategory = categoryId ? categories.find((c) => c.id === categoryId) ?? null : null;
+  /** The branch this category sits in — context the name alone cannot give. */
+  const parentCategory = activeCategory?.parentId ? categories.find((c) => c.id === activeCategory.parentId) ?? null : null;
 
   const categoryPath = useMemo(() => {
     if (!categoryId) return [] as Category[];
@@ -211,11 +214,16 @@ export default function ShopListing() {
             </nav>
           )}
 
-          {/* The category's own banner, above its heading. Absent for a category
-              with no banner set — the page then simply starts at the title. */}
-          {activeCategory?.bannerUrl && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={activeCategory.bannerUrl} alt="" className={styles.banner} />
+          {/* The category's masthead: the banner is the visual, its name and
+              description sit inside it at the lower left. See CategoryHero for
+              why the overlay adapts to how bright the artwork is. */}
+          {activeCategory && (
+            <CategoryHero
+              name={activeCategory.name}
+              description={activeCategory.description}
+              bannerUrl={activeCategory.bannerUrl}
+              parentName={parentCategory?.name}
+            />
           )}
 
           {search && (

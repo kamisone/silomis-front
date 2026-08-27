@@ -71,25 +71,6 @@
   gap: 18px;
 }
 
-/* ── Category banner ── */
-
-/* Full width of the main column, sitting under the breadcrumbs and above the
-   heading. A shallow band rather than a hero: this page's job is the product
-   grid, and a tall picture would push the first row below the fold. */
-.banner {
-  display: block;
-  width: 100%;
-  aspect-ratio: 3 / 1;
-  /* Capped because the column runs full width now that the category sidebar is
-     gone — at 3:1 unbounded, the band alone pushes the first row of products
-     below the fold. `cover` crops to the cap rather than squashing the art. */
-  max-height: 260px;
-  object-fit: cover;
-  border-radius: 16px;
-  margin-bottom: 18px;
-  background: var(--color-surface-tint);
-}
-
 /* ── Subcategory cards ────────────────────────────────────────────────────────
    Shown instead of products when the category has children. Bigger than the
    home page's picture tiles because these are a step in the journey rather than
@@ -234,29 +215,3 @@
   }
 }
 
-@media (max-width: 700px) {
-  .banner {
-    /* Squarer on a phone: at 3:1 across a narrow column the band is a sliver. */
-    aspect-ratio: 2 / 1;
-    border-radius: 12px;
-    margin-bottom: 14px;
-  }
-}
-
-/* ── Full-bleed on phones ──
-   The home page's hero meets the viewport edges, and an inset, rounded one on
-   every other page reads as a different kind of thing. Pulling it back through
-   the container's 20px gutter lines the two up. Only the picture bleeds — the
-   text below keeps its gutter. */
-@media (max-width: 640px) {
-  .banner {
-    /* The width is explicit because this hero is an <img>: a replaced element
-       resolves `width: 100%` against its containing block and does not stretch
-       from negative margins the way the <div> heroes on other pages do, so the
-       margin alone shifted it left and left a gap on the right. */
-    width: calc(100% + 40px);
-    max-width: none;
-    margin-inline: -20px;
-    border-radius: 0;
-  }
-}
