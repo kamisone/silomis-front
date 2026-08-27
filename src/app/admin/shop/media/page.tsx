@@ -2,7 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { X, Folder, FolderOpen, Pencil, Trash2, Check, ChevronRight, Plus, Play } from "lucide-react";
+import { X, Folder, FolderOpen, FolderPlus, Pencil, Trash2, Check, ChevronRight, Plus, Play } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { useEntityTranslations } from "@/hooks/useEntityTranslations";
 import { useCopyGenerate } from "@/hooks/useCopyGenerate";
@@ -68,6 +68,41 @@ function buildBreadcrumb(folders: MediaFolder[], folderId: string | null): Media
   return [...buildBreadcrumb(folders, f.parentId), f];
 }
 
+/**
+ * What a folder holds, as the admin sees it.
+ *
+ * `assetCount` comes from the API and counts files only, which read as "0
+ * items" on a folder that exists precisely to hold other folders. Subfolders
+ * are contents too, so they are counted here and named separately — "3 folders"
+ * and "3 items" answer different questions, and collapsing them into one number
+ * would just move the confusion rather than remove it.
+ */
+function describeContents(folders: MediaFolder[], folder: MediaFolder): string {
+  const subfolders = folders.filter((f) => f.parentId === folder.id).length;
+  const parts: string[] = [];
+  if (subfolders) parts.push(`${subfolders} folder${subfolders === 1 ? "" : "s"}`);
+  if (folder.assetCount) parts.push(`${folder.assetCount} item${folder.assetCount === 1 ? "" : "s"}`);
+  return parts.length ? parts.join(" · ") : "Empty";
+}
+
+/** Everything directly inside a folder, for the sidebar's compact badge. */
+function directChildCount(folders: MediaFolder[], folder: MediaFolder): number {
+  return folders.filter((f) => f.parentId === folder.id).length + folder.assetCount;
+}
+
+/** Every folder above `folderId`, so a branch can be opened all the way down
+ *  to something the admin has just made or navigated to. */
+function ancestorsOf(folders: MediaFolder[], folderId: string | null): string[] {
+  const out: string[] = [];
+  const byId = new Map(folders.map((f) => [f.id, f]));
+  let cursor = folderId ? byId.get(folderId)?.parentId ?? null : null;
+  while (cursor && byId.has(cursor) && !out.includes(cursor)) {
+    out.push(cursor);
+    cursor = byId.get(cursor)?.parentId ?? null;
+  }
+  return out;
+}
+
 function getFolderPath(folders: MediaFolder[], folderId: string): string {
   const f = folders.find((x) => x.id === folderId);
   if (!f) return "";
@@ -104,7 +139,15 @@ function MediaLibrary() {
   // Folders
   const [folders, setFolders] = useState<MediaFolder[]>([]);
   const [newFolderName, setNewFolderName] = useState("");
-  const [isCreatingFolder, setIsCreatingFolder] = useState(false);
+  /* Which folder the pending new folder goes into: `null` = the root,
+     a string = that folder's id, `undefined` = not creating one.
+     Position is the whole contract — the "+" beside a folder makes a subfolder
+     of it, the one in the sidebar header makes a top-level one — so where the
+     input appears is where the folder will be. */
+  const [creatingUnder, setCreatingUnder] = useState<string | null | undefined>(undefined);
+  /* Which branches are open. A folder is only useful once you can see inside
+     it, so the path to wherever you are stays expanded. */
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renamingName, setRenamingName] = useState("");
 
@@ -174,6 +217,15 @@ function MediaLibrary() {
   useEffect(() => {
     loadFolders();
   }, [loadFolders]);
+
+  // Navigating into a deep folder should leave its branch open behind you,
+  // so the sidebar shows where you are rather than a collapsed root.
+  useEffect(() => {
+    if (!currentFolderId || !folders.length) return;
+    const path = [currentFolderId, ...ancestorsOf(folders, currentFolderId)];
+    const timer = setTimeout(() => setExpandedFolders((prev) => new Set([...prev, ...path])), 0);
+    return () => clearTimeout(timer);
+  }, [currentFolderId, folders]);
   useEffect(() => {
     loadAssets();
   }, [loadAssets]);
@@ -195,24 +247,54 @@ function MediaLibrary() {
   async function submitNewFolder(e?: React.FormEvent) {
     e?.preventDefault();
     const name = newFolderName.trim();
-    if (!name) {
-      setIsCreatingFolder(false);
+    const parentId = creatingUnder;
+    if (!name || parentId === undefined) {
+      setCreatingUnder(undefined);
       return;
     }
     try {
-      await api.post("/next-api/admin/media/folders", { name, parentId: currentFolderId });
+      await api.post("/next-api/admin/media/folders", { name, parentId });
     } catch (err) {
       alert(errMessage(err, "Could not create folder"));
     }
     setNewFolderName("");
-    setIsCreatingFolder(false);
+    setCreatingUnder(undefined);
     await loadFolders();
   }
 
-  function startCreatingFolder() {
-    setIsCreatingFolder(true);
+  /** Opens the inline input under `parentId` — `null` for a top-level folder. */
+  function startCreatingFolder(parentId: string | null, e?: React.MouseEvent) {
+    e?.stopPropagation();
+    setCreatingUnder(parentId);
+    setNewFolderName("");
     setRenamingId(null);
+    // The new folder appears inside its parent, so the parent has to be open
+    // for the admin to see the thing they just made.
+    if (parentId) setExpandedFolders((prev) => new Set([...prev, parentId, ...ancestorsOf(folders, parentId)]));
     setTimeout(() => newFolderRef.current?.focus(), 50);
+  }
+
+  function toggleFolder(id: string, e?: React.MouseEvent) {
+    e?.stopPropagation();
+    setExpandedFolders((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  /** Re-parents a folder. The backend refuses a move into the folder's own
+   *  subtree; this reports that refusal rather than silently doing nothing. */
+  async function moveFolder(folderId: string, targetParentId: string | null) {
+    try {
+      await api.patch(`/next-api/admin/media/folders/${folderId}`, { parentId: targetParentId });
+    } catch (err) {
+      alert(errMessage(err, "Could not move folder"));
+      return;
+    }
+    if (targetParentId) setExpandedFolders((prev) => new Set([...prev, targetParentId]));
+    await loadFolders();
   }
 
   function startRenaming(folder: MediaFolder, e: React.MouseEvent) {
@@ -239,7 +321,13 @@ function MediaLibrary() {
 
   async function deleteFolder(folder: MediaFolder, e: React.MouseEvent) {
     e.stopPropagation();
-    const msg = folder.assetCount > 0 ? `Delete "${folder.name}"? Its ${folder.assetCount} asset(s) will be moved to the parent folder.` : `Delete folder "${folder.name}"?`;
+    // Deleting reparents both the assets and the subfolders, so the warning has
+    // to mention whichever of them actually exist.
+    const moved = describeContents(folders, folder);
+    const msg =
+      moved === "Empty"
+        ? `Delete folder "${folder.name}"?`
+        : `Delete "${folder.name}"? Its contents (${moved}) will be moved to the parent folder.`;
     if (!confirm(msg)) return;
     try {
       await api.delete(`/next-api/admin/media/folders/${folder.id}`);
@@ -360,7 +448,7 @@ function MediaLibrary() {
 
   function onNewFolderKeyDown(e: KeyboardEvent<HTMLInputElement>) {
     if (e.key === "Escape") {
-      setIsCreatingFolder(false);
+      setCreatingUnder(undefined);
       setNewFolderName("");
     }
   }
@@ -376,6 +464,19 @@ function MediaLibrary() {
     const ids = selectedIds.has(assetId) && selectedIds.size > 1 ? Array.from(selectedIds) : [assetId];
     setDraggingId(assetId);
     e.dataTransfer.setData("text/plain", ids.join(","));
+    e.dataTransfer.effectAllowed = "move";
+  }
+
+  /**
+   * Folders and assets both drop onto a folder, so the payload says which it is.
+   * A dedicated `folder:<id>` prefix rather than a second dataTransfer type,
+   * because Firefox only exposes custom types on drop — the drag-over styling
+   * has to work from `text/plain` alone.
+   */
+  function onFolderDragStart(e: React.DragEvent, folderId: string) {
+    e.stopPropagation();
+    setDraggingId(folderId);
+    e.dataTransfer.setData("text/plain", `folder:${folderId}`);
     e.dataTransfer.effectAllowed = "move";
   }
 
@@ -399,10 +500,20 @@ function MediaLibrary() {
 
   async function onDropToFolder(e: React.DragEvent, targetFolderId: string | null) {
     e.preventDefault();
+    e.stopPropagation();
     const raw = e.dataTransfer.getData("text/plain");
     setDraggingId(null);
     setDragTarget(null);
     if (!raw) return;
+
+    // A folder was dropped: re-parent it instead of moving assets.
+    if (raw.startsWith("folder:")) {
+      const folderId = raw.slice("folder:".length);
+      const folder = folders.find((f) => f.id === folderId);
+      if (!folder || folder.parentId === targetFolderId || folder.id === targetFolderId) return;
+      await moveFolder(folderId, targetFolderId);
+      return;
+    }
 
     const assetIds = raw.split(",").filter((id) => {
       const a = assets.find((x) => x.id === id);
@@ -432,56 +543,123 @@ function MediaLibrary() {
 
   function renderFolderTree(parentId: string | null, depth = 0): React.ReactNode {
     const children = folders.filter((f) => f.parentId === parentId).sort((a, b) => a.name.localeCompare(b.name));
-    if (!children.length) return null;
+    // The inline input belongs inside the branch it will add to, even when that
+    // branch is currently empty — otherwise creating the first subfolder of a
+    // folder gives no feedback at all.
+    if (!children.length && creatingUnder !== parentId) return null;
 
-    return children.map((folder) => (
-      // sidebarTreeGroup flattens (display: contents) on small screens so the
-      // nested tree becomes a flat horizontal chip strip
-      <div key={folder.id} className={styles.sidebarTreeGroup}>
-        <div
-          className={`${styles.sidebarItem} ${currentFolderId === folder.id ? styles.sidebarItemActive : ""} ${dragTarget === folder.id ? styles.sidebarItemDragOver : ""}`}
-          style={{ paddingLeft: 12 + depth * 14 }}
-          onClick={() => navigateTo(folder.id)}
-          title={folder.name}
-          onDragOver={(e) => onTargetOver(e, folder.id)}
-          onDragLeave={onTargetLeave}
-          onDrop={(e) => onDropToFolder(e, folder.id)}
-        >
-          {currentFolderId === folder.id ? <FolderOpen size={13} className={styles.sidebarFolderIcon} /> : <Folder size={13} className={styles.sidebarFolderIcon} />}
-          {renamingId === folder.id ? (
-            <form onSubmit={submitRename} className={styles.sidebarRenameForm} onClick={(e) => e.stopPropagation()}>
-              <input
-                ref={renamingRef}
-                className={styles.sidebarRenameInput}
-                value={renamingName}
-                onChange={(e) => setRenamingName(e.target.value)}
-                onKeyDown={onRenamingKeyDown}
-                onBlur={() => submitRename()}
-              />
-              <button type="submit" className={styles.sidebarRenameConfirm} aria-label="Save">
-                <Check size={11} />
-              </button>
-            </form>
-          ) : (
-            <span className={styles.sidebarItemName}>{folder.name}</span>
-          )}
-          {renamingId !== folder.id && (
-            <>
-              {folder.assetCount > 0 && <span className={styles.sidebarCount}>{folder.assetCount}</span>}
-              <span className={styles.sidebarActions}>
-                <button className={styles.sidebarAction} onClick={(e) => startRenaming(folder, e)} aria-label="Rename" title="Rename">
-                  <Pencil size={11} />
-                </button>
-                <button className={`${styles.sidebarAction} ${styles.sidebarActionDelete}`} onClick={(e) => deleteFolder(folder, e)} aria-label="Delete" title="Delete folder">
-                  <Trash2 size={11} />
-                </button>
-              </span>
-            </>
-          )}
-        </div>
-        {renderFolderTree(folder.id, depth + 1)}
-      </div>
-    ));
+    return (
+      <>
+        {children.map((folder) => {
+          const hasChildren = folders.some((f) => f.parentId === folder.id);
+          const isOpen = expandedFolders.has(folder.id);
+          const isRenaming = renamingId === folder.id;
+
+          return (
+            // sidebarTreeGroup flattens (display: contents) on small screens so the
+            // nested tree becomes a flat horizontal chip strip
+            <div key={folder.id} className={styles.sidebarTreeGroup}>
+              <div
+                className={`${styles.sidebarItem} ${currentFolderId === folder.id ? styles.sidebarItemActive : ""} ${dragTarget === folder.id ? styles.sidebarItemDragOver : ""}`}
+                style={{ paddingLeft: 12 + depth * 14 }}
+                onClick={() => navigateTo(folder.id)}
+                title={folder.name}
+                /* Folders drag too, not just assets: dropping one on another is
+                   how a flat library gets reorganised without re-uploading. */
+                draggable={!isRenaming}
+                onDragStart={(e) => onFolderDragStart(e, folder.id)}
+                onDragEnd={onAssetDragEnd}
+                onDragOver={(e) => onTargetOver(e, folder.id)}
+                onDragLeave={onTargetLeave}
+                onDrop={(e) => onDropToFolder(e, folder.id)}
+              >
+                {hasChildren ? (
+                  <button
+                    type="button"
+                    className={styles.sidebarDisclosure}
+                    onClick={(e) => toggleFolder(folder.id, e)}
+                    aria-expanded={isOpen}
+                    aria-label={`${isOpen ? "Collapse" : "Expand"} ${folder.name}`}
+                  >
+                    <ChevronRight size={11} className={`${styles.sidebarChevron} ${isOpen ? styles.sidebarChevronOpen : ""}`} />
+                  </button>
+                ) : (
+                  /* Same width as the chevron, so names line up whether or not
+                     a folder has anything inside it. */
+                  <span className={styles.sidebarDisclosureSpacer} aria-hidden="true" />
+                )}
+
+                {currentFolderId === folder.id ? <FolderOpen size={13} className={styles.sidebarFolderIcon} /> : <Folder size={13} className={styles.sidebarFolderIcon} />}
+                {isRenaming ? (
+                  <form onSubmit={submitRename} className={styles.sidebarRenameForm} onClick={(e) => e.stopPropagation()}>
+                    <input
+                      ref={renamingRef}
+                      className={styles.sidebarRenameInput}
+                      value={renamingName}
+                      onChange={(e) => setRenamingName(e.target.value)}
+                      onKeyDown={onRenamingKeyDown}
+                      onBlur={() => submitRename()}
+                    />
+                    <button type="submit" className={styles.sidebarRenameConfirm} aria-label="Save">
+                      <Check size={11} />
+                    </button>
+                  </form>
+                ) : (
+                  <span className={styles.sidebarItemName}>{folder.name}</span>
+                )}
+                {!isRenaming && (
+                  <>
+                    {directChildCount(folders, folder) > 0 && (
+                      <span className={styles.sidebarCount} title={describeContents(folders, folder)}>
+                        {directChildCount(folders, folder)}
+                      </span>
+                    )}
+                    <span className={styles.sidebarActions}>
+                      <button
+                        className={styles.sidebarAction}
+                        onClick={(e) => startCreatingFolder(folder.id, e)}
+                        aria-label={`New subfolder in ${folder.name}`}
+                        title="New subfolder"
+                      >
+                        <FolderPlus size={11} />
+                      </button>
+                      <button className={styles.sidebarAction} onClick={(e) => startRenaming(folder, e)} aria-label="Rename" title="Rename">
+                        <Pencil size={11} />
+                      </button>
+                      <button className={`${styles.sidebarAction} ${styles.sidebarActionDelete}`} onClick={(e) => deleteFolder(folder, e)} aria-label="Delete" title="Delete folder">
+                        <Trash2 size={11} />
+                      </button>
+                    </span>
+                  </>
+                )}
+              </div>
+              {isOpen && renderFolderTree(folder.id, depth + 1)}
+            </div>
+          );
+        })}
+
+        {creatingUnder === parentId && (
+          <form onSubmit={submitNewFolder} className={styles.newFolderForm} style={{ paddingLeft: 12 + depth * 14 }}>
+            <span className={styles.sidebarDisclosureSpacer} aria-hidden="true" />
+            <Folder size={13} className={styles.sidebarFolderIcon} />
+            <input
+              ref={newFolderRef}
+              className={styles.newFolderInput}
+              value={newFolderName}
+              onChange={(e) => setNewFolderName(e.target.value)}
+              onKeyDown={onNewFolderKeyDown}
+              placeholder={parentId ? "Subfolder name" : "Folder name"}
+              onBlur={() => {
+                if (!newFolderName.trim()) setCreatingUnder(undefined);
+              }}
+            />
+            <button type="submit" className={styles.sidebarRenameConfirm} aria-label="Create">
+              <Check size={11} />
+            </button>
+          </form>
+        )}
+      </>
+    );
   }
 
   // ── Render ───────────────────────────────────────────────────────────
@@ -526,32 +704,13 @@ function MediaLibrary() {
 
           <div className={styles.sidebarSection}>
             <span className={styles.sidebarSectionLabel}>Folders</span>
-            {!isCreatingFolder && (
-              <button className={styles.newFolderInlineBtn} onClick={startCreatingFolder} title="New folder">
-                <Plus size={12} />
-              </button>
-            )}
+            {/* Explicitly top-level. This used to create inside whatever folder
+                the admin happened to be viewing, which meant the same button
+                did two different things depending on where you stood. */}
+            <button className={styles.newFolderInlineBtn} onClick={() => startCreatingFolder(null)} title="New top-level folder">
+              <Plus size={12} />
+            </button>
           </div>
-
-          {isCreatingFolder && (
-            <form onSubmit={submitNewFolder} className={styles.newFolderForm}>
-              <Folder size={13} className={styles.sidebarFolderIcon} />
-              <input
-                ref={newFolderRef}
-                className={styles.newFolderInput}
-                value={newFolderName}
-                onChange={(e) => setNewFolderName(e.target.value)}
-                onKeyDown={onNewFolderKeyDown}
-                placeholder="Folder name"
-                onBlur={() => {
-                  if (!newFolderName.trim()) setIsCreatingFolder(false);
-                }}
-              />
-              <button type="submit" className={styles.sidebarRenameConfirm} aria-label="Create">
-                <Check size={11} />
-              </button>
-            </form>
-          )}
 
           <div className={styles.sidebarTree}>{renderFolderTree(null)}</div>
         </aside>
@@ -661,6 +820,19 @@ function MediaLibrary() {
 
           {/* ── Grid: folder cards + asset cards ── */}
           <div className={styles.grid}>
+            {/* Creating a subfolder from inside the folder it belongs to is the
+                obvious gesture, so the grid offers it too rather than making the
+                admin find the row in the sidebar. */}
+            <button
+              type="button"
+              className={styles.newFolderCard}
+              onClick={() => startCreatingFolder(currentFolderId)}
+              title={currentFolderId ? "New subfolder here" : "New top-level folder"}
+            >
+              <FolderPlus size={26} strokeWidth={1.6} />
+              <span className={styles.newFolderCardLabel}>{currentFolderId ? "New subfolder" : "New folder"}</span>
+            </button>
+
             {/* Folder cards */}
             {gridFolders.map((folder) => (
               <div
@@ -668,6 +840,9 @@ function MediaLibrary() {
                 className={`${styles.folderCard} ${dragTarget === folder.id ? styles.folderCardDragOver : ""}`}
                 onClick={() => navigateTo(folder.id)}
                 title={folder.name}
+                draggable
+                onDragStart={(e) => onFolderDragStart(e, folder.id)}
+                onDragEnd={onAssetDragEnd}
                 onDragOver={(e) => onTargetOver(e, folder.id)}
                 onDragLeave={onTargetLeave}
                 onDrop={(e) => onDropToFolder(e, folder.id)}
@@ -684,9 +859,7 @@ function MediaLibrary() {
                 </div>
                 <div className={styles.folderCardMeta}>
                   <div className={styles.folderCardName}>{folder.name}</div>
-                  <div className={styles.folderCardCount}>
-                    {folder.assetCount} item{folder.assetCount !== 1 ? "s" : ""}
-                  </div>
+                  <div className={styles.folderCardCount}>{describeContents(folders, folder)}</div>
                 </div>
               </div>
             ))}
