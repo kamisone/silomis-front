@@ -28,21 +28,41 @@ interface ReplaySession {
 
 interface Marker {
   id: string;
-  type: "click" | "scroll" | "navigation";
+  type: "session_start" | "session_end" | "click" | "scroll" | "navigation";
   timestampMs: number;
   label: string | null;
 }
 
-const MARKER_COLOR: Record<Marker["type"], string> = { click: "#2563eb", scroll: "#f59e0b", navigation: "#16a34a" };
+const MARKER_COLOR: Record<Marker["type"], string> = {
+  session_start: "#64748b",
+  session_end: "#64748b",
+  click: "#2563eb",
+  scroll: "#f59e0b",
+  navigation: "#16a34a",
+};
+
+const MARKER_LABEL: Record<Marker["type"], string> = {
+  session_start: "Session started",
+  session_end: "Session ended",
+  click: "Click",
+  scroll: "Scroll",
+  navigation: "Navigation",
+};
 
 interface Props {
   onClose: () => void;
   /** Scopes the session list to one product — used from the test-products demand table. */
   productId?: string;
   productTitle?: string;
+  /**
+   * The caller's date-window query params (`days`, or `startDate`/`endDate`),
+   * forwarded verbatim. The list must use the same window as the unread badge
+   * that opened it, otherwise the badge count and the list disagree.
+   */
+  windowParams?: Record<string, string>;
 }
 
-export default function SessionReplayModal({ onClose, productId, productTitle }: Props) {
+export default function SessionReplayModal({ onClose, productId, productTitle, windowParams }: Props) {
   const [sessions, setSessions] = useState<ReplaySession[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<ReplaySession | null>(null);
@@ -51,14 +71,19 @@ export default function SessionReplayModal({ onClose, productId, productTitle }:
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [currentMs, setCurrentMs] = useState(0);
 
+  // windowParams is a fresh object literal on every parent render, so it is
+  // compared by value here rather than by identity — otherwise the list refetches
+  // on each keystroke in the table's filters.
+  const windowKey = JSON.stringify(windowParams ?? {});
+
   useEffect(() => {
-    const qs = new URLSearchParams({ limit: "50" });
+    const qs = new URLSearchParams({ ...(JSON.parse(windowKey) as Record<string, string>), limit: "50" });
     if (productId) qs.set("productId", productId);
     api
       .get<{ items: ReplaySession[]; total: number }>(`/next-api/admin/shop/replay/sessions?${qs.toString()}`)
       .then((r) => setSessions(r.items))
       .finally(() => setLoading(false));
-  }, [productId]);
+  }, [productId, windowKey]);
 
   async function openSession(session: ReplaySession) {
     setSelected(session);
@@ -148,13 +173,13 @@ export default function SessionReplayModal({ onClose, productId, productTitle }:
                 <div className={styles.timelineTrack}>
                   {markers.map((m) => {
                     const pct = selected.durationMs ? Math.min(100, (m.timestampMs / selected.durationMs) * 100) : 0;
-                    return <span key={m.id} className={styles.timelineDot} style={{ left: `${pct}%`, background: MARKER_COLOR[m.type] }} title={`${m.type}${m.label ? `: ${m.label}` : ""}`} />;
+                    return <span key={m.id} className={styles.timelineDot} style={{ left: `${pct}%`, background: MARKER_COLOR[m.type] }} title={`${MARKER_LABEL[m.type] ?? m.type}${m.label ? `: ${m.label}` : ""}`} />;
                   })}
                 </div>
                 <ul className={styles.eventList}>
                   {markers.map((m) => (
                     <li key={m.id} className={Math.abs(m.timestampMs - currentMs) < 500 ? styles.eventActive : ""}>
-                      <span style={{ color: MARKER_COLOR[m.type] }}>●</span> {m.type}
+                      <span style={{ color: MARKER_COLOR[m.type] }}>●</span> {MARKER_LABEL[m.type] ?? m.type}
                       {m.label ? ` — ${m.label}` : ""}
                       <span className={styles.eventTime}>{(m.timestampMs / 1000).toFixed(1)}s</span>
                     </li>

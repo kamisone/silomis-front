@@ -262,6 +262,7 @@ export default function TestProductsAnalyticsPage() {
         <SessionReplayModal
           productId={replayProduct.id}
           productTitle={replayProduct.title}
+          windowParams={{ days }}
           onClose={() => {
             setReplayProduct(null);
             fetchUnreadCounts(rows.map((r) => r.productId));

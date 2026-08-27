@@ -635,7 +635,8 @@ export default function ShopProductDetail({
 
   return (
     <div className={styles.page}>
-      {product.isTestProduct && <ReplayRecorderMount productId={product.id} />}
+      {/* ── Session-replay recorder — test products only, see ReplayRecorderMount ── */}
+      <ReplayRecorderMount productId={product.id} isTestProduct={!!product.isTestProduct} />
 
       {allOutOfStock && (
         <div className={styles.oosStickyNotice} role="status">
