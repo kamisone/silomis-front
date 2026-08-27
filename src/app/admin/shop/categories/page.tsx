@@ -8,6 +8,7 @@ import Modal from "@/components/admin/ui/Modal";
 import BilingualField from "@/components/admin/BilingualField";
 import MediaPicker from "@/components/admin/ui/MediaPicker";
 import { useEntityTranslations } from "@/hooks/useEntityTranslations";
+import { useCopyGenerate } from "@/hooks/useCopyGenerate";
 import ui from "@/components/admin/ui/admin-ui.module.css";
 import styles from "./Categories.module.css";
 import { useToast } from "@/components/toast/ToastContext";
@@ -99,6 +100,7 @@ export default function CategoriesPage() {
   const [saving, setSaving] = useState(false);
 
   const { translations, setTranslation, saveTranslations } = useEntityTranslations(ENTITY_TYPE, form?.id ?? null);
+  const gen = useCopyGenerate(setTranslation);
 
   async function load() {
     setLoading(true);
@@ -268,6 +270,7 @@ export default function CategoriesPage() {
               baseRequired
               translations={translations}
               onTranslationChange={setTranslation}
+              {...gen.field("name", form.name)}
             />
             <div className={ui.field}>
               <label className={ui.label}>Slug (optional)</label>
@@ -282,6 +285,7 @@ export default function CategoriesPage() {
               onTranslationChange={setTranslation}
               multiline
               rows={3}
+              {...gen.field("description", form.description)}
             />
             <div className={ui.field}>
               <label className={ui.label}>Tile image</label>

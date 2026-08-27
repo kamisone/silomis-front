@@ -8,6 +8,7 @@ import Button from "@/components/admin/ui/Button";
 import MediaPicker from "@/components/admin/ui/MediaPicker";
 import BilingualField from "@/components/admin/BilingualField";
 import { useEntityTranslations } from "@/hooks/useEntityTranslations";
+import { useCopyGenerate } from "@/hooks/useCopyGenerate";
 import ui from "@/components/admin/ui/admin-ui.module.css";
 import styles from "./CollectionEdit.module.css";
 import { useToast } from "@/components/toast/ToastContext";
@@ -65,6 +66,8 @@ export default function CollectionDetailPage() {
   const [saving, setSaving] = useState(false);
 
   const { translations, setTranslation, saveTranslations } = useEntityTranslations(ENTITY_TYPE, collection?.id ?? null);
+
+  const gen = useCopyGenerate(setTranslation);
 
   async function load() {
     setLoading(true);
@@ -207,6 +210,7 @@ export default function CollectionDetailPage() {
             baseRequired
             translations={translations}
             onTranslationChange={setTranslation}
+            {...gen.field("name", collection.name)}
           />
 
           <div className={ui.field}>
@@ -222,6 +226,7 @@ export default function CollectionDetailPage() {
             translations={translations}
             onTranslationChange={setTranslation}
             multiline
+            {...gen.field("description", collection.description ?? "")}
           />
 
           <div className={ui.field}>
@@ -292,6 +297,7 @@ export default function CollectionDetailPage() {
             baseOnChange={(v) => setCollection({ ...collection, seoTitle: v || null })}
             translations={translations}
             onTranslationChange={setTranslation}
+            {...gen.field("seoTitle", collection.seoTitle ?? "")}
           />
           <BilingualField
             label="SEO description"
@@ -301,6 +307,7 @@ export default function CollectionDetailPage() {
             translations={translations}
             onTranslationChange={setTranslation}
             multiline
+            {...gen.field("seoDescription", collection.seoDescription ?? "")}
           />
           <div className={ui.field}>
             <label className={ui.label}>Meta keywords</label>
@@ -313,6 +320,7 @@ export default function CollectionDetailPage() {
             baseOnChange={(v) => setCollection({ ...collection, heroTitle: v || null })}
             translations={translations}
             onTranslationChange={setTranslation}
+            {...gen.field("heroTitle", collection.heroTitle ?? "")}
           />
           <BilingualField
             label="Hero subtitle"
@@ -321,6 +329,7 @@ export default function CollectionDetailPage() {
             baseOnChange={(v) => setCollection({ ...collection, heroSubtitle: v || null })}
             translations={translations}
             onTranslationChange={setTranslation}
+            {...gen.field("heroSubtitle", collection.heroSubtitle ?? "")}
           />
           <BilingualField
             label="Body HTML (landing page copy)"
@@ -331,6 +340,7 @@ export default function CollectionDetailPage() {
             onTranslationChange={setTranslation}
             multiline
             rows={6}
+            {...gen.field("bodyHtml", collection.bodyHtml ?? "", "html")}
           />
         </form>
       </div>

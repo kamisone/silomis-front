@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { FileText, GripVertical, Plus, Trash2, Upload } from "lucide-react";
 import BilingualField from "@/components/admin/BilingualField";
 import type { OverlayLang } from "@/hooks/useEntityTranslations";
+import { useCopyGenerate } from "@/hooks/useCopyGenerate";
 import type { ProductDocument } from "@/lib/shop/productContent.types";
 import styles from "./ProductDocumentsManager.module.css";
 
@@ -36,6 +37,7 @@ export default function ProductDocumentsManager({
   onTranslationChange,
   onChange,
 }: Props) {
+  const gen = useCopyGenerate(onTranslationChange);
   const [items, setItems] = useState<ProductDocument[]>(initialDocuments);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -148,6 +150,7 @@ export default function ProductDocumentsManager({
                 translations={translations}
                 onTranslationChange={onTranslationChange}
                 overlayPlaceholder="e.g. Manuel d'utilisation, Fiche technique"
+                {...gen.field(`document:${doc.id}:title`, doc.title)}
               />
             </div>
           </div>

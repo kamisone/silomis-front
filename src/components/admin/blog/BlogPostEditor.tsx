@@ -11,6 +11,7 @@ import MediaPicker from "@/components/admin/ui/MediaPicker";
 import Button from "@/components/admin/ui/Button";
 import BlogProductPicker, { type BlogProductRef } from "./BlogProductPicker";
 import { useEntityTranslations } from "@/hooks/useEntityTranslations";
+import { useCopyGenerate } from "@/hooks/useCopyGenerate";
 import { useToast } from "@/components/toast/ToastContext";
 import ui from "@/components/admin/ui/admin-ui.module.css";
 import styles from "./BlogPostEditor.module.css";
@@ -85,6 +86,7 @@ export default function BlogPostEditor({ postId }: Props) {
 
   const [entityId, setEntityId] = useState<string | null>(postId ?? null);
   const { translations, setTranslation, saveTranslations } = useEntityTranslations(ENTITY_TYPE, entityId);
+  const gen = useCopyGenerate(setTranslation);
 
   useEffect(() => {
     Promise.all([
@@ -224,6 +226,7 @@ export default function BlogPostEditor({ postId }: Props) {
               basePlaceholder="Article title"
               translations={translations}
               onTranslationChange={setTranslation}
+              {...gen.field("title", title)}
             />
             <div className={ui.field}>
               <label className={ui.label}>Slug</label>
@@ -242,6 +245,7 @@ export default function BlogPostEditor({ postId }: Props) {
               onTranslationChange={setTranslation}
               multiline
               rows={3}
+              {...gen.field("excerpt", excerpt)}
             />
           </div>
 
@@ -255,6 +259,7 @@ export default function BlogPostEditor({ postId }: Props) {
               translations={translations}
               onTranslationChange={setTranslation}
               richText
+              {...gen.field("content", content, "html")}
             />
           </div>
 
@@ -274,6 +279,7 @@ export default function BlogPostEditor({ postId }: Props) {
               translations={translations}
               onTranslationChange={setTranslation}
               maxLength={70}
+              {...gen.field("seoTitle", seoTitle)}
             />
             <BilingualField
               label="SEO description"
@@ -286,6 +292,7 @@ export default function BlogPostEditor({ postId }: Props) {
               multiline
               rows={3}
               maxLength={160}
+              {...gen.field("seoDescription", seoDescription)}
             />
             <div className={ui.field}>
               <label className={ui.label}>Canonical URL (optional)</label>
@@ -339,6 +346,7 @@ export default function BlogPostEditor({ postId }: Props) {
                 basePlaceholder="Image description for screen readers"
                 translations={translations}
                 onTranslationChange={setTranslation}
+                {...gen.field("featuredImageAlt", featuredImageAlt)}
               />
             )}
           </div>

@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { X, Folder, FolderOpen, Pencil, Trash2, Check, ChevronRight, Plus, Play } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { useEntityTranslations } from "@/hooks/useEntityTranslations";
+import { useCopyGenerate } from "@/hooks/useCopyGenerate";
 import BilingualField from "@/components/admin/BilingualField";
 import styles from "./Media.module.css";
 
@@ -124,6 +125,7 @@ function MediaLibrary() {
   const [movingToFolder, setMovingToFolder] = useState<string>("");
   const [saving, setSaving] = useState(false);
   const { translations, setTranslation, saveTranslations } = useEntityTranslations("media_asset", selected?.id ?? null);
+  const gen = useCopyGenerate(setTranslation);
 
   // Upload
   const [uploading, setUploading] = useState(false);
@@ -862,6 +864,7 @@ function MediaLibrary() {
                 overlayPlaceholder="Image description"
                 multiline
                 rows={2}
+                {...gen.field("altText", altText)}
               />
 
               <BilingualField
@@ -873,6 +876,7 @@ function MediaLibrary() {
                 translations={translations}
                 onTranslationChange={setTranslation}
                 overlayPlaceholder="Image title"
+                {...gen.field("title", title)}
               />
 
               <button className={styles.saveAltBtn} onClick={saveSeoFields} disabled={saving}>

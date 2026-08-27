@@ -8,6 +8,7 @@ import Button from "@/components/admin/ui/Button";
 import Modal from "@/components/admin/ui/Modal";
 import BilingualField from "@/components/admin/BilingualField";
 import { useEntityTranslations } from "@/hooks/useEntityTranslations";
+import { useCopyGenerate } from "@/hooks/useCopyGenerate";
 import ui from "@/components/admin/ui/admin-ui.module.css";
 import MediaPicker from "@/components/admin/ui/MediaPicker";
 import styles from "./[id]/CollectionEdit.module.css";
@@ -49,6 +50,8 @@ export default function CollectionsPage() {
   const [saving, setSaving] = useState(false);
 
   const { translations, setTranslation, saveTranslations } = useEntityTranslations(ENTITY_TYPE, null);
+
+  const gen = useCopyGenerate(setTranslation);
 
   async function load() {
     setLoading(true);
@@ -189,6 +192,7 @@ export default function CollectionsPage() {
               baseRequired
               translations={translations}
               onTranslationChange={setTranslation}
+              {...gen.field("name", name)}
             />
             <div className={ui.field}>
               <label className={ui.label}>Slug</label>

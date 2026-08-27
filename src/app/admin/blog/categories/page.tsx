@@ -6,6 +6,7 @@ import Button from "@/components/admin/ui/Button";
 import Modal from "@/components/admin/ui/Modal";
 import BilingualField from "@/components/admin/BilingualField";
 import { useEntityTranslations } from "@/hooks/useEntityTranslations";
+import { useCopyGenerate } from "@/hooks/useCopyGenerate";
 import ui from "@/components/admin/ui/admin-ui.module.css";
 import { useToast } from "@/components/toast/ToastContext";
 
@@ -43,6 +44,8 @@ export default function BlogCategoriesPage() {
   const [saving, setSaving] = useState(false);
 
   const { translations, setTranslation, saveTranslations } = useEntityTranslations(ENTITY_TYPE, form?.id ?? null);
+
+  const gen = useCopyGenerate(setTranslation);
 
   async function load() {
     setLoading(true);
@@ -202,6 +205,7 @@ export default function BlogCategoriesPage() {
               baseRequired
               translations={translations}
               onTranslationChange={setTranslation}
+              {...gen.field("name", form.name)}
             />
             <div className={ui.field}>
               <label className={ui.label}>Slug (optional)</label>
@@ -216,6 +220,7 @@ export default function BlogCategoriesPage() {
               onTranslationChange={setTranslation}
               multiline
               rows={3}
+              {...gen.field("description", form.description)}
             />
             <div className={ui.field}>
               <label className={ui.label}>Color</label>
