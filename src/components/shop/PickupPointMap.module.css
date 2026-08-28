@@ -1,0 +1,55 @@
+/* Leaflet's own stylesheet is imported by the parent so it loads with the
+   dynamic chunk rather than on every checkout render. */
+
+.map {
+  width: 100%;
+  height: 100%;
+  min-height: 18rem;
+  border-radius: 10px;
+  background: var(--color-surface);
+  z-index: 0; /* keeps Leaflet panes under the suggestion dropdown */
+}
+
+.map :global(.leaflet-container) {
+  font: inherit;
+  border-radius: 10px;
+}
+
+.map :global(.leaflet-control-attribution) {
+  font-size: 0.65rem;
+  background: color-mix(in srgb, var(--brand-base) 85%, transparent);
+}
+
+/* ── Numbered pin ───────────────────────────────────────────────────── */
+
+/* A circle rather than a teardrop: a rotated pin shape would rotate the digit
+   with it, and the number is what ties a marker to its list row. */
+.pin {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--color-accent-secondary);
+  border: 2px solid var(--brand-base);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 30%);
+  color: var(--brand-base);
+  font-size: 0.74rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    transform 0.12s ease,
+    background 0.12s ease;
+}
+
+.pinActive {
+  background: var(--color-accent);
+  transform: scale(1.22);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pin {
+    transition: none;
+  }
+}

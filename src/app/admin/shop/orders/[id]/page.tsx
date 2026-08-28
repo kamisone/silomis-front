@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { Copy, Check, Truck, Package, MapPin } from "lucide-react";
 import { useParams } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
 import { useToast } from "@/components/toast/ToastContext";
@@ -33,6 +34,35 @@ interface OrderAddress {
   country: string;
 }
 
+/** Carrier pickup point chosen at checkout — snapshotted, so it survives the point closing later. */
+interface OrderPickupPoint {
+  id: string;
+  name: string;
+  address: string;
+  postcode: string;
+  city: string;
+  country: string;
+  latitude: number | null;
+  longitude: number | null;
+  type: "relay" | "locker";
+  carrierCode: string | null;
+  openingHours: Array<{ weekday: number; slots: string[] }> | null;
+  selectedAt: string;
+}
+
+/** The method the customer paid for — everything needed to book the label by hand. */
+interface OrderShippingMethod {
+  id: string;
+  name: string;
+  carrier: string | null;
+  carrierCode: string | null;
+  code: string | null;
+  priceCents: number;
+  estimatedDaysMin: number;
+  estimatedDaysMax: number;
+  requiresPickupPoint: boolean;
+}
+
 interface Order {
   id: string;
   orderNumber: string;
@@ -41,6 +71,10 @@ interface Order {
   customerName: string | null;
   customerPhone: string | null;
   shippingAddressSnapshot: OrderAddress;
+  pickupPointSnapshot: OrderPickupPoint | null;
+  shippingMethodId: string | null;
+  shippingMethod: OrderShippingMethod | null;
+  customerLocale: string | null;
   subtotalCents: number;
   shippingCents: number;
   discountCents: number;
@@ -49,6 +83,57 @@ interface Order {
   createdAt: string;
   items: OrderItem[];
   statusHistory: StatusHistoryEntry[];
+}
+
+const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+/**
+ * Copies a value the admin has to retype into the carrier's own dashboard.
+ * Fulfilment is manual, so the service-point reference is transcribed by hand —
+ * one click removes the most likely way to ship a parcel to the wrong shop.
+ */
+function CopyValue({ value, label }: { value: string; label: string }) {
+  const [copied, setCopied] = useState(false);
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        void navigator.clipboard?.writeText(value).then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1600);
+        });
+      }}
+      title={`Copy ${label}`}
+      aria-label={`Copy ${label}`}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: "0.35rem",
+        padding: "0.15rem 0.45rem",
+        border: "1px solid var(--color-surface)",
+        borderRadius: 6,
+        background: "var(--color-surface)",
+        font: "inherit",
+        fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+        fontSize: "0.82rem",
+        color: "var(--color-primary)",
+        cursor: "pointer",
+      }}
+    >
+      {value}
+      {copied ? <Check size={12} /> : <Copy size={12} />}
+    </button>
+  );
+}
+
+function Row({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div style={{ display: "flex", gap: "0.75rem", alignItems: "baseline", flexWrap: "wrap" }}>
+      <span style={{ minWidth: 130, fontSize: "0.8rem", color: "var(--color-secondary)" }}>{label}</span>
+      <span style={{ fontSize: "0.9rem" }}>{children}</span>
+    </div>
+  );
 }
 
 function eur(cents: number): string {
@@ -155,6 +240,85 @@ export default function OrderDetailPage() {
         </div>
         <div>{addr.country}</div>
       </div>
+
+      {/* Fulfilment — everything needed to book the label by hand, since
+          shipment creation is deliberately manual. */}
+      <div className={ui.card} style={{ padding: "1.5rem", display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+        <strong style={{ color: "var(--color-primary)", display: "flex", alignItems: "center", gap: "0.45rem" }}>
+          <Truck size={16} aria-hidden="true" /> Shipping
+        </strong>
+
+        {order.shippingMethod ? (
+          <>
+            <Row label="Method">
+              {order.shippingMethod.name}
+              {order.shippingMethod.requiresPickupPoint && <span className={ui.badge} style={{ marginLeft: "0.4rem" }}>pickup point</span>}
+            </Row>
+            {order.shippingMethod.carrier && <Row label="Carrier">{order.shippingMethod.carrier}</Row>}
+            {order.shippingMethod.carrierCode && (
+              <Row label="Carrier code">
+                <CopyValue value={order.shippingMethod.carrierCode} label="carrier code" />
+              </Row>
+            )}
+            <Row label="Delivery estimate">
+              {order.shippingMethod.estimatedDaysMin}–{order.shippingMethod.estimatedDaysMax} business days
+            </Row>
+          </>
+        ) : (
+          <Row label="Method">
+            <span style={{ color: "var(--color-secondary)" }}>{order.shippingCents === 0 ? "Free shipping" : "No method recorded"}</span>
+          </Row>
+        )}
+        <Row label="Shipping paid">{order.shippingCents === 0 ? "Free" : eur(order.shippingCents)}</Row>
+        <Row label="Destination">
+          {addr.zip} {addr.city}, {addr.country}
+        </Row>
+      </div>
+
+      {order.pickupPointSnapshot && (
+        <div className={ui.card} style={{ padding: "1.5rem", display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+          <strong style={{ color: "var(--color-primary)", display: "flex", alignItems: "center", gap: "0.45rem" }}>
+            {order.pickupPointSnapshot.type === "locker" ? <Package size={16} aria-hidden="true" /> : <MapPin size={16} aria-hidden="true" />}
+            Pickup point
+            <span className={ui.badge}>{order.pickupPointSnapshot.type === "locker" ? "locker" : "shop"}</span>
+          </strong>
+
+          <p style={{ margin: 0, fontSize: "0.8rem", color: "var(--color-secondary)" }}>
+            Ship to this service point. The reference below is what the carrier needs — copy it rather than retyping.
+          </p>
+
+          <Row label="Service point ID">
+            <CopyValue value={order.pickupPointSnapshot.id} label="service point ID" />
+          </Row>
+          <Row label="Name">{order.pickupPointSnapshot.name}</Row>
+          <Row label="Address">
+            {order.pickupPointSnapshot.address}
+            <br />
+            {order.pickupPointSnapshot.postcode} {order.pickupPointSnapshot.city}, {order.pickupPointSnapshot.country}
+          </Row>
+          {order.pickupPointSnapshot.carrierCode && <Row label="Network">{order.pickupPointSnapshot.carrierCode}</Row>}
+          {order.pickupPointSnapshot.latitude !== null && order.pickupPointSnapshot.longitude !== null && (
+            <Row label="Coordinates">
+              <CopyValue value={`${order.pickupPointSnapshot.latitude}, ${order.pickupPointSnapshot.longitude}`} label="coordinates" />
+            </Row>
+          )}
+          <Row label="Chosen at">{new Date(order.pickupPointSnapshot.selectedAt).toLocaleString()}</Row>
+
+          {order.pickupPointSnapshot.openingHours && order.pickupPointSnapshot.openingHours.length > 0 && (
+            <div style={{ marginTop: "0.35rem" }}>
+              <span style={{ fontSize: "0.8rem", color: "var(--color-secondary)" }}>Opening hours</span>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(9rem, 1fr))", gap: "0.15rem 1rem", marginTop: "0.3rem" }}>
+                {order.pickupPointSnapshot.openingHours.map((day) => (
+                  <div key={day.weekday} style={{ display: "flex", justifyContent: "space-between", fontSize: "0.78rem" }}>
+                    <span style={{ color: "var(--color-secondary)" }}>{WEEKDAYS[day.weekday - 1]}</span>
+                    <span>{day.slots.length ? day.slots.join(" · ") : "Closed"}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className={ui.card}>
         <table className={ui.table}>

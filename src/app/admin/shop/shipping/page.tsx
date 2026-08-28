@@ -20,6 +20,7 @@ interface Zone {
 interface Method {
   id: string;
   zoneId: string;
+  code: string | null;
   name: string;
   carrier: string | null;
   priceCents: number;
@@ -29,6 +30,10 @@ interface Method {
   isActive: boolean;
   sortOrder: number;
   availableForFreeShipping: boolean;
+  requiresProductOptIn: boolean;
+  requiresPickupPoint: boolean;
+  supportedCountryCodes: string[];
+  carrierCode: string | null;
 }
 
 interface ZoneForm {
@@ -44,6 +49,7 @@ interface ZoneForm {
 interface MethodForm {
   id: string | null;
   zoneId: string;
+  code: string;
   name: string;
   carrier: string;
   priceCents: string;
@@ -53,6 +59,11 @@ interface MethodForm {
   isActive: boolean;
   sortOrder: string;
   availableForFreeShipping: boolean;
+  requiresProductOptIn: boolean;
+  requiresPickupPoint: boolean;
+  /** Comma-separated ISO codes, same free-text convention as the zone form. */
+  supportedCountryCodes: string;
+  carrierCode: string;
 }
 
 function eur(cents: number): string {
@@ -91,6 +102,7 @@ export default function ShippingPage() {
     return {
       id: null,
       zoneId: zones[0]?.id ?? "",
+      code: "",
       name: "",
       carrier: "",
       priceCents: "0",
@@ -100,6 +112,10 @@ export default function ShippingPage() {
       isActive: true,
       sortOrder: "0",
       availableForFreeShipping: false,
+      requiresProductOptIn: false,
+      requiresPickupPoint: false,
+      supportedCountryCodes: "",
+      carrierCode: "",
     };
   }
 
@@ -153,6 +169,7 @@ export default function ShippingPage() {
     const isNew = !methodForm.id;
     const payload = {
       zoneId: methodForm.zoneId,
+      code: methodForm.code.trim() || null,
       name: methodForm.name,
       carrier: methodForm.carrier || null,
       priceCents: parseInt(methodForm.priceCents || "0", 10),
@@ -162,6 +179,13 @@ export default function ShippingPage() {
       isActive: methodForm.isActive,
       sortOrder: parseInt(methodForm.sortOrder || "0", 10),
       availableForFreeShipping: methodForm.availableForFreeShipping,
+      requiresProductOptIn: methodForm.requiresProductOptIn,
+      requiresPickupPoint: methodForm.requiresPickupPoint,
+      carrierCode: methodForm.carrierCode.trim() || null,
+      supportedCountryCodes: methodForm.supportedCountryCodes
+        .split(",")
+        .map((c) => c.trim().toUpperCase())
+        .filter(Boolean),
     };
     try {
       if (methodForm.id) {
@@ -291,6 +315,11 @@ export default function ShippingPage() {
                 <tr key={m.id}>
                   <td>
                     {m.name} {m.availableForFreeShipping && <span className={ui.badgeActive}>upgrade</span>}
+                    {/* Neutral, not green: these describe how the method behaves,
+                        not whether it is switched on — the active/inactive badge
+                        in the status column is the one that says that. */}
+                    {m.requiresPickupPoint && <span className={ui.badge}>pickup point</span>}
+                    {m.requiresProductOptIn && <span className={ui.badge}>per-product</span>}
                   </td>
                   <td>{zoneName(m.zoneId)}</td>
                   <td>{m.carrier ?? "—"}</td>
@@ -319,6 +348,11 @@ export default function ShippingPage() {
                             isActive: m.isActive,
                             sortOrder: String(m.sortOrder),
                             availableForFreeShipping: m.availableForFreeShipping,
+                            code: m.code ?? "",
+                            requiresProductOptIn: m.requiresProductOptIn,
+                            requiresPickupPoint: m.requiresPickupPoint,
+                            supportedCountryCodes: (m.supportedCountryCodes ?? []).join(", "),
+                            carrierCode: m.carrierCode ?? "",
                           })
                         }
                       >
@@ -448,6 +482,33 @@ export default function ShippingPage() {
               </div>
             </div>
             <div className={ui.field}>
+              <label className={ui.label}>Countries served</label>
+              <input
+                className={ui.input}
+                value={methodForm.supportedCountryCodes}
+                onChange={(e) => setMethodForm({ ...methodForm, supportedCountryCodes: e.target.value })}
+                placeholder="FR, BE, LU — leave empty for the whole zone"
+              />
+            </div>
+            <div className={ui.field}>
+              <label className={ui.label}>Carrier code</label>
+              <input
+                className={ui.input}
+                value={methodForm.carrierCode}
+                onChange={(e) => setMethodForm({ ...methodForm, carrierCode: e.target.value })}
+                placeholder="mondial_relay, colissimo — filters which pickup points are offered"
+              />
+            </div>
+            <div className={ui.field}>
+              <label className={ui.label}>Internal code</label>
+              <input
+                className={ui.input}
+                value={methodForm.code}
+                onChange={(e) => setMethodForm({ ...methodForm, code: e.target.value })}
+                placeholder="mondial_relay — optional, lower-case, must be unique"
+              />
+            </div>
+            <div className={ui.field}>
               <label className={ui.label}>Sort order</label>
               <input className={ui.input} type="number" value={methodForm.sortOrder} onChange={(e) => setMethodForm({ ...methodForm, sortOrder: e.target.value })} />
             </div>
@@ -462,6 +523,22 @@ export default function ShippingPage() {
                 onChange={(e) => setMethodForm({ ...methodForm, availableForFreeShipping: e.target.checked })}
               />
               Paid upgrade alongside free shipping (excluded from ordinary quoting)
+            </label>
+            <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.9rem" }}>
+              <input
+                type="checkbox"
+                checked={methodForm.requiresProductOptIn}
+                onChange={(e) => setMethodForm({ ...methodForm, requiresProductOptIn: e.target.checked })}
+              />
+              Enabled per product (offered only when every product in the basket allows it)
+            </label>
+            <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.9rem" }}>
+              <input
+                type="checkbox"
+                checked={methodForm.requiresPickupPoint}
+                onChange={(e) => setMethodForm({ ...methodForm, requiresPickupPoint: e.target.checked })}
+              />
+              Customer must choose a pickup point before paying
             </label>
           </form>
         </Modal>

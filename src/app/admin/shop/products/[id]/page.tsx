@@ -106,6 +106,11 @@ interface FreeShipMethod {
   estimatedDaysMax: number;
   zone: { name: string; countryCodes?: string[] } | null;
 }
+/** A method the admin must enable per product — same shape, plus its own country scope. */
+interface OptInMethod extends FreeShipMethod {
+  isActive: boolean;
+  supportedCountryCodes: string[];
+}
 interface Inventory {
   available: number;
   reserved: number;
@@ -130,6 +135,7 @@ interface Product {
   freeShippingDaysMin: number | null;
   freeShippingDaysMax: number | null;
   freeShippingUpgradeMethods: Array<{ id: string }> | null;
+  shippingMethods: Array<{ id: string }> | null;
   featuredImageKey: string | null;
   featuredImageUrl: string | null;
   media: ResolvedProductMediaItem[];
@@ -193,16 +199,18 @@ export default function EditProductPage() {
 
   // ── Per-product images for "image" swatch option values ─────────────────
   const [optionImages, setOptionImages] = useState<OptionImage[]>([]);
+  const [optInMethods, setOptInMethods] = useState<OptInMethod[]>([]);
   const [optionImagePickerTarget, setOptionImagePickerTarget] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [p, cats, tgs, attrs, fsm, prodAttrs, optImages] = await Promise.all([
+    const [p, cats, tgs, attrs, fsm, optIn, prodAttrs, optImages] = await Promise.all([
       api.get<Product>(`/next-api/admin/shop/products/${id}`),
       api.get<Category[]>("/next-api/admin/shop/categories"),
       api.get<Tag[]>("/next-api/admin/shop/tags"),
       api.get<VariantAttribute[]>("/next-api/admin/shop/variant-attributes"),
       api.get<FreeShipMethod[]>("/next-api/admin/shop/shipping/free-shipping-methods").catch(() => []),
+      api.get<OptInMethod[]>("/next-api/admin/shop/shipping/product-opt-in-methods").catch(() => []),
       api.get<ProductAttr[]>(`/next-api/admin/shop/products/${id}/attributes`).catch(() => []),
       api.get<OptionImage[]>(`/next-api/admin/shop/products/${id}/option-images`).catch(() => []),
     ]);
@@ -211,6 +219,7 @@ export default function EditProductPage() {
     setTags(tgs);
     setAttributes(attrs);
     setFreeShipMethods(fsm);
+    setOptInMethods(optIn);
     setProductAttrs(prodAttrs);
     setOptionImages(optImages);
     const defaultVariant = p.variants.find((v) => v.isDefault) ?? p.variants[0];
@@ -297,6 +306,7 @@ export default function EditProductPage() {
         freeShippingDaysMin: product.freeShippingDaysMin,
         freeShippingDaysMax: product.freeShippingDaysMax,
         freeShippingUpgradeMethodIds: product.freeShipping ? (product.freeShippingUpgradeMethods ?? []).map((m) => m.id) : [],
+        shippingMethodIds: (product.shippingMethods ?? []).map((m) => m.id),
         primaryCategoryId: product.primaryCategoryId || null,
         categoryIds: product.categories.map((c) => c.id),
         tagIds: product.tags.map((t) => t.id),
@@ -997,6 +1007,69 @@ export default function EditProductPage() {
                   This product cannot be sold. The payment form never loads and no charge is ever created — customers see a generic error at the shipping step.
                 </p>
               )}
+              {optInMethods.length > 0 && (
+                <>
+                  <div className={styles.divider} />
+                  <div className={styles.field} style={{ marginBottom: 0 }}>
+                    <label className={styles.label}>Shipping methods</label>
+                    <p className={styles.hint} style={{ marginTop: 0 }}>
+                      Methods that have to be enabled product by product. A basket is offered one of these only when{" "}
+                      <strong>every</strong> product in it allows the method — one product left unticked withdraws it from the whole order.
+                    </p>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6, border: "1px solid var(--color-surface)", borderRadius: 10, padding: "10px 12px", maxHeight: 220, overflowY: "auto" }}>
+                      {optInMethods.map((m) => {
+                        const checked = (product.shippingMethods ?? []).some((x) => x.id === m.id);
+                        return (
+                          <label key={m.id} style={{ display: "flex", alignItems: "flex-start", gap: 9, cursor: "pointer", fontSize: 13 }}>
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() =>
+                                set({
+                                  shippingMethods: checked
+                                    ? (product.shippingMethods ?? []).filter((x) => x.id !== m.id)
+                                    : [...(product.shippingMethods ?? []), { id: m.id }],
+                                })
+                              }
+                              style={{ width: 15, height: 15, marginTop: 2, accentColor: "var(--color-accent)", cursor: "pointer" }}
+                            />
+                            <span>
+                              <span style={{ fontWeight: 600, color: "var(--color-primary)" }}>{m.name}</span>
+                              <span className={styles.hint}>
+                                {" "}
+                                — €{(m.priceCents / 100).toFixed(2)} · {m.estimatedDaysMin}–{m.estimatedDaysMax} days
+                              </span>
+                              {m.supportedCountryCodes?.length > 0 && (
+                                <span className={styles.hint} style={{ display: "block", fontSize: 11.5 }}>
+                                  Delivers to: {m.supportedCountryCodes.join(", ")} — not offered for any other destination
+                                </span>
+                              )}
+                              {!m.isActive && (
+                                <span
+                                  style={{
+                                    display: "block",
+                                    marginTop: 4,
+                                    padding: "5px 8px",
+                                    borderRadius: 6,
+                                    background: "var(--color-warning-bg)",
+                                    border: "1px solid var(--color-warning-border)",
+                                    color: "var(--color-warning)",
+                                    fontSize: 11.5,
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  Switched off — ticking it here has no effect until the method itself is activated in Shop → Shipping.
+                                </span>
+                              )}
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </>
+              )}
+
               <div className={styles.divider} />
               <div className={styles.toggleRow}>
                 <div>

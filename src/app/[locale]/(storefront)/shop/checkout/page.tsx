@@ -14,6 +14,7 @@ import CountrySelect from "@/components/shop/CountrySelect";
 import { pixelTrack, getMetaCookies } from "@/lib/metaPixel";
 import { ttqTrack, getTikTokCookies } from "@/lib/tiktokPixel";
 import styles from "./Checkout.module.css";
+import PickupPointSelector, { type PickupPoint } from "@/components/shop/PickupPointSelector";
 
 type T = ReturnType<typeof getTranslations>;
 
@@ -30,6 +31,7 @@ interface CountryOption {
 
 interface ShippingMethod {
   id: string;
+  code: string | null;
   name: string;
   description: string | null;
   carrier: string | null;
@@ -38,6 +40,7 @@ interface ShippingMethod {
   isFree: boolean;
   estimatedDaysMin: number;
   estimatedDaysMax: number;
+  requiresPickupPoint: boolean;
 }
 
 interface CheckoutSnapshot {
@@ -53,6 +56,7 @@ interface CheckoutSnapshot {
   freeShipping: boolean;
   shippingMethodId: string | null;
   shippingMethods: ShippingMethod[];
+  pickupPoint: PickupPoint | null;
   reservationExpiresAt: string | null;
   trackingToken: string | null;
 }
@@ -501,6 +505,33 @@ export default function CheckoutPage() {
   }
 
   /**
+   * Sends only the carrier's point id — the server re-reads every field from
+   * the carrier before storing it, so nothing the browser rendered is trusted
+   * on the way back in.
+   */
+  async function applyPickupPoint(pickupPointId: string) {
+    if (!snapshot || !pickupPointId) return;
+    setShippingUpdating(true);
+    setFormError("");
+    try {
+      const res = await fetch(`/next-api/public/shop/checkout/${snapshot.orderId}/pickup-point`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pickupPointId }),
+      });
+      if (!res.ok) {
+        setFormError(t.shop.pickupError);
+        return;
+      }
+      setSnapshot((await res.json()) as CheckoutSnapshot);
+    } catch {
+      setFormError(t.shop.pickupError);
+    } finally {
+      setShippingUpdating(false);
+    }
+  }
+
+  /**
    * Free shipping hides the radio list, so the customer has no manual way to
    * pick a method. If the selection is ever missing at that point — a resumed
    * session, back-navigation, a failed PATCH — apply the standard (free) method
@@ -522,6 +553,10 @@ export default function CheckoutPage() {
   async function handleConfirmShipping(e: React.FormEvent) {
     e.preventDefault();
     if (!snapshot || !selectedMethodId) return;
+    if (needsPickupPoint && !pickupPoint) {
+      setFormError(t.shop.pickupRequired);
+      return;
+    }
     setSubmitting(true);
     setFormError("");
 
@@ -623,6 +658,11 @@ export default function CheckoutPage() {
   const breakdownCouponCode = onAddressStep ? form.couponCode : snapshot?.couponCode;
   const breakdownTotal = onAddressStep ? Math.max(0, cart.subtotalCents - (couponPreviewCents ?? 0)) : (snapshot?.totalCents ?? cart.subtotalCents);
   const shippingMethods = snapshot?.shippingMethods ?? [];
+  const selectedMethod = shippingMethods.find((m) => m.id === selectedMethodId) ?? null;
+  // The server decides whether a point is needed; the flag rides on the quote,
+  // so re-quoting after an address change turns the selector off by itself.
+  const needsPickupPoint = selectedMethod?.requiresPickupPoint === true;
+  const pickupPoint = snapshot?.pickupPoint ?? null;
 
   const freeShippingUpgrades = snapshot?.freeShipping ? shippingMethods.filter((m) => !m.isFree) : [];
   const freeShippingMethod = snapshot?.freeShipping ? (shippingMethods.find((m) => m.isFree) ?? null) : null;
@@ -843,11 +883,51 @@ export default function CheckoutPage() {
                 </div>
               )}
 
+              {needsPickupPoint && snapshot && (
+                <div style={{ marginTop: "0.9rem" }}>
+                  <PickupPointSelector
+                    orderId={snapshot.orderId}
+                    selected={pickupPoint}
+                    defaultPostcode={form.zip}
+                    defaultCity={form.city}
+                    onSelect={applyPickupPoint}
+                    labels={{
+                      title: t.shop.pickupTitle,
+                      intro: t.shop.pickupIntro,
+                      searchLabel: t.shop.pickupSearchLabel,
+                      searchPlaceholder: t.shop.pickupSearchPlaceholder,
+                      noResults: t.shop.pickupNoResults,
+                      error: t.shop.pickupError,
+                      selected: t.shop.pickupSelected,
+                      change: t.shop.pickupChange,
+                      choose: t.shop.pickupChoose,
+                      openingHours: t.shop.pickupOpeningHours,
+                      closed: t.shop.pickupClosed,
+                      relay: t.shop.pickupRelay,
+                      locker: t.shop.pickupLocker,
+                      suggestionsAria: t.shop.pickupSuggestionsAria,
+                      resultsAria: t.shop.pickupResultsAria,
+                      typeMore: t.shop.pickupTypeMore,
+                      clear: t.shop.pickupClear,
+                      mapAria: t.shop.pickupMapAria,
+                      nearLabel: t.shop.pickupNear,
+                      notOnMap: t.shop.pickupNotOnMap,
+                      weekdays: t.shop.pickupWeekdays,
+                    }}
+                  />
+                </div>
+              )}
+
               <div className={styles.actionRow}>
                 <button type="button" onClick={() => handleStepClick("address")} className={styles.backBtn}>
                   {t.shop.back}
                 </button>
-                <button type="submit" disabled={submitting || shippingUpdating || !selectedMethodId} className={styles.continueBtn} style={{ flex: 1 }}>
+                <button
+                  type="submit"
+                  disabled={submitting || shippingUpdating || !selectedMethodId || (needsPickupPoint && !pickupPoint)}
+                  className={styles.continueBtn}
+                  style={{ flex: 1 }}
+                >
                   {submitting ? t.shop.processing : t.shop.continueToPayment}
                 </button>
               </div>

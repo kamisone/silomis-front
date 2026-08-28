@@ -15,7 +15,7 @@ import {
   CreditCard, Receipt, ArrowLeftRight, Zap, AlertCircle,
   Tag, Send, Percent, Hash, Ticket, Home,
   Settings, Coins, Landmark, Mail, Target, Headphones,
-  FileEdit, BookOpen,
+  FileEdit, BookOpen, Plug,
   ChevronRight, ChevronLeft, ChevronDown,
 } from "lucide-react";
 import styles from "./AdminSidebar.module.css";
@@ -112,6 +112,7 @@ const NAV_GROUPS: NavGroup[] = [
         icon:  Truck,
         items: [
           { href: "/admin/shop/shipping",                icon: Truck,          label: "Shipping Config"      },
+          { href: "/admin/shop/shipping/integrations",   icon: Plug,           label: "Carrier Integrations" },
           { href: "/admin/shop/shipping/delivery-rules", icon: ClipboardCheck, label: "Delivery Rules"       },
           { href: "/admin/shop/shipments",               icon: Box,            label: "Fulfillment Tracking" },
           { href: "/admin/shop/countries",               icon: Flag,           label: "Countries"             },
