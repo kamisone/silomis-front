@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { PackageX } from "lucide-react";
 import AddToCartButton from "@/components/shop/AddToCartButton";
 import ProductVariantSelector, { type SelectableVariant } from "@/components/shop/ProductVariantSelector";
+import PerUnitVariantPicker, { groupUnits } from "@/components/shop/PerUnitVariantPicker";
 import StickyVariantSelector from "@/components/shop/StickyVariantSelector";
 import { useVariantSelection } from "@/components/shop/useVariantSelection";
 import WishlistButton from "@/components/shop/WishlistButton";
@@ -149,6 +150,8 @@ export interface Product {
   zoomedImages?: ZoomedImageItem[];
   documents?: Array<{ id: string; title: string; url: string; originalFilename: string; sizeBytes: number }>;
   upsellingEnabled?: boolean;
+  /** Admin opt-in: each unit of a multi-unit purchase can be a different variant. */
+  perUnitVariantChoice?: boolean;
   upsellTiers?: Array<{ id: string; quantity: number; unitPriceCents: number }>;
 }
 
@@ -360,7 +363,7 @@ export default function ShopProductDetail({
 }) {
   const t = getTranslations(locale);
   const router = useRouter();
-  const { cart, addItem, mutating } = useCart();
+  const { cart, addItem, mutating, openDrawer } = useCart();
   const productGallery = useMemo(() => buildGallery(product), [product]);
   const hasVariants = useMemo(() => product.variants.some((v) => v.options.length > 0), [product]);
 
@@ -453,6 +456,13 @@ export default function ShopProductDetail({
   const inCart = cart?.items.some((item) => item.variantId === activeId) ?? false;
 
   const [qty, setQty] = useState(1);
+  /**
+   * Sparse: index → variant, holding only the units the customer explicitly
+   * changed. Everything else falls through to the main selector, so switching
+   * colour still moves the rows that were never touched.
+   */
+  const [unitOverrides, setUnitOverrides] = useState<Record<number, string>>({});
+  const [unitsError, setUnitsError] = useState("");
   const [qtyError, setQtyError] = useState("");
   const [qtyMax, setQtyMax] = useState<number | null>(null);
   const [buyingNow, setBuyingNow] = useState(false);
@@ -517,6 +527,26 @@ export default function ShopProductDetail({
     [activeId, hasVariants, t],
   );
 
+  const perUnitActive = !!product.perUnitVariantChoice && hasVariants && qty > 1 && !inCart && !isBlocked;
+
+  /** One variant per unit; untouched rows follow the main selector. */
+  const units = useMemo(
+    () => (activeId ? Array.from({ length: qty }, (_, i) => unitOverrides[i] ?? activeId) : []),
+    [qty, activeId, unitOverrides],
+  );
+
+  const unitGroups = useMemo(() => groupUnits(units), [units]);
+
+  /** True when any variant has more units assigned to it than it has stock. */
+  const unitsOverAllocated = useMemo(
+    () =>
+      unitGroups.some((group) => {
+        const variant = product.variants.find((v) => v.id === group.variantId);
+        return group.quantity > (variant?.inventoryItem?.available ?? 0);
+      }),
+    [unitGroups, product.variants],
+  );
+
   const handleQtyIncrement = useCallback(() => {
     if (qtyMax !== null && qty >= qtyMax) return;
     setQtyError("");
@@ -529,8 +559,36 @@ export default function ShopProductDetail({
     setQtyError("");
     const next = Math.max(1, qty - 1);
     setQty(next);
+    // Drop choices for rows that no longer exist, so raising the quantity again
+    // starts from the current selection rather than resurrecting an old pick.
+    setUnitOverrides((prev) => Object.fromEntries(Object.entries(prev).filter(([index]) => Number(index) < next)));
     scheduleStockCheck(next);
   }, [qty, scheduleStockCheck]);
+
+  /**
+   * Adds a mixed selection as one cart line per distinct variant. Sequential
+   * rather than parallel: each add re-prices the product's other lines
+   * server-side for the new combined quantity, and concurrent writes would
+   * race on that shared total.
+   */
+  const [addingUnits, setAddingUnits] = useState(false);
+  async function handleAddUnits() {
+    if (!activeId || isBlocked || verifying || unitsOverAllocated) return;
+    setUnitsError("");
+    setAddingUnits(true);
+    try {
+      for (const group of unitGroups) {
+        const result = await addItem(group.variantId, group.quantity, undefined);
+        if (!result.ok) {
+          setUnitsError(formatStockError(result, t));
+          return;
+        }
+      }
+      openDrawer();
+    } finally {
+      setAddingUnits(false);
+    }
+  }
 
   async function handleBuyNow() {
     if (!activeId || isBlocked || verifying) return;
@@ -750,35 +808,72 @@ export default function ShopProductDetail({
               )
             )}
 
-            <div className={styles.qtyRow}>
-              <span className={styles.qtyLabel}>{t.shop.quantity}</span>
-              <div className={`${styles.qtyControl} ${inCart || isBlocked || verifying ? styles.qtyDisabled : ""}`}>
-                <button type="button" onClick={handleQtyDecrement} className={styles.qtyBtn} disabled={mutating || qty <= 1 || inCart || isBlocked || verifying}>
-                  −
-                </button>
-                <span className={styles.qty}>{qty}</span>
-                <button
-                  type="button"
-                  onClick={handleQtyIncrement}
-                  className={styles.qtyBtn}
-                  disabled={mutating || (qtyMax !== null && qty >= qtyMax) || inCart || isBlocked || verifying}
-                >
-                  +
-                </button>
+            <div className={styles.qtyAndUnits}>
+              <div className={styles.qtyRow}>
+                <span className={styles.qtyLabel}>{t.shop.quantity}</span>
+                <div className={`${styles.qtyControl} ${inCart || isBlocked || verifying ? styles.qtyDisabled : ""}`}>
+                  <button type="button" onClick={handleQtyDecrement} className={styles.qtyBtn} disabled={mutating || qty <= 1 || inCart || isBlocked || verifying}>
+                    −
+                  </button>
+                  <span className={styles.qty}>{qty}</span>
+                  <button
+                    type="button"
+                    onClick={handleQtyIncrement}
+                    className={styles.qtyBtn}
+                    disabled={mutating || (qtyMax !== null && qty >= qtyMax) || inCart || isBlocked || verifying}
+                  >
+                    +
+                  </button>
+                </div>
+                {qtyError && <p className={styles.qtyError}>{qtyError}</p>}
+                {stockChecking && !qtyError && <p className={styles.qtyChecking}>{t.shop.stockChecking}</p>}
               </div>
-              {qtyError && <p className={styles.qtyError}>{qtyError}</p>}
-              {stockChecking && !qtyError && <p className={styles.qtyChecking}>{t.shop.stockChecking}</p>}
+
+              {perUnitActive && (
+                <div className={styles.perUnitRow}>
+                  <PerUnitVariantPicker
+                    units={units}
+                    variants={product.variants}
+                    onUnitChange={(index, variantId) => setUnitOverrides((prev) => ({ ...prev, [index]: variantId }))}
+                    formatPrice={centsToAmount}
+                    labels={{
+                      title: t.shop.perUnitTitle,
+                      intro: t.shop.perUnitIntro,
+                      unit: t.shop.perUnitUnit,
+                      remaining: t.shop.perUnitRemaining,
+                      outOfStock: t.shop.perUnitOutOfStock,
+                      overAllocated: t.shop.perUnitOverAllocated,
+                    }}
+                  />
+                </div>
+              )}
             </div>
 
             <div id="product-actions" ref={actionsRef} className={styles.addToCartRow} style={{ display: "flex", gap: "0.75rem", alignItems: "flex-start" }}>
-              <AddToCartButton
-                variantId={activeId ?? "none"}
-                initialQty={qty}
-                className={styles.addToCartWrap}
-                selectedOptionValueIds={selectedOptionValueIds.length ? selectedOptionValueIds : undefined}
-                disabled={verifying || !activeId || noMatch}
-                blockedLabel={noMatch ? t.shop.selectOption : isUnavailable ? t.shop.stockUnavailable : isOos ? t.shop.stockOutOfStock : !activeId ? t.shop.addToCart : null}
-              />
+              {perUnitActive ? (
+                // AddToCartButton is built around one variant and its cart
+                // line; a mixed selection needs its own add path.
+                <div className={styles.addToCartWrap} style={{ flex: 1 }}>
+                  <button
+                    type="button"
+                    onClick={handleAddUnits}
+                    disabled={addingUnits || mutating || verifying || !activeId || unitsOverAllocated}
+                    className={styles.perUnitAddBtn}
+                  >
+                    {addingUnits ? t.shop.adding : t.shop.addToCart}
+                  </button>
+                  {unitsError && <p className={styles.qtyError}>{unitsError}</p>}
+                </div>
+              ) : (
+                <AddToCartButton
+                  variantId={activeId ?? "none"}
+                  initialQty={qty}
+                  className={styles.addToCartWrap}
+                  selectedOptionValueIds={selectedOptionValueIds.length ? selectedOptionValueIds : undefined}
+                  disabled={verifying || !activeId || noMatch}
+                  blockedLabel={noMatch ? t.shop.selectOption : isUnavailable ? t.shop.stockUnavailable : isOos ? t.shop.stockOutOfStock : !activeId ? t.shop.addToCart : null}
+                />
+              )}
               <WishlistButton productId={product.id} variantId={selectedVariant?.id} />
             </div>
 

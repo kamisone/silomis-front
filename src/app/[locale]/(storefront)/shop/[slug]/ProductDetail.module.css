@@ -219,8 +219,37 @@
 }
 
 /* ── Quantity stepper ── */
+/* Quantity control and the per-unit card sit side by side, the card taking
+   whatever width is left. Wrapping is driven by available space rather than a
+   viewport breakpoint: the product column is narrow on a laptop and wide on a
+   large screen, so a media query would guess wrong at both ends. Once the card
+   cannot hold its 260px it drops to its own line and the pair reads as one
+   column. */
+.qtyAndUnits {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 12px 20px;
+  margin-bottom: 16px;
+}
+
 .qtyRow {
   margin-bottom: 16px;
+}
+
+/* Inside the pair the wrapper owns the spacing, so the children drop theirs. */
+.qtyAndUnits > .qtyRow,
+.qtyAndUnits > .perUnitRow {
+  margin-bottom: 0;
+}
+
+.qtyAndUnits > .qtyRow {
+  flex: 0 0 auto;
+}
+
+.qtyAndUnits > .perUnitRow {
+  flex: 1 1 260px;
+  min-width: 0;
 }
 .qtyLabel {
   display: block;
@@ -299,6 +328,42 @@
 
 .addToCartWrap {
   margin-bottom: 18px;
+}
+
+/* ── Per-unit variant choice ── */
+.perUnitRow {
+  margin-bottom: 16px;
+}
+
+/* Matches AddToCartButton's primary action, which this replaces while each
+   unit is being chosen separately. */
+.perUnitAddBtn {
+  width: 100%;
+  padding: 13px 18px;
+  border: none;
+  border-radius: 10px;
+  background: var(--color-accent);
+  color: var(--brand-base);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+
+.perUnitAddBtn:hover:not(:disabled) {
+  filter: brightness(0.94);
+}
+
+.perUnitAddBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .perUnitAddBtn {
+    transition: none;
+  }
 }
 
 /* ── Trust badges ── */

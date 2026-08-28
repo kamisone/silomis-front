@@ -1,0 +1,98 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid var(--color-surface-tint);
+  border-radius: 10px;
+  background: var(--color-surface);
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.title {
+  font-size: 0.85rem;
+  font-weight: 650;
+  color: var(--color-primary);
+}
+
+.intro {
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--color-secondary);
+  opacity: 0.8;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  /* Long selections stay scannable without pushing Add to cart off-screen. */
+  max-height: 16rem;
+  overflow-y: auto;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.rowLabel {
+  flex-shrink: 0;
+  width: 3.4rem;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--color-secondary);
+}
+
+.select {
+  flex: 1;
+  min-width: 0;
+  padding: 0.4rem 0.55rem;
+  border: 1px solid var(--field-border, var(--color-surface-tint));
+  border-radius: 7px;
+  background: var(--brand-base);
+  font: inherit;
+  font-size: 0.82rem;
+  color: var(--color-secondary);
+  cursor: pointer;
+}
+
+.select:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+.stock {
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  color: var(--color-warning);
+}
+
+.warning {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin: 0;
+  font-size: 0.76rem;
+  line-height: 1.45;
+  color: var(--color-error);
+}
+
+@media (max-width: 480px) {
+  .row {
+    flex-wrap: wrap;
+  }
+
+  .select {
+    flex-basis: 100%;
+  }
+}
