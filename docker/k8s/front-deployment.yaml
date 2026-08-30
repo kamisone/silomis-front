@@ -3,25 +3,90 @@ kind: Deployment
 metadata:
   name: front-deployment
 spec:
+  # No `replicas:` on purpose — front-hap.yaml owns the replica count, and
+  # setting it here would make every `kubectl apply` reset the HPA's decision
+  # back to this number.
   selector:
     matchLabels:
       component: front
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
   template:
     metadata:
       labels:
         component: front
     spec:
+      priorityClassName: silomis-app
+      terminationGracePeriodSeconds: 45
+      # ScheduleAnyway rather than DoNotSchedule: a hard spread constraint on a
+      # single-node cluster leaves every replica past the first Pending, and
+      # the HPA would keep scaling into pods that never start.
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              component: front
       containers:
         - name: front-container
           image: mo29172/silomis_front:latest
           ports:
             - containerPort: 3000
           resources:
+            # SSR rendering is memory-hungry and was previously unbounded — a
+            # single runaway render could take the node down with it. The CPU
+            # limit is raised to 1 core because Next's per-request render is
+            # CPU-bound and throttling at 500m makes p99 latency worse than
+            # simply scaling out, which is what the HPA is for.
             limits:
-              cpu: 500m
+              cpu: 1000m
+              memory: 1Gi
+            # Sized to a warm idle pod, not to peak. `requests` is a
+            # reservation the scheduler subtracts from node capacity for every
+            # replica, so at maxReplicas=10 an inflated value is what makes the
+            # HPA scale into Pending pods — or crowds out the datastores.
             requests:
-              cpu: 200m
+              cpu: 100m
+              memory: 256Mi
+          # /healthz bypasses the locale middleware — every other path answers
+          # a probe with a 307 redirect, which counts as a failure.
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: 3000
+            periodSeconds: 5
+            failureThreshold: 24
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 3000
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
+          # The reason scale-up is safe: without it the Service routes traffic
+          # to a pod the moment its container starts, before Next is listening.
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 3000
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          lifecycle:
+            preStop:
+              exec:
+                # Absorbs the lag between the pod being marked terminating and
+                # kube-proxy actually removing it from the iptables rules.
+                command: ["sh", "-c", "sleep 10"]
           env:
+            # Keep V8's heap under the container limit — it otherwise sizes
+            # itself from host memory and gets the pod OOMKilled.
+            - name: NODE_OPTIONS
+              value: "--max-old-space-size=768"
             - name: NODE_ENV
               valueFrom:
                 secretKeyRef:

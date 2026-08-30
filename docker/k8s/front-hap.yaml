@@ -7,12 +7,43 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: front-deployment
-  minReplicas: 1
+  # 2, not 1: a single replica means any eviction, node drain, or crash is a
+  # storefront outage, and a traffic spike hits one pod for the ~60s the HPA
+  # needs to observe and start a second.
+  minReplicas: 2
   maxReplicas: 10
   metrics:
-  - type: Resource
-    resource:
-      name: cpu
-      target:
-        type: Utilization
-        averageUtilization: 50
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          # 70 rather than 50: SSR is bursty, and 50% adds pods for spikes that
+          # a warm pod absorbs on its own. Utilization is measured against the
+          # `requests` in front-deployment.yaml.
+          averageUtilization: 70
+  # Memory is deliberately NOT an HPA metric. V8 grows its heap to the
+  # high-water mark and does not hand it back, so a Node pod's RSS stays near
+  # its peak long after the load has gone: the ratio never falls, the
+  # autoscaler ratchets to maxReplicas and never scales down. Memory is
+  # handled by the container `limits` instead, which cap a runaway pod without
+  # feeding a feedback loop. CPU tracks real request load and does fall again.
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 30
+        - type: Pods
+          value: 4
+          periodSeconds: 30
+      selectPolicy: Max
+    scaleDown:
+      # A cold Next pod has an empty render cache, so shedding replicas eagerly
+      # after a burst costs latency when the next one arrives.
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 60

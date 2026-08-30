@@ -1,0 +1,11 @@
+# Keeps the storefront serving through a voluntary disruption (node drain,
+# cluster upgrade) instead of letting every replica be evicted at once.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: front-pdb
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      component: front

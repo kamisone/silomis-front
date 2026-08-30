@@ -46,7 +46,7 @@ jobs:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_PRIVATE_KEY }}
-          source: "docker/k8s/front-deployment.yaml,docker/k8s/front-cluster-ip-service.yaml,docker/k8s/front-hap.yaml,docker/k8s/front-ingress-service.yaml"
+          source: "docker/k8s/front-deployment.yaml,docker/k8s/front-cluster-ip-service.yaml,docker/k8s/front-hap.yaml,docker/k8s/front-pdb.yaml,docker/k8s/front-ingress-service.yaml"
           target: "/srv/k8s/front"
           strip_components: 2
           timeout: 5m
@@ -64,5 +64,12 @@ jobs:
             --from-literal PREPROD_PUBLIC_APP_URL=${{ secrets.PREPROD_PUBLIC_APP_URL }} \
             --from-literal API_BASE_URL_SERVER=${{ secrets.API_BASE_URL_SERVER }}
             kubectl apply -f /srv/k8s/front
+            # maxUnavailable: 0 keeps the old pods serving if the new image is
+            # broken; without this the job would report success anyway.
+            kubectl rollout status deployment/front-deployment --timeout=300s
             minikube addons enable ingress
+            # Without metrics-server the HPAs report targets as <unknown> and
+            # never scale at all — the autoscaling config is inert until this
+            # addon is running. Idempotent, so it is safe on every deploy.
+            minikube addons enable metrics-server
             echo y | docker exec -i minikube docker system prune -a --volumes

@@ -1,0 +1,18 @@
+# The build runs in CI before `docker build`, so the image only needs the
+# standalone output — copying node_modules and the full .next cache in made a
+# multi-GB image and a correspondingly slow pod start on scale-up.
+node_modules
+.git
+.github
+.next/cache
+npm-debug.log*
+.env*.local
+Dockerfile
+docker
+README.md
+
+# Next's standalone output copies a local .env into .next/standalone/.env.
+# CI builds from a clean checkout so it is normally absent, but a local
+# `docker build` would otherwise bake real secrets into a pushed image.
+# Runtime config comes from the front-envs Secret, not a file.
+.next/standalone/.env

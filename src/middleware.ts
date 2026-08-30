@@ -41,6 +41,11 @@ function applySessionCookies(response: NextResponse, session: SessionResult): Ne
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // ── Kubernetes probes ────────────────────────────────────────────────
+  // Must bypass everything below: the locale branch would answer a probe
+  // with a 307 to /en/healthz, which the kubelet counts as a failed check.
+  if (pathname === "/healthz") return NextResponse.next();
+
   // ── API routes ──────────────────────────────────────────────────────
   if (pathname.startsWith("/next-api/")) {
     if (pathname.startsWith("/next-api/public/")) return NextResponse.next();
