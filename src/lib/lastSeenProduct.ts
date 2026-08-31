@@ -66,15 +66,19 @@ function write(product: LastSeenProduct | null): void {
 /**
  * Record a product view.
  *
- * A dismissal sticks to the product it was made on: coming back to the same
- * product does not resurrect a card the shopper has already closed, while
- * viewing a different one does, because that is a new record.
+ * The new view replaces the record outright, dismissal included — opening a
+ * product page is a fresh signal of interest, so the card is offered again on
+ * the next page the shopper moves to, whether or not it is the same product.
+ *
+ * A dismissal therefore only has to outlive the click that made it: it stops
+ * the card following the shopper around while they browse on, and stops there.
+ * Carrying it forward across a later visit instead made it permanent in that
+ * browser for a shop with one product, since only a *different* product could
+ * clear it — which reads as the feature being broken.
  */
 export function rememberLastSeen(product: Omit<LastSeenProduct, "dismissed">): void {
   if (typeof window === "undefined") return;
-  const previous = readLastSeen();
-  const dismissed = previous?.id === product.id ? previous.dismissed : undefined;
-  write({ ...product, ...(dismissed ? { dismissed: true } : {}) });
+  write(product);
 }
 
 /** Close the card for the product currently stored, keeping the record itself

@@ -363,9 +363,16 @@ export default function ShopProductDetail({
 }) {
   const t = getTranslations(locale);
   const router = useRouter();
-  const { cart, addItem, mutating, openDrawer } = useCart();
+  const { cart, addItem, updateItem, removeItem, mutating, openDrawer } = useCart();
   const productGallery = useMemo(() => buildGallery(product), [product]);
   const hasVariants = useMemo(() => product.variants.some((v) => v.options.length > 0), [product]);
+
+  /**
+   * Pairs can differ from one another, so every quantity question here is
+   * per variant rather than per product: how many of *this* combination are
+   * already chosen, not how many pairs there are in total.
+   */
+  const perUnitEnabled = !!product.perUnitVariantChoice && hasVariants;
 
   // One selection shared by the inline picker and the sticky-bar picker below
   // — see useVariantSelection on why this is lifted here rather than owned by
@@ -453,15 +460,26 @@ export default function ShopProductDetail({
   const isBlocked = isOos || isUnavailable;
   const verifying = resolveStatus === "loading";
 
-  const inCart = cart?.items.some((item) => item.variantId === activeId) ?? false;
-
-  const [qty, setQty] = useState(1);
   /**
-   * Sparse: index → variant, holding only the units the customer explicitly
-   * changed. Everything else falls through to the main selector, so switching
-   * colour still moves the rows that were never touched.
+   * Every cart line belonging to this product — plural because a per-unit
+   * selection adds one line per distinct variant. Matched on productId rather
+   * than the active variant so a mixed selection is seen whole.
    */
-  const [unitOverrides, setUnitOverrides] = useState<Record<number, string>>({});
+  const cartLines = useMemo(() => (cart?.items ?? []).filter((item) => item.productId === product.id), [cart, product.id]);
+  const inCart = cartLines.length > 0;
+  const cartQty = useMemo(() => cartLines.reduce((n, line) => n + line.quantity, 0), [cartLines]);
+
+  /**
+   * The pairs being bought, in the order the shopper built them — one variant
+   * id each. Explicit rather than derived from the selector: changing colour or
+   * size must leave the pairs already chosen alone, and only compose what the
+   * next "+" will add.
+   *
+   * Empty means "a single pair, following the selector" — the state the page
+   * opens in, where there is no composition to preserve and the picker is not
+   * shown. It fills as soon as the shopper asks for a second pair.
+   */
+  const [pairs, setPairs] = useState<string[]>([]);
   const [unitsError, setUnitsError] = useState("");
   const [qtyError, setQtyError] = useState("");
   const [qtyMax, setQtyMax] = useState<number | null>(null);
@@ -492,10 +510,15 @@ export default function ShopProductDetail({
     const av = resolvedVariant.available;
     const t = setTimeout(() => {
       setQtyMax(av === -1 ? null : av);
-      if (av !== -1 && av > 0) setQty((q) => (q > av ? av : q));
+      // Only meaningful when every pair is the same variant. With a per-unit
+      // selection the other pairs are different combinations with their own
+      // stock, and truncating the whole list to this one's would throw them away.
+      if (!perUnitEnabled && av !== -1 && av > 0) {
+        setPairs((prev) => (prev.length > av ? prev.slice(0, av) : prev));
+      }
     }, 0);
     return () => clearTimeout(t);
-  }, [resolvedVariant, hasVariants]);
+  }, [resolvedVariant, hasVariants, perUnitEnabled]);
 
   useEffect(() => {
     return () => {
@@ -519,7 +542,7 @@ export default function ShopProductDetail({
             setQtyError(msg || "");
             if (available !== -1) {
               setQtyMax(available);
-              if (available > 0 && newQty > available) setQty(available);
+              if (available > 0 && newQty > available) setPairs((prev) => prev.slice(0, available));
             } else {
               setQtyMax(null);
             }
@@ -533,46 +556,100 @@ export default function ShopProductDetail({
     [activeId, hasVariants, t],
   );
 
-  const perUnitActive = !!product.perUnitVariantChoice && hasVariants && qty > 1 && !inCart && !isBlocked;
+  /**
+   * One variant per pair.
+   *
+   * In the cart, the cart is authoritative and the rows are its lines expanded
+   * back out — the cart stores grouped lines, not an ordered list, so a row the
+   * shopper changes may re-sort into its variant's group.
+   *
+   * Before the cart, a single pair follows the selector (nothing has been
+   * composed yet); from two upwards the explicit list is used verbatim, so a
+   * change of colour or size never rewrites a pair already chosen.
+   */
+  const units = useMemo(() => {
+    if (inCart) return cartLines.flatMap((line) => Array.from({ length: line.quantity }, () => line.variantId));
+    if (!activeId) return [];
+    return pairs.length > 1 ? pairs : [activeId];
+  }, [inCart, cartLines, pairs, activeId]);
+
+  /** How many pairs are being bought, wherever that is currently recorded. */
+  const qty = units.length;
 
   /**
-   * Picking a colour or size while buying several applies to the FIRST item
-   * only; the rest keep whatever they were already set to.
-   *
-   * `unitOverrides` is sparse and everything absent from it falls through to
-   * the main selector, so without this a single tap on "White" would silently
-   * re-colour every untouched unit — the opposite of what someone assembling a
-   * mixed order wants. Units 1..n-1 are therefore pinned to the variant they
-   * were already showing, and index 0 is released so it (and only it) follows
-   * the new selection.
-   *
-   * Adjusting state during render rather than in an effect is React's own
-   * recommendation for reacting to a changed value: it re-renders before the
-   * browser paints, so the per-unit rows never flash the new variant on every
-   * line before snapping back.
+   * Resizes the list without regard to which pair is which — for the stock cap
+   * and the upsell tiers, where a number is all that is being asked for. The
+   * +/- buttons do not use this; they have their own rules about *which* pair
+   * is added or dropped.
    */
-  const [prevActiveId, setPrevActiveId] = useState(activeId);
-  if (activeId !== prevActiveId) {
-    setPrevActiveId(activeId);
-    // Only meaningful when the product actually offers a choice per unit —
-    // otherwise every unit is the same variant and there is nothing to pin.
-    if (prevActiveId && !!product.perUnitVariantChoice && hasVariants && qty > 1) {
-      setUnitOverrides((prev) => {
-        const pinned = { ...prev };
-        for (let i = 1; i < qty; i++) {
-          if (pinned[i] === undefined) pinned[i] = prevActiveId;
-        }
-        delete pinned[0];
-        return pinned;
+  const setQuantity = useCallback(
+    (n: number) => {
+      setPairs((prev) => {
+        if (n <= 1) return [];
+        const current = prev.length > 1 ? prev : activeId ? [activeId] : [];
+        if (n <= current.length) return current.slice(0, n);
+        const filler = activeId ?? current[current.length - 1];
+        if (!filler) return current;
+        return [...current, ...Array.from({ length: n - current.length }, () => filler)];
       });
-    }
-  }
-
-  /** One variant per unit; untouched rows follow the main selector. */
-  const units = useMemo(
-    () => (activeId ? Array.from({ length: qty }, (_, i) => unitOverrides[i] ?? activeId) : []),
-    [qty, activeId, unitOverrides],
+    },
+    [activeId],
   );
+
+  /**
+   * The quantity the prices on this page are calculated from.
+   *
+   * Once the product is in the cart, the cart is the source of truth: the
+   * add-to-cart control has become a stepper writing straight to the cart line,
+   * so local `qty` state stops describing what is actually being bought.
+   * Reading through to the cart means +/- there moves the price here too —
+   * including across an upsell tier boundary. CartContext writes optimistically,
+   * so this tracks the click rather than the server round-trip.
+   */
+  const effectiveQty = inCart ? cartQty : qty;
+
+  /**
+   * Whether the per-unit picker is on screen. It stays up once the product is
+   * in the cart — the choice it offers is still live there, only now each
+   * change writes to the cart instead of to a pending selection.
+   *
+   * Two units minimum: with one there is nothing to vary, and the row would
+   * only repeat the variant selector already above it.
+   */
+  const showPerUnitPicker = perUnitEnabled && effectiveQty > 1 && (inCart || !isBlocked);
+
+  /**
+   * Whether add-to-cart goes through the mixed path (one call per distinct
+   * variant) rather than the single-variant AddToCartButton. Only meaningful
+   * before anything is in the cart; afterwards the picker edits cart lines
+   * directly. Kept in step with the picker so a row can never be a control
+   * whose value the add button would ignore.
+   */
+  const perUnitActive = showPerUnitPicker && !inCart && !isBlocked;
+
+  /**
+   * Note there is deliberately no effect reconciling the pairs with the
+   * selector. Changing colour or size composes what the next "+" will add and
+   * changes the gallery image; it must not rewrite a pair already chosen.
+   */
+
+  /**
+   * How many pairs already carry the combination currently selected — the
+   * number the variant's own stock limits.
+   *
+   * Without a per-unit choice every pair is the selected variant, so the total
+   * is the same number; with one, it is not. Comparing the *total* against a
+   * single variant's stock is what made "+" refuse a combination that was not
+   * in the list at all: two pairs of White/M/A blocking the first Black/M/B
+   * because Black/M/B only has two in stock.
+   */
+  const selectedPairCount = useMemo(() => {
+    if (!perUnitEnabled) return qty;
+    return activeId ? units.filter((v) => v === activeId).length : 0;
+  }, [perUnitEnabled, qty, units, activeId]);
+
+  /** True when another pair of the selected combination would exceed its stock. */
+  const atStockCap = qtyMax !== null && selectedPairCount >= qtyMax;
 
   const unitGroups = useMemo(() => groupUnits(units), [units]);
 
@@ -605,23 +682,30 @@ export default function ShopProductDetail({
       .join(" \u00b7 ");
   }, [perUnitActive, selectedVariant, unitGroups, product.variants]);
 
+  /** "+" adds the combination currently selected, as a new pair on the end. */
   const handleQtyIncrement = useCallback(() => {
-    if (qtyMax !== null && qty >= qtyMax) return;
+    if (atStockCap) return;
+    if (!activeId) return;
     setQtyError("");
-    const next = qty + 1;
-    setQty(next);
-    scheduleStockCheck(next);
-  }, [qty, qtyMax, scheduleStockCheck]);
+    const next = [...units, activeId];
+    setPairs(next);
+    scheduleStockCheck(next.length);
+  }, [units, activeId, atStockCap, scheduleStockCheck]);
 
+  /**
+   * "−" takes away the combination currently selected — the last pair carrying
+   * it, mirroring the end that "+" adds to. When the selection is not among the
+   * pairs at all, the most recently added pair goes instead, so the button is
+   * never inert just because the shopper has since changed the selector.
+   */
   const handleQtyDecrement = useCallback(() => {
+    if (units.length <= 1) return;
     setQtyError("");
-    const next = Math.max(1, qty - 1);
-    setQty(next);
-    // Drop choices for rows that no longer exist, so raising the quantity again
-    // starts from the current selection rather than resurrecting an old pick.
-    setUnitOverrides((prev) => Object.fromEntries(Object.entries(prev).filter(([index]) => Number(index) < next)));
-    scheduleStockCheck(next);
-  }, [qty, scheduleStockCheck]);
+    const match = activeId ? units.lastIndexOf(activeId) : -1;
+    const next = match >= 0 ? units.filter((_, i) => i !== match) : units.slice(0, -1);
+    setPairs(next);
+    scheduleStockCheck(next.length);
+  }, [units, activeId, scheduleStockCheck]);
 
   /**
    * Adds a mixed selection as one cart line per distinct variant. Sequential
@@ -645,6 +729,54 @@ export default function ShopProductDetail({
       openDrawer();
     } finally {
       setAddingUnits(false);
+    }
+  }
+
+  /**
+   * Applies a per-unit selection to the cart lines that already exist.
+   *
+   * The cart has no notion of "unit 2"; it holds one line per variant. So the
+   * desired units are regrouped and the existing lines are moved onto that
+   * shape: quantities updated, new variants added, emptied variants removed.
+   *
+   * Sequential, and additions before removals: each write re-prices this
+   * product's other lines server-side, so concurrent calls would race on that
+   * shared total, and removing first could empty the cart of this product
+   * mid-edit — which would unmount the very picker being used.
+   */
+  const [reconciling, setReconciling] = useState(false);
+  async function reconcileUnitsToCart(nextUnits: string[]) {
+    if (reconciling) return;
+    setUnitsError("");
+    setReconciling(true);
+    try {
+      const desired = groupUnits(nextUnits);
+      const existing = cartLines;
+
+      for (const group of desired) {
+        const line = existing.find((l) => l.variantId === group.variantId);
+        if (line) {
+          if (line.quantity !== group.quantity) {
+            const result = await updateItem(line.id, group.quantity);
+            if (!result.ok) {
+              setUnitsError(formatStockError(result, t));
+              return;
+            }
+          }
+        } else {
+          const result = await addItem(group.variantId, group.quantity, undefined);
+          if (!result.ok) {
+            setUnitsError(formatStockError(result, t));
+            return;
+          }
+        }
+      }
+
+      for (const line of existing) {
+        if (!desired.some((g) => g.variantId === line.variantId)) await removeItem(line.id);
+      }
+    } finally {
+      setReconciling(false);
     }
   }
 
@@ -723,19 +855,19 @@ export default function ShopProductDetail({
   // Presentational mirror of the backend's tier resolution — see
   // resolveDisplayUnitPriceCents's doc comment. Falls back to priceCents
   // unchanged for every product without upselling enabled.
-  const displayUnitPriceCents = resolveDisplayUnitPriceCents(priceCents, qty, product);
-  const totalPriceCents = displayUnitPriceCents * qty;
+  const displayUnitPriceCents = resolveDisplayUnitPriceCents(priceCents, effectiveQty, product);
+  const totalPriceCents = displayUnitPriceCents * effectiveQty;
 
-  // Sticky mobile buy bar: appears once the main CTA row scrolls above the viewport.
+  // Sticky buy bar: appears once the main CTA row scrolls above the viewport.
+  // Shown at every breakpoint now — a full-width bar along the bottom edge on
+  // phones and tablets, a floating card in the bottom-right corner on desktop.
+  // Both shapes live in ProductDetail.module.css; the trigger is the same, so
+  // there is no width test here any more.
   const actionsRef = useRef<HTMLDivElement>(null);
   const [showStickyBar, setShowStickyBar] = useState(false);
   useEffect(() => {
     const HEADER = 84;
     const handle = () => {
-      if (window.innerWidth > 900) {
-        setShowStickyBar(false);
-        return;
-      }
       if (actionsRef.current) {
         setShowStickyBar(actionsRef.current.getBoundingClientRect().bottom < HEADER);
       }
@@ -797,11 +929,11 @@ export default function ShopProductDetail({
 
             <div className={styles.priceRow}>
               <span className={styles.price}>
-                {qty > 1 ? (
+                {effectiveQty > 1 ? (
                   <>
                     {centsToAmount(totalPriceCents)}
                     <span className={styles.unitPrice}>
-                      {centsToAmount(displayUnitPriceCents)} × {qty}
+                      {centsToAmount(displayUnitPriceCents)} × {effectiveQty}
                     </span>
                   </>
                 ) : (
@@ -823,7 +955,7 @@ export default function ShopProductDetail({
               <div className={styles.upsellTiers}>
                 {product.upsellTiers.map((tier) => {
                   const savingsPct = priceCents > 0 && tier.unitPriceCents < priceCents ? Math.round((1 - tier.unitPriceCents / priceCents) * 100) : null;
-                  const isSelected = qty >= tier.quantity && displayUnitPriceCents === tier.unitPriceCents;
+                  const isSelected = effectiveQty >= tier.quantity && displayUnitPriceCents === tier.unitPriceCents;
                   const unreachable = qtyMax !== null && qtyMax < tier.quantity;
                   const buyLine = t.shop.upsellTierBuyLine.replace("{qty}", String(tier.quantity)).replace("{price}", centsToAmount(tier.unitPriceCents));
                   return (
@@ -833,7 +965,7 @@ export default function ShopProductDetail({
                       className={`${styles.upsellTier} ${isSelected ? styles.upsellTierActive : ""}`}
                       disabled={unreachable || inCart || isBlocked || verifying}
                       title={unreachable ? t.shop.stockOnlyN.replace("{n}", String(qtyMax)) : undefined}
-                      onClick={() => setQty(tier.quantity)}
+                      onClick={() => setQuantity(tier.quantity)}
                     >
                       <span className={styles.upsellTierMain}>{buyLine}</span>
                       {savingsPct !== null && <span className={styles.upsellTierBadge}>{t.shop.upsellSaveBadge.replace("{pct}", String(savingsPct))}</span>}
@@ -867,40 +999,58 @@ export default function ShopProductDetail({
             )}
 
             <div className={styles.qtyAndUnits}>
-              <div className={styles.qtyRow}>
-                <span className={styles.qtyLabel}>{t.shop.quantity}</span>
-                <div className={`${styles.qtyControl} ${inCart || isBlocked || verifying ? styles.qtyDisabled : ""}`}>
-                  <button type="button" onClick={handleQtyDecrement} className={styles.qtyBtn} disabled={mutating || qty <= 1 || inCart || isBlocked || verifying}>
-                    −
-                  </button>
-                  <span className={styles.qty}>{qty}</span>
-                  <button
-                    type="button"
-                    onClick={handleQtyIncrement}
-                    className={styles.qtyBtn}
-                    disabled={mutating || (qtyMax !== null && qty >= qtyMax) || inCart || isBlocked || verifying}
-                  >
-                    +
-                  </button>
+              {/* Gone rather than greyed out once the product is in the cart: the
+                  add-to-cart control below has become a stepper on the cart
+                  line, so a second, permanently disabled quantity control
+                  beside it was only ever a dead end. */}
+              {!inCart && (
+                <div className={styles.qtyRow}>
+                  <span className={styles.qtyLabel}>{t.shop.quantity}</span>
+                  <div className={`${styles.qtyControl} ${isBlocked || verifying ? styles.qtyDisabled : ""}`}>
+                    <button type="button" onClick={handleQtyDecrement} className={styles.qtyBtn} disabled={mutating || qty <= 1 || isBlocked || verifying}>
+                      −
+                    </button>
+                    <span className={styles.qty}>{qty}</span>
+                    <button
+                      type="button"
+                      onClick={handleQtyIncrement}
+                      className={styles.qtyBtn}
+                      disabled={mutating || atStockCap || isBlocked || verifying}
+                    >
+                      +
+                    </button>
+                  </div>
+                  {qtyError && <p className={styles.qtyError}>{qtyError}</p>}
+                  {stockChecking && !qtyError && <p className={styles.qtyChecking}>{t.shop.stockChecking}</p>}
                 </div>
-                {qtyError && <p className={styles.qtyError}>{qtyError}</p>}
-                {stockChecking && !qtyError && <p className={styles.qtyChecking}>{t.shop.stockChecking}</p>}
-              </div>
+              )}
 
-              {perUnitActive && (
+              {showPerUnitPicker && (
                 <div className={styles.perUnitRow}>
                   <PerUnitVariantPicker
                     units={units}
                     variants={product.variants}
-                    onUnitChange={(index, variantId) => setUnitOverrides((prev) => ({ ...prev, [index]: variantId }))}
+                    onUnitChange={(index, variantId) => {
+                      // In the cart the picker edits cart lines; before it, a
+                      // pending selection the add button will read.
+                      if (inCart) void reconcileUnitsToCart(units.map((v, i) => (i === index ? variantId : v)));
+                      else setPairs(units.map((v, i) => (i === index ? variantId : v)));
+                    }}
+                    onUnitRemove={(index) => {
+                      // By index, so removing one of two identical pairs takes
+                      // the row that was clicked rather than the first match.
+                      const next = units.filter((_, i) => i !== index);
+                      if (inCart) void reconcileUnitsToCart(next);
+                      else setPairs(next);
+                    }}
                     formatPrice={centsToAmount}
                     labels={{
                       title: t.shop.perUnitTitle,
-                      intro: t.shop.perUnitIntro,
                       unit: t.shop.perUnitUnit,
                       remaining: t.shop.perUnitRemaining,
                       outOfStock: t.shop.perUnitOutOfStock,
                       overAllocated: t.shop.perUnitOverAllocated,
+                      remove: t.shop.perUnitRemove,
                     }}
                   />
                 </div>
@@ -1045,7 +1195,7 @@ export default function ShopProductDetail({
         <StickyVariantSelector selection={variantSelection} visible={showStickyBar && !allOutOfStock} />
 
         <div className={styles.stickyMeta}>
-          <span className={styles.stickyPrice}>{qty > 1 ? centsToAmount(totalPriceCents) : centsToAmount(displayUnitPriceCents)}</span>
+          <span className={styles.stickyPrice}>{effectiveQty > 1 ? centsToAmount(totalPriceCents) : centsToAmount(displayUnitPriceCents)}</span>
           {isOnSale && <span className={styles.stickyCompare}>{centsToAmount(compareAtCents!)}</span>}
           {/* One line, so a mixed per-unit selection replaces the single variant
               title rather than adding rows to the bar. Identical units collapse

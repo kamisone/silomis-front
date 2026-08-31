@@ -8,23 +8,11 @@
   background: var(--color-surface);
 }
 
-.header {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-}
-
 .title {
+  display: block;
   font-size: 0.85rem;
   font-weight: 650;
   color: var(--color-primary);
-}
-
-.intro {
-  font-size: 0.78rem;
-  line-height: 1.5;
-  color: var(--color-secondary);
-  opacity: 0.8;
 }
 
 .list {
@@ -77,6 +65,46 @@
   color: var(--color-warning);
 }
 
+/* Destructive, so it earns the error colour on hover rather than wearing it at
+   rest — a row of red crosses would read as an error state on a card that is
+   working fine. */
+.remove {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.65rem;
+  height: 1.65rem;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: color-mix(in srgb, var(--color-secondary) 45%, var(--color-surface));
+  cursor: pointer;
+  transition: background 0.14s, color 0.14s, border-color 0.14s;
+}
+.remove:hover {
+  background: var(--color-error-bg);
+  border-color: var(--color-error-border);
+  color: var(--color-error);
+}
+.remove:focus-visible {
+  outline: 2px solid var(--color-error);
+  outline-offset: 1px;
+}
+.remove:active {
+  transform: scale(0.92);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .remove {
+    transition: none;
+  }
+  .remove:active {
+    transform: none;
+  }
+}
+
 .warning {
   display: flex;
   align-items: center;
@@ -90,9 +118,5 @@
 @media (max-width: 480px) {
   .row {
     flex-wrap: wrap;
-  }
-
-  .select {
-    flex-basis: 100%;
   }
 }

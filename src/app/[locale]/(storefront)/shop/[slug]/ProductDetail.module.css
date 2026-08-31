@@ -643,15 +643,37 @@
 }
 
 /* ── Sticky mobile buy bar ── */
+/* ── Sticky buy bar ────────────────────────────────────────────────────────
+   One component, two shapes: a full-width bar along the bottom edge on phones
+   and tablets, a floating card in the bottom-right corner on desktop. Shared
+   behaviour lives here; each breakpoint block below only sets its geometry and
+   the transform it slides in from. */
 .stickyBuyBar {
-  display: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  position: fixed;
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.24s ease;
+  /* Deliberately below the cart drawer's overlay (z-index: 500 in
+     CartDrawer.module.css): opening the cart is a focused, modal step, and a
+     buy bar floating over its dimmed backdrop reads as a second, competing
+     checkout path. Also below the review media viewer (120) and the cookie
+     banner (1000), each of which is likewise meant to take over the screen. */
+  z-index: 40;
 }
+.stickyBuyBarVisible {
+  opacity: 1;
+  pointer-events: all;
+  /* `transform` is deliberately NOT set here — each breakpoint below slides in
+     from a different place and resets it there. A shared value would be
+     overridden by those later rules at equal specificity. */
+}
+
+/* Phones and tablets: edge-to-edge along the bottom, clearing the home bar. */
 @media (max-width: 900px) {
   .stickyBuyBar {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    position: fixed;
     bottom: 0;
     left: 0;
     right: 0;
@@ -662,16 +684,39 @@
     -webkit-backdrop-filter: blur(16px) saturate(180%);
     border-top: 1px solid color-mix(in srgb, var(--foreground) 15%, transparent);
     box-shadow: 0 -4px 24px rgba(0, 24, 41, 0.1);
-    z-index: 40;
     transform: translateY(100%);
-    opacity: 0;
-    pointer-events: none;
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.24s ease;
   }
   .stickyBuyBarVisible {
     transform: translateY(0);
-    opacity: 1;
-    pointer-events: all;
+  }
+}
+
+/* Desktop: a floating card, same corner and same card language as the
+   "recently viewed" card — right: 24px, and bottom: 98px so it clears the
+   support launcher (62px tall at bottom: 24px).
+   Sharing that slot is safe: RecordProductView rewrites the stored "last seen"
+   product to the one being viewed, so its card is never eligible on a product
+   page and the two can't be on screen together. */
+@media (min-width: 901px) {
+  .stickyBuyBar {
+    right: 24px;
+    bottom: 98px;
+    width: 400px;
+    max-width: calc(100vw - 32px);
+    gap: 12px;
+    padding: 14px 16px;
+    background: var(--background);
+    border: 1px solid color-mix(in srgb, var(--foreground) 11%, transparent);
+    border-radius: 16px;
+    box-shadow:
+      0 12px 32px color-mix(in srgb, var(--foreground) 16%, transparent),
+      0 2px 8px color-mix(in srgb, var(--foreground) 8%, transparent);
+    /* Matches the recently-viewed card's entrance so the corner behaves
+       consistently whichever card is occupying it. */
+    transform: translateY(14px) scale(0.97);
+  }
+  .stickyBuyBarVisible {
+    transform: none;
   }
 }
 .stickyMeta {

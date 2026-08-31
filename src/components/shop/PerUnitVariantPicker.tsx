@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, X } from "lucide-react";
 import type { SelectableVariant } from "./useVariantSelection";
 import styles from "./PerUnitVariantPicker.module.css";
 
@@ -11,16 +11,20 @@ interface Props {
   variants: SelectableVariant[];
   /** Reports a single row, so rows the customer never touched keep following the main selector. */
   onUnitChange: (index: number, variantId: string) => void;
+  /** Drops one pair. The row index, not the variant: two rows can hold the same
+   *  combination and only the one the shopper pointed at should go. */
+  onUnitRemove: (index: number) => void;
   formatPrice: (cents: number) => string;
   labels: {
     title: string;
-    intro: string;
     unit: string;
     /** "{n} left" — {n} is replaced with the remaining stock. */
     remaining: string;
     outOfStock: string;
     /** "Only {n} of {name} available" — over-allocation warning. */
     overAllocated: string;
+    /** "Remove pair {n}" — the row button's accessible name. */
+    remove: string;
   };
 }
 
@@ -42,8 +46,13 @@ export function variantLabel(variant: SelectableVariant): string {
  *
  * Prices are shown per row only when the variants actually differ in price, so
  * the common case stays quiet.
+ *
+ * Deliberately spare on words: a heading plus one numbered row per pair says
+ * what this does. An explanatory line underneath had to name the attributes to
+ * be worth reading ("mix sizes and colours"), and those are per-product — a
+ * variant here can just as easily be Colour / Size / Width.
  */
-export default function PerUnitVariantPicker({ units, variants, onUnitChange, formatPrice, labels }: Props) {
+export default function PerUnitVariantPicker({ units, variants, onUnitChange, onUnitRemove, formatPrice, labels }: Props) {
   const byId = useMemo(() => new Map(variants.map((v) => [v.id, v])), [variants]);
 
   /** How many units are currently assigned to each variant. */
@@ -67,10 +76,7 @@ export default function PerUnitVariantPicker({ units, variants, onUnitChange, fo
 
   return (
     <div className={styles.card}>
-      <div className={styles.header}>
-        <span className={styles.title}>{labels.title}</span>
-        <span className={styles.intro}>{labels.intro}</span>
-      </div>
+      <span className={styles.title}>{labels.title}</span>
 
       <ul className={styles.list}>
         {units.map((variantId, index) => {
@@ -98,6 +104,18 @@ export default function PerUnitVariantPicker({ units, variants, onUnitChange, fo
                 })}
               </select>
               {available > 0 && available <= 5 && <span className={styles.stock}>{labels.remaining.replace("{n}", String(available))}</span>}
+              {/* Always offered, including on the last two rows: dropping to a
+                  single pair simply closes this picker, which is a normal way
+                  to back out of a mixed order rather than an error. */}
+              <button
+                type="button"
+                className={styles.remove}
+                onClick={() => onUnitRemove(index)}
+                aria-label={labels.remove.replace("{n}", String(index + 1))}
+                title={labels.remove.replace("{n}", String(index + 1))}
+              >
+                <X size={14} strokeWidth={2.5} aria-hidden="true" />
+              </button>
             </li>
           );
         })}
