@@ -64,20 +64,26 @@
   transform: rotate(180deg);
 }
 
-/* ── Dropdown panel (portalled to body, positioned via JS) ── */
+/* ── Dropdown panel (portalled to body, only its `top` set from JS) ────────
+   Full-bleed across the viewport, flush under the header, so it reads as the
+   header expanding rather than as a box floating beside one menu item.
+   Rounded on the bottom edge only, for the same reason. */
 .dropdown {
   position: fixed;
-  min-width: 220px;
-  max-width: 320px;
-  max-height: 70vh;
+  left: 0;
+  right: 0;
+  width: 100%;
+  max-height: 80vh;
   overflow-y: auto;
   background: var(--background);
-  border: 1px solid color-mix(in srgb, var(--foreground) 12%, transparent);
-  border-radius: 12px;
-  box-shadow: 0 12px 32px color-mix(in srgb, var(--foreground) 16%, transparent);
-  padding: 6px;
+  /* A teal hairline on top continues the brand line under the header; the
+     bottom edge is the one that lifts off the page. */
+  border-top: 1px solid color-mix(in srgb, var(--color-primary) 16%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-primary) 10%, transparent);
+  border-radius: 0 0 18px 18px;
+  box-shadow: 0 18px 38px color-mix(in srgb, var(--color-secondary) 14%, transparent);
   z-index: 500;
-  animation: dropIn 0.15s ease;
+  animation: dropIn 0.16s ease;
 }
 
 @keyframes dropIn {
@@ -91,84 +97,146 @@
   }
 }
 
-.dropdownList,
-.dropdownSublist {
+/* Matches .inner in CommerceHeader.module.css so the columns line up with the
+   logo and the menu row above them instead of running to the screen edges. */
+.dropdownInner {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 20px 20px 24px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px 28px;
+  align-items: start;
+}
+
+.column {
+  min-width: 0;
+}
+
+/* ── Column head: thumbnail + name on one line ──
+   A small square thumbnail rather than a large tile — the picture is a cue for
+   scanning the list, not the content itself, so it stays subordinate to the
+   category names underneath. */
+.columnHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: 12px;
+  text-decoration: none;
+  transition: background 0.14s;
+}
+.columnHead:hover {
+  background: var(--color-surface);
+}
+
+.columnImage,
+.columnImageFallback {
+  flex: 0 0 auto;
+  display: block;
+  width: 42px;
+  height: 42px;
+  border-radius: 6px;
+  object-fit: cover;
+  background: var(--color-surface);
+  border: 1px solid color-mix(in srgb, var(--color-primary) 15%, transparent);
+  transition: border-color 0.14s, box-shadow 0.14s;
+}
+.columnHead:hover .columnImage,
+.columnHead:hover .columnImageFallback {
+  border-color: color-mix(in srgb, var(--color-primary) 45%, transparent);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--color-primary) 22%, transparent);
+}
+
+/* A tinted panel rather than a hole in the row, so a category with no picture
+   yet still looks deliberate — brand teal into dusty blue, as on the home tiles. */
+.columnImageFallback {
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--color-primary) 14%, var(--background)),
+    color-mix(in srgb, var(--color-accent-secondary) 22%, var(--background))
+  );
+}
+
+.columnHeading {
+  min-width: 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: color 0.14s;
+}
+.columnHead:hover .columnHeading {
+  color: var(--color-primary);
+}
+.columnHeadingActive {
+  color: var(--color-primary);
+}
+
+/* ── Sub-categories ──
+   A soft teal rule groups the children under their heading — cheaper to read
+   than indentation alone, and it ties the block to the brand line on the card. */
+.columnList {
   list-style: none;
-  margin: 0;
-  padding: 0;
+  margin: 4px 0 0 19px;
+  padding: 2px 0 2px 12px;
+  border-left: 1px solid color-mix(in srgb, var(--color-primary) 18%, transparent);
   display: flex;
   flex-direction: column;
   gap: 1px;
 }
 
-.dropdownRow {
+/* Fourth level, indented under its parent rather than hidden behind a toggle. */
+.columnSublist {
+  list-style: none;
+  margin: 1px 0 3px 8px;
+  padding: 0 0 0 10px;
+  border-left: 1px dashed color-mix(in srgb, var(--color-accent-secondary) 45%, transparent);
   display: flex;
-  align-items: center;
-  gap: 2px;
+  flex-direction: column;
+  gap: 1px;
 }
 
-.dropdownLink {
-  flex: 1;
-  min-width: 0;
+.megaLink {
   display: block;
-  padding: 8px 10px;
+  padding: 5px 9px;
   border-radius: 8px;
-  font-size: 0.85rem;
+  font-size: 0.83rem;
   font-weight: 500;
-  color: color-mix(in srgb, var(--foreground) 82%, transparent);
+  color: color-mix(in srgb, var(--color-secondary) 76%, var(--background));
   text-decoration: none;
-  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
   transition: background 0.12s, color 0.12s;
 }
-.dropdownLink:hover {
-  background: color-mix(in srgb, var(--foreground) 6%, transparent);
-  color: var(--foreground);
+.megaLink:hover {
+  background: var(--color-surface-tint);
+  color: var(--color-primary);
 }
-.dropdownLinkActive {
-  background: color-mix(in srgb, var(--color-primary) 16%, transparent) !important;
-  color: var(--color-primary) !important;
+.megaLinkDeep {
+  font-size: 0.79rem;
+  color: color-mix(in srgb, var(--color-secondary) 58%, var(--background));
+}
+.megaLinkActive {
+  background: color-mix(in srgb, var(--color-primary) 14%, transparent);
+  color: var(--color-primary);
   font-weight: 600;
 }
 
-.dropdownToggle {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  border: none;
-  border-radius: 7px;
-  background: transparent;
-  color: color-mix(in srgb, var(--foreground) 40%, transparent);
-  cursor: pointer;
-  transition: background 0.12s, color 0.12s;
-}
-.dropdownToggle:hover {
-  background: color-mix(in srgb, var(--foreground) 6%, transparent);
-  color: var(--foreground);
-}
-.dropdownToggle svg {
-  transition: transform 0.2s ease;
-}
-.dropdownToggleIconOpen {
-  transform: rotate(90deg);
-}
-
-.dropdownChildren {
-  display: grid;
-  grid-template-rows: 0fr;
-  overflow: hidden;
-  opacity: 0;
-  transition: grid-template-rows 0.2s ease, opacity 0.15s ease;
-}
-.dropdownChildrenOpen {
-  grid-template-rows: 1fr;
-  opacity: 1;
-}
-.dropdownSublist {
-  padding-left: 14px;
-  padding-top: 1px;
+@media (prefers-reduced-motion: reduce) {
+  .dropdown {
+    animation: none;
+  }
+  .columnHead,
+  .columnImage,
+  .columnImageFallback,
+  .columnHeading,
+  .megaLink {
+    transition: none;
+  }
 }

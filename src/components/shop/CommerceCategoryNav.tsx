@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { getTranslations } from "@/lib/i18n";
 import { buildCategoryTree, getAncestorIds, type CategoryNode as BaseCategoryNode } from "@/lib/shop/categoryTree";
 import styles from "./CommerceCategoryNav.module.css";
@@ -13,12 +13,14 @@ interface RawCategory {
   id: string;
   name: string;
   parentId?: string | null;
+  imageUrl?: string | null;
   translations?: Record<string, Record<string, string>>;
 }
 interface Category {
   id: string;
   name: string;
   parentId?: string | null;
+  imageUrl: string | null;
 }
 type CategoryNode = BaseCategoryNode<Category>;
 
@@ -27,73 +29,76 @@ interface Props {
   className?: string;
 }
 
-interface DropdownT {
-  expandCategory: string;
-  collapseCategory: string;
-}
-
-function CategoryDropdownItem({
+/**
+ * One subcategory inside the panel: its picture, its name as the column
+ * heading, and its own children listed beneath.
+ *
+ * Replaces the old expand/collapse row — the card is wide enough to show both
+ * levels at once, so there is nothing left to toggle open.
+ */
+function MegaColumn({
   node,
   locale,
   activeCategory,
-  expanded,
-  onToggle,
   onNavigate,
-  t,
 }: {
   node: CategoryNode;
   locale: string;
   activeCategory: string | null;
-  expanded: Set<string>;
-  onToggle: (id: string) => void;
   onNavigate: () => void;
-  t: DropdownT;
 }) {
-  const hasChildren = node.children.length > 0;
-  const isOpen = expanded.has(node.id);
-  const isActive = activeCategory === node.id;
+  const href = (id: string) => `/${locale}/shop?categoryId=${id}`;
 
   return (
-    <li>
-      <div className={styles.dropdownRow}>
-        <Link
-          href={`/${locale}/shop?categoryId=${node.id}`}
-          className={`${styles.dropdownLink} ${isActive ? styles.dropdownLinkActive : ""}`}
-          onClick={onNavigate}
-        >
-          {node.name}
-        </Link>
-        {hasChildren && (
-          <button
-            type="button"
-            className={styles.dropdownToggle}
-            onClick={() => onToggle(node.id)}
-            aria-expanded={isOpen}
-            aria-label={isOpen ? t.collapseCategory : t.expandCategory}
-          >
-            <ChevronRight size={13} strokeWidth={2.25} className={isOpen ? styles.dropdownToggleIconOpen : ""} />
-          </button>
+    <div className={styles.column}>
+      {/* Picture and heading are one link, so the whole tile is the target. A
+          group title that could not be followed would strand the subcategory. */}
+      <Link href={href(node.id)} className={styles.columnHead} onClick={onNavigate}>
+        {node.imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={node.imageUrl} alt="" className={styles.columnImage} loading="lazy" />
+        ) : (
+          // A tinted panel rather than a hole in the row, so a category with no
+          // picture yet still looks deliberate — same treatment as the home tiles.
+          <span className={styles.columnImageFallback} aria-hidden="true" />
         )}
-      </div>
-      {hasChildren && (
-        <div className={`${styles.dropdownChildren} ${isOpen ? styles.dropdownChildrenOpen : ""}`}>
-          <ul className={styles.dropdownSublist}>
-            {node.children.map((child) => (
-              <CategoryDropdownItem
-                key={child.id}
-                node={child}
-                locale={locale}
-                activeCategory={activeCategory}
-                expanded={expanded}
-                onToggle={onToggle}
-                onNavigate={onNavigate}
-                t={t}
-              />
-            ))}
-          </ul>
-        </div>
+        <span className={`${styles.columnHeading} ${activeCategory === node.id ? styles.columnHeadingActive : ""}`}>{node.name}</span>
+      </Link>
+
+      {node.children.length > 0 && (
+        <ul className={styles.columnList}>
+          {node.children.map((child) => (
+            <li key={child.id}>
+              <Link
+                href={href(child.id)}
+                className={`${styles.megaLink} ${activeCategory === child.id ? styles.megaLinkActive : ""}`}
+                onClick={onNavigate}
+              >
+                {child.name}
+              </Link>
+              {/* Anything deeper is indented under its parent rather than
+                  hidden behind a toggle, so no category becomes unreachable
+                  just because the tree is four levels deep. */}
+              {child.children.length > 0 && (
+                <ul className={styles.columnSublist}>
+                  {child.children.map((grandchild) => (
+                    <li key={grandchild.id}>
+                      <Link
+                        href={href(grandchild.id)}
+                        className={`${styles.megaLink} ${styles.megaLinkDeep} ${activeCategory === grandchild.id ? styles.megaLinkActive : ""}`}
+                        onClick={onNavigate}
+                      >
+                        {grandchild.name}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </li>
+          ))}
+        </ul>
       )}
-    </li>
+    </div>
   );
 }
 
@@ -103,8 +108,9 @@ export default function CommerceCategoryNav({ locale, className }: Props) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [openId, setOpenId] = useState<string | null>(null);
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
+  // Only the vertical offset is kept now: the card spans the full viewport
+  // width, so its horizontal placement no longer depends on which item opened it.
+  const [top, setTop] = useState<number | null>(null);
   const navRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const triggerRefs = useRef(new Map<string, HTMLDivElement>());
@@ -117,6 +123,9 @@ export default function CommerceCategoryNav({ locale, className }: Props) {
           id: c.id,
           name: c.translations?.name?.[locale] ?? c.name,
           parentId: c.parentId,
+          // Already a full URL from the API — the same picture the home page's
+          // category tiles use.
+          imageUrl: c.imageUrl ?? null,
         }));
         setCategories(resolved);
       })
@@ -130,26 +139,37 @@ export default function CommerceCategoryNav({ locale, className }: Props) {
   const ancestorIds = new Set(getAncestorIds(categories, activeCategory));
 
   useEffect(() => {
-    const t2 = setTimeout(() => setExpanded(new Set(getAncestorIds(categories, activeCategory))), 0);
-    return () => clearTimeout(t2);
-  }, [categories, activeCategory]);
-
-  useEffect(() => {
     if (!openId) {
-      const t = setTimeout(() => setPos(null), 0);
+      const t = setTimeout(() => setTop(null), 0);
       return () => clearTimeout(t);
     }
     const update = () => {
-      const el = triggerRefs.current.get(openId);
+      // Measured from the header, not the item: a full-width card should sit
+      // flush under the whole header rather than under one menu entry.
+      const el = navRef.current?.closest("header") ?? triggerRefs.current.get(openId);
       const rect = el?.getBoundingClientRect();
-      if (rect) setPos({ left: rect.left, top: rect.bottom + 8 });
+      if (rect) setTop(rect.bottom);
     };
     update();
+
+    // Scrolling the page dismisses the card rather than dragging it along.
+    // The header itself moves on scroll (ScrollAwareHeader), so a card that
+    // followed it would slide down the page over the content the shopper is
+    // scrolling to read.
+    const handleScroll = (e: Event) => {
+      // Capture phase, so this also sees the panel's own scrollbar — a long
+      // category list must stay open while it is being scrolled. Page scroll
+      // targets the document, which the panel never contains.
+      const target = e.target;
+      if (target instanceof Node && dropdownRef.current?.contains(target)) return;
+      setOpenId(null);
+    };
+
     window.addEventListener("resize", update);
-    window.addEventListener("scroll", update, true);
+    window.addEventListener("scroll", handleScroll, true);
     return () => {
       window.removeEventListener("resize", update);
-      window.removeEventListener("scroll", update, true);
+      window.removeEventListener("scroll", handleScroll, true);
     };
   }, [openId]);
 
@@ -171,15 +191,6 @@ export default function CommerceCategoryNav({ locale, className }: Props) {
       document.removeEventListener("keydown", handleKey);
     };
   }, [openId]);
-
-  function toggleExpanded(id: string) {
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
 
   const openNode = openId ? (tree.find((n) => n.id === openId) ?? null) : null;
 
@@ -239,23 +250,23 @@ export default function CommerceCategoryNav({ locale, className }: Props) {
       })}
 
       {openNode &&
-        pos &&
+        top !== null &&
         createPortal(
-          <div ref={dropdownRef} className={styles.dropdown} style={{ left: pos.left, top: pos.top }} role="menu">
-            <ul className={styles.dropdownList}>
+          <div ref={dropdownRef} className={styles.dropdown} style={{ top }} aria-label={openNode.name}>
+            {/* The card is full-bleed but its contents are not: the inner
+                wrapper matches the header's own 1280px container so the columns
+                line up with the logo and the menu row above them. */}
+            <div className={styles.dropdownInner}>
               {openNode.children.map((child) => (
-                <CategoryDropdownItem
+                <MegaColumn
                   key={child.id}
                   node={child}
                   locale={locale}
                   activeCategory={activeCategory}
-                  expanded={expanded}
-                  onToggle={toggleExpanded}
                   onNavigate={() => setOpenId(null)}
-                  t={t}
                 />
               ))}
-            </ul>
+            </div>
           </div>,
           document.body,
         )}
