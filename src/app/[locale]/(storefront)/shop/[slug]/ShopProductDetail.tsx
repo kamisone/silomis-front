@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { PackageX } from "lucide-react";
 import AddToCartButton from "@/components/shop/AddToCartButton";
 import ProductVariantSelector, { type SelectableVariant } from "@/components/shop/ProductVariantSelector";
-import PerUnitVariantPicker, { groupUnits } from "@/components/shop/PerUnitVariantPicker";
+import PerUnitVariantPicker, { groupUnits, variantLabel } from "@/components/shop/PerUnitVariantPicker";
 import StickyVariantSelector from "@/components/shop/StickyVariantSelector";
 import { useVariantSelection } from "@/components/shop/useVariantSelection";
 import WishlistButton from "@/components/shop/WishlistButton";
@@ -470,10 +470,16 @@ export default function ShopProductDetail({
   const [stockChecking, setStockChecking] = useState(false);
   const stockCheckTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Reset qty and its cap whenever the active variant changes
+  // Clear the stock cap whenever the active variant changes — it is per-variant
+  // and the effect below re-derives it from /resolve.
+  //
+  // The quantity itself is deliberately NOT reset: switching size or colour is
+  // a refinement of the same purchase, and wiping a chosen quantity of 3 back
+  // to 1 loses work the customer did on purpose. Stock safety is unaffected —
+  // the resolve effect below still clamps qty down when the newly selected
+  // variant has fewer units available.
   useEffect(() => {
     const t = setTimeout(() => {
-      setQty(1);
       setQtyMax(null);
       setQtyError("");
     }, 0);
@@ -529,6 +535,39 @@ export default function ShopProductDetail({
 
   const perUnitActive = !!product.perUnitVariantChoice && hasVariants && qty > 1 && !inCart && !isBlocked;
 
+  /**
+   * Picking a colour or size while buying several applies to the FIRST item
+   * only; the rest keep whatever they were already set to.
+   *
+   * `unitOverrides` is sparse and everything absent from it falls through to
+   * the main selector, so without this a single tap on "White" would silently
+   * re-colour every untouched unit — the opposite of what someone assembling a
+   * mixed order wants. Units 1..n-1 are therefore pinned to the variant they
+   * were already showing, and index 0 is released so it (and only it) follows
+   * the new selection.
+   *
+   * Adjusting state during render rather than in an effect is React's own
+   * recommendation for reacting to a changed value: it re-renders before the
+   * browser paints, so the per-unit rows never flash the new variant on every
+   * line before snapping back.
+   */
+  const [prevActiveId, setPrevActiveId] = useState(activeId);
+  if (activeId !== prevActiveId) {
+    setPrevActiveId(activeId);
+    // Only meaningful when the product actually offers a choice per unit —
+    // otherwise every unit is the same variant and there is nothing to pin.
+    if (prevActiveId && !!product.perUnitVariantChoice && hasVariants && qty > 1) {
+      setUnitOverrides((prev) => {
+        const pinned = { ...prev };
+        for (let i = 1; i < qty; i++) {
+          if (pinned[i] === undefined) pinned[i] = prevActiveId;
+        }
+        delete pinned[0];
+        return pinned;
+      });
+    }
+  }
+
   /** One variant per unit; untouched rows follow the main selector. */
   const units = useMemo(
     () => (activeId ? Array.from({ length: qty }, (_, i) => unitOverrides[i] ?? activeId) : []),
@@ -546,6 +585,25 @@ export default function ShopProductDetail({
       }),
     [unitGroups, product.variants],
   );
+
+  /**
+   * What the sticky bar prints next to the price: the single variant's title
+   * normally, or the mixed per-unit selection once one is in play — the inline
+   * PerUnitVariantPicker is scrolled out of view by then, and this is the only
+   * place left that says what is actually about to be added.
+   */
+  const stickyVariantLabel = useMemo(() => {
+    if (!perUnitActive) return selectedVariant?.title ?? null;
+    return unitGroups
+      .map((group) => {
+        const variant = product.variants.find((v) => v.id === group.variantId);
+        if (!variant) return null;
+        const label = variantLabel(variant);
+        return group.quantity > 1 ? `${group.quantity}\u00d7 ${label}` : label;
+      })
+      .filter(Boolean)
+      .join(" \u00b7 ");
+  }, [perUnitActive, selectedVariant, unitGroups, product.variants]);
 
   const handleQtyIncrement = useCallback(() => {
     if (qtyMax !== null && qty >= qtyMax) return;
@@ -989,7 +1047,11 @@ export default function ShopProductDetail({
         <div className={styles.stickyMeta}>
           <span className={styles.stickyPrice}>{qty > 1 ? centsToAmount(totalPriceCents) : centsToAmount(displayUnitPriceCents)}</span>
           {isOnSale && <span className={styles.stickyCompare}>{centsToAmount(compareAtCents!)}</span>}
-          {selectedVariant?.title && <span className={styles.stickyVariant}>{selectedVariant.title}</span>}
+          {/* One line, so a mixed per-unit selection replaces the single variant
+              title rather than adding rows to the bar. Identical units collapse
+              into "2x Black / M" — with the quantity already shown in the
+              price, spelling out every unit separately would say it twice. */}
+          {stickyVariantLabel && <span className={styles.stickyVariant}>{stickyVariantLabel}</span>}
           {resolveStatus === "available" && <span className={`${styles.stickyStock} ${styles.stickyStockAvail}`}>{t.shop.stockAvailable}</span>}
           {resolveStatus === "out_of_stock" && <span className={`${styles.stickyStock} ${styles.stickyStockOos}`}>{t.shop.stockOutOfStock}</span>}
         </div>

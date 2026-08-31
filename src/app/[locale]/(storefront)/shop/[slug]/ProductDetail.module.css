@@ -695,6 +695,15 @@
   font-size: 12px;
   color: color-mix(in srgb, var(--foreground) 55%, var(--background));
   margin-right: auto;
+  /* A mixed per-unit selection ("2x Black / M · 1x White / S") is far longer
+     than a single variant title. Truncate rather than wrap: .stickyMeta wraps,
+     so a long label would otherwise push the stock badge onto its own line and
+     make the bar taller every time the selection changes. */
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .stickyStock {
   display: inline-flex;

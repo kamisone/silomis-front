@@ -1,5 +1,6 @@
 import Link from "next/link";
 import AddToCartButton from "@/components/shop/AddToCartButton";
+import ProductCardMedia from "@/components/shop/ProductCardMedia";
 import PromotionBadge, { type PromotionInfo } from "@/components/shop/PromotionBadge";
 import type { Locale } from "@/lib/i18n";
 import { getTranslations } from "@/lib/i18n";
@@ -49,7 +50,14 @@ export default function ProductCard({
   const isOnSale = !!(compareAtCents && compareAtCents > priceCents);
   const outOfStock = !!product.outOfStock;
   const defaultVariantOos = !!product.defaultVariantOutOfStock;
-  const imageUrl = product.cardImageUrls?.[0] ?? product.featuredImageUrl ?? null;
+  // Featured image first, then the gallery — the API already returns them in
+  // that order (capped at 5) as cardImageUrls. Falling back to featuredImageUrl
+  // keeps cards working for any caller that doesn't request the gallery.
+  const images = product.cardImageUrls?.length
+    ? product.cardImageUrls
+    : product.featuredImageUrl
+      ? [product.featuredImageUrl]
+      : [];
 
   const href = `/${locale}/shop/${product.slug}`;
 
@@ -59,22 +67,22 @@ export default function ProductCard({
   // so the whole visual card still reads (and tabs) as one target.
   return (
     <div className={styles.productCard}>
-      {/* Out of the tab order — the title link right below goes to the same place —
-          but still named, so the badges layered on top stay announced. */}
-      <Link href={href} className={styles.productImageWrap} tabIndex={-1} aria-label={product.title}>
-        {imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={imageUrl} alt="" className={styles.productImage} loading="lazy" />
-        ) : (
-          <div className={styles.productImagePlaceholder} />
-        )}
+      {/* Badges stay here, server-rendered, and are slotted over the image by
+          ProductCardMedia — only the image switcher itself needs client JS. */}
+      <ProductCardMedia
+        images={images}
+        title={product.title}
+        href={href}
+        prevLabel={t.shop.prevImage}
+        nextLabel={t.shop.nextImage}
+      >
         {outOfStock ? (
           <span className={styles.outOfStockBadge}>{t.shop.outOfStock}</span>
         ) : isOnSale ? (
           <span className={styles.saleBadge}>{t.shop.sale}</span>
         ) : null}
         {product.freeShipping && !outOfStock && <span className={styles.freeShipBadge}>{t.shop.freeShippingBadge}</span>}
-      </Link>
+      </ProductCardMedia>
       <div className={styles.productInfo}>
         {product.brand && <span className={styles.productBrand}>{product.brand}</span>}
         <h3 className={styles.productTitle}>

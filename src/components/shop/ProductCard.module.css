@@ -34,6 +34,109 @@
   display: block;
 }
 
+/* ── Multi-image card switcher ─────────────────────────────────────────── */
+
+/* Every image occupies the same box so switching is a crossfade, not a
+   reflow. The first one stays in flow to give .productImageWrap its height on
+   browsers that ignore aspect-ratio; the rest are layered on top of it. */
+.productImageLayer {
+  transition: opacity 0.28s ease;
+}
+.productImageLayer:not(:first-of-type) {
+  position: absolute;
+  inset: 0;
+}
+.productImageHidden {
+  opacity: 0;
+}
+
+/* The click target, layered over the image stack rather than wrapping it, so
+   the arrows can be real <button>s instead of anchors-inside-an-anchor. */
+.productImageOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+/* Position indicator. pointer-events: none so it never eats a scrub. */
+.imageDots {
+  position: absolute;
+  left: 50%;
+  bottom: 10px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--background) 82%, transparent);
+  backdrop-filter: blur(4px);
+  box-shadow: 0 1px 5px color-mix(in srgb, var(--foreground) 14%, transparent);
+  pointer-events: none;
+  z-index: 2;
+}
+.imageDot {
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--foreground) 28%, transparent);
+  transition: background 0.2s ease, width 0.2s ease;
+}
+.imageDotActive {
+  width: 15px;
+  background: var(--color-primary);
+}
+
+/* Desktop reveals the dots on hover — they are feedback for the scrub, and a
+   permanent pill on every card would be visual noise in a dense grid. Touch
+   has no hover, so there they stay visible alongside the arrows. */
+@media (hover: hover) and (pointer: fine) {
+  .imageDots {
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+  .productCard:hover .imageDots,
+  .productCard:focus-within .imageDots {
+    opacity: 1;
+  }
+}
+
+/* Arrows are the touch equivalent of the cursor scrub, so they are hidden
+   wherever hovering actually works. */
+.imageArrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--foreground) 12%, transparent);
+  background: color-mix(in srgb, var(--background) 92%, transparent);
+  backdrop-filter: blur(4px);
+  color: var(--foreground);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--foreground) 16%, transparent);
+  z-index: 2;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+.imageArrow:active {
+  transform: translateY(-50%) scale(0.92);
+}
+.imageArrowLeft {
+  left: 8px;
+}
+.imageArrowRight {
+  right: 8px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .imageArrow {
+    display: none;
+  }
+}
+
 .productImagePlaceholder {
   width: 100%;
   height: 100%;

@@ -60,6 +60,38 @@ export function MediaThumb({ item, sizes }: { item: GalleryMediaItem; sizes: str
   return <Image src={item.url} alt="" fill sizes={sizes} className={styles.thumbImg} />;
 }
 
+/**
+ * Brings a thumbnail into view by scrolling ONLY its strip.
+ *
+ * Deliberately not `scrollIntoView`: that walks up the tree and scrolls every
+ * scrollable ancestor, the document included. `block`/`inline: "nearest"` only
+ * minimises how far each one scrolls — it does not confine the scrolling to one
+ * container. So with the gallery above the viewport (the shopper has scrolled
+ * down to where the sticky buy bar shows), picking a variant there moved
+ * `current`, and bringing the newly active thumbnail into view dragged the
+ * whole page back up to the gallery.
+ *
+ * Comparing the two rects and scrolling the strip by the difference reproduces
+ * exactly what "nearest" was wanted for, and cannot touch the page scroll.
+ * `behavior` is left to the strips' own `scroll-behavior: smooth` in CSS, which
+ * already backs off under prefers-reduced-motion.
+ */
+function revealInStrip(strip: HTMLElement, child: HTMLElement | undefined, axis: "x" | "y"): void {
+  // A strip hidden at this breakpoint has no box to measure against.
+  if (!child || !child.offsetParent) return;
+
+  const s = strip.getBoundingClientRect();
+  const c = child.getBoundingClientRect();
+
+  if (axis === "x") {
+    const delta = c.left < s.left ? c.left - s.left : c.right > s.right ? c.right - s.right : 0;
+    if (delta !== 0) strip.scrollBy({ left: delta });
+  } else {
+    const delta = c.top < s.top ? c.top - s.top : c.bottom > s.bottom ? c.bottom - s.bottom : 0;
+    if (delta !== 0) strip.scrollBy({ top: delta });
+  }
+}
+
 export interface ProductGalleryHandle {
   /** Jumps the main viewer to `index` and opens the fullscreen lightbox there —
    *  used by a desktop big-thumbnails grid so it opens "the same carousel". */
@@ -193,19 +225,16 @@ const ProductGallery = forwardRef<ProductGalleryHandle, Props>(function ProductG
   useEffect(() => {
     const strip = stripRef.current;
     if (!strip) return;
-    const active = strip.children[current] as HTMLElement | undefined;
-    active?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    revealInStrip(strip, strip.children[current] as HTMLElement | undefined, "y");
   }, [current]);
 
   // Same, for the mobile horizontal thumbnail strip — otherwise swiping the
   // main image (or tapping a dot) can leave the selected thumbnail scrolled
-  // out of view in its own row. `inline`/`block` both "nearest" so this only
-  // moves the strip itself, never the page.
+  // out of view in its own row.
   useEffect(() => {
     const strip = mobileStripRef.current;
     if (!strip) return;
-    const activeThumb = strip.children[current] as HTMLElement | undefined;
-    activeThumb?.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" });
+    revealInStrip(strip, strip.children[current] as HTMLElement | undefined, "x");
   }, [current]);
 
   // Keep the "more thumbnails" cues in sync with the strip's scroll position and
