@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { isValidLocale, DEFAULT_LOCALE, getTranslations, type Locale } from "@/lib/i18n";
 import styles from "./Collections.module.css";
+import { localeAlternates } from "@/lib/seo";
 
 export const revalidate = 300;
 
@@ -37,9 +38,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const locale: Locale = isValidLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE;
   const t = getTranslations(locale);
   return {
-    title: `${t.shop.collectionsTitle} — Silomis`,
+    title: t.shop.collectionsTitle,
     description: t.shop.collectionsSubtitle,
-    alternates: { canonical: `/${locale}/collections` },
+    alternates: localeAlternates(locale, "/collections"),
   };
 }
 

@@ -5,7 +5,7 @@ import styles from "../privacy-policy/privacy.module.css";
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const { locale } = await params;
   const t = getTranslations(locale).legal;
-  return { title: `${t.title} — Silomis`, robots: { index: false } };
+  return { title: t.title, robots: { index: false } };
 }
 
 export default async function LegalPage({ params }: { params: Promise<{ locale: string }> }) {

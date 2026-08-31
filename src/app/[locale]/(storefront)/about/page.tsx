@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { Search, CheckCircle, Phone, Truck, type LucideIcon } from "lucide-react";
-import { getTranslations } from "@/lib/i18n";
+import { getTranslations, type Locale } from "@/lib/i18n";
 import styles from "./about.module.css";
+import { localeAlternates } from "@/lib/seo";
 
 const VALUE_ICONS: Record<string, LucideIcon> = {
   search: Search,
@@ -13,7 +14,7 @@ const VALUE_ICONS: Record<string, LucideIcon> = {
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const { locale } = await params;
   const t = getTranslations(locale).about;
-  return { title: `${t.title} — Silomis`, description: t.mission };
+  return { title: t.title, description: t.mission, alternates: localeAlternates(locale as Locale, "/about") };
 }
 
 export default async function AboutPage({ params }: { params: Promise<{ locale: string }> }) {

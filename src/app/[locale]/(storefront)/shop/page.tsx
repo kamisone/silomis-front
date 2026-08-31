@@ -1,11 +1,26 @@
 import { Suspense } from "react";
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import ShopListing from "./ShopListing";
+import { DEFAULT_LOCALE, getTranslations, isValidLocale, type Locale } from "@/lib/i18n";
+import { localeAlternates } from "@/lib/seo";
 
-export const metadata = {
-  title: "Shop — Silomis",
-  description: "Browse products at Silomis.",
-};
+/**
+ * Localised, and canonical to the locale-prefixed path. The bare `/shop` this
+ * page is reached through redirects to the home page anyway (see below), so
+ * the version worth indexing is always a category view.
+ */
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+  const { locale: rawLocale } = await params;
+  const locale: Locale = isValidLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE;
+  const t = getTranslations(locale).shop;
+  return {
+    title: t.seoShopTitle,
+    description: t.seoShopDescription,
+    alternates: localeAlternates(locale, "/shop"),
+    openGraph: { title: t.seoShopTitle, description: t.seoShopDescription, type: "website" },
+  };
+}
 
 /**
  * The category listing.

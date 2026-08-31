@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import styles from "./blog.module.css";
+import { localeAlternates } from "@/lib/seo";
+import type { Locale } from "@/lib/i18n";
 
 const API_BASE_URL = process.env.API_BASE_URL_SERVER ?? "http://127.0.0.1:4000";
 
@@ -34,8 +36,11 @@ async function fetchPosts(locale: string): Promise<Post[]> {
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const { locale } = await params;
-  void locale;
-  return { title: "Blog — Silomis" };
+  return {
+    title: "Blog",
+    description: "Guides, care tips and news from Silomis.",
+    alternates: localeAlternates(locale as Locale, "/blog"),
+  };
 }
 
 export default async function BlogIndexPage({ params }: { params: Promise<{ locale: string }> }) {

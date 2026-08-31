@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
-import { getTranslations } from "@/lib/i18n";
+import { getTranslations, type Locale } from "@/lib/i18n";
 import styles from "../privacy-policy/privacy.module.css";
+import { localeAlternates } from "@/lib/seo";
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const { locale } = await params;
   const t = getTranslations(locale).cookies;
-  return { title: `${t.title} — Silomis` };
+  return { title: t.title, description: t.intro, alternates: localeAlternates(locale as Locale, "/cookies") };
 }
 
 export default async function CookiesPage({ params }: { params: Promise<{ locale: string }> }) {

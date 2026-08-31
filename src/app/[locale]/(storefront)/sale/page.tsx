@@ -5,6 +5,7 @@ import type { PromotionInfo } from "@/components/shop/PromotionBadge";
 import { isValidLocale, DEFAULT_LOCALE, getTranslations, type Locale } from "@/lib/i18n";
 import PriceFilter from "./PriceFilter";
 import styles from "./Sale.module.css";
+import { localeAlternates } from "@/lib/seo";
 
 export const revalidate = 120;
 
@@ -136,9 +137,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const content = await fetchContent(locale);
   const title = content?.title?.trim() || t.saleTitle;
   return {
-    title: `${title} — Silomis`,
+    title,
     description: content?.intro?.trim() || t.saleIntro,
-    alternates: { canonical: `/${locale}/sale` },
+    alternates: localeAlternates(locale, "/sale"),
   };
 }
 

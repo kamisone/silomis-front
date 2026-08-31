@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import NextTopLoader from "nextjs-toploader";
 import { ToastProvider } from "@/components/toast/ToastContext";
 import Toaster from "@/components/toast/Toaster";
+import { SITE_NAME, SITE_URL } from "@/lib/seo";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -17,8 +18,25 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Silomis",
-  description: "Silomis — online shop",
+  /**
+   * Without this every canonical, hreflang and og:image stays relative, which
+   * is invalid in the markup crawlers read — Next resolves them against it.
+   */
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: `${SITE_NAME} — slippers, sandals and flip-flops`,
+    /** Pages set only their own subject; the brand is appended once, here. */
+    template: `%s | ${SITE_NAME}`,
+  },
+  description: "Comfortable slippers, sandals and flip-flops for indoors, the beach and everywhere in between. Fast delivery and easy returns.",
+  applicationName: SITE_NAME,
+  openGraph: {
+    siteName: SITE_NAME,
+    type: "website",
+  },
+  twitter: { card: "summary_large_image" },
+  robots: { index: true, follow: true },
+  formatDetection: { telephone: false },
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {

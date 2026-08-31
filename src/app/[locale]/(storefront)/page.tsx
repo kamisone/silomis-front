@@ -22,15 +22,26 @@ import {
 } from "@/components/home/sectionTypes";
 import { getTranslations, isValidLocale, DEFAULT_LOCALE, type Locale } from "@/lib/i18n";
 import styles from "./page.module.css";
+import JsonLd from "@/components/seo/JsonLd";
+import { localeAlternates, SITE_NAME, SITE_URL } from "@/lib/seo";
 
 export const revalidate = 120;
 
 const API_BASE_URL = process.env.API_BASE_URL_SERVER ?? "http://127.0.0.1:4000";
 
-export const metadata: Metadata = {
-  title: "Silomis — Online Shop",
-  description: "Shop quality products at Silomis.",
-};
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+  const { locale: rawLocale } = await params;
+  const locale: Locale = isValidLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE;
+  const t = getTranslations(locale).shop;
+  return {
+    // `absolute` so the home page is "Slippers, sandals and flip-flops |
+    // Silomis" rather than repeating the brand through the template.
+    title: { absolute: `${t.homeTitle} | ${SITE_NAME}` },
+    description: t.homeSubtitle,
+    alternates: localeAlternates(locale),
+    openGraph: { title: t.homeTitle, description: t.homeSubtitle, type: "website" },
+  };
+}
 
 interface ActivePromotion extends HomePromotion {
   scope: "site_wide" | "category" | "product";
@@ -191,8 +202,42 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   // keeps its banded rhythm no matter which ones the admin turned off.
   let tintIndex = 0;
 
+  /**
+   * Identity for the knowledge panel, and the search box crawlers offer for a
+   * site they can search. Home only — repeating Organization on every page
+   * says nothing extra and just adds weight.
+   */
+  const siteJsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": `${SITE_URL}/#organization`,
+        name: SITE_NAME,
+        url: SITE_URL,
+        // The real asset the header uses — a logo URL that 404s is worse
+        // than none at all.
+        logo: `${SITE_URL}/assets/logo_silomis_icon.png`,
+      },
+      {
+        "@type": "WebSite",
+        "@id": `${SITE_URL}/#website`,
+        name: SITE_NAME,
+        url: SITE_URL,
+        publisher: { "@id": `${SITE_URL}/#organization` },
+        inLanguage: locale,
+        potentialAction: {
+          "@type": "SearchAction",
+          target: { "@type": "EntryPoint", urlTemplate: `${SITE_URL}/${locale}/shop/search?q={search_term_string}` },
+          "query-input": "required name=search_term_string",
+        },
+      },
+    ],
+  };
+
   return (
     <main className={styles.page}>
+      <JsonLd id="site-jsonld" data={siteJsonLd} />
       {layout.map((section) => {
         switch (section.type) {
           case "hero":

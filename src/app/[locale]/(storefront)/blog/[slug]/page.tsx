@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import ProductCard, { type ProductListItem } from "@/components/shop/ProductCard";
 import { getTranslations, type Locale } from "@/lib/i18n";
 import styles from "./post.module.css";
+import { localeAlternates } from "@/lib/seo";
 
 const API_BASE_URL = process.env.API_BASE_URL_SERVER ?? "http://127.0.0.1:4000";
 
@@ -50,8 +51,15 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const post = await fetchPost(slug, locale);
   if (!post) return {};
   return {
-    title: `${post.seoTitle || post.title} — Silomis`,
+    title: post.seoTitle || post.title,
     description: post.seoDescription || post.excerpt || undefined,
+    alternates: localeAlternates(locale as Locale, `/blog/${slug}`),
+    openGraph: {
+      type: "article",
+      title: post.seoTitle || post.title,
+      description: post.seoDescription || post.excerpt || undefined,
+      images: post.featuredImageUrl ? [{ url: post.featuredImageUrl }] : undefined,
+    },
   };
 }
 

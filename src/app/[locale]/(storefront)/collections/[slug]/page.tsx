@@ -5,6 +5,7 @@ import ProductCard, { type ProductListItem } from "@/components/shop/ProductCard
 import type { PromotionInfo } from "@/components/shop/PromotionBadge";
 import { isValidLocale, DEFAULT_LOCALE, getTranslations, type Locale } from "@/lib/i18n";
 import styles from "./Collection.module.css";
+import { localeAlternates } from "@/lib/seo";
 
 export const revalidate = 120;
 
@@ -117,12 +118,12 @@ interface PageProps {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug, locale } = await params;
   const collection = await fetchCollection(slug, locale);
-  if (!collection) return { title: "Collection not found — Silomis" };
+  if (!collection) return { title: "Collection not found", robots: { index: false, follow: true } };
   return {
-    title: collection.seoTitle?.trim() || `${collection.name} — Silomis`,
+    title: collection.seoTitle?.trim() || collection.name,
     description: collection.seoDescription?.trim() || collection.description || undefined,
     keywords: collection.metaKeywords?.trim() || undefined,
-    alternates: { canonical: `/${locale}/collections/${collection.slug}` },
+    alternates: localeAlternates(locale as Locale, `/collections/${collection.slug}`),
   };
 }
 

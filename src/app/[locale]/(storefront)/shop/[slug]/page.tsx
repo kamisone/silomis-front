@@ -1,13 +1,14 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import Script from "next/script";
 import ShopProductDetail, { type Product } from "./ShopProductDetail";
+import JsonLd from "@/components/seo/JsonLd";
 import RelatedSection from "@/components/shop/RelatedSection";
 import RecordProductView from "@/components/shop/RecordProductView";
 import RelatedProductsSkeleton from "@/components/shop/RelatedProductsSkeleton";
 import type { PromotionInfo } from "@/components/shop/PromotionBadge";
-import { isValidLocale, DEFAULT_LOCALE } from "@/lib/i18n";
+import { isValidLocale, DEFAULT_LOCALE, getTranslations } from "@/lib/i18n";
+import { localeAlternates } from "@/lib/seo";
 
 const API_BASE_URL = process.env.API_BASE_URL_SERVER ?? "http://127.0.0.1:4000";
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://silomis.com";
@@ -104,7 +105,7 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
   const { v } = await searchParams;
   const locale = isValidLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE;
   const product = await fetchProduct(slug, locale);
-  if (!product) return { title: "Product not found — Silomis" };
+  if (!product) return { title: "Product not found", robots: { index: false, follow: true } };
 
   let variantTitle = product.title;
   let variantImage = product.featuredImageUrl ?? undefined;
@@ -117,15 +118,29 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
     }
   }
 
+  const description = product.shortDescription || undefined;
+  const alternates = localeAlternates(locale, `/shop/${slug}`);
+
   return {
-    title: `${variantTitle} — Silomis`,
-    description: product.shortDescription || undefined,
+    title: variantTitle,
+    description,
     openGraph: {
-      title: `${variantTitle} — Silomis`,
+      title: variantTitle,
+      description,
+      type: "website",
       images: variantImage ? [{ url: variantImage }] : undefined,
     },
+    twitter: {
+      title: variantTitle,
+      description,
+      images: variantImage ? [variantImage] : undefined,
+    },
     alternates: {
-      canonical: `/${locale}/shop/${slug}${v ? `?v=${v}` : ""}`,
+      ...alternates,
+      // A selected variant is still this product's page, so the canonical
+      // keeps the ?v= that identifies which one is on screen; the hreflang
+      // set stays on the clean path shared by every locale.
+      canonical: `${alternates.canonical}${v ? `?v=${v}` : ""}`,
     },
   };
 }
@@ -164,11 +179,38 @@ export default async function ProductPage({ params }: PageProps) {
         (v.inventoryItem?.available ?? 0) > 0
           ? "https://schema.org/InStock"
           : "https://schema.org/OutOfStock",
-      url: `${APP_URL}/shop/${product.slug}`,
+      // Locale-prefixed: the bare /shop/... path only ever redirects, and an
+      // offer URL that redirects is a wasted signal.
+      url: `${APP_URL}/${locale}/shop/${product.slug}`,
     })),
     ...(reviewStats.count > 0
       ? { aggregateRating: { "@type": "AggregateRating", ratingValue: reviewStats.average, reviewCount: reviewStats.count } }
       : {}),
+  };
+
+  const primaryCategory = product.primaryCategory ?? product.categories?.[0] ?? null;
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: getTranslations(locale).shop.homeBreadcrumb, item: `${APP_URL}/${locale}` },
+      ...(primaryCategory
+        ? [
+            {
+              "@type": "ListItem",
+              position: 2,
+              name: primaryCategory.name,
+              item: `${APP_URL}/${locale}/shop?categoryId=${primaryCategory.id}`,
+            },
+          ]
+        : []),
+      {
+        "@type": "ListItem",
+        position: primaryCategory ? 3 : 2,
+        name: product.title,
+        item: `${APP_URL}/${locale}/shop/${product.slug}`,
+      },
+    ],
   };
 
   const activeFaqs = (product.faqs ?? []).filter((f) => f.isActive);
@@ -187,14 +229,9 @@ export default async function ProductPage({ params }: PageProps) {
 
   return (
     <>
-      <Script id="product-jsonld" type="application/ld+json">
-        {JSON.stringify(jsonLd)}
-      </Script>
-      {faqJsonLd && (
-        <Script id="product-faq-jsonld" type="application/ld+json">
-          {JSON.stringify(faqJsonLd)}
-        </Script>
-      )}
+      <JsonLd id="product-jsonld" data={jsonLd} />
+      <JsonLd id="product-breadcrumb-jsonld" data={breadcrumbJsonLd} />
+      {faqJsonLd && <JsonLd id="product-faq-jsonld" data={faqJsonLd} />}
       {/* Remembers this product for the floating "recently viewed" card. The
           price mirrors what the listing card prints — the default variant's,
           falling back to the base price — so the two never disagree. */}
