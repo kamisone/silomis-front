@@ -36,8 +36,8 @@ export default function CommerceFooter({ locale }: { locale: Locale }) {
               <Image
                 src="/assets/logo_silomis_icon.png"
                 alt="Silomis"
-                width={28}
-                height={21}
+                width={26}
+                height={28}
                 className={styles.logoIcon}
               />
               <span className={styles.logoText}>

@@ -37,19 +37,18 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
   flex-shrink: 0;
   text-decoration: none;
 }
 
 .logoIcon {
-  /* 702x431 source — the box follows that ratio so `contain` has nothing to
+  /* 862x905 source — the box follows that ratio so `contain` has nothing to
      letterbox and the mark fills the space it is given. Kept a touch narrower
      than the name so the pyramid widens on every row. */
-  height: 30px;
-  width: 49px;
+  height: 42px;
+  width: 40px;
   object-fit: contain;
-  transition: transform 0.22s cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
 
@@ -64,34 +63,19 @@
 }
 
 .logoWord {
-  font-size: 19px;
+  font-size: 24px;
   font-weight: 800;
   /* Slightly tight: at this weight the default spacing reads as loose. */
   letter-spacing: -0.015em;
   color: var(--color-secondary);
-  transition: color 0.18s ease;
 }
 
 
-/* Hovering used to fade the whole lockup, mark included, which reads as
-   "disabled" rather than "interactive". The mark lifts instead — a step, which
-   suits the product — and the name takes the brand colour. The colour shift
-   carries the affordance on its own where motion is unwelcome. */
-.logo:hover .logoIcon {
-  transform: translateY(-2px) rotate(-3deg);
-}
-.logo:hover .logoWord {
-  color: var(--color-primary);
-}
-@media (prefers-reduced-motion: reduce) {
-  .logoIcon,
-  .logoWord {
-    transition: none;
-  }
-  .logo:hover .logoIcon {
-    transform: none;
-  }
-}
+/* The logo deliberately has no hover state — it neither moves nor changes
+   colour. It is the one link on the page whose target nobody has to be told,
+   so the affordance buys nothing, and a mark that lifts every time the pointer
+   crosses the header is noise. Nothing here needs a prefers-reduced-motion
+   guard for the same reason: there is no motion to reduce. */
 
 /* Fills whatever the logo, quick links and icon cluster leave rather than
    sitting in a fixed 480px well with dead space either side. .inner's own
@@ -152,4 +136,12 @@
      tight search bar and nav icons, and stacking it costs header height a
      phone cannot spare. */
   .logoWord { display: none; }
+
+  /* With the name gone the mark is the whole logo, so it takes a size of its
+     own — smaller than the desktop lockup's, but still inside .topRow's 48px,
+     which is what keeps this from adding a single pixel of header height. */
+  .logoIcon {
+    height: 38px;
+    width: 36px;
+  }
 }

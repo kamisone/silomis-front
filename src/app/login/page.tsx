@@ -35,7 +35,7 @@ function BrandPanel() {
       <div className={styles.brandGlow} />
       <div className={styles.brandInner}>
         <div className={styles.brandLogo}>
-          <Image src="/assets/logo_silomis_icon.png" alt="" width={46} height={28} priority />
+          <Image src="/assets/logo_silomis_icon.png" alt="" width={26} height={28} priority />
           <span className={styles.brandWordmark}>
             <span className={styles.brandInitial}>S</span>ilomis
           </span>
@@ -205,7 +205,7 @@ function LoginForm() {
           {/* Phones lose the brand panel, so the mark comes back here — a
               sign-in with no logo on it is the one thing that reads as a phish. */}
           <div className={styles.compactBrand}>
-            <Image src="/assets/logo_silomis_icon.png" alt="Silomis" width={34} height={25} priority />
+            <Image src="/assets/logo_silomis_icon.png" alt="Silomis" width={24} height={25} priority />
           </div>
 
           {challenge ? (
