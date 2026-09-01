@@ -150,6 +150,7 @@ const NAV_GROUPS: NavGroup[] = [
         icon:  Percent,
         items: [
           { href: "/admin/shop/promotions",           icon: Percent,   label: "Promotions"         },
+          { href: "/admin/shop/promotions/sale-page", icon: BookOpen,  label: "Sale Page"          },
           { href: "/admin/shop/coupons",               icon: Ticket,    label: "Coupons"            },
           { href: "/admin/shop/analytics/promotions", icon: BarChart3, label: "Discount Analytics" },
         ],

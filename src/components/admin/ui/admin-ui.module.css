@@ -17,6 +17,23 @@
   color: var(--color-primary);
 }
 
+/* Explanatory line under a page header. The negative margin pulls it back
+   against the title, out of .page's 1.25rem row gap, so it reads as part of
+   the heading rather than as the first block of content. */
+.pageHint {
+  margin-top: -0.75rem;
+  max-width: 70ch;
+  font-size: 0.85rem;
+  line-height: 1.55;
+  color: var(--color-secondary);
+}
+.pageHint code {
+  padding: 0.05em 0.35em;
+  border-radius: 4px;
+  background: var(--color-surface);
+  font-size: 0.95em;
+}
+
 .card {
   background: var(--background);
   border: 1px solid var(--color-surface);

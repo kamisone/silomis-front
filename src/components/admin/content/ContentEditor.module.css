@@ -97,15 +97,36 @@
   padding: 1.25rem;
 }
 
-.fieldLabel {
+.field {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
+}
+
+/* Reserves the pill's height whether or not this instance shows one, so the
+   two fields keep the same rhythm on the pages that have no Translate button. */
+.fieldHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-height: 1.55rem;
+}
+
+.fieldLabel {
   font-size: 0.8rem;
   font-weight: 600;
   color: var(--color-secondary);
   text-transform: uppercase;
   letter-spacing: 0.05em;
+}
+
+/* The line the locale bar carries in the modes that still have one at the top. */
+.fieldsNote {
+  margin: -0.25rem 0 0.25rem;
+  font-size: 0.72rem;
+  font-style: italic;
+  color: color-mix(in srgb, var(--foreground) 45%, transparent);
 }
 
 .fieldInput,

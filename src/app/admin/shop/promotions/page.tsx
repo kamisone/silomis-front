@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
+import Link from "next/link";
 import { api, ApiError } from "@/lib/api";
 import { useToast } from "@/components/toast/ToastContext";
 import Button from "@/components/admin/ui/Button";
@@ -355,7 +356,14 @@ export default function PromotionsPage() {
     <div className={ui.page}>
       <div className={ui.pageHeader}>
         <h1 className={ui.pageTitle}>Promotions</h1>
-        <Button onClick={openCreate}>New promotion</Button>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+          {/* The storefront page these promotions fill — its copy is edited
+              there, and this is where an admin comes looking for it. */}
+          <Link href="/admin/shop/promotions/sale-page">
+            <Button variant="secondary">Sale page copy</Button>
+          </Link>
+          <Button onClick={openCreate}>New promotion</Button>
+        </div>
       </div>
 
       <div className={ui.card}>

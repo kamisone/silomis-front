@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { ChevronDown } from "lucide-react";
 import ProductCard, { type ProductListItem } from "@/components/shop/ProductCard";
 import type { PromotionInfo } from "@/components/shop/PromotionBadge";
 import { isValidLocale, DEFAULT_LOCALE, getTranslations, type Locale } from "@/lib/i18n";
@@ -133,12 +134,15 @@ interface PageProps {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { locale: rawLocale } = await params;
   const locale: Locale = isValidLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE;
-  const t = getTranslations(locale).shop;
   const content = await fetchContent(locale);
-  const title = content?.title?.trim() || t.saleTitle;
+  const title = content?.title?.trim();
+  const description = content?.intro?.trim();
+  // No built-in copy stands in for either: what the admin left blank stays
+  // blank. An omitted title falls through to the root layout's site-wide
+  // default, which is the one <title> a page cannot go without.
   return {
-    title,
-    description: content?.intro?.trim() || t.saleIntro,
+    ...(title ? { title } : {}),
+    ...(description ? { description } : {}),
     alternates: localeAlternates(locale, "/sale"),
   };
 }
@@ -161,11 +165,18 @@ export default async function SalePage({ params, searchParams }: PageProps) {
   ]);
 
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const title = content?.title?.trim() || t.shop.saleTitle;
-  const intro = content?.intro?.trim() || t.shop.saleIntro;
+  // Deliberately no fallback: the admin owns this copy, and an unfilled field
+  // renders nothing rather than a built-in stand-in that reads like a real
+  // editorial decision nobody made.
+  const title = content?.title?.trim() ?? "";
+  const intro = content?.intro?.trim() ?? "";
   // Long-form copy lives below the grid, the way a category page carries its
   // SEO text — the intro above stays short, with an anchor down to the rest.
   const sections = (content?.sections ?? []).filter((s) => s.title?.trim() || s.body?.trim());
+
+  /** Shown in the disclosure header on mobile, where the panel is closed by
+   * default and this badge is the only clue that a filter is still applied. */
+  const activeFilters = (sort !== "curated" ? 1 : 0) + (minPrice !== null || maxPrice !== null ? 1 : 0);
 
   /** Sort and price changes reset to page 1; page links keep both. */
   const href = (next: { sort?: Sort; page?: number }) => {
@@ -188,48 +199,71 @@ export default async function SalePage({ params, searchParams }: PageProps) {
         <span className={styles.breadcrumbCurrent}>{t.shop.saleBreadcrumb}</span>
       </nav>
 
-      <header className={styles.header}>
-        <span className={styles.headerTag}>{t.shop.sale}</span>
-        <h1 className={styles.title}>{title}</h1>
-        <p className={styles.intro}>
-          {intro}
-          {sections.length > 0 && (
-            <>
-              {" "}
-              <a href="#sale-more" className={styles.readMore}>
-                {t.shop.saleReadMore}
-              </a>
-            </>
+      {/* The whole header goes when the admin has written neither field — a
+          lone "Sale" pill over nothing is worse than starting at the grid. */}
+      {(title || intro) && (
+        <header className={styles.header}>
+          <span className={styles.headerTag}>{t.shop.sale}</span>
+          {title && <h1 className={styles.title}>{title}</h1>}
+          {intro && (
+            <p className={styles.intro}>
+              {intro}
+              {sections.length > 0 && (
+                <>
+                  {" "}
+                  <a href="#sale-more" className={styles.readMore}>
+                    {t.shop.saleReadMore}
+                  </a>
+                </>
+              )}
+            </p>
           )}
-        </p>
-      </header>
+        </header>
+      )}
 
       <div className={styles.layout}>
         <aside className={styles.sidebar} aria-label={t.shop.filtersTitle}>
-          <h2 className={styles.sidebarTitle}>{t.shop.filtersTitle}</h2>
+          {/* A native <details> rather than a client disclosure: collapsed is the
+              correct initial state on mobile with or without JS, and the desktop
+              column is forced open in CSS, so one tree serves both. */}
+          <details className={styles.filters}>
+            <summary className={styles.filtersSummary}>
+              <span className={styles.filtersHeading}>{t.shop.filtersTitle}</span>
+              {/* aria-hidden: a bare "2" read after the label explains nothing, and the
+                  panel it opens states the applied filters in full. */}
+              {activeFilters > 0 && (
+                <span className={styles.filtersCount} aria-hidden="true">
+                  {activeFilters}
+                </span>
+              )}
+              <ChevronDown size={16} className={styles.filtersChevron} aria-hidden="true" />
+            </summary>
 
-          <div className={styles.filterBlock}>
-            <h3 className={styles.filterGroupTitle}>{t.shop.sortLabel}</h3>
-            {/* Links, not radios: keeps the aside server-rendered and leaves
-                every sort crawlable and shareable. */}
-            <ul className={styles.sortList}>
-              {SORTS.map((s) => (
-                <li key={s}>
-                  <Link href={href({ sort: s })} className={s === sort ? styles.sortLinkActive : styles.sortLink} aria-current={s === sort}>
-                    <span className={styles.sortMark} aria-hidden="true" />
-                    {sortLabel(s, t)}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
+            <div className={styles.filtersBody}>
+              <div className={styles.filterBlock}>
+                <h3 className={styles.filterGroupTitle}>{t.shop.sortLabel}</h3>
+                {/* Links, not radios: keeps the aside server-rendered and leaves
+                    every sort crawlable and shareable. */}
+                <ul className={styles.sortList}>
+                  {SORTS.map((s) => (
+                    <li key={s}>
+                      <Link href={href({ sort: s })} className={s === sort ? styles.sortLinkActive : styles.sortLink} aria-current={s === sort}>
+                        <span className={styles.sortMark} aria-hidden="true" />
+                        {sortLabel(s, t)}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
 
-          <div className={styles.filterBlock}>
-            <h3 className={styles.filterGroupTitle}>{t.shop.filtersPrice}</h3>
-            {/* Keyed on the applied range so a navigation reseeds the inputs —
-                see the note in PriceFilter about why it is not an effect. */}
-            <PriceFilter key={`${minPrice ?? ""}-${maxPrice ?? ""}`} minPriceCents={minPrice} maxPriceCents={maxPrice} />
-          </div>
+              <div className={styles.filterBlock}>
+                <h3 className={styles.filterGroupTitle}>{t.shop.filtersPrice}</h3>
+                {/* Keyed on the applied range so a navigation reseeds the inputs —
+                    see the note in PriceFilter about why it is not an effect. */}
+                <PriceFilter key={`${minPrice ?? ""}-${maxPrice ?? ""}`} minPriceCents={minPrice} maxPriceCents={maxPrice} />
+              </div>
+            </div>
+          </details>
         </aside>
 
         <main className={styles.main}>

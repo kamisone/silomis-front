@@ -72,6 +72,7 @@ export default function LocalizedTextField({
   multiline = false,
   richText = false,
   placeholder,
+  overlayPlaceholder = "Leave blank to fall back to English",
   disabled = false,
   rows = 2,
   translateEndpoint,
@@ -90,6 +91,11 @@ export default function LocalizedTextField({
   /** Render the rich-text (HTML) editor instead of an input or textarea. */
   richText?: boolean;
   placeholder?: string;
+  /** Placeholder for the six non-English tabs. The default states the usual
+   *  contract — an empty language falls back to English — which is not true
+   *  everywhere: page content renders nothing at all for a blank field, and
+   *  saying otherwise would be telling the admin the opposite of what happens. */
+  overlayPlaceholder?: string;
   disabled?: boolean;
   rows?: number;
   /** POST endpoint taking `{ text }` (or `{ html }` when richText) and returning
@@ -228,7 +234,7 @@ export default function LocalizedTextField({
             value={current}
             maxLength={maxLength}
             onChange={(e) => set(e.target.value)}
-            placeholder={lang === DEFAULT_LOCALE ? placeholder : "Leave blank to fall back to English"}
+            placeholder={lang === DEFAULT_LOCALE ? placeholder : overlayPlaceholder}
             rows={rows}
             disabled={disabled}
           />
@@ -238,7 +244,7 @@ export default function LocalizedTextField({
             value={current}
             maxLength={maxLength}
             onChange={(e) => set(e.target.value)}
-            placeholder={lang === DEFAULT_LOCALE ? placeholder : "Leave blank to fall back to English"}
+            placeholder={lang === DEFAULT_LOCALE ? placeholder : overlayPlaceholder}
             disabled={disabled}
           />
         )}
