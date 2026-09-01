@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { headers } from "next/headers";
 import NextTopLoader from "nextjs-toploader";
@@ -37,6 +37,15 @@ export const metadata: Metadata = {
   twitter: { card: "summary_large_image" },
   robots: { index: true, follow: true },
   formatDetection: { telephone: false },
+};
+
+/**
+ * White to match the fixed header, so the browser chrome and the top of the
+ * page meet without a colour seam.
+ */
+export const viewport: Viewport = {
+  themeColor: "#ffffff",
+  colorScheme: "light",
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {

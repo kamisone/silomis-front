@@ -24,8 +24,14 @@ export default function CommerceHeader({ locale }: { locale: Locale }) {
           {/* ── Row 1: logo, search, account/wishlist/cart ── */}
           <div className={styles.topRow}>
             <Link href={`/${locale}`} className={`${styles.logo} ${styles.logoOrder}`} aria-label={t.nav.logoAriaLabel}>
-              <Image src="/assets/logo_silomis_icon.png" alt="" width={43} height={32} className={styles.logoIcon} priority />
-              <Image src="/assets/logo_silomis_text.png" alt="" width={84} height={32} className={styles.logoText} priority />
+              {/* The wordmark is set in type rather than shipped as a bitmap: it
+                  stays crisp at any density, recolours with the theme, is
+                  translatable, and drops a render-blocking request from the
+                  header. Only the mark itself is still an image. */}
+              <Image src="/assets/logo_silomis_icon.png" alt="" width={49} height={30} className={styles.logoIcon} priority />
+              <span className={styles.logoWord}>
+                <span className={styles.logoInitial}>S</span>ilomis
+              </span>
             </Link>
 
             <HeaderQuickLinks locale={locale} />

@@ -51,11 +51,21 @@
   gap: 10px;
 }
 
-/* The wordmark is drawn for a white page; on charcoal it needs lifting out. */
+/* Set in type rather than shipped as an image, so it inverts cleanly on this
+   charcoal panel instead of needing a brightness/invert filter to fake it. */
+/* Brand teal on this charcoal panel measures 3.40:1 — over the 3:1 bar for
+   large text at 21px/800, but only just, so it is deliberately reserved for
+   the single initial and never for anything smaller here. */
+.brandInitial {
+  color: var(--color-primary);
+}
+
 .brandWordmark {
-  filter: brightness(0) invert(1);
-  opacity: 0.94;
-  height: auto;
+  font-size: 21px;
+  font-weight: 800;
+  letter-spacing: -0.015em;
+  line-height: 1;
+  color: var(--brand-base);
 }
 
 .brandCopy {

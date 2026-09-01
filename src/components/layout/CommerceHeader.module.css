@@ -30,26 +30,67 @@
 .logoOrder { order: 1; }
 .iconsOrder { order: 2; }
 
+/* ── Logo lockup ───────────────────────────────────────────────────────────
+   Stacked and centred: the mark on top, the name beneath it. The name is the
+   wider of the two, so the pair still reads as a pyramid. */
 .logo {
   display: flex;
-  align-items: end;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
   flex-shrink: 0;
   text-decoration: none;
-  opacity: 1;
-  transition: opacity 0.15s;
 }
-.logo:hover { opacity: 0.85; }
 
 .logoIcon {
-  height: 32px;
-  width: 43px;
+  /* 702x431 source — the box follows that ratio so `contain` has nothing to
+     letterbox and the mark fills the space it is given. Kept a touch narrower
+     than the name so the pyramid widens on every row. */
+  height: 30px;
+  width: 49px;
   object-fit: contain;
+  transition: transform 0.22s cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
-.logoText {
-  height: 20px;
-  width: 50px;
-  object-fit: contain;
+
+/* The initial carries the brand colour, tying the wordmark to the mark above
+   it. `--color-primary` rather than a literal #129c98 so it follows the
+   palette if that ever moves.
+   At 19px/800 this is "large text" by WCAG, where the bar is 3:1 — teal on
+   white measures 3.37:1 and passes. It would fail the 4.5:1 that normal-size
+   text needs, which is why anything smaller has to use a darkened mix. */
+.logoInitial {
+  color: var(--color-primary);
+}
+
+.logoWord {
+  font-size: 19px;
+  font-weight: 800;
+  /* Slightly tight: at this weight the default spacing reads as loose. */
+  letter-spacing: -0.015em;
+  color: var(--color-secondary);
+  transition: color 0.18s ease;
+}
+
+
+/* Hovering used to fade the whole lockup, mark included, which reads as
+   "disabled" rather than "interactive". The mark lifts instead — a step, which
+   suits the product — and the name takes the brand colour. The colour shift
+   carries the affordance on its own where motion is unwelcome. */
+.logo:hover .logoIcon {
+  transform: translateY(-2px) rotate(-3deg);
+}
+.logo:hover .logoWord {
+  color: var(--color-primary);
+}
+@media (prefers-reduced-motion: reduce) {
+  .logoIcon,
+  .logoWord {
+    transition: none;
+  }
+  .logo:hover .logoIcon {
+    transform: none;
+  }
 }
 
 /* Fills whatever the logo, quick links and icon cluster leave rather than
@@ -107,7 +148,8 @@
      of letting it hug them on the left. */
   .navRight { margin-left: auto; }
 
-  /* Narrow viewports keep just the mark — the wordmark is redundant next to
-     a tight search bar and nav icons. */
-  .logoText { display: none; }
+  /* Narrow viewports keep just the mark — the wordmark is redundant next to a
+     tight search bar and nav icons, and stacking it costs header height a
+     phone cannot spare. */
+  .logoWord { display: none; }
 }

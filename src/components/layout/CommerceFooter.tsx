@@ -40,7 +40,9 @@ export default function CommerceFooter({ locale }: { locale: Locale }) {
                 height={21}
                 className={styles.logoIcon}
               />
-              <span className={styles.logoText}>Silomis</span>
+              <span className={styles.logoText}>
+                <span className={styles.logoInitial}>S</span>ilomis
+              </span>
             </div>
             <p className={styles.footerTagline}>{t.footer.tagline}</p>
             <div className={styles.footerContact}>

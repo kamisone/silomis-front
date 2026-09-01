@@ -35,8 +35,10 @@ function BrandPanel() {
       <div className={styles.brandGlow} />
       <div className={styles.brandInner}>
         <div className={styles.brandLogo}>
-          <Image src="/assets/logo_silomis_icon.png" alt="" width={38} height={28} priority />
-          <Image src="/assets/logo_silomis_text.png" alt="" width={96} height={36} priority className={styles.brandWordmark} />
+          <Image src="/assets/logo_silomis_icon.png" alt="" width={46} height={28} priority />
+          <span className={styles.brandWordmark}>
+            <span className={styles.brandInitial}>S</span>ilomis
+          </span>
         </div>
 
         {/* Headline, lede and the two reassurances read as one statement, so they

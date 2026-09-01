@@ -112,6 +112,16 @@
   font-weight: 700;
 }
 
+/* The brand initial, matching the header and the sign-in panel.
+   Lightened rather than the literal --color-primary: this wordmark is 15.2px,
+   below WCAG's large-text threshold, so it needs 4.5:1 — and the raw teal on
+   the footer's #363a40 measures only 3.40:1. Mixing 30% white keeps the hue
+   and reaches 4.98:1. The header and login marks are large enough (19px/21px)
+   to use the colour undiluted. */
+.logoInitial {
+  color: color-mix(in srgb, var(--color-primary) 70%, #fff);
+}
+
 /* ── Contact info (address / email) ── */
 .footerContact {
   display: flex;
