@@ -206,94 +206,46 @@
   backdrop-filter: blur(10px);
 }
 
-/* ── Hero: stacked on small screens ──────────────────────────────────────────
-   On a phone the card-over-photo composition stops working: at full width the
-   panel covers the picture it is supposed to sit on, so the visitor pays for a
-   banner they never see. Below this breakpoint the slide becomes a column
-   instead — banner on top, copy in a full-bleed panel tucked under it — and
-   because both still live inside the same .heroSlide, the pair slides across
-   together as one unit. */
+/* ── Hero on small screens ───────────────────────────────────────────────────
+   The same composition as the desktop, not a different one: the photo fills the
+   slide and the copy sits on a card over it. The stage keeps its height — only
+   the card and its type shrink.
+
+   This used to break the slide into a column, banner above and full-bleed copy
+   below, which read as two blocks rather than one banner. */
 @media (max-width: 720px) {
-  .hero {
-    --hero-banner-h: clamp(200px, 56vw, 320px);
-  }
-
+  /* The stage keeps exactly the height the banner had before the overlay went
+     back — the same clamp, moved from the old --hero-banner-h. Letting the
+     desktop clamp apply here doubled it (218px to 440px on a 390px phone),
+     which is a different banner, not the same one composed differently.
+     It is a minimum, so a slide whose copy needs more room still gets it. */
   .heroSlide {
-    flex-direction: column;
-    align-items: stretch;
-    justify-content: flex-start;
-    /* Height now comes from the banner plus the copy. The flex row still
-       stretches every slide to the tallest, so the hero keeps one height
-       across the rotation. */
-    min-height: 0;
+    min-height: clamp(200px, 56vw, 320px);
   }
 
-  /* Out of the absolute layer and into the column: this is a real block now,
-     the first one in the slide. */
-  .heroImage {
-    position: static;
-    flex: none;
-    height: var(--hero-banner-h);
-  }
-
-  /* Nothing sits on the photo any more, so there is nothing left to darken —
-     and the banner reads better at full brightness. */
-  .heroScrim {
-    display: none;
+  /* The card is capped at half the screen so the picture it sits on is always
+     the larger half. vw rather than %, because % here would resolve against
+     the gutter-inset container and quietly allow more than half the screen. */
+  .heroCard {
+    width: min(100%, 50vw);
+    gap: 8px;
+    padding: clamp(10px, 3vw, 18px);
+    border-radius: 12px;
+    /* Slightly more opaque than the desktop card: it covers far less of the
+       photo here, so there is less scrim behind it doing the work. */
+    background: color-mix(in srgb, var(--background) 94%, transparent);
+    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.22);
   }
 
   .heroInner {
-    flex: 1;
-    justify-content: stretch;
-    /* Full-bleed: the panel's own padding is the breathing room now, so the
-       page gutter here would only narrow the copy for no reason. */
-    padding-inline: 0;
-    padding-block: 0;
+    padding-block: clamp(16px, 4vw, 28px);
   }
-
-  .heroCard {
-    flex: 1;
-    width: 100%;
-    /* Every slide stretches to the tallest, so a slide with no subtitle used to
-       leave its copy pinned to the top over a void. Centred, a short slide
-       reads as composed rather than unfinished. */
-    justify-content: center;
-    padding: clamp(22px, 6vw, 28px) clamp(20px, 5vw, 28px) clamp(26px, 7vw, 34px);
-    border: none;
-    border-radius: 0;
-    background: var(--background);
-    backdrop-filter: none;
-  }
-
-  /* Square and flush against the banner. The overlap that used to sit here went
-     with the rounded corners — it existed only to carry them over the photo,
-     and with a straight edge it is indistinguishable from a shorter banner. A
-     soft shadow still lifts the panel off the picture. */
-  .heroSlideImage .heroCard {
-    box-shadow: 0 -8px 22px rgba(0, 0, 0, 0.10);
-  }
-
-  /* A text-only slide has no banner to sit under, so the panel stops pretending
-     to be one and lets the gradient show through. */
-  .heroSlideGradient .heroCard {
-    background: transparent;
-    box-shadow: none;
-  }
-
 }
 
 /* Two buttons of different lengths wrap raggedly in a narrow panel. Stacked
    full-width they read as a clear primary/secondary pair and are far easier to
    hit with a thumb. */
-@media (max-width: 480px) {
-  .heroActions {
-    gap: 10px;
-  }
-  .heroCta,
-  .heroCtaSecondary {
-    flex: 1 1 100%;
-  }
-}
+
 
 .heroEyebrow {
   display: inline-flex;
@@ -307,6 +259,15 @@
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.02em;
+}
+
+/* A pill sized for a 460px card overflows one half that wide. */
+@media (max-width: 720px) {
+  .heroEyebrow {
+    gap: 4px;
+    padding: 3px 9px;
+    font-size: 10px;
+  }
 }
 
 /* The card's copy is one HTML block from the admin's editor, so the rhythm is
@@ -405,32 +366,35 @@
   text-underline-offset: 2px;
 }
 
-/* Below the stacking breakpoint the card is full-bleed, so its width tracks the
-   viewport from a 320px phone to a 720px tablet — more than double. One flat
-   size across that range gave a small screen desktop-sized headlines and a
-   large one copy far smaller than it could carry; these scale with the card
-   instead. Relative sizes set in the editor ride on top and stay proportional.
+/* Type inside the small-screen card.
+   The card is half the viewport here — about 195px on a 390px phone, against
+   460px on the desktop — so the copy is stepped down hard. Sizes track the
+   viewport because the card's width does, but they are scaled to the card's
+   measure rather than the screen's.
 
    Declared here rather than in the layout block above, or the base rules would
    win on equal specificity simply by coming later in the file. */
 @media (max-width: 720px) {
   .heroCopy {
+    gap: 7px;
     /* The multiplier behind every size the editor set by hand. A font-size of
        64 is stored as `calc(64 * var(--rt-unit, 1px))`, so shrinking the unit
-       here scales all of them together — 1px at 720px down to 0.55px at 320px,
-       which turns that 64 into 35. Nothing else in the app defines the
+       here scales all of them together — 0.65px at 720px down to 0.34px at
+       320px, which turns that 64 into 22. Nothing else in the app defines the
        variable, so those sizes stay exactly as typed everywhere else. */
-    --rt-unit: clamp(0.55px, 0.1125vw + 0.19px, 1px);
+    --rt-unit: clamp(0.34px, 0.0775vw + 0.09px, 0.65px);
   }
   .heroCopy :global(h1),
   .heroCopy :global(h2) {
-    font-size: clamp(22px, 6.6vw, 40px);
+    font-size: clamp(15px, 4.2vw, 26px);
+    line-height: 1.15;
+    letter-spacing: -0.015em;
   }
   .heroCopy :global(h3) {
-    font-size: clamp(15px, 3.6vw, 20px);
+    font-size: clamp(13px, 2.7vw, 17px);
   }
   .heroCopy :global(h4) {
-    font-size: clamp(14px, 3.1vw, 18px);
+    font-size: clamp(12px, 2.4vw, 15px);
   }
   .heroCopy :global(h5),
   .heroCopy :global(h6),
@@ -438,7 +402,8 @@
   .heroCopy :global(ul),
   .heroCopy :global(ol),
   .heroCopy :global(blockquote) {
-    font-size: clamp(14px, 3.9vw, 17px);
+    font-size: clamp(11px, 2.7vw, 14px);
+    line-height: 1.45;
   }
 }
 
@@ -490,6 +455,29 @@
   font-weight: 700;
   text-decoration: none;
   transition: background 0.18s, color 0.18s, transform 0.15s, box-shadow 0.18s;
+}
+
+/* Scaled for the half-width card. Placed after the base rule above: at equal
+   specificity the later declaration wins, and this needs to be the later one. */
+@media (max-width: 720px) {
+  .heroActions {
+    /* The card is `align-items: flex-start`, so this row shrinks to its
+       content — which made the full-width rule below resolve against the
+       button's own width and do nothing at all. */
+    width: 100%;
+    gap: 8px;
+    margin-top: 2px;
+  }
+  .heroCta,
+  .heroCtaSecondary {
+    /* Two buttons side by side cannot fit half a phone screen, so they stack
+       full-width and read as a clear primary/secondary pair. */
+    flex: 1 1 100%;
+    min-height: 38px;
+    padding: 0 12px;
+    font-size: 12.5px;
+    border-radius: 9px;
+  }
 }
 
 .heroCta {
