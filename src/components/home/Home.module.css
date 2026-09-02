@@ -619,18 +619,14 @@
 
 /* ── Category tiles ── */
 
-.categoryGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 14px;
-}
-
 .categoryTile {
   position: relative;
   display: flex;
   align-items: flex-end;
-  aspect-ratio: 4 / 5;
-  border-radius: 16px;
+  /* Near-square and heavily rounded: this card has no body under the picture,
+     so the frame should sit as close to the image's own shape as it can. */
+  aspect-ratio: 1 / 1;
+  border-radius: 26px;
   overflow: hidden;
   background: var(--color-surface);
   border: 1px solid color-mix(in srgb, var(--foreground) 10%, transparent);
@@ -685,16 +681,10 @@
 
 /* ── Featured collections ── */
 
-.collectionGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 18px;
-}
-
 .collectionCard {
   display: flex;
   flex-direction: column;
-  border-radius: 16px;
+  border-radius: 20px;
   overflow: hidden;
   background: var(--background);
   border: 1px solid color-mix(in srgb, var(--foreground) 11%, transparent);
@@ -706,9 +696,11 @@
   box-shadow: 0 10px 26px color-mix(in srgb, var(--foreground) 14%, transparent);
 }
 
+/* Wide and cinematic. One of these fills most of the row, so a squarer crop at
+   that size reads as a blown-up thumbnail rather than a poster. */
 .collectionMedia {
   position: relative;
-  aspect-ratio: 16 / 10;
+  aspect-ratio: 21 / 9;
   overflow: hidden;
   background: var(--color-surface);
 }
@@ -772,38 +764,6 @@
 
 /* ── Product rail ── */
 
-/* A scroll-snapped row rather than a wrapping grid: it keeps the rail one line
-   tall at every width, so several rails stack on the page without turning it
-   into an endless scroll. Pure CSS — no carousel JS to ship or hydrate. */
-.rail {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(200px, 1fr);
-  gap: 18px;
-  overflow-x: auto;
-  scroll-snap-type: x mandatory;
-  scroll-padding-inline: var(--home-gutter);
-  /* Bleed the scroll area to the viewport edge so cards run off-screen rather
-     than stopping short at the container edge, which reads as "there is more". */
-  margin-inline: calc(var(--home-gutter) * -1);
-  padding-inline: var(--home-gutter);
-  padding-bottom: 6px;
-  scrollbar-width: thin;
-}
-.railItem {
-  scroll-snap-align: start;
-  min-width: 0;
-}
-@media (min-width: 1100px) {
-  .rail {
-    grid-auto-columns: minmax(0, 1fr);
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    grid-auto-flow: row;
-    overflow-x: visible;
-    margin-inline: 0;
-    padding-inline: 0;
-  }
-}
 
 /* ── Promotion banner ── */
 
@@ -872,12 +832,6 @@
 }
 
 /* ── Blog teasers ── */
-
-.blogGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 18px;
-}
 
 .blogCard {
   display: flex;

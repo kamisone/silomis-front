@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import type { getTranslations } from "@/lib/i18n";
 import SectionHead from "./SectionHead";
+import HomeCarousel from "./HomeCarousel";
 import styles from "./Home.module.css";
 
 export interface HomeCollection {
@@ -50,7 +51,7 @@ export default function FeaturedCollections({
           href={href || `/${locale}/collections`}
           linkLabel={t.shop.homeViewAll}
         />
-        <div className={styles.collectionGrid}>
+        <HomeCarousel variant="collections" label={title || t.shop.homeCollectionsTitle} prevLabel={t.shop.carouselPrev} nextLabel={t.shop.carouselNext}>
           {collections.map((collection) => (
             <Link key={collection.id} href={`/${locale}/collections/${collection.slug}`} className={styles.collectionCard}>
               <div className={styles.collectionMedia}>
@@ -71,7 +72,7 @@ export default function FeaturedCollections({
               </div>
             </Link>
           ))}
-        </div>
+        </HomeCarousel>
       </div>
     </section>
   );

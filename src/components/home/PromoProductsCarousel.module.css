@@ -71,108 +71,12 @@
 
 /* ── Carousel ── */
 
-.viewport {
-  position: relative;
-}
+/* The track, its slides and the arrows live in HomeCarousel now — this band
+   owns only its own chrome. */
 
-.track {
-  display: flex;
-  gap: 18px;
-  overflow-x: auto;
-  scroll-snap-type: x mandatory;
-  scroll-padding-left: 2px;
-  scrollbar-width: none;
-  /* Room for the cards' own shadow and focus rings, which the scroll container
-     would otherwise clip. */
-  padding: 4px 2px 8px;
-}
-.track::-webkit-scrollbar {
-  display: none;
-}
-.track:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 4px;
-  border-radius: 14px;
-}
-
-/* Snapping is suspended mid-drag, or the track fights the pointer. */
-.dragging {
-  scroll-snap-type: none;
-  cursor: grabbing;
-  user-select: none;
-}
-
-.slide {
-  flex: 0 0 auto;
-  width: 23%;
-  min-width: 210px;
-  scroll-snap-align: start;
-  display: flex;
-}
-.slide > * {
-  width: 100%;
-}
-
-.arrow {
-  position: absolute;
-  /* Centred on the card's image rather than the card: the info block below it
-     is a near-constant height while the image scales with the column. */
-  top: calc(50% - 74px);
-  transform: translateY(-50%);
-  z-index: 3;
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 999px;
-  /* A border now that the band behind it is nearly white — a white circle on a
-     white-ish ground needs an edge to exist at all. */
-  border: 1px solid color-mix(in srgb, var(--foreground) 12%, transparent);
-  background: var(--background);
-  color: var(--color-primary);
-  cursor: pointer;
-  box-shadow: 0 4px 14px color-mix(in srgb, var(--foreground) 16%, transparent);
-  transition: opacity 0.18s, transform 0.15s;
-}
-.arrow:hover:not(:disabled) {
-  transform: translateY(-50%) scale(1.06);
-}
-.arrow:disabled {
-  opacity: 0;
-  pointer-events: none;
-}
-.arrowPrev {
-  left: -8px;
-}
-.arrowNext {
-  right: -8px;
-}
-
-/* Touch swipes; a floating arrow there only covers a card. */
-@media (hover: none) {
-  .arrow {
-    display: none;
-  }
-}
-
-@media (max-width: 1200px) {
-  .slide {
-    width: 30%;
-  }
-}
-@media (max-width: 900px) {
-  .slide {
-    width: 44%;
-  }
-}
 @media (max-width: 560px) {
   .inner {
     padding: 26px 16px 30px;
-  }
-  .slide {
-    width: 78%;
-    min-width: 0;
   }
   .head {
     margin-bottom: 14px;
@@ -180,7 +84,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .arrow,
   .viewAll {
     transition: none;
   }

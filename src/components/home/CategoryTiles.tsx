@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { getTranslations } from "@/lib/i18n";
 import SectionHead from "./SectionHead";
+import HomeCarousel from "./HomeCarousel";
 import styles from "./Home.module.css";
 
 export interface HomeCategory {
@@ -39,7 +40,7 @@ export default function CategoryTiles({
     <section className={`${styles.section} ${tinted ? styles.sectionTinted : ""}`}>
       <div className={styles.container}>
         <SectionHead title={title || t.shop.homeCategoriesTitle} href={href} linkLabel={t.shop.homeViewAll} />
-        <div className={styles.categoryGrid}>
+        <HomeCarousel variant="categories" label={title || t.shop.homeCategoriesTitle} prevLabel={t.shop.carouselPrev} nextLabel={t.shop.carouselNext}>
           {categories.map((category) => (
             <Link key={category.id} href={`/${locale}/shop?categoryId=${category.id}`} className={styles.categoryTile}>
               {category.imageUrl ? (
@@ -53,7 +54,7 @@ export default function CategoryTiles({
               </span>
             </Link>
           ))}
-        </div>
+        </HomeCarousel>
       </div>
     </section>
   );

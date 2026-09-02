@@ -1,0 +1,165 @@
+/* ──────────────────────────────────────────────────────────────────────────
+   Shared home-page carousel.
+
+   One track, five shapes. The mechanics are identical everywhere; what changes
+   per section is how wide a slide is, how much air is between them, and how
+   round the corners are — so those, and only those, are keyed off
+   [data-variant]. Timing and step size are not here: they are behaviour, and
+   live in HomeCarousel.tsx beside the hook that uses them.
+   ────────────────────────────────────────────────────────────────────────── */
+
+.viewport {
+  position: relative;
+}
+
+.track {
+  display: flex;
+  gap: var(--carousel-gap, 18px);
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-padding-left: 2px;
+  scrollbar-width: none;
+  /* Room for the cards' hover lift and focus rings, which the scroll container
+     would otherwise clip. */
+  padding: 4px 2px 10px;
+}
+.track::-webkit-scrollbar {
+  display: none;
+}
+.track:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 4px;
+  border-radius: 14px;
+}
+
+/* Snapping is suspended mid-drag, or the track fights the pointer. */
+.dragging {
+  scroll-snap-type: none;
+  cursor: grabbing;
+  user-select: none;
+}
+
+.slide {
+  flex: 0 0 auto;
+  width: var(--carousel-slide, 30%);
+  min-width: var(--carousel-slide-min, 220px);
+  scroll-snap-align: start;
+  display: flex;
+}
+.slide > * {
+  width: 100%;
+}
+
+/* ── Arrows ── */
+
+.arrow {
+  position: absolute;
+  /* Anchored to the image band rather than the card's middle: every one of
+     these cards is a picture with a caption under it, and the caption's height
+     is the part that varies. */
+  top: var(--carousel-arrow-top, 42%);
+  transform: translateY(-50%);
+  z-index: 3;
+  width: 42px;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--foreground) 12%, transparent);
+  background: var(--background);
+  color: var(--foreground);
+  cursor: pointer;
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--foreground) 16%, transparent);
+  transition: opacity 0.18s, transform 0.15s;
+}
+.arrow:hover:not(:disabled) {
+  transform: translateY(-50%) scale(1.06);
+}
+.arrow:disabled {
+  opacity: 0;
+  pointer-events: none;
+}
+.arrowPrev {
+  left: -10px;
+}
+.arrowNext {
+  right: -10px;
+}
+
+/* Touch swipes; a floating arrow there only covers a card. */
+@media (hover: none) {
+  .arrow {
+    display: none;
+  }
+}
+
+/* ── Variants ──
+   Desktop figures first, then two narrower steps. The percentages are of the
+   track, so a slide grows with the container inside each step. */
+
+/* One dominant card, with the next one's edge showing so the row reads as
+   continuing rather than ending. */
+.viewport[data-variant="collections"] {
+  --carousel-slide: 70%;
+  --carousel-slide-min: 280px;
+  --carousel-gap: 22px;
+  --carousel-arrow-top: 38%;
+}
+
+/* Small and tight — five across, close together. */
+.viewport[data-variant="sale"] {
+  --carousel-slide: 18.6%;
+  --carousel-slide-min: 190px;
+  --carousel-gap: 10px;
+  --carousel-arrow-top: 34%;
+}
+
+/* Four and a half portrait cards: the half is what says "scrollable". */
+.viewport[data-variant="products"] {
+  --carousel-slide: 21.5%;
+  --carousel-slide-min: 200px;
+  --carousel-gap: 16px;
+  --carousel-arrow-top: 34%;
+}
+
+/* Near-square, generous. */
+.viewport[data-variant="categories"] {
+  --carousel-slide: 31%;
+  --carousel-slide-min: 240px;
+  --carousel-gap: 18px;
+  --carousel-arrow-top: 50%;
+}
+
+/* Wide landscape, few at a time, plenty of air. */
+.viewport[data-variant="blog"] {
+  --carousel-slide: 32%;
+  --carousel-slide-min: 280px;
+  --carousel-gap: 28px;
+  --carousel-arrow-top: 36%;
+}
+
+@media (max-width: 1100px) {
+  .viewport[data-variant="collections"] { --carousel-slide: 78%; }
+  .viewport[data-variant="sale"] { --carousel-slide: 26%; }
+  .viewport[data-variant="products"] { --carousel-slide: 30%; }
+  .viewport[data-variant="categories"] { --carousel-slide: 44%; }
+  .viewport[data-variant="blog"] { --carousel-slide: 46%; }
+}
+
+@media (max-width: 760px) {
+  .viewport[data-variant="collections"] { --carousel-slide: 88%; --carousel-gap: 14px; }
+  .viewport[data-variant="sale"] { --carousel-slide: 46%; --carousel-slide-min: 150px; }
+  .viewport[data-variant="products"] { --carousel-slide: 58%; --carousel-slide-min: 170px; }
+  .viewport[data-variant="categories"] { --carousel-slide: 72%; --carousel-slide-min: 200px; }
+  .viewport[data-variant="blog"] { --carousel-slide: 82%; --carousel-gap: 16px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .arrow {
+    transition: none;
+  }
+  .track {
+    scroll-behavior: auto;
+  }
+}

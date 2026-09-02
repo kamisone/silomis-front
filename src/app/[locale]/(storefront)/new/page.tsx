@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import CatalogListing, {
-  LISTING_REVALIDATE,
   fetchContent,
   type CatalogListingConfig,
   type ListingSearchParams,
@@ -8,7 +7,13 @@ import CatalogListing, {
 import { isValidLocale, DEFAULT_LOCALE, type Locale } from "@/lib/i18n";
 import { localeAlternates } from "@/lib/seo";
 
-export const revalidate = LISTING_REVALIDATE;
+/* 120, written out rather than imported from CatalogListing.
+   Route segment config has to be a literal Next can read without evaluating
+   the module — an imported constant type-checks and then fails the build at
+   "Collecting page data" with "Invalid segment configuration export". The
+   fetches inside the shared component use the same number via
+   LISTING_REVALIDATE; this one has to be here. */
+export const revalidate = 120;
 
 /**
  * The catalogue filtered to the products carrying the New badge — the same

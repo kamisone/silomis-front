@@ -2,6 +2,7 @@ import ProductCard, { type ProductListItem } from "@/components/shop/ProductCard
 import type { PromotionInfo } from "@/components/shop/PromotionBadge";
 import type { Locale, getTranslations } from "@/lib/i18n";
 import SectionHead from "./SectionHead";
+import HomeCarousel from "./HomeCarousel";
 import styles from "./Home.module.css";
 
 /**
@@ -35,13 +36,11 @@ export default function ProductRail({
     <section className={`${styles.section} ${tinted ? styles.sectionTinted : ""}`}>
       <div className={styles.container}>
         <SectionHead title={title} href={href} linkLabel={t.shop.homeViewAll} />
-        <div className={styles.rail}>
+        <HomeCarousel variant="products" label={title} prevLabel={t.shop.carouselPrev} nextLabel={t.shop.carouselNext}>
           {products.map((product) => (
-            <div key={product.id} className={styles.railItem}>
-              <ProductCard product={product} promotion={promotionFor?.(product) ?? null} locale={locale} t={t} />
-            </div>
+            <ProductCard key={product.id} product={product} promotion={promotionFor?.(product) ?? null} locale={locale} t={t} />
           ))}
-        </div>
+        </HomeCarousel>
       </div>
     </section>
   );

@@ -3,7 +3,7 @@ import { ArrowRight } from "lucide-react";
 import ProductCard, { type ProductListItem } from "@/components/shop/ProductCard";
 import type { PromotionInfo } from "@/components/shop/PromotionBadge";
 import type { Locale, getTranslations } from "@/lib/i18n";
-import PromoCarouselTrack from "./PromoCarouselTrack";
+import HomeCarousel from "./HomeCarousel";
 import styles from "./PromoProductsCarousel.module.css";
 
 /**
@@ -16,7 +16,7 @@ import styles from "./PromoProductsCarousel.module.css";
  * rest of the site uses. The offer itself is on every card, as the percentage
  * in its sale badge.
  *
- * Server-rendered; only the scrolling is a client island (PromoCarouselTrack).
+ * Server-rendered; only the scrolling is a client island (HomeCarousel).
  */
 export default function PromoProductsCarousel({
   title,
@@ -46,11 +46,11 @@ export default function PromoProductsCarousel({
           </Link>
         </div>
 
-        <PromoCarouselTrack label={title} prevLabel={t.shop.carouselPrev} nextLabel={t.shop.carouselNext}>
+        <HomeCarousel variant="sale" label={title} prevLabel={t.shop.carouselPrev} nextLabel={t.shop.carouselNext}>
           {products.map((product) => (
             <ProductCard key={product.id} product={product} promotion={promotionFor?.(product) ?? null} locale={locale} t={t} />
           ))}
-        </PromoCarouselTrack>
+        </HomeCarousel>
       </div>
     </section>
   );

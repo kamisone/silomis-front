@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { getTranslations } from "@/lib/i18n";
 import SectionHead from "./SectionHead";
+import HomeCarousel from "./HomeCarousel";
 import styles from "./Home.module.css";
 
 export interface HomePost {
@@ -44,7 +45,7 @@ export default function BlogTeasers({
         {/* No fallback to /blog: there is no index to send anyone to. The link
             shows only where an admin has pointed this section somewhere. */}
         <SectionHead title={title || t.shop.homeBlogTitle} href={href} linkLabel={t.shop.homeViewAll} />
-        <div className={styles.blogGrid}>
+        <HomeCarousel variant="blog" label={title || t.shop.homeBlogTitle} prevLabel={t.shop.carouselPrev} nextLabel={t.shop.carouselNext}>
           {posts.map((post) => (
             <Link key={post.id} href={`/${locale}/blog/${post.slug}`} className={styles.blogCard}>
               <div className={styles.blogMedia}>
@@ -62,7 +63,7 @@ export default function BlogTeasers({
               </div>
             </Link>
           ))}
-        </div>
+        </HomeCarousel>
       </div>
     </section>
   );
