@@ -50,9 +50,11 @@ export default function TrustBar({
           {row.map(({ key, Icon, label, sub }) => (
             <li key={key} className={styles.trustItem}>
               <span className={styles.trustIcon} aria-hidden="true">
-                <Icon size={18} strokeWidth={1.9} />
+                <Icon size={26} strokeWidth={1.8} />
               </span>
-              <span>
+              {/* The two text lines keep their own wrapper so they can sit
+                  closer to each other than either sits to the icon. */}
+              <span className={styles.trustText}>
                 <span className={styles.trustLabel}>{label}</span>
                 {sub && <span className={styles.trustSub}>{sub}</span>}
               </span>
