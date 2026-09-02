@@ -7,7 +7,7 @@ import CategoryTiles, { type HomeCategory } from "@/components/home/CategoryTile
 import FeaturedCollections, { type HomeCollection } from "@/components/home/FeaturedCollections";
 import OfferBanners from "@/components/home/OfferBanners";
 import ProductRail from "@/components/home/ProductRail";
-import PromoBanner, { type HomePromotion } from "@/components/home/PromoBanner";
+import PromoProductsCarousel from "@/components/home/PromoProductsCarousel";
 import BlogTeasers, { type HomePost } from "@/components/home/BlogTeasers";
 import SectionHeading from "@/components/home/SectionHeading";
 import SectionSeparator from "@/components/home/SectionSeparator";
@@ -43,7 +43,12 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
   };
 }
 
-interface ActivePromotion extends HomePromotion {
+interface ActivePromotion {
+  id: string;
+  name: string;
+  description: string | null;
+  discountType: "percentage" | "fixed_amount" | "free_shipping";
+  discountValue: number;
   scope: "site_wide" | "category" | "product";
   linkedCategoryIds: string[];
   linkedProductIds: string[];
@@ -60,6 +65,25 @@ async function fetchJson<T>(path: string, fallback: T): Promise<T> {
   } catch {
     return fallback;
   }
+}
+
+/**
+ * The reduced products an admin pinned to a promotion band.
+ *
+ * `onSale=true` travels with the ids so the API, not this page, decides what
+ * still counts as reduced — a product whose promotion expired, or whose
+ * compare-at price was removed, drops out of the band on its own rather than
+ * sitting there with no badge. The admin's order is re-applied afterwards,
+ * because the API answers in its own.
+ */
+async function fetchPromoProducts(section: HomeSectionSpec, locale: string): Promise<ProductListItem[]> {
+  const ids = section.config.productIds ?? [];
+  if (ids.length === 0) return [];
+  const qs = new URLSearchParams({ ids: ids.join(","), onSale: "true", limit: String(ids.length), lang: locale });
+  const data = await fetchJson<{ items?: ProductListItem[] }>(`/shop/products?${qs}`, {});
+  const items = Array.isArray(data.items) ? data.items : [];
+  const rank = new Map(ids.map((id, i) => [id, i]));
+  return items.sort((a, b) => (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0));
 }
 
 async function fetchProducts(section: HomeSectionSpec, locale: string): Promise<ProductListItem[]> {
@@ -167,6 +191,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   // Only fetch what the configured layout actually renders — switching a section
   // off in admin removes its query too, rather than paying for data nobody sees.
   const railSections = layout.filter((s) => s.type === "product_rail");
+  const promoSections = layout.filter((s) => s.type === "promo_banner");
   // The two collection lists are fetched separately rather than filtering one
   // down to the other: the public DTO carries no `isFeatured`, so the full list
   // cannot be narrowed back to the featured set client-side. A page that mixes a
@@ -178,7 +203,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   const needsAllCollections =
     collectionSections.some((s) => (s.config.collectionIds?.length ?? 0) > 0) ||
     layout.some((s) => s.type === "offer_banners" && (s.config.offerBanners?.length ?? 0) > 0);
-  const [heroSlides, categories, featuredCollections, allCollections, promotions, posts, railProducts] = await Promise.all([
+  const [heroSlides, categories, featuredCollections, allCollections, promotions, posts, railProducts, promoProducts] = await Promise.all([
     present("hero") ? fetchHeroSlides(locale, t) : [],
     present("categories") ? fetchJson<HomeCategory[]>("/shop/categories", []) : [],
     needsFeaturedCollections ? fetchJson<HomeCollection[]>(`/shop/collections/featured?lang=${locale}`, []) : [],
@@ -192,9 +217,11 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
       ? fetchJson<{ items?: HomePost[] }>(`/blog/posts?limit=12&lang=${locale}`, {}).then((d) => d.items ?? [])
       : [],
     Promise.all(railSections.map((s) => fetchProducts(s, locale))),
+    Promise.all(promoSections.map((s) => fetchPromoProducts(s, locale))),
   ]);
 
   const productsByRailId = new Map(railSections.map((s, i) => [s.id, railProducts[i] ?? []]));
+  const promoProductsBySectionId = new Map(promoSections.map((s, i) => [s.id, promoProducts[i] ?? []]));
   const collectionsById = new Map(allCollections.map((c) => [c.id, c]));
   const promotionFor = (product: ProductListItem) => findMatchingPromotion(promotions, product);
 
@@ -322,13 +349,20 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
           }
 
           case "promo_banner": {
-            // A pinned promotion that has expired is no longer in this list, so
-            // the fallback keeps the band showing something rather than
-            // vanishing the section the admin placed.
-            const pinned = section.config.promotionId
-              ? promotions.find((p) => p.id === section.config.promotionId)
-              : undefined;
-            return <PromoBanner key={section.id} promotion={pinned ?? promotions[0] ?? null} locale={locale} t={t} />;
+            return (
+              <PromoProductsCarousel
+                key={section.id}
+                title={localized(section.config.title, locale) || t.shop.homePromoTitle}
+                products={promoProductsBySectionId.get(section.id) ?? []}
+                // Fixed destination: this band exists to funnel to the sale
+                // listing, and pointing it anywhere else would leave the rest
+                // of the reduced catalogue with no entry point.
+                href={`/${locale}/sale`}
+                locale={locale}
+                t={t}
+                promotionFor={promotionFor}
+              />
+            );
           }
 
           // The editorial blocks render nothing but the admin's own copy, so

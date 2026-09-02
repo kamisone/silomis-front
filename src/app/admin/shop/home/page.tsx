@@ -256,14 +256,16 @@ export default function HomeSectionsPage() {
   /** Best-effort: a picker that cannot load its options still lets the section
    *  run on its automatic source, so this never blocks the page. */
   async function loadCatalogue() {
-    const [products, categories, collections, promotions] = await Promise.all([
+    const [products, saleProducts, categories, collections, promotions] = await Promise.all([
       api.get<{ items: CatalogueProduct[] }>("/next-api/admin/shop/products?limit=200").catch(() => null),
+      api.get<{ items: CatalogueProduct[] }>("/next-api/admin/shop/products?onSale=true&limit=200").catch(() => null),
       api.get<CatalogueCategory[]>("/next-api/admin/shop/categories").catch(() => null),
       api.get<{ items: CatalogueCollection[] }>("/next-api/admin/shop/collections?limit=200").catch(() => null),
       api.get<{ items: CataloguePromotion[] }>("/next-api/admin/shop/promotions?limit=200").catch(() => null),
     ]);
     setCatalogue({
       products: products?.items ?? [],
+      saleProducts: saleProducts?.items ?? [],
       categories: categories ?? [],
       collections: collections?.items ?? [],
       promotions: promotions?.items ?? [],

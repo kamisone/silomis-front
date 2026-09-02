@@ -1,0 +1,187 @@
+/* A tint, not a slab. The old band was full-strength brand colour, which cut
+   the white page in half wherever it landed — the section stopped reading as
+   part of the page and started reading as a different site.
+   
+   Same 8%-of-brand mix as --color-surface-tint, which is what every other
+   tinted section on this page already uses, so the band sits in the same
+   family; the gradient drifts from teal to a touch of accent so it is still
+   recognisably the promotion band and not just another rail. The hairlines do
+   the separating that saturation used to do. */
+.section {
+  background: linear-gradient(
+    120deg,
+    color-mix(in srgb, var(--brand-base) 92%, var(--color-primary)) 0%,
+    color-mix(in srgb, var(--brand-base) 93%, var(--color-accent)) 100%
+  );
+  border-block: 1px solid color-mix(in srgb, var(--foreground) 8%, transparent);
+  color: var(--foreground);
+}
+
+.inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  /* Wider inline padding than the page gutter so the arrows, which overhang the
+     track by 8px, still sit inside the band. */
+  padding: clamp(26px, 4vw, 40px) 28px;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.title {
+  margin: 0;
+  font-size: clamp(20px, 2.6vw, 27px);
+  font-weight: 800;
+  letter-spacing: -0.015em;
+  color: var(--foreground);
+}
+
+/* Now that the band is quiet, the button is where the brand colour goes. It is
+   the only saturated thing in the section, which is the right place for it —
+   the one action the band is asking for. */
+.viewAll {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 42px;
+  padding: 0 18px;
+  border-radius: 11px;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 14.5px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: transform 0.15s, box-shadow 0.18s;
+}
+.viewAll:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--color-primary) 38%, transparent);
+}
+.viewAll:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+}
+
+/* ── Carousel ── */
+
+.viewport {
+  position: relative;
+}
+
+.track {
+  display: flex;
+  gap: 18px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-padding-left: 2px;
+  scrollbar-width: none;
+  /* Room for the cards' own shadow and focus rings, which the scroll container
+     would otherwise clip. */
+  padding: 4px 2px 8px;
+}
+.track::-webkit-scrollbar {
+  display: none;
+}
+.track:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 4px;
+  border-radius: 14px;
+}
+
+/* Snapping is suspended mid-drag, or the track fights the pointer. */
+.dragging {
+  scroll-snap-type: none;
+  cursor: grabbing;
+  user-select: none;
+}
+
+.slide {
+  flex: 0 0 auto;
+  width: 23%;
+  min-width: 210px;
+  scroll-snap-align: start;
+  display: flex;
+}
+.slide > * {
+  width: 100%;
+}
+
+.arrow {
+  position: absolute;
+  /* Centred on the card's image rather than the card: the info block below it
+     is a near-constant height while the image scales with the column. */
+  top: calc(50% - 74px);
+  transform: translateY(-50%);
+  z-index: 3;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  /* A border now that the band behind it is nearly white — a white circle on a
+     white-ish ground needs an edge to exist at all. */
+  border: 1px solid color-mix(in srgb, var(--foreground) 12%, transparent);
+  background: var(--background);
+  color: var(--color-primary);
+  cursor: pointer;
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--foreground) 16%, transparent);
+  transition: opacity 0.18s, transform 0.15s;
+}
+.arrow:hover:not(:disabled) {
+  transform: translateY(-50%) scale(1.06);
+}
+.arrow:disabled {
+  opacity: 0;
+  pointer-events: none;
+}
+.arrowPrev {
+  left: -8px;
+}
+.arrowNext {
+  right: -8px;
+}
+
+/* Touch swipes; a floating arrow there only covers a card. */
+@media (hover: none) {
+  .arrow {
+    display: none;
+  }
+}
+
+@media (max-width: 1200px) {
+  .slide {
+    width: 30%;
+  }
+}
+@media (max-width: 900px) {
+  .slide {
+    width: 44%;
+  }
+}
+@media (max-width: 560px) {
+  .inner {
+    padding: 26px 16px 30px;
+  }
+  .slide {
+    width: 78%;
+    min-width: 0;
+  }
+  .head {
+    margin-bottom: 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .arrow,
+  .viewAll {
+    transition: none;
+  }
+}

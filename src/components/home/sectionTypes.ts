@@ -137,9 +137,8 @@ export interface HomeSectionConfig {
   categoryIds?: string[];
   collectionIds?: string[];
 
-  /** promo_banner only: a specific promotion, or null for the highest-priority
-   *  active one. A pinned promotion that stops being active falls back too,
-   *  rather than leaving an empty band. */
+  /** promo_banner only, retained so an existing layout that pinned a promotion
+   *  still parses. Nothing reads it: the band shows picked products now. */
   promotionId?: string | null;
 
   /** trust_bar only: the reassurances, in order. Absent means the built-in four. */
@@ -264,9 +263,11 @@ export type SectionField =
   | "limit"
   | "source"
   | "products"
+  /** Like "products", but the picker only offers products the storefront would
+   *  badge as on sale. */
+  | "saleProducts"
   | "categories"
   | "collections"
-  | "promotion"
   | "trustItems"
   | "offerBanners"
   | "viewAll"
@@ -314,8 +315,9 @@ export const SECTION_META: Record<
   },
   promo_banner: {
     label: "Promotion banner",
-    description: "A promotion, full width. The highest-priority active one by default, or a specific one you pin.",
-    fields: ["promotion"],
+    description:
+      "A full-width band of reduced products you pick, as a carousel of ordinary product cards. Only products the storefront would badge as on sale can be chosen, and the button opens /sale.",
+    fields: ["title", "saleProducts"],
   },
   offer_banners: {
     label: "Offer banners",

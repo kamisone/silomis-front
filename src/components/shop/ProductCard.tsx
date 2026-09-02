@@ -50,6 +50,12 @@ export default function ProductCard({
   const priceCents = defaultVariant?.priceCents ?? product.basePriceCents ?? 0;
   const compareAtCents = defaultVariant?.compareAtPriceCents ?? null;
   const isOnSale = !!(compareAtCents && compareAtCents > priceCents);
+  // The number is the offer. "Sale" tells a shopper a rule changed; "-27%"
+  // tells them by how much, which is the only part they weigh against the
+  // price printed directly underneath it. Rounded, never to 0% — a reduction
+  // too small to round up to 1% is not worth a badge, but it has one, so it
+  // shows the floor rather than a lie.
+  const salePercent = isOnSale ? Math.max(1, Math.round(((compareAtCents! - priceCents) / compareAtCents!) * 100)) : 0;
   const outOfStock = !!product.outOfStock;
   const defaultVariantOos = !!product.defaultVariantOutOfStock;
   // Featured image first, then the gallery — the API already returns them in
@@ -88,7 +94,12 @@ export default function ProductCard({
           ) : (
             <>
               {product.isNew && <span className={styles.newBadge}>{t.shop.newBadge}</span>}
-              {isOnSale && <span className={styles.saleBadge}>{t.shop.sale}</span>}
+              {isOnSale && (
+                <span className={styles.saleBadge}>
+                  <span className={styles.salePercent}>-{salePercent}%</span>
+                  <span className={styles.saleWord}>{t.shop.sale}</span>
+                </span>
+              )}
             </>
           )}
         </span>

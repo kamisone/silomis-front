@@ -36,12 +36,14 @@ export interface CataloguePromotion { id: string; name: string; isActive?: boole
 
 export interface Catalogue {
   products: CatalogueProduct[];
+  /** The subset the storefront would badge as on sale — see the promo band. */
+  saleProducts: CatalogueProduct[];
   categories: CatalogueCategory[];
   collections: CatalogueCollection[];
   promotions: CataloguePromotion[];
 }
 
-export const EMPTY_CATALOGUE: Catalogue = { products: [], categories: [], collections: [], promotions: [] };
+export const EMPTY_CATALOGUE: Catalogue = { products: [], saleProducts: [], categories: [], collections: [], promotions: [] };
 
 /** Ids are stable; the labels beside them are whatever the catalogue call
  *  returned, so a picker still works when that call failed. */
@@ -240,31 +242,6 @@ export default function SectionSettings({
   const trustItems = config.trustItems ?? [];
   const offerBanners = config.offerBanners ?? [];
 
-  // The storefront's banner reads /shop/promotions/active, which returns only
-  // automatic-trigger promotions — so offering a code-triggered one here would
-  // be a setting that silently never takes effect.
-  const bannerPromotions = catalogue.promotions.filter((p) => (p.trigger ?? "automatic") === "automatic");
-  const pinnedMissing = !!config.promotionId && !bannerPromotions.some((p) => p.id === config.promotionId);
-  const promotionOptions: SelectOption<string>[] = [
-    { value: "", label: "Automatic", description: "The highest-priority active promotion." },
-    ...bannerPromotions.map((p) => ({
-      value: p.id,
-      label: p.name,
-      description: p.isActive === false ? "Currently inactive — the banner falls back." : undefined,
-    })),
-    // A promotion pinned before it was switched to a code — or before this
-    // filter existed — would otherwise vanish from its own select and read as
-    // "Automatic", quietly losing the setting.
-    ...(pinnedMissing
-      ? [
-          {
-            value: config.promotionId as string,
-            label: catalogue.promotions.find((p) => p.id === config.promotionId)?.name ?? "Pinned promotion",
-            description: "No longer eligible for the banner.",
-          },
-        ]
-      : []),
-  ];
 
   function setTrustItems(next: TrustBarItem[]) {
     onChange({ trustItems: next });
@@ -423,20 +400,24 @@ export default function SectionSettings({
           </div>
         )}
 
-        {has("promotion") && (
-          <Field
-            label="Promotion"
-            span="full"
-            hint="Only automatic promotions are listed: a coupon-code one has nothing to show until the code is typed at checkout. A pinned promotion that expires falls back to the automatic pick, so the band never goes blank."
-          >
-            <Select
-              value={config.promotionId ?? ""}
-              options={promotionOptions}
-              onChange={(next) => onChange({ promotionId: next || null })}
-              ariaLabel="Promotion to show"
+        {/* Only reduced products are offered. The list comes from the same
+            definition the storefront badges by, so anything pickable here is
+            something a shopper would see a percentage on — and a product that
+            stops being reduced drops out of the band on its own. */}
+        {has("saleProducts") && (
+          <div className={styles.fieldFull}>
+            <EntityPicker
+              label="Products on sale"
+              hint="Shown in this order. Only products the storefront would badge as on sale can be picked — a product whose reduction ends leaves the band by itself."
+              options={productOptions(catalogue.saleProducts)}
+              value={config.productIds ?? []}
+              onChange={(productIds) => onChange({ productIds })}
+              placeholder="Search reduced products…"
+              emptyLabel="No products picked yet — the band stays hidden until you add some."
+              loading={catalogue.saleProducts.length === 0}
               disabled={saving}
             />
-          </Field>
+          </div>
         )}
 
         {has("eyebrow") && (

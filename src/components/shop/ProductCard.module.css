@@ -181,9 +181,31 @@
   color: var(--background);
 }
 
+/* Two parts, one pill: the figure carries the message and the word gives it a
+   name. The word is set smaller and slightly translucent so the eye lands on
+   the number first and the pill still reads as one object rather than two
+   stacked badges. */
 .saleBadge {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  padding-inline: 8px;
   background: #dc2626;
   color: #fff;
+  box-shadow: 0 2px 8px color-mix(in srgb, #dc2626 45%, transparent);
+}
+.salePercent {
+  font-size: 12.5px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+.saleWord {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.85;
 }
 
 /* Brand teal, deliberately not the sale red or the free-shipping pink: "new"

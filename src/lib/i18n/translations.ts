@@ -383,6 +383,7 @@ export const en = {
     homeViewAll: "View all",
     lastSeenTitle: "Recently viewed",
     lastSeenDismiss: "Hide",
+    homePromoTitle: "On sale now",
     homePromoCta: "Shop the offer",
   },
   footer: {
@@ -890,6 +891,7 @@ export const fr: Translations = {
     homeViewAll: "Tout voir",
     lastSeenTitle: "Vu récemment",
     lastSeenDismiss: "Masquer",
+    homePromoTitle: "En promotion",
     homePromoCta: "Profiter de l'offre",
   },
   footer: {
@@ -1397,6 +1399,7 @@ export const es: Translations = {
     homeViewAll: "Ver todo",
     lastSeenTitle: "Visto recientemente",
     lastSeenDismiss: "Ocultar",
+    homePromoTitle: "En oferta",
     homePromoCta: "Aprovechar la oferta",
   },
   footer: {
@@ -1904,6 +1907,7 @@ export const it: Translations = {
     homeViewAll: "Vedi tutto",
     lastSeenTitle: "Visto di recente",
     lastSeenDismiss: "Nascondi",
+    homePromoTitle: "In offerta",
     homePromoCta: "Approfitta dell'offerta",
   },
   footer: {
@@ -2411,6 +2415,7 @@ export const de: Translations = {
     homeViewAll: "Alle ansehen",
     lastSeenTitle: "Zuletzt angesehen",
     lastSeenDismiss: "Ausblenden",
+    homePromoTitle: "Jetzt reduziert",
     homePromoCta: "Angebot sichern",
   },
   footer: {
@@ -2918,6 +2923,7 @@ export const nl: Translations = {
     homeViewAll: "Bekijk alles",
     lastSeenTitle: "Onlangs bekeken",
     lastSeenDismiss: "Verbergen",
+    homePromoTitle: "Nu in de aanbieding",
     homePromoCta: "Profiteer van de actie",
   },
   footer: {
@@ -3425,6 +3431,7 @@ export const pl: Translations = {
     homeViewAll: "Zobacz wszystko",
     lastSeenTitle: "Ostatnio oglądane",
     lastSeenDismiss: "Ukryj",
+    homePromoTitle: "Teraz w promocji",
     homePromoCta: "Skorzystaj z oferty",
   },
   footer: {
