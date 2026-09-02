@@ -145,16 +145,32 @@
      hug the mark on the left. */
   .navRight { margin-left: auto; }
 
-  /* Narrow viewports keep just the mark — the wordmark is redundant next to a
-     tight search bar and nav icons, and stacking it costs header height a
-     phone cannot spare. */
-  .logoWord { display: none; }
+  /* The name stays at every width. Both halves scale with the viewport rather
+     than stepping at a breakpoint, because the space they have to fit in is
+     itself fluid: .topRow's other occupant, the utility icons, is a fixed
+     ~200px, so what is left for the lockup shrinks pixel-for-pixel with the
+     screen. 5.6vw is the largest factor that still leaves the word clear of
+     those icons at 320px — the narrowest width worth supporting — and the
+     28px ceiling stops it outgrowing the desktop lockup on the way up. */
+  .logoWord {
+    font-size: clamp(17px, 5.6vw, 28px);
+    /* Slightly more than the desktop 2px: the mark-to-word ratio widens as
+       both shrink, and the word has to travel further to reach the S's line. */
+    margin-top: 3px;
+  }
 
-  /* With the name gone the mark is the whole logo, so it takes a size of its
-     own — smaller than the desktop lockup's, but still inside .topRow's 48px,
-     which is what keeps this from adding a single pixel of header height. */
+  /* aspect-ratio rather than a second clamp for the width: one number to keep
+     in step with the art instead of two that can drift apart, and `contain`
+     then has nothing to letterbox. */
   .logoIcon {
-    height: 42px;
-    width: 40px;
+    height: clamp(34px, 10vw, 44px);
+    width: auto;
+    aspect-ratio: 842 / 894;
+  }
+
+  /* Buys back 12px for the wordmark. The utility cluster is the only other
+     thing on this row, and at 320px it was taking 208 of 292 available pixels. */
+  .navRight {
+    gap: 6px;
   }
 }
