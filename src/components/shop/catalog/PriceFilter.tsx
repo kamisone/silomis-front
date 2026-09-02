@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { getTranslations } from "@/lib/i18n";
 import { useLocale } from "@/lib/i18n/useLocale";
-import styles from "./Sale.module.css";
+import styles from "./CatalogListing.module.css";
 
 /** Euros in the boxes, cents on the wire — the API and the search page both
  * speak cents, and the shopper should never have to. */

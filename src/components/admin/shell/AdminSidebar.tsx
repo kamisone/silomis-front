@@ -16,8 +16,7 @@ import {
   Tag, Send, Percent, Hash, Ticket, Home,
   Settings, Coins, Landmark, Mail, Target, Headphones,
   FileEdit, BookOpen, Plug,
-  ChevronRight, ChevronLeft, ChevronDown,
-} from "lucide-react";
+  ChevronRight, ChevronLeft, ChevronDown, Sparkles } from "lucide-react";
 import styles from "./AdminSidebar.module.css";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -160,6 +159,7 @@ const NAV_GROUPS: NavGroup[] = [
         icon:  Tag,
         items: [
           { href: "/admin/shop/home",        icon: Home, label: "Home Page"   },
+          { href: "/admin/shop/new-page",    icon: Sparkles, label: "New Arrivals" },
           { href: "/admin/shop/campaigns",   icon: Send, label: "Campaigns"   },
           { href: "/admin/shop/price-rules", icon: Tag,  label: "Price Rules" },
           { href: "/admin/shop/tags",        icon: Hash, label: "Tags"        },

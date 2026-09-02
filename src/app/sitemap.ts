@@ -84,6 +84,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     entry("", { changeFrequency: "daily", priority: 1.0 }),
     entry("/shop", { changeFrequency: "daily", priority: 0.9 }),
     entry("/sale", { changeFrequency: "daily", priority: 0.8 }),
+    entry("/new", { changeFrequency: "daily", priority: 0.8 }),
     entry("/collections", { priority: 0.7 }),
     // /blog is deliberately absent: articles are reached from the product they
     // are attached to, and nothing links to an index of all of them. Listing it

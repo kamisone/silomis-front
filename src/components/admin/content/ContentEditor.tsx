@@ -21,7 +21,7 @@ interface PageContentData {
   sections: PageSection[];
 }
 
-export type ContentSlug = "about" | "privacy-policy" | "legal" | "cookies" | "sale";
+export type ContentSlug = "about" | "privacy-policy" | "legal" | "cookies" | "sale" | "new";
 
 export interface ContentPage {
   slug: ContentSlug;
@@ -40,9 +40,10 @@ const LOCALE_LABEL: Record<Locale, string> = {
   it: "🇮🇹 Italiano", de: "🇩🇪 Deutsch", nl: "🇳🇱 Nederlands", pl: "🇵🇱 Polski",
 };
 
-/** The default set — the policy pages under Content. `sale` is not here: it is
- * not a policy, and it lives with the promotions that fill the page it edits
- * (admin/shop/promotions/sale-page), which is where an admin looks for it. */
+/** The default set — the policy pages under Content. `sale` and `new` are not
+ * here: neither is a policy, and each lives next to what fills the page it
+ * edits (admin/shop/promotions/sale-page, admin/shop/new-page), which is where
+ * an admin looks for it. */
 const POLICY_PAGES: ContentPage[] = [
   { slug: "about", label: "About" },
   { slug: "privacy-policy", label: "Privacy Policy" },
