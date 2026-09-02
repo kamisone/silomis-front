@@ -36,6 +36,7 @@ import type {
 import { Pencil, DollarSign, Image as ImageIcon, ClipboardList, Shield, HelpCircle, FileText, GalleryHorizontalEnd, Clapperboard, Layers, ZoomIn, Lock, Package, Palette, ImagePlus, Newspaper } from "lucide-react";
 import ProductImagePicker from "@/components/admin/shop/ProductImagePicker";
 import styles from "../ProductEdit.module.css";
+import Switch from "@/components/admin/ui/Switch";
 
 // ── Types ────────────────────────────────────────────────────────────────
 
@@ -131,6 +132,7 @@ interface Product {
   basePriceCents: number | null;
   status: string;
   featured: boolean;
+  isNew: boolean;
   isTestProduct: boolean;
   freeShipping: boolean;
   freeShippingDaysMin: number | null;
@@ -320,6 +322,7 @@ export default function EditProductPage() {
         perUnitVariantChoice: product.perUnitVariantChoice,
         upsellTiers: product.upsellTiers,
         featured: product.featured,
+        isNew: product.isNew,
         isTestProduct: product.isTestProduct,
         freeShipping: product.freeShipping,
         freeShippingDaysMin: product.freeShippingDaysMin,
@@ -1041,24 +1044,25 @@ export default function EditProductPage() {
                   <option value="hidden">Hidden</option>
                 </select>
               </div>
+              {/* All three use the shared Switch. Adding one real switch beside
+                  two bare checkboxes would have made this card look like two
+                  different settings screens. */}
               <div className={styles.divider} />
-              <div className={styles.toggleRow}>
-                <div>
-                  <div className={styles.toggleLabel}>Featured</div>
-                  <div className={styles.toggleNote}>Show in featured sections</div>
-                </div>
-                <input type="checkbox" checked={product.featured} onChange={(e) => set({ featured: e.target.checked })} style={{ width: 16, height: 16, accentColor: "var(--color-accent)", cursor: "pointer" }} />
-              </div>
+              <Switch label="Featured" hint="Show in featured sections" checked={product.featured} onChange={(v) => set({ featured: v })} />
               <div className={styles.divider} />
-              <div className={styles.toggleRow}>
-                <div>
-                  <div className={styles.toggleLabel}>Test product</div>
-                  <div className={styles.toggleNote}>
-                    Measures demand before you order stock. Customers can browse, add to cart and enter shipping, but checkout fails at the payment step. Results appear under Test Products.
-                  </div>
-                </div>
-                <input type="checkbox" checked={product.isTestProduct} onChange={(e) => set({ isTestProduct: e.target.checked })} style={{ width: 16, height: 16, accentColor: "var(--color-accent)", cursor: "pointer" }} />
-              </div>
+              <Switch
+                label="New"
+                hint="Draws a “New” badge on this product’s cards and on its page, translated per language. A switch rather than an automatic window on the date added — only you know when a product stops being the new thing."
+                checked={product.isNew}
+                onChange={(v) => set({ isNew: v })}
+              />
+              <div className={styles.divider} />
+              <Switch
+                label="Test product"
+                hint="Measures demand before you order stock. Customers can browse, add to cart and enter shipping, but checkout fails at the payment step. Results appear under Test Products."
+                checked={product.isTestProduct}
+                onChange={(v) => set({ isTestProduct: v })}
+              />
               {product.isTestProduct && (
                 <p style={{ margin: "8px 0 0", fontSize: 12, lineHeight: 1.5, color: "#b45309", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 8, padding: "8px 10px" }}>
                   This product cannot be sold. The payment form never loads and no charge is ever created — customers see a generic error at the shipping step.

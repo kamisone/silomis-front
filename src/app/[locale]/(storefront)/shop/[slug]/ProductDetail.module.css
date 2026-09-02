@@ -88,13 +88,37 @@
   }
 }
 
+/* Was the brand's own <p>; now the row that carries the brand and the New
+   badge, either of which may be absent. */
+.brandLine {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
 .brand {
   font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: color-mix(in srgb, var(--foreground) 55%, var(--background));
-  margin-bottom: 4px;
+}
+
+/* Same pill as the product cards, so the badge a shopper saw in the grid is
+   recognisably the same thing on the page they landed on. */
+.newBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
 }
 
 .title {

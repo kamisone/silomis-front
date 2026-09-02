@@ -132,6 +132,7 @@ export interface Product {
   socialVideosTitle?: string | null;
   /** Heading for the linked-articles section at the foot of the page. */
   articlesTitle?: string | null;
+  isNew?: boolean;
   storyNarrativeTitle?: string | null;
   freeShipping?: boolean;
   freeShippingDaysMin?: number | null;
@@ -915,7 +916,14 @@ export default function ShopProductDetail({
           </div>
 
           <div className={styles.details}>
-            {product.brand && <p className={styles.brand}>{product.brand}</p>}
+            {/* Above the title, on the brand's line: the badge qualifies the
+                product, so it reads before the name rather than beside it. */}
+            {(product.brand || product.isNew) && (
+              <p className={styles.brandLine}>
+                {product.isNew && <span className={styles.newBadge}>{t.shop.newBadge}</span>}
+                {product.brand && <span className={styles.brand}>{product.brand}</span>}
+              </p>
+            )}
             <h1 className={styles.title}>{product.title}</h1>
 
             {!!reviewStats && reviewStats.count > 0 && (

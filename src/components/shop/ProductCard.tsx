@@ -23,6 +23,8 @@ export interface ProductListItem {
   cardImageUrls?: string[];
   outOfStock?: boolean;
   defaultVariantOutOfStock?: boolean;
+  /** Admin-set flag, not a date window — see Product.isNew in the schema. */
+  isNew?: boolean;
   freeShipping?: boolean;
   categories?: { id: string }[];
   variants: ProductVariantSummary[];
@@ -76,11 +78,20 @@ export default function ProductCard({
         prevLabel={t.shop.prevImage}
         nextLabel={t.shop.nextImage}
       >
-        {outOfStock ? (
-          <span className={styles.outOfStockBadge}>{t.shop.outOfStock}</span>
-        ) : isOnSale ? (
-          <span className={styles.saleBadge}>{t.shop.sale}</span>
-        ) : null}
+        {/* Stacked, not one slot each: a product can be new *and* on sale, and
+            before this they were both pinned to the same top-left corner. Out
+            of stock replaces them — nothing else about the product matters
+            once it cannot be bought. */}
+        <span className={styles.badgeStack}>
+          {outOfStock ? (
+            <span className={styles.outOfStockBadge}>{t.shop.outOfStock}</span>
+          ) : (
+            <>
+              {product.isNew && <span className={styles.newBadge}>{t.shop.newBadge}</span>}
+              {isOnSale && <span className={styles.saleBadge}>{t.shop.sale}</span>}
+            </>
+          )}
+        </span>
         {product.freeShipping && !outOfStock && <span className={styles.freeShipBadge}>{t.shop.freeShippingBadge}</span>}
       </ProductCardMedia>
       <div className={styles.productInfo}>

@@ -145,6 +145,7 @@
 
 .outOfStockBadge,
 .saleBadge,
+.newBadge,
 .freeShipBadge {
   position: absolute;
   top: 10px;
@@ -155,15 +156,40 @@
   letter-spacing: 0.02em;
 }
 
-.outOfStockBadge {
+/* The top-left corner is a column now, so a product that is both new and
+   reduced shows both badges instead of one hiding the other. The children go
+   back to static flow inside it. */
+.badgeStack {
+  position: absolute;
+  top: 10px;
   left: 10px;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  pointer-events: none;
+}
+.badgeStack > * {
+  position: static;
+  top: auto;
+  left: auto;
+}
+
+.outOfStockBadge {
   background: color-mix(in srgb, var(--foreground) 75%, transparent);
   color: var(--background);
 }
 
 .saleBadge {
-  left: 10px;
   background: #dc2626;
+  color: #fff;
+}
+
+/* Brand teal, deliberately not the sale red or the free-shipping pink: "new"
+   is a fact about the product, and reading as a discount would be a lie. */
+.newBadge {
+  background: var(--color-primary);
   color: #fff;
 }
 
