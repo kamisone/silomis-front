@@ -9,8 +9,9 @@ interface Props {
   locale: Locale;
 }
 
-/** "Blog" / "Contact" — the site's non-shopping sections, sitting at the end of
- *  the category row behind a divider.
+/** "Contact" — the site's non-shopping section, sitting at the end of the
+ *  category row behind a divider. A list, not a single link, because this is
+ *  where any further site-level page belongs.
  *
  *  They are styled as a quieter relative of the category links rather than as
  *  their equals: same family, lower contrast, so the row still reads
@@ -21,10 +22,9 @@ export default function HeaderQuickLinks({ locale }: Props) {
   const t = getTranslations(locale);
   const pathname = usePathname();
 
-  const links = [
-    { href: `/${locale}/blog`, label: t.nav.blogLabel },
-    { href: `/${locale}/contact`, label: t.nav.contactLabel },
-  ];
+  // No blog link: articles are not browsed as a section any more, they are
+  // attached to a product and read from its page.
+  const links = [{ href: `/${locale}/contact`, label: t.nav.contactLabel }];
 
   return (
     <div className={styles.quickLinks}>

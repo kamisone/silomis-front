@@ -17,6 +17,7 @@ import ProductDocumentsManager from "@/components/admin/shop/ProductDocumentsMan
 import ProductPrivateLinksManager from "@/components/admin/shop/ProductPrivateLinksManager";
 import ProductStoryGalleryManager from "@/components/admin/shop/ProductStoryGalleryManager";
 import ProductSocialVideosManager from "@/components/admin/shop/ProductSocialVideosManager";
+import ProductArticlePicker, { type ProductArticleRef } from "@/components/admin/shop/ProductArticlePicker";
 import ProductUpsellTiersManager from "@/components/admin/shop/ProductUpsellTiersManager";
 import { useEntityTranslations, type OverlayLang } from "@/hooks/useEntityTranslations";
 import { useSectionGenerate } from "@/hooks/useSectionGenerate";
@@ -32,7 +33,7 @@ import type {
   ProductSocialVideo,
   ProductUpsellTier,
 } from "@/lib/shop/productContent.types";
-import { Pencil, DollarSign, Image as ImageIcon, ClipboardList, Shield, HelpCircle, FileText, GalleryHorizontalEnd, Clapperboard, Layers, ZoomIn, Lock, Package, Palette, ImagePlus } from "lucide-react";
+import { Pencil, DollarSign, Image as ImageIcon, ClipboardList, Shield, HelpCircle, FileText, GalleryHorizontalEnd, Clapperboard, Layers, ZoomIn, Lock, Package, Palette, ImagePlus, Newspaper } from "lucide-react";
 import ProductImagePicker from "@/components/admin/shop/ProductImagePicker";
 import styles from "../ProductEdit.module.css";
 
@@ -150,6 +151,9 @@ interface Product {
   socialVideos: ProductSocialVideo[];
   socialVideosTitle: string | null;
   storyNarrativeTitle: string | null;
+  articlesTitle: string | null;
+  /** Linked articles, in the order the storefront shows them. */
+  blogRefs?: { postId: string; post: { id: string; title: string; slug: string; status: string } }[];
   upsellingEnabled: boolean;
   perUnitVariantChoice: boolean;
   upsellTiers: ProductUpsellTier[];
@@ -187,6 +191,10 @@ export default function EditProductPage() {
 
   const { translations, setTranslation, saveTranslations } = useEntityTranslations(ENTITY_TYPE, product?.id ?? null);
 
+  /** Held outside `product` because it is a join, not a column: the save sends
+   *  ids while the picker needs titles to render. */
+  const [articleRefs, setArticleRefs] = useState<ProductArticleRef[]>([]);
+
   const [inventory, setInventory] = useState<Inventory | null>(null);
   const [stockDelta, setStockDelta] = useState("");
   const [stockNote, setStockNote] = useState("");
@@ -216,6 +224,9 @@ export default function EditProductPage() {
       api.get<OptionImage[]>(`/next-api/admin/shop/products/${id}/option-images`).catch(() => []),
     ]);
     setProduct(p);
+    setArticleRefs(
+      (p.blogRefs ?? []).map((r) => ({ postId: r.post.id, title: r.post.title, slug: r.post.slug, status: r.post.status })),
+    );
     setCategories(cats);
     setTags(tgs);
     setAttributes(attrs);
@@ -244,6 +255,9 @@ export default function EditProductPage() {
   const descGen = useSectionGenerate<SectionTranslationOutcome<string>>("/next-api/admin/shop/products/sections/description/translate");
   const storyTitleGen = useSectionGenerate<SectionTranslationOutcome<string>>("/next-api/admin/shop/products/sections/story-narrative-title/translate");
   const socialTitleGen = useSectionGenerate<SectionTranslationOutcome<string>>("/next-api/admin/shop/products/sections/social-videos-title/translate");
+  // The shared plain-copy route, not a per-field one: this title needs no
+  // prompt of its own, and a route per field means a backend deploy per field.
+  const articlesTitleGen = useSectionGenerate<SectionTranslationOutcome<string>>("/next-api/admin/shop/translate/text");
   const [genErrors, setGenErrors] = useState<Record<string, string | null>>({});
 
   async function applyPlainGenerate(gen: ReturnType<typeof useSectionGenerate<SectionTranslationOutcome<string>>>, sourceText: string, field: string) {
@@ -299,6 +313,9 @@ export default function EditProductPage() {
         socialVideos: product.socialVideos,
         socialVideosTitle: product.socialVideosTitle || null,
         storyNarrativeTitle: product.storyNarrativeTitle || null,
+        articlesTitle: product.articlesTitle || null,
+        // Order is the payload: the backend stores the array index as sortOrder.
+        articleIds: articleRefs.map((r) => r.postId),
         upsellingEnabled: product.upsellingEnabled,
         perUnitVariantChoice: product.perUnitVariantChoice,
         upsellTiers: product.upsellTiers,
@@ -320,6 +337,7 @@ export default function EditProductPage() {
         "description",
         "socialVideosTitle",
         "storyNarrativeTitle",
+        "articlesTitle",
         ...product.faqs.flatMap((f) => [`faq:${f.id}:question`, `faq:${f.id}:answer`]),
         ...product.trustBadges.flatMap((b) => [`trustBadge:${b.id}:title`, `trustBadge:${b.id}:subtitle`]),
         ...product.infoSections.flatMap((s) => [`infoSection:${s.id}:label`, `infoSection:${s.id}:value`]),
@@ -762,6 +780,26 @@ export default function EditProductPage() {
               onTranslationChange={setTranslation}
               onChange={(socialVideos) => set({ socialVideos })}
             />
+          </CollapsibleSection>
+
+          {/* Articles */}
+          <CollapsibleSection icon={<Newspaper size={15} />} title="Articles">
+            <div style={{ marginBottom: 16 }}>
+              <BilingualField
+                label="Section title"
+                field="articlesTitle"
+                baseValue={product.articlesTitle ?? ""}
+                baseOnChange={(v) => set({ articlesTitle: v })}
+                basePlaceholder="Guides & care tips"
+                overlayPlaceholder="Leave blank to fall back to English"
+                translations={translations}
+                onTranslationChange={setTranslation}
+                onGenerate={() => applyPlainGenerate(articlesTitleGen, product.articlesTitle ?? "", "articlesTitle")}
+                generating={articlesTitleGen.generating}
+                generateError={articlesTitleGen.error ?? genErrors.articlesTitle ?? null}
+              />
+            </div>
+            <ProductArticlePicker value={articleRefs} onChange={setArticleRefs} />
           </CollapsibleSection>
 
           {/* Quantity discounts */}

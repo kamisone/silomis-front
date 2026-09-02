@@ -1,0 +1,257 @@
+.section {
+  border-top: 1px solid color-mix(in srgb, var(--foreground) 10%, transparent);
+  background: var(--color-surface-tint);
+}
+
+.inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  /* The arrows overhang the track by 8px, so the inline padding has to clear
+     them or half an arrow sits under the viewport edge on a narrow desktop. */
+  padding: 40px 28px 44px;
+}
+
+.title {
+  margin: 0 0 18px;
+  font-size: clamp(19px, 2.2vw, 24px);
+  font-weight: 800;
+  letter-spacing: -0.015em;
+  color: var(--foreground);
+}
+
+/* ── Carousel mechanics (mirrors RelatedProductsCarousel) ── */
+
+.viewport {
+  position: relative;
+}
+
+.track {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-padding-left: 2px;
+  scrollbar-width: none;
+  /* Room for the cards' hover lift and focus rings, which the scroll container
+     would otherwise clip. */
+  padding: 4px 2px 8px;
+}
+.track::-webkit-scrollbar {
+  display: none;
+}
+.track:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 4px;
+  border-radius: 14px;
+}
+
+/* Snapping is suspended mid-drag: with it on, the track fights the pointer. */
+.dragging {
+  scroll-snap-type: none;
+  cursor: grabbing;
+  user-select: none;
+}
+
+.slide {
+  position: relative;
+  flex: 0 0 auto;
+  width: 31%;
+  min-width: 250px;
+  scroll-snap-align: start;
+  display: flex;
+}
+
+.arrow {
+  position: absolute;
+  /* Centred on the image rather than the card. The card's text block is a
+     near-constant ~120px (clamped title, clamped excerpt, one meta line) while
+     the image is a 16:9 slice of a width that changes at every breakpoint — so
+     half the text block below the card's own centre lands on the image's
+     centre at all of them, where a flat pixel value drifts by ~30px. */
+  top: calc(50% - 60px);
+  transform: translateY(-50%);
+  z-index: 3;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--foreground) 12%, transparent);
+  background: color-mix(in srgb, var(--background) 92%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: var(--foreground);
+  cursor: pointer;
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--foreground) 14%, transparent);
+  transition: opacity 0.18s, background 0.18s;
+}
+.arrow:hover:not(:disabled) {
+  background: var(--background);
+}
+.arrow:disabled {
+  opacity: 0;
+  pointer-events: none;
+}
+.arrowPrev {
+  left: -8px;
+}
+.arrowNext {
+  right: -8px;
+}
+
+/* Touch devices swipe; a floating arrow there only covers a card. */
+@media (hover: none) {
+  .arrow {
+    display: none;
+  }
+}
+
+.dots {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 14px;
+}
+.dot {
+  width: 7px;
+  height: 7px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--foreground) 22%, transparent);
+  cursor: pointer;
+  transition: background 0.18s, width 0.18s;
+}
+.dotActive {
+  width: 20px;
+  background: var(--color-primary);
+}
+
+/* ── Card ── */
+
+.card {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--foreground) 9%, transparent);
+  background: var(--background);
+  overflow: hidden;
+  text-decoration: none;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+}
+.card:hover {
+  border-color: color-mix(in srgb, var(--color-primary) 38%, transparent);
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--foreground) 10%, transparent);
+  transform: translateY(-2px);
+}
+.card:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-primary) 65%, transparent);
+  outline-offset: 2px;
+}
+
+.media {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  background: var(--color-surface);
+}
+.image {
+  object-fit: cover;
+}
+.imageFallback {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-primary) 12%, var(--color-surface)),
+    var(--color-surface)
+  );
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 15px 16px;
+}
+
+.category {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-primary);
+}
+
+/* Clamped so a long headline cannot make one card taller than its neighbours
+   — every slide is the same height in a row that scrolls sideways. */
+.cardTitle {
+  margin: 0;
+  font-size: 15.5px;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--foreground);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.excerpt {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: color-mix(in srgb, var(--foreground) 62%, var(--background));
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+  font-size: 12px;
+  color: color-mix(in srgb, var(--foreground) 50%, var(--background));
+}
+
+/* ── Responsive card widths — keep IMAGE_SIZES in the component in step ── */
+
+@media (max-width: 1200px) {
+  .slide {
+    width: 40%;
+  }
+}
+@media (max-width: 900px) {
+  .slide {
+    width: 56%;
+  }
+}
+@media (max-width: 560px) {
+  .inner {
+    padding: 30px 16px 36px;
+  }
+  .slide {
+    width: 82%;
+    min-width: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .dot,
+  .arrow {
+    transition: none;
+  }
+  .card:hover {
+    transform: none;
+  }
+  .track {
+    scroll-behavior: auto;
+  }
+}

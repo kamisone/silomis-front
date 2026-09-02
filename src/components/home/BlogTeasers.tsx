@@ -41,7 +41,9 @@ export default function BlogTeasers({
   return (
     <section className={`${styles.section} ${tinted ? styles.sectionTinted : ""}`}>
       <div className={styles.container}>
-        <SectionHead title={title || t.shop.homeBlogTitle} href={href || `/${locale}/blog`} linkLabel={t.shop.homeViewAll} />
+        {/* No fallback to /blog: there is no index to send anyone to. The link
+            shows only where an admin has pointed this section somewhere. */}
+        <SectionHead title={title || t.shop.homeBlogTitle} href={href} linkLabel={t.shop.homeViewAll} />
         <div className={styles.blogGrid}>
           {posts.map((post) => (
             <Link key={post.id} href={`/${locale}/blog/${post.slug}`} className={styles.blogCard}>

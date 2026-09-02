@@ -130,6 +130,8 @@ export interface Product {
   storyGallery: StoryItem[];
   socialVideos: SocialVideo[];
   socialVideosTitle?: string | null;
+  /** Heading for the linked-articles section at the foot of the page. */
+  articlesTitle?: string | null;
   storyNarrativeTitle?: string | null;
   freeShipping?: boolean;
   freeShippingDaysMin?: number | null;

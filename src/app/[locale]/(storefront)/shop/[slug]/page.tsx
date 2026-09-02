@@ -6,6 +6,7 @@ import JsonLd from "@/components/seo/JsonLd";
 import RelatedSection from "@/components/shop/RelatedSection";
 import RecordProductView from "@/components/shop/RecordProductView";
 import RelatedProductsSkeleton from "@/components/shop/RelatedProductsSkeleton";
+import ProductArticles from "@/components/shop/ProductArticles";
 import type { PromotionInfo } from "@/components/shop/PromotionBadge";
 import { isValidLocale, DEFAULT_LOCALE, getTranslations } from "@/lib/i18n";
 import { localeAlternates } from "@/lib/seo";
@@ -247,6 +248,13 @@ export default async function ProductPage({ params }: PageProps) {
       <ShopProductDetail key={product.id} product={product} locale={locale} reviewStats={reviewStats} activePromotion={activePromotion} initialReviews={initialReviews} />
       <Suspense fallback={<RelatedProductsSkeleton />}>
         <RelatedSection slug={product.slug} locale={locale} />
+      </Suspense>
+      {/* Last on the page: reading about the product is what someone does
+          after deciding they are interested, not instead of it. Its own
+          Suspense boundary so a slow blog query cannot hold up the recommended
+          products above it. */}
+      <Suspense fallback={null}>
+        <ProductArticles productId={product.id} locale={locale} title={product.articlesTitle} />
       </Suspense>
     </>
   );
