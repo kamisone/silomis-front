@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Newspaper, Mail, type LucideIcon } from "lucide-react";
 import { getTranslations, type Locale } from "@/lib/i18n";
 import styles from "./HeaderQuickLinks.module.css";
 
@@ -10,37 +9,35 @@ interface Props {
   locale: Locale;
 }
 
-/** "Blog" / "Contact" — static site-section links, kept next to the logo on
- *  every breakpoint. Desktop shows the icon-free full uppercase label inline;
- *  narrow screens don't have room for that next to the logo, search and cart,
- *  so each link becomes a compact tab-style badge — its icon (Newspaper /
- *  Mail) on top with the full word as a small caption underneath, the same
- *  icon+label pairing mobile tab bars use so the meaning stays unambiguous
- *  even at a glance. */
+/** "Blog" / "Contact" — the site's non-shopping sections, sitting at the end of
+ *  the category row behind a divider.
+ *
+ *  They are styled as a quieter relative of the category links rather than as
+ *  their equals: same family, lower contrast, so the row still reads
+ *  categories-first and these do not compete with them. No icons — an icon
+ *  earns its place when it replaces a word, and here there is room for the
+ *  word at every width, because this row already scrolls. */
 export default function HeaderQuickLinks({ locale }: Props) {
   const t = getTranslations(locale);
   const pathname = usePathname();
 
-  const links: { href: string; label: string; icon: LucideIcon }[] = [
-    { href: `/${locale}/blog`, label: t.nav.blogLabel, icon: Newspaper },
-    { href: `/${locale}/contact`, label: t.nav.contactLabel, icon: Mail },
+  const links = [
+    { href: `/${locale}/blog`, label: t.nav.blogLabel },
+    { href: `/${locale}/contact`, label: t.nav.contactLabel },
   ];
 
   return (
     <div className={styles.quickLinks}>
       {links.map((link) => {
         const active = pathname === link.href || pathname?.startsWith(`${link.href}/`);
-        const Icon = link.icon;
         return (
           <Link
             key={link.href}
             href={link.href}
             className={`${styles.link} ${active ? styles.linkActive : ""}`}
-            aria-label={link.label}
-            title={link.label}
+            aria-current={active ? "page" : undefined}
           >
-            <Icon size={15} strokeWidth={2.25} className={styles.linkIcon} aria-hidden="true" />
-            <span className={styles.linkLabel}>{link.label}</span>
+            {link.label}
           </Link>
         );
       })}

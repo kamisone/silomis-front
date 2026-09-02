@@ -1,104 +1,45 @@
+/* The divider is the whole point of this wrapper: it is what tells the eye
+   that what follows is a different kind of link from the categories before
+   it, without needing a second row or a different colour. */
 .quickLinks {
-  order: 1;
-  display: flex;
-  align-items: center;
-  gap: 1.1rem;
-  flex-shrink: 0;
-}
-
-.link {
-  position: relative;
   display: inline-flex;
   align-items: center;
-  font-size: 0.8rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: color-mix(in srgb, var(--foreground) 62%, transparent);
-  text-decoration: none;
-  white-space: nowrap;
-  padding: 0.3rem 0.05rem;
-  transition: color 0.15s;
+  gap: 0.1rem;
+  flex-shrink: 0;
+  margin-left: 0.45rem;
+  padding-left: 0.7rem;
+  border-left: 1px solid color-mix(in srgb, var(--foreground) 14%, transparent);
 }
 
-.link::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 100%;
-  bottom: 0;
-  height: 2px;
-  border-radius: 2px;
-  background: var(--color-accent);
-  transition: right 0.18s ease;
+/* Deliberately a step down from CommerceCategoryNav's .item — same shape and
+   hover language so they belong to one row, but smaller and lighter, so the
+   row reads categories-first. */
+.link {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.45rem 0.7rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--foreground) 52%, transparent);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
 }
 
 .link:hover {
+  background: color-mix(in srgb, var(--foreground) 6%, transparent);
   color: var(--foreground);
 }
 
-.link:hover::after {
-  right: 0;
-}
-
-.linkActive {
+.linkActive,
+.linkActive:hover {
+  background: color-mix(in srgb, var(--color-primary) 14%, transparent);
   color: var(--color-primary);
 }
 
-.linkActive::after {
-  right: 0;
-  background: var(--color-primary);
-}
-
-/* Icon only exists for the mobile tab-style badge — desktop reads fine as
-   plain text next to the logo. */
-.linkIcon {
-  display: none;
-}
-
-/* ── Narrow screens: no room for inline text next to the logo, search and
-   cart — collapse each link into a plain icon button matching the sizing
-   and hover language of the utility icons beside it (lang/cart/wishlist),
-   so it reads as part of the same icon family. The accessible name (aria-
-   label/title on the <Link>) still carries "Blog"/"Contact" for screen
-   readers even though the caption is visually hidden here. ── */
-@media (max-width: 640px) {
-  .quickLinks {
-    gap: 8px;
-  }
-
+@media (prefers-reduced-motion: reduce) {
   .link {
-    width: 34px;
-    height: 34px;
-    justify-content: center;
-    padding: 0;
-    border-radius: 9px;
-    background: var(--color-surface-tint);
-    border: 1px solid color-mix(in srgb, var(--foreground) 14%, transparent);
-    color: var(--color-accent);
-    transition: background 0.15s, border-color 0.15s;
-  }
-
-  .link:hover {
-    background: var(--color-surface);
-    border-color: color-mix(in srgb, var(--foreground) 28%, transparent);
-  }
-
-  .link::after {
-    display: none;
-  }
-
-  .linkActive {
-    background: color-mix(in srgb, var(--color-primary) 12%, var(--color-surface-tint));
-    border-color: color-mix(in srgb, var(--color-primary) 35%, transparent);
-    color: var(--color-primary);
-  }
-
-  .linkIcon {
-    display: block;
-  }
-
-  .linkLabel {
-    display: none;
+    transition: none;
   }
 }

@@ -37,8 +37,6 @@ export default function CommerceHeader({ locale }: { locale: Locale }) {
               </span>
             </Link>
 
-            <HeaderQuickLinks locale={locale} />
-
             <div className={styles.searchDesktop}>
               <SearchAutocomplete locale={locale} />
             </div>
@@ -57,9 +55,15 @@ export default function CommerceHeader({ locale }: { locale: Locale }) {
             </div>
           </div>
 
-          {/* ── Row 2: category/discovery navigation ── */}
+          {/* ── Row 2: category/discovery navigation ──
+              Blog and Contact live at the end of this row rather than up beside
+              the logo. They are the two lowest-intent destinations in a shop,
+              and in row 1 they were sitting in the most valuable space on the
+              page — between the wordmark and the search field — pushing the
+              one control shoppers actually use into whatever was left. */}
           <nav className={styles.menuRow} aria-label={t.nav.navAriaLabel}>
             <CommerceCategoryNav locale={locale} className={styles.menuItem} />
+            <HeaderQuickLinks locale={locale} />
           </nav>
         </div>
       </ScrollAwareHeader>

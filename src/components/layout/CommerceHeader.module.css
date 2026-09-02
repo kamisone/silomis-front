@@ -141,8 +141,8 @@
   .topRow { gap: 0.75rem; }
 
   /* Search collapses to its own row, so the icon cluster is left alone on
-     row 1 next to the logo/quick-links — push it to the right edge instead
-     of letting it hug them on the left. */
+     row 1 next to the logo — push it to the right edge instead of letting it
+     hug the mark on the left. */
   .navRight { margin-left: auto; }
 
   /* Narrow viewports keep just the mark — the wordmark is redundant next to a
