@@ -16,9 +16,24 @@
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
+
+/* Deliberately not a wash of --foreground. That token is #363a40, which is
+   also the footer's own background, so an 8% translucent charcoal let the
+   footer read straight through the pill and the control sank into the surface
+   it was sitting on — on the one page region where it most needed to stand
+   out. Deepening the brand tint instead keeps the pill light against both a
+   white header and a charcoal footer, and reads as the same gesture on each. */
 .trigger:hover {
-  background: color-mix(in srgb, var(--foreground) 8%, transparent);
+  background: color-mix(in srgb, var(--brand-base) 84%, var(--brand-primary) 16%);
+  border-color: color-mix(in srgb, var(--color-primary) 42%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trigger {
+    transition: none;
+  }
 }
 
 .code {
@@ -38,15 +53,46 @@
   position: absolute;
   top: calc(100% + 6px);
   right: 0;
-  min-width: 150px;
+  min-width: 168px;
   background: var(--background);
   border: 1px solid color-mix(in srgb, var(--foreground) 14%, transparent);
-  border-radius: 10px;
-  box-shadow: 0 8px 24px color-mix(in srgb, var(--foreground) 12%, transparent);
+  border-radius: 12px;
+  box-shadow:
+    0 1px 2px color-mix(in srgb, var(--foreground) 8%, transparent),
+    0 12px 32px color-mix(in srgb, var(--foreground) 16%, transparent);
   list-style: none;
   margin: 0;
   padding: 4px;
   z-index: 200;
+  /* Last resort for a viewport too short for either side: the panel scrolls
+     itself rather than running off the screen. */
+  max-height: min(60vh, 320px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  transform-origin: top right;
+  animation: langIn 0.14s ease-out;
+}
+
+/* Opened upwards. In the footer this is the normal case — the trigger sits in
+   the last row of the document, so a panel below it has nowhere to go but past
+   the end of the page, which the browser answers by growing the page. */
+.dropdownUp {
+  top: auto;
+  bottom: calc(100% + 6px);
+  transform-origin: bottom right;
+}
+
+@keyframes langIn {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dropdown {
+    animation: none;
+  }
 }
 
 .option {
@@ -54,20 +100,35 @@
   align-items: center;
   gap: 9px;
   width: 100%;
-  padding: 0.4rem 0.55rem;
+  /* 33px tall, which is the number LangSwitcher.tsx estimates the panel's
+     height from before the first paint — keep the two in step. */
+  padding: 0.42rem 0.55rem;
   border: none;
-  border-radius: 7px;
+  border-radius: 8px;
   background: transparent;
   color: var(--foreground);
   font-size: 0.85rem;
+  font-family: inherit;
   cursor: pointer;
   text-align: left;
 }
 .option:hover {
   background: var(--color-surface-tint);
 }
+/* Keyboard focus has to be visible in its own right: arrow keys move real
+   focus through the options, and :hover never fires for that. */
+.option:focus-visible {
+  outline: none;
+  background: var(--color-surface-tint);
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--color-primary) 55%, transparent);
+}
 .optionActive {
   font-weight: 600;
+}
+
+.trigger:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-primary) 65%, transparent);
+  outline-offset: 2px;
 }
 
 .flag {

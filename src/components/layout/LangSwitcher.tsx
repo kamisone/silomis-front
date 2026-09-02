@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { LOCALES, type Locale } from "@/lib/i18n";
 import styles from "./LangSwitcher.module.css";
@@ -87,11 +87,28 @@ const META: Record<Locale, { label: string; short: string; Flag: () => React.Rea
   pl: { label: "Polski", short: "PL", Flag: FlagPL },
 };
 
+/** Roughly what the list measures: one option per locale plus the panel's own
+ *  padding. Used to choose a side *before* the first paint — measuring the real
+ *  node would mean rendering downwards and then jumping, which is the flicker
+ *  this whole thing exists to avoid. The effect below corrects it from the real
+ *  height afterwards, so the estimate only has to be close. */
+const OPTION_HEIGHT = 33;
+const PANEL_PADDING = 8;
+const GAP = 6;
+/** Keeps the panel off the very edge of the viewport when it flips. */
+const VIEWPORT_MARGIN = 8;
+
 export default function LangSwitcher({ locale, ariaLabel = "Select language" }: { locale: Locale; ariaLabel?: string }) {
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  /** Opens upwards when there is not enough room below — which in the footer
+   *  is always, and where opening downwards used to push the panel past the
+   *  end of the document and grow the page by its own height. */
+  const [up, setUp] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -100,6 +117,78 @@ export default function LangSwitcher({ locale, ariaLabel = "Select language" }: 
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  /** Which side the panel fits on, given a height. Prefers below, and only
+   *  flips when above is genuinely roomier — a panel that flips for one spare
+   *  pixel reads as a glitch. */
+  const preferUp = useCallback((height: number) => {
+    const rect = triggerRef.current?.getBoundingClientRect();
+    if (!rect) return false;
+    const below = window.innerHeight - rect.bottom - GAP - VIEWPORT_MARGIN;
+    const above = rect.top - GAP - VIEWPORT_MARGIN;
+    return height > below && above > below;
+  }, []);
+
+  // Re-decide while the panel is open: scrolling the trigger towards either
+  // edge, or resizing, can change which side it fits on. Also corrects the
+  // opening estimate from the list's real height.
+  useEffect(() => {
+    if (!open) return;
+    const place = () => setUp(preferUp(listRef.current?.offsetHeight ?? 0));
+    place();
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
+    return () => {
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", place, true);
+    };
+  }, [open, preferUp]);
+
+  function toggle() {
+    setOpen((wasOpen) => {
+      if (!wasOpen) setUp(preferUp(LOCALES.length * OPTION_HEIGHT + PANEL_PADDING));
+      return !wasOpen;
+    });
+  }
+
+  function close({ refocus = false } = {}) {
+    setOpen(false);
+    if (refocus) triggerRef.current?.focus();
+  }
+
+  /** Arrow keys walk the list, Escape closes it and hands focus back — the
+   *  behaviour a listbox is expected to have once it claims the role. */
+  function onListKeyDown(e: React.KeyboardEvent<HTMLUListElement>) {
+    const options = Array.from(listRef.current?.querySelectorAll<HTMLButtonElement>('[role="option"]') ?? []);
+    const index = options.indexOf(document.activeElement as HTMLButtonElement);
+    const focus = (i: number) => {
+      e.preventDefault();
+      options[(i + options.length) % options.length]?.focus();
+    };
+    if (e.key === "ArrowDown") focus(index + 1);
+    else if (e.key === "ArrowUp") focus(index - 1);
+    else if (e.key === "Home") focus(0);
+    else if (e.key === "End") focus(options.length - 1);
+    else if (e.key === "Escape") {
+      e.preventDefault();
+      close({ refocus: true });
+    }
+  }
+
+  function onTriggerKeyDown(e: React.KeyboardEvent<HTMLButtonElement>) {
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      if (!open) toggle();
+      // The list is not in the DOM until the state lands, so focus on the tick after.
+      requestAnimationFrame(() => {
+        const options = listRef.current?.querySelectorAll<HTMLButtonElement>('[role="option"]');
+        if (!options?.length) return;
+        (e.key === "ArrowDown" ? options[0] : options[options.length - 1]).focus();
+      });
+    } else if (e.key === "Escape" && open) {
+      close();
+    }
+  }
 
   function switchLocale(next: Locale) {
     setLocaleCookie(next);
@@ -113,7 +202,16 @@ export default function LangSwitcher({ locale, ariaLabel = "Select language" }: 
 
   return (
     <div className={styles.wrapper} ref={ref}>
-      <button type="button" className={styles.trigger} onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-haspopup="listbox" aria-label={ariaLabel}>
+      <button
+        type="button"
+        ref={triggerRef}
+        className={styles.trigger}
+        onClick={toggle}
+        onKeyDown={onTriggerKeyDown}
+        aria-expanded={open}
+        aria-haspopup="listbox"
+        aria-label={ariaLabel}
+      >
         <span className={styles.flag}>
           <current.Flag />
         </span>
@@ -124,7 +222,13 @@ export default function LangSwitcher({ locale, ariaLabel = "Select language" }: 
       </button>
 
       {open && (
-        <ul className={styles.dropdown} role="listbox" aria-label={ariaLabel}>
+        <ul
+          ref={listRef}
+          className={`${styles.dropdown} ${up ? styles.dropdownUp : ""}`}
+          role="listbox"
+          aria-label={ariaLabel}
+          onKeyDown={onListKeyDown}
+        >
           {LOCALES.map((l) => {
             const meta = META[l];
             const active = l === locale;
