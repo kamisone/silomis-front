@@ -36,12 +36,15 @@ export default function CommerceFooter({ locale }: { locale: Locale }) {
               <Image
                 src="/assets/logo_silomis_icon.png"
                 alt="Silomis"
-                width={26}
-                height={28}
+                width={30}
+                height={32}
                 className={styles.logoIcon}
               />
-              <span className={styles.logoText}>
-                <span className={styles.logoInitial}>S</span>ilomis
+              {/* No S: the mark to its left is the S. The image's alt is
+                  already the whole brand name, so this half is hidden —
+                  otherwise it reads out as "Silomis ilomis". */}
+              <span className={styles.logoText} aria-hidden="true">
+                ilomis
               </span>
             </div>
             <p className={styles.footerTagline}>{t.footer.tagline}</p>

@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Pacifico } from "next/font/google";
 import { headers } from "next/headers";
 import NextTopLoader from "nextjs-toploader";
 import { ToastProvider } from "@/components/toast/ToastContext";
@@ -15,6 +15,22 @@ const geistSans = Geist({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+});
+
+/**
+ * The wordmark only — the "ilomis" that follows the mark in the header, the
+ * footer and the login panel. Nothing else on the site uses it.
+ *
+ * A script, because the mark is one continuous teal stroke and a straight sans
+ * beside it read as two unrelated objects; Pacifico's own wave carries on out
+ * of the swoosh, so the S and the letters after it look drawn in one go. It
+ * ships in a single weight, which is why every lockup below sets 400.
+ */
+const brandFont = Pacifico({
+  variable: "--font-brand",
+  subsets: ["latin"],
+  weight: "400",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -53,7 +69,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   const locale = (await headers()).get("x-locale") ?? "en";
 
   return (
-    <html lang={locale} className={`${geistSans.variable} ${geistMono.variable}`}>
+    <html lang={locale} className={`${geistSans.variable} ${geistMono.variable} ${brandFont.variable}`}>
       <body>
         {/* Global nav-in-progress feedback — mounted once here so it covers
             every route (storefront + admin) instead of each section rolling

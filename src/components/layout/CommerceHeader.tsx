@@ -29,8 +29,11 @@ export default function CommerceHeader({ locale }: { locale: Locale }) {
                   translatable, and drops a render-blocking request from the
                   header. Only the mark itself is still an image. */}
               <Image src="/assets/logo_silomis_icon.png" alt="" width={40} height={42} className={styles.logoIcon} priority />
-              <span className={styles.logoWord}>
-                <span className={styles.logoInitial}>S</span>ilomis
+              {/* No S: the mark to its left is the S. aria-hidden because the
+                  link already carries the real name — without it a screen
+                  reader would announce the brand as "ilomis". */}
+              <span className={styles.logoWord} aria-hidden="true">
+                ilomis
               </span>
             </Link>
 

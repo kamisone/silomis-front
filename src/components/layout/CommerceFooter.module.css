@@ -93,33 +93,37 @@
   max-width: 26ch;
 }
 
+/* Same lockup as the header: the mark stands in for the S, so it sits on the
+   line with "ilomis" rather than beside a word that repeats it. */
 .footerLogo {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 2px;
   flex-shrink: 0;
 }
 
 .logoIcon {
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 32px;
   object-fit: contain;
 }
 
 .logoText {
   color: var(--background);
-  font-size: 0.95rem;
-  font-weight: 700;
-}
-
-/* The brand initial, matching the header and the sign-in panel.
-   Lightened rather than the literal --color-primary: this wordmark is 15.2px,
-   below WCAG's large-text threshold, so it needs 4.5:1 — and the raw teal on
-   the footer's #363a40 measures only 3.40:1. Mixing 30% white keeps the hue
-   and reaches 4.98:1. The header and login marks are large enough (19px/21px)
-   to use the colour undiluted. */
-.logoInitial {
-  color: color-mix(in srgb, var(--color-primary) 70%, #fff);
+  /* The one typeface here that is not the body's — see brandFont in
+     app/layout.tsx. It falls back to a sans rather than the `cursive` generic,
+     because the system cursive is Comic Sans on most machines, which is a
+     worse failure than losing the script. Pacifico ships one weight, so 400
+     is the only value that is not a synthetic bold. */
+  font-family: var(--font-brand), "Segoe UI", system-ui, sans-serif;
+  font-weight: 400;
+  font-size: 20px;
+  /* The mark's own baseline sits at 95.9% of its box — there is a detached
+     ground shadow below that — so centring the word leaves it floating above
+     the line the S stands on. Measured against the art and against Pacifico's
+     metrics, which is why it is a pixel value and not a ratio, and why it
+     depends on line-height being exactly 1. */
+  line-height: 1;
 }
 
 /* ── Contact info (address / email) ── */

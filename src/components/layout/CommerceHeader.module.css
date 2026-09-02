@@ -31,13 +31,18 @@
 .iconsOrder { order: 2; }
 
 /* ── Logo lockup ───────────────────────────────────────────────────────────
-   Stacked and centred: the mark on top, the name beneath it. The name is the
-   wider of the two, so the pair still reads as a pyramid. */
+   The mark is the S. It sits on the same line as "ilomis" and the eye reads
+   the two as one word — which is the only arrangement where dropping the
+   letter works: stacked above the name, "ilomis" is just a misspelling.
+   Everything below is therefore about making the join invisible. */
 .logo {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  gap: 4px;
+  /* Optical, not metric. The mark carries its own sliver of transparent edge,
+     so a 0 gap already leaves a hair of air; 2px is what makes the S and the
+     i sit at the same rhythm as the i and the l. */
+  gap: 2px;
   flex-shrink: 0;
   text-decoration: none;
 }
@@ -46,27 +51,35 @@
   /* 862x905 source — the box follows that ratio so `contain` has nothing to
      letterbox and the mark fills the space it is given. Kept a touch narrower
      than the name so the pyramid widens on every row. */
-  height: 42px;
-  width: 40px;
+  /* Larger than the stacked version it replaces: a letterform standing in for
+     a capital has to out-measure the ascenders beside it, and the lockup is
+     now half as tall, so the height is there to spend. */
+  height: 50px;
+  width: 48px;
   object-fit: contain;
 }
 
 
-/* The initial carries the brand colour, tying the wordmark to the mark above
-   it. `--color-primary` rather than a literal #129c98 so it follows the
-   palette if that ever moves.
-   At 19px/800 this is "large text" by WCAG, where the bar is 3:1 — teal on
-   white measures 3.37:1 and passes. It would fail the 4.5:1 that normal-size
-   text needs, which is why anything smaller has to use a darkened mix. */
-.logoInitial {
-  color: var(--color-primary);
-}
-
+/* No .logoInitial any more: the teal capital it coloured is the mark itself
+   now, so the remaining letters stay one flat colour. That also retires the
+   contrast problem it carried — teal on white only cleared WCAG's 3:1 large-
+   text bar and would have failed 4.5:1 at any smaller size. */
 .logoWord {
-  font-size: 24px;
-  font-weight: 800;
-  /* Slightly tight: at this weight the default spacing reads as loose. */
-  letter-spacing: -0.015em;
+  /* The one typeface here that is not the body's — see brandFont in
+     app/layout.tsx. It falls back to a sans rather than the `cursive` generic,
+     because the system cursive is Comic Sans on most machines, which is a
+     worse failure than losing the script. Pacifico ships one weight, so 400
+     is the only value that is not a synthetic bold. */
+  font-family: var(--font-brand), "Segoe UI", system-ui, sans-serif;
+  font-weight: 400;
+  font-size: 32px;
+  /* The mark's own baseline sits at 95.9% of its box — there is a detached
+     ground shadow below that — so centring the word leaves it floating above
+     the line the S stands on. Measured against the art and against Pacifico's
+     metrics, which is why it is a pixel value and not a ratio, and why it
+     depends on line-height being exactly 1. */
+  line-height: 1;
+  margin-top: 2px;
   color: var(--color-secondary);
 }
 
@@ -141,7 +154,7 @@
      own — smaller than the desktop lockup's, but still inside .topRow's 48px,
      which is what keeps this from adding a single pixel of header height. */
   .logoIcon {
-    height: 38px;
-    width: 36px;
+    height: 42px;
+    width: 40px;
   }
 }

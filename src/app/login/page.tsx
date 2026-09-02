@@ -35,10 +35,10 @@ function BrandPanel() {
       <div className={styles.brandGlow} />
       <div className={styles.brandInner}>
         <div className={styles.brandLogo}>
-          <Image src="/assets/logo_silomis_icon.png" alt="" width={26} height={28} priority />
-          <span className={styles.brandWordmark}>
-            <span className={styles.brandInitial}>S</span>ilomis
-          </span>
+          {/* No S: the mark to its left is the S. The whole panel is already
+              aria-hidden, so there is nothing to restate for a screen reader. */}
+          <Image src="/assets/logo_silomis_icon.png" alt="" width={38} height={40} priority />
+          <span className={styles.brandWordmark}>ilomis</span>
         </div>
 
         {/* Headline, lede and the two reassurances read as one statement, so they

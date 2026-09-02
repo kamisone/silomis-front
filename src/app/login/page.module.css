@@ -45,25 +45,33 @@
   padding: clamp(40px, 5vw, 64px) clamp(32px, 4vw, 56px);
 }
 
+/* Same lockup as the header: the mark stands in for the S, sitting on the line
+   with "ilomis" rather than beside a word that repeats it. */
 .brandLogo {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 2px;
 }
 
 /* Set in type rather than shipped as an image, so it inverts cleanly on this
-   charcoal panel instead of needing a brightness/invert filter to fake it. */
-/* Brand teal on this charcoal panel measures 3.40:1 — over the 3:1 bar for
-   large text at 21px/800, but only just, so it is deliberately reserved for
-   the single initial and never for anything smaller here. */
-.brandInitial {
-  color: var(--color-primary);
-}
-
+   charcoal panel instead of needing a brightness/invert filter to fake it.
+   One flat colour now: the teal initial this used to carry is the mark, which
+   also retires its 3.40:1 contrast — over the 3:1 large-text bar, but only
+   just, and it could never have been used at a smaller size. */
 .brandWordmark {
-  font-size: 21px;
-  font-weight: 800;
-  letter-spacing: -0.015em;
+  /* The one typeface here that is not the body's — see brandFont in
+     app/layout.tsx. It falls back to a sans rather than the `cursive` generic,
+     because the system cursive is Comic Sans on most machines, which is a
+     worse failure than losing the script. Pacifico ships one weight, so 400
+     is the only value that is not a synthetic bold. */
+  font-family: var(--font-brand), "Segoe UI", system-ui, sans-serif;
+  font-weight: 400;
+  font-size: 28px;
+  /* The mark's own baseline sits at 95.9% of its box — there is a detached
+     ground shadow below that — so centring the word leaves it floating above
+     the line the S stands on. Measured against the art and against Pacifico's
+     metrics, which is why it is a pixel value and not a ratio, and why it
+     depends on line-height being exactly 1. */
   line-height: 1;
   color: var(--brand-base);
 }
