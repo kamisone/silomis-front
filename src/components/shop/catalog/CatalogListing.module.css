@@ -68,7 +68,12 @@
   white-space: nowrap;
 }
 
-/* ── Aside + results ── */
+/* ── Aside + results ──
+   The mobile drawer positioning (fixed, slide-in, z-index, shadow) lives in
+   the shared FilterDrawer.module.css, applied to this same element via the
+   `className` it's passed — `.sidebar` here only ever styles the desktop
+   column, scoped to the same breakpoint FilterDrawer switches on so the two
+   files never fight over `position`/`transform` on the same node. */
 .layout {
   display: grid;
   grid-template-columns: 240px 1fr;
@@ -76,58 +81,16 @@
   align-items: start;
 }
 
-.sidebar {
-  position: sticky;
-  /* Tracks the collapsing header rather than a guessed px value — see
-     ScrollAwareHeader, which owns --header-offset. */
-  top: calc(var(--header-offset, 84px) + 20px);
-  padding: 18px;
-  border-radius: 16px;
-  border: 1px solid color-mix(in srgb, var(--foreground) 10%, transparent);
-  background: var(--color-surface-tint);
-}
-
-/* ── Filters disclosure ──
-   Desktop keeps the open column the sidebar has always been. The <details>
-   only really collapses below 860px, where the sidebar stacks above the grid
-   and an always-open panel pushed every product off the first screen. So at
-   this width the summary is styled as the plain heading it replaces. */
-.filtersSummary {
-  /* The default disclosure triangle, in both flavours browsers ship it. */
-  list-style: none;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0 0 16px;
-  font-size: 14px;
-  font-weight: 800;
-  color: var(--foreground);
-  cursor: default;
-}
-.filtersSummary::-webkit-details-marker {
-  display: none;
-}
-.filtersHeading {
-  flex: 1;
-  min-width: 0;
-}
-/* Both only mean anything while the panel can be collapsed. */
-.filtersCount,
-.filtersChevron {
-  display: none;
-}
-
-/* Nothing toggles the panel here, so it has to ignore the collapsed state the
-   markup ships with. Two rules for the two ways <details> is implemented:
-   browsers that hide the content with a UA rule on the children, and newer
-   ones that hide it through ::details-content. Each ignores the other's. */
-@media (min-width: 861px) {
-  .filters > .filtersBody {
-    display: block;
-  }
-  .filters::details-content {
-    content-visibility: visible;
-    block-size: auto;
+@media (min-width: 901px) {
+  .sidebar {
+    position: sticky;
+    /* Tracks the collapsing header rather than a guessed px value — see
+       ScrollAwareHeader, which owns --header-offset. */
+    top: calc(var(--header-offset, 84px) + 20px);
+    padding: 18px;
+    border-radius: 16px;
+    border: 1px solid color-mix(in srgb, var(--foreground) 10%, transparent);
+    background: var(--color-surface-tint);
   }
 }
 
@@ -384,64 +347,10 @@
   color: var(--color-primary);
 }
 
-@media (max-width: 860px) {
+@media (max-width: 900px) {
   .layout {
     grid-template-columns: 1fr;
     gap: 16px;
-  }
-  /* The card chrome moves off the aside and onto the disclosure itself, so the
-     collapsed state is one compact bar rather than a bar inside a padded panel. */
-  .sidebar {
-    position: static;
-    padding: 0;
-    border: 0;
-    border-radius: 0;
-    background: none;
-  }
-  .filters {
-    border: 1px solid color-mix(in srgb, var(--foreground) 12%, transparent);
-    border-radius: 14px;
-    background: var(--color-surface-tint);
-  }
-  .filtersSummary {
-    margin: 0;
-    padding: 12px 14px;
-    font-size: 13.5px;
-    cursor: pointer;
-    user-select: none;
-    /* Otherwise iOS paints a grey block over the whole bar on tap. */
-    -webkit-tap-highlight-color: transparent;
-  }
-  /* Only once it is a header over something, so the collapsed bar stays a bar. */
-  .filters[open] .filtersSummary {
-    border-bottom: 1px solid color-mix(in srgb, var(--foreground) 9%, transparent);
-  }
-  .filtersCount {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 18px;
-    height: 18px;
-    padding: 0 5px;
-    border-radius: 999px;
-    background: var(--color-primary);
-    color: #fff;
-    font-size: 11px;
-    font-weight: 700;
-    line-height: 1;
-  }
-  .filtersChevron {
-    display: block;
-    flex: none;
-    color: color-mix(in srgb, var(--foreground) 55%, var(--background));
-    transition: transform 0.18s ease;
-  }
-  .filters[open] .filtersChevron {
-    transform: rotate(180deg);
-  }
-  .filtersBody {
-    padding: 12px 14px 14px;
-    animation: filtersReveal 0.18s ease;
   }
   .filterBlock {
     margin-bottom: 14px;
@@ -450,8 +359,8 @@
     font-size: 11px;
     margin-bottom: 7px;
   }
-  /* Sort drops the radio column for a wrapping chip row: two lines instead of
-     four, which is most of what made the open panel tall. */
+  /* Sort drops the radio column for a wrapping chip row inside the drawer:
+     two lines instead of four, which is most of what made the panel tall. */
   .sortList {
     flex-direction: row;
     flex-wrap: wrap;
@@ -488,20 +397,5 @@
   }
   .title {
     font-size: 25px;
-  }
-}
-
-@keyframes filtersReveal {
-  from {
-    opacity: 0;
-    transform: translateY(-4px);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .filtersChevron,
-  .filtersBody {
-    transition: none;
-    animation: none;
   }
 }

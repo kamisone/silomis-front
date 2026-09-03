@@ -1,0 +1,46 @@
+/* Mirrors ProductCard's own shape (image box, brand line, title, price) so
+   the grid never jumps once real cards replace these. */
+.card {
+  display: flex;
+  flex-direction: column;
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--background);
+  border: 1px solid color-mix(in srgb, var(--foreground) 12%, transparent);
+}
+
+.image {
+  aspect-ratio: 1 / 1;
+}
+
+.info {
+  padding: 12px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.brand {
+  height: 10px;
+  width: 40%;
+}
+.title {
+  height: 14px;
+  width: 85%;
+}
+.titleShort {
+  height: 14px;
+  width: 55%;
+  margin-bottom: 2px;
+}
+.price {
+  height: 16px;
+  width: 35%;
+  margin-top: 2px;
+}
+.action {
+  height: 36px;
+  width: 100%;
+  border-radius: 10px;
+  margin-top: 6px;
+}

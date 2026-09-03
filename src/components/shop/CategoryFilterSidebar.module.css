@@ -1,0 +1,87 @@
+/* Desktop-only — the mobile off-canvas drawer positioning (fixed, slide-in,
+   z-index, shadow) lives in the shared FilterDrawer.module.css, applied to
+   this same element via the `className` it's passed. Scoping this to the
+   drawer breakpoint keeps the two files from ever fighting over `position`/
+   `transform` on the same node. */
+@media (min-width: 901px) {
+  .sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    /* Follows the grid down the page rather than the whole viewport height —
+       a short filter list under a long product grid shouldn't feel abandoned
+       at the top of the screen once the shopper scrolls past it. */
+    position: sticky;
+    top: calc(var(--header-offset, 0px) + 16px);
+    align-self: start;
+  }
+}
+
+/* The loading skeleton renders this same `.sidebar` class directly (it has
+   no trigger to open a drawer with, and no drawer content to show yet), so
+   below the breakpoint it should simply not exist rather than show as an
+   unstyled inline block. */
+@media (max-width: 900px) {
+  .sidebar {
+    display: none;
+  }
+}
+
+.group {
+  padding-bottom: 18px;
+  border-bottom: 1px solid color-mix(in srgb, var(--foreground) 10%, transparent);
+}
+.group:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.groupTitle {
+  margin: 0 0 12px;
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: color-mix(in srgb, var(--foreground) 60%, var(--background));
+}
+
+.checkboxList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Reuses the admin's own Switch component (see @/components/admin/ui/Switch)
+   rather than a plain checkbox row — toggling a value is still exactly the
+   same independent-on/off action a switch already models, and one visual
+   language for "on or off" beats two. */
+
+/* Every product in the category is currently the same price — nothing for a
+   slider to narrow between, so the group just states the figure. */
+.singlePrice {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Loading placeholder ── */
+.skeletonGroupTitle {
+  height: 11px;
+  width: 70px;
+  margin-bottom: 14px;
+}
+.skeletonSlider {
+  height: 4px;
+  width: 100%;
+  margin: 15px 0;
+}
+.skeletonCheckboxRow {
+  height: 14px;
+  width: 75%;
+  margin-bottom: 9px;
+}
+.skeletonCheckboxRow:last-child {
+  margin-bottom: 0;
+}

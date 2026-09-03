@@ -1,0 +1,189 @@
+/* ── Mobile trigger ──
+   Hidden entirely above the drawer breakpoint — the caller's own desktop
+   styling already shows the filters as a visible static column there, so a
+   button to open it would do nothing. */
+.mobileTrigger {
+  display: none;
+}
+
+.triggerLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.triggerBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--color-accent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+/* ── Drawer chrome ──
+   Only meaningful inside the mobile off-canvas panel. `.panel` carries none
+   of this component's own styling above the breakpoint — the caller's own
+   class (passed as `className`) does all of the desktop presentation, and
+   `.scrollArea`'s default `display: contents` dissolves the wrapper from the
+   box model entirely so the filter content goes straight back to being
+   direct children of the caller's own desktop layout. */
+.backdrop {
+  display: none;
+}
+
+.drawerHead,
+.drawerFooter {
+  display: none;
+}
+
+.scrollArea {
+  display: contents;
+}
+
+@media (max-width: 900px) {
+  .mobileTrigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    width: 100%;
+    padding: 13px 16px;
+    margin-bottom: 4px;
+    border: 1.5px solid color-mix(in srgb, var(--foreground) 16%, transparent);
+    border-radius: 12px;
+    background: var(--background);
+    color: var(--foreground);
+    font-size: 13.5px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+  .mobileTrigger:hover {
+    border-color: var(--color-primary);
+  }
+
+  .backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 500;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.28s ease, visibility 0.28s ease;
+  }
+  .backdropOpen {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  .panel {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 501;
+    width: min(320px, 86vw);
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    background: var(--background);
+    box-shadow: 8px 0 48px rgba(0, 0, 0, 0.22);
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: transform;
+  }
+  .panelOpen {
+    transform: translateX(0);
+  }
+
+  .drawerHead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+    height: 60px;
+    padding: 0 18px;
+    border-bottom: 1px solid color-mix(in srgb, var(--foreground) 12%, transparent);
+  }
+  .drawerTitle {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--foreground);
+  }
+  .closeBtn {
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1.5px solid color-mix(in srgb, var(--foreground) 16%, transparent);
+    border-radius: 9px;
+    background: transparent;
+    color: color-mix(in srgb, var(--foreground) 55%, var(--background));
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+  .closeBtn:hover {
+    background: color-mix(in srgb, var(--foreground) 6%, transparent);
+    color: var(--foreground);
+  }
+
+  .scrollArea {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    flex: 1;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    padding: 20px 18px;
+  }
+
+  .drawerFooter {
+    display: block;
+    flex-shrink: 0;
+    padding: 16px 18px;
+    border-top: 1px solid color-mix(in srgb, var(--foreground) 12%, transparent);
+    background: var(--background);
+  }
+  .showResultsBtn {
+    width: 100%;
+    min-height: 48px;
+    border: none;
+    border-radius: 11px;
+    background: var(--color-primary);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+  .showResultsBtn:hover {
+    background: var(--color-secondary);
+  }
+}
+
+@media (max-width: 480px) {
+  .panel {
+    width: 88vw;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel,
+  .backdrop {
+    transition: none;
+  }
+}

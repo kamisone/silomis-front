@@ -1,0 +1,203 @@
+/* Collapsible filter cards — same accordion shape as /admin/shop/variant-attributes,
+   since this solves the exact same "axis → ordered list of values" problem, just
+   scoped to a category for browse-time filtering instead of a product's own
+   variant selection. */
+
+.stickyHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.headerTitle {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.backLink {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--color-secondary);
+  text-decoration: none;
+}
+.backLink:hover {
+  color: var(--color-primary);
+}
+
+.filterHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  cursor: pointer;
+  user-select: none;
+}
+.filterHeader:hover {
+  background: var(--color-surface-tint);
+}
+.filterHeaderOpen {
+  border-bottom: 1px solid var(--color-surface);
+}
+
+.filterHeaderMain {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.expandBtn {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 7px;
+  border: 1px solid var(--color-surface);
+  background: var(--background);
+  color: var(--color-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+.expandBtn:hover {
+  color: var(--color-primary);
+}
+.expandBtnActive {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--background);
+}
+
+.chevron {
+  transition: transform 0.15s;
+}
+.chevronOpen {
+  transform: rotate(180deg);
+}
+
+.filterName {
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+.filterSlug {
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--color-secondary);
+}
+
+.valueCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 22px;
+  padding: 0 0.45rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-surface);
+  background: var(--color-surface-tint);
+  color: var(--color-secondary);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.valuesPanel {
+  background: var(--color-surface-tint);
+}
+.valuesPanelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+}
+.valuesPanelTitle {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-secondary);
+}
+.valEmpty {
+  padding: 0 1rem 1rem;
+  margin: 0;
+  color: var(--color-secondary);
+  font-size: 0.85rem;
+}
+
+.defaultBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+  color: var(--color-primary);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+/* ── Create-filter modal: draft value rows ── */
+
+.draftValues {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+/* Each draft value is a small card of its own now that its label carries the
+   full bilingual editor — a single grid row stopped fitting once "Label"
+   became six more language rows instead of one input. */
+.draftValueCard {
+  padding: 0.75rem;
+  border: 1px solid var(--color-surface);
+  border-radius: 10px;
+  background: var(--background);
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.draftValueTop {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.draftValueRemove {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border-radius: 7px;
+  border: 1px solid var(--color-surface);
+  background: var(--background);
+  color: var(--color-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.draftValueRemove:hover {
+  color: var(--color-danger, #c0392b);
+  border-color: var(--color-danger, #c0392b);
+}
+.draftValueRemove:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.defaultRadioLabel {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.78rem;
+  color: var(--color-secondary);
+  white-space: nowrap;
+}

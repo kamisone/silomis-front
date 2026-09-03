@@ -7,6 +7,9 @@ import { ArrowRight } from "lucide-react";
 import { getAncestorIds } from "@/lib/shop/categoryTree";
 import ProductCard, { type ProductListItem } from "@/components/shop/ProductCard";
 import CategoryHero from "@/components/shop/CategoryHero";
+import CategoryHeroSkeleton from "@/components/shop/CategoryHeroSkeleton";
+import CategoryFilterSidebar from "@/components/shop/CategoryFilterSidebar";
+import ProductGridSkeleton from "@/components/shop/ProductGridSkeleton";
 import type { PromotionInfo } from "@/components/shop/PromotionBadge";
 import { trackSearch } from "@/lib/shop/behaviorTracking";
 import { pixelTrack, trackServerEvent } from "@/lib/metaPixel";
@@ -63,12 +66,21 @@ export default function ShopListing() {
   const categoryId = searchParams.get("categoryId") ?? undefined;
   const search = searchParams.get("search") ?? undefined;
   const featured = searchParams.get("featured") ?? undefined;
+  // The category filter sidebar's own state — read here too so a change to
+  // any of them re-fetches the product list they narrow.
+  const minPrice = searchParams.get("minPrice") ?? undefined;
+  const maxPrice = searchParams.get("maxPrice") ?? undefined;
+  const filterValues = searchParams.get("filters") ?? undefined;
 
   const [products, setProducts] = useState<ProductListItem[]>([]);
   const [total, setTotal] = useState(0);
   const [categories, setCategories] = useState<Category[]>([]);
   const [promotions, setPromotions] = useState<ActivePromotion[]>([]);
   const [loading, setLoading] = useState(true);
+  /* True once the first products fetch has settled (either way) — the signal
+     for "is there anything on screen to keep showing while we refetch", as
+     opposed to `loading`, which is just "is a request in flight right now". */
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   /* Whether this category has children decides what the page shows, so the
      product request waits for the tree rather than firing a query whose result
      may turn out not to belong on the page at all. */
@@ -129,6 +141,9 @@ export default function ShopListing() {
       if (categoryId) qs.set("categoryId", categoryId);
       if (search) qs.set("search", search);
       if (featured) qs.set("featured", featured);
+      if (minPrice) qs.set("minPrice", minPrice);
+      if (maxPrice) qs.set("maxPrice", maxPrice);
+      if (filterValues) qs.set("filters", filterValues);
       qs.set("limit", "60");
 
       fetch(`/next-api/public/shop/products?${qs.toString()}`)
@@ -162,7 +177,10 @@ export default function ShopListing() {
           }
         })
         .finally(() => {
-          if (!cancelled) setLoading(false);
+          if (!cancelled) {
+            setLoading(false);
+            setHasLoadedOnce(true);
+          }
         });
     }
 
@@ -171,7 +189,7 @@ export default function ShopListing() {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [categoryId, search, featured, categoriesLoaded, showsSubcategories]);
+  }, [categoryId, search, featured, minPrice, maxPrice, filterValues, categoriesLoaded, showsSubcategories]);
 
   const activeCategory = categoryId ? categories.find((c) => c.id === categoryId) ?? null : null;
   /** The branch this category sits in — context the name alone cannot give. */
@@ -198,34 +216,56 @@ export default function ShopListing() {
     return `/${locale}/shop${qs.toString() ? `?${qs.toString()}` : ""}`;
   }
 
+  // The sidebar only ever applies to a leaf category's product grid — a
+  // branch category shows subcategory tiles, not products, so there is
+  // nothing to filter.
+  const showsFilters = !showsSubcategories && !!categoryId;
+
+  // Nothing meaningful to show yet — either the category tree itself hasn't
+  // loaded (so it's unknown whether this is even a product-bearing leaf), or
+  // it has and the very first products request is still in flight. Once
+  // `hasLoadedOnce` flips true, a further refetch (a filter, a price drag)
+  // keeps the existing grid on screen instead of falling back to this.
+  const initialLoading = !categoriesLoaded || (loading && !hasLoadedOnce);
+
   return (
     <div className={styles.container}>
-      <div className={styles.layout}>
+      <div className={`${styles.layout} ${showsFilters ? styles.layoutFiltered : ""}`}>
+        {showsFilters && <CategoryFilterSidebar categoryId={categoryId} resultCount={total} />}
         <div className={styles.main}>
-          {categoryPath.length > 0 && (
-            <nav className={styles.breadcrumbs} aria-label={t.shop.categoriesLabel}>
-              <Link href={`/${locale}`}>
-                {t.shop.homeBreadcrumb}
-              </Link>
-              {categoryPath.map((cat, i) => (
-                <span key={cat.id} className={styles.breadcrumbSegment}>
-                  <span className={styles.breadcrumbSep}>/</span>
-                  {i === categoryPath.length - 1 ? <span className={styles.breadcrumbCurrent}>{cat.name}</span> : <Link href={buildUrl({ categoryId: cat.id })}>{cat.name}</Link>}
-                </span>
-              ))}
-            </nav>
-          )}
+          {/* The category name that would head this page is only known once
+              the tree has loaded — show its shape rather than nothing, so the
+              banner doesn't pop in a beat after the rest of the page. */}
+          {!categoriesLoaded && categoryId ? (
+            <CategoryHeroSkeleton />
+          ) : (
+            <>
+              {categoryPath.length > 0 && (
+                <nav className={styles.breadcrumbs} aria-label={t.shop.categoriesLabel}>
+                  <Link href={`/${locale}`}>
+                    {t.shop.homeBreadcrumb}
+                  </Link>
+                  {categoryPath.map((cat, i) => (
+                    <span key={cat.id} className={styles.breadcrumbSegment}>
+                      <span className={styles.breadcrumbSep}>/</span>
+                      {i === categoryPath.length - 1 ? <span className={styles.breadcrumbCurrent}>{cat.name}</span> : <Link href={buildUrl({ categoryId: cat.id })}>{cat.name}</Link>}
+                    </span>
+                  ))}
+                </nav>
+              )}
 
-          {/* The category's masthead: the banner is the visual, its name and
-              description sit inside it at the lower left. See CategoryHero for
-              why the overlay adapts to how bright the artwork is. */}
-          {activeCategory && (
-            <CategoryHero
-              name={activeCategory.name}
-              description={activeCategory.description}
-              bannerUrl={activeCategory.bannerUrl}
-              parentName={parentCategory?.name}
-            />
+              {/* The category's masthead: the banner is the visual, its name and
+                  description sit inside it at the lower left. See CategoryHero for
+                  why the overlay adapts to how bright the artwork is. */}
+              {activeCategory && (
+                <CategoryHero
+                  name={activeCategory.name}
+                  description={activeCategory.description}
+                  bannerUrl={activeCategory.bannerUrl}
+                  parentName={parentCategory?.name}
+                />
+              )}
+            </>
           )}
 
           {search && (
@@ -235,11 +275,17 @@ export default function ShopListing() {
           )}
 
           {/* A count of products belongs only where products are shown; over a
-              grid of categories it would be counting the wrong thing. */}
-          {!loading && !showsSubcategories && (
-            <p className={styles.resultCount}>
-              {total} {total === 1 ? t.shop.resultSingular : t.shop.resultPlural}
-            </p>
+              grid of categories it would be counting the wrong thing. Stays on
+              screen (with a spinner alongside) through a refetch instead of
+              disappearing and reappearing — only the first-ever load has
+              nothing worth showing yet. */}
+          {!showsSubcategories && hasLoadedOnce && (
+            <div className={styles.resultCountRow}>
+              <p className={styles.resultCount}>
+                {total} {total === 1 ? t.shop.resultSingular : t.shop.resultPlural}
+              </p>
+              {loading && <span className={styles.spinner} role="status" aria-live="polite" aria-label={t.shop.loading} />}
+            </div>
           )}
 
           {showsSubcategories ? (
@@ -267,12 +313,15 @@ export default function ShopListing() {
                 </Link>
               ))}
             </div>
-          ) : loading ? (
-            <div className={styles.empty}>{t.shop.loading}</div>
-          ) : products.length === 0 ? (
+          ) : initialLoading ? (
+            <ProductGridSkeleton />
+          ) : products.length === 0 && !loading ? (
             <div className={styles.empty}>{t.shop.noProductsFound}</div>
           ) : (
-            <div className={styles.productGrid}>
+            // `loading` here only ever means "refetching with something to
+            // show already" — dimmed in place rather than swapped out, per
+            // `initialLoading` above having already claimed the empty case.
+            <div className={`${styles.productGrid} ${loading ? styles.productGridLoading : ""}`}>
               {products.map((p) => (
                 <ProductCard key={p.id} product={p} promotion={toPromotionInfo(findMatchingPromotion(promotions, p.id, (p.categories ?? []).map((c) => c.id)))} locale={locale} t={t} />
               ))}

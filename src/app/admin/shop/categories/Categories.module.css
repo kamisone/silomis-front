@@ -146,6 +146,40 @@
   margin-top: 0.25rem;
 }
 
+/* ── Price filter bounds ── */
+.priceFilterFields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.9rem 1rem 1rem;
+  border: 1px solid var(--color-surface);
+  border-radius: 10px;
+  background: var(--color-surface-tint);
+}
+
+.pricePreview {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.pricePreviewLabel {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-secondary);
+}
+
+/* Read-only: this echoes the two fields above, it doesn't feed back into
+   them, so it shouldn't invite a drag that would silently go nowhere. */
+.pricePreviewSlider {
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  background: var(--background);
+  pointer-events: none;
+}
+
 /* ── Image ── */
 
 .imageField {

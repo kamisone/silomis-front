@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { LOCALES, type Locale } from "@/lib/i18n";
 import styles from "./LangSwitcher.module.css";
 
@@ -100,6 +100,7 @@ const VIEWPORT_MARGIN = 8;
 
 export default function LangSwitcher({ locale, ariaLabel = "Select language" }: { locale: Locale; ariaLabel?: string }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   /** Opens upwards when there is not enough room below — which in the footer
@@ -194,7 +195,13 @@ export default function LangSwitcher({ locale, ariaLabel = "Select language" }: 
     setLocaleCookie(next);
     const segments = pathname.split("/");
     segments[1] = next;
-    router.push(segments.join("/"));
+    // usePathname() never includes the query string, so a page reached with
+    // one (`/shop?categoryId=…`, `/shop/search?q=…`) would otherwise switch
+    // language into the bare path — and some of those redirect elsewhere
+    // (`/shop` alone bounces to home) once the params that made them
+    // meaningful are gone.
+    const qs = searchParams.toString();
+    router.push(segments.join("/") + (qs ? `?${qs}` : ""));
     setOpen(false);
   }
 

@@ -1,0 +1,53 @@
+/* Shared shimmer primitives for loading placeholders across the storefront —
+   the same technique RelatedProductsSkeleton already established for the PDP,
+   reused here instead of a second loading language. A shimmering bar shaped
+   like the text/image it stands in for reads as "this is arriving" in a way
+   a spinner or a plain "Loading…" string doesn't, and it holds the final
+   layout's shape so nothing jumps once the real content lands. */
+
+.bar {
+  border-radius: 6px;
+  background: linear-gradient(
+    90deg,
+    var(--color-surface) 25%,
+    var(--color-surface-tint) 37%,
+    var(--color-surface) 63%
+  );
+  background-size: 400% 100%;
+  animation: shimmer 1.4s ease infinite;
+}
+
+.block {
+  background: var(--color-surface-tint);
+  position: relative;
+  overflow: hidden;
+}
+.block::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 25%,
+    color-mix(in srgb, var(--color-surface) 70%, transparent) 37%,
+    transparent 63%
+  );
+  background-size: 400% 100%;
+  animation: shimmer 1.4s ease infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0 50%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bar,
+  .block::after {
+    animation: none;
+  }
+}

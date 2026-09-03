@@ -1,0 +1,94 @@
+/* Two native range inputs stacked on one track — each keeps its own keyboard
+   focus and screen-reader semantics, which a hand-rolled pointer-drag slider
+   would have to reimplement from scratch. Only the active thumb intercepts
+   pointer events (via the ::-webkit/-moz-range-thumb rule below); the track
+   itself and the input's own hit-box are pointer-events: none, or the top
+   input would swallow every click meant for the one underneath. */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.values {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+.track {
+  position: relative;
+  height: 4px;
+  margin: 15px 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--foreground) 14%, transparent);
+}
+
+.trackFill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: var(--color-primary);
+  border-radius: 999px;
+}
+
+.thumb {
+  position: absolute;
+  top: 50%;
+  left: -9px;
+  right: -9px;
+  width: calc(100% + 18px);
+  margin: 0;
+  transform: translateY(-50%);
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  pointer-events: none;
+}
+.thumb:focus-visible {
+  outline: none;
+}
+
+.thumb::-webkit-slider-runnable-track {
+  background: transparent;
+  height: 4px;
+}
+.thumb::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  pointer-events: auto;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--background);
+  border: 2px solid var(--color-primary);
+  cursor: pointer;
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--foreground) 30%, transparent);
+}
+.thumb:focus-visible::-webkit-slider-thumb {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.thumb::-moz-range-track {
+  background: transparent;
+  height: 4px;
+}
+.thumb::-moz-range-thumb {
+  pointer-events: auto;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--background);
+  border: 2px solid var(--color-primary);
+  cursor: pointer;
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--foreground) 30%, transparent);
+}
+.thumb:focus-visible::-moz-range-thumb {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}

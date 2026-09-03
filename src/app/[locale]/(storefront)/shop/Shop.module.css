@@ -5,11 +5,28 @@
   width: 100%;
 }
 
-/* Single column since the category sidebar moved into the header nav, which
+/* Single column since the category *nav* sidebar moved into the header, which
    already carries the whole tree. Kept as a wrapper rather than removed so the
    banner, heading and grid keep one shared width. */
 .layout {
   display: block;
+}
+
+/* A leaf category's product grid gets a real sidebar back — not for browsing
+   categories (the header nav does that), but for narrowing the products
+   already on the page: price, and whatever filters the admin defined on this
+   category. Only applied in that one case, so a branch category's
+   subcategory tiles stay full-width. */
+.layoutFiltered {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 32px;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .layoutFiltered {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* ── Main column ── */
@@ -51,10 +68,51 @@
   margin-bottom: 6px;
 }
 
+.resultCountRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
 .resultCount {
   font-size: 13px;
   color: color-mix(in srgb, var(--foreground) 55%, var(--background));
-  margin-bottom: 16px;
+}
+
+/* Same ring AddToCartButton already uses for its own in-flight state —
+   one spinner style for the whole shop domain rather than a second one
+   invented here. Appears beside the (still-visible, possibly stale) result
+   count while a filter/sort change is being re-fetched. */
+.spinner {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  border: 2px solid color-mix(in srgb, var(--foreground) 20%, transparent);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: shopSpin 0.65s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes shopSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}
+
+/* A background re-fetch (filter change, price drag) keeps the previous grid
+   on screen — dimmed and non-interactive — rather than replacing it with a
+   loading state. Nothing visibly disappears and reappears; the numbers just
+   update once the new page lands. */
+.productGridLoading {
+  opacity: 0.5;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
 }
 
 .empty {

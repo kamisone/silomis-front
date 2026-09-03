@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, type FormEvent } from "react";
+import { useEffect, useMemo, useState, useCallback, type FormEvent } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { api, ApiError } from "@/lib/api";
@@ -43,6 +43,10 @@ import Switch from "@/components/admin/ui/Switch";
 interface Category {
   id: string;
   name: string;
+  /** Whether this is a leaf (no children) decides whether it can carry
+   *  filters — a branch category shows its children on the storefront, never
+   *  products. */
+  parentId: string | null;
 }
 interface Tag {
   id: string;
@@ -163,6 +167,19 @@ interface Product {
   categories: Category[];
   tags: Tag[];
   variants: Variant[];
+  /** This product's current choice for each of its categories' filters. */
+  filterValues?: { filterId: string; valueId: string }[];
+}
+
+interface CategoryFilterValueOption {
+  id: string;
+  label: string;
+  isDefault: boolean;
+}
+interface CategoryFilterDef {
+  id: string;
+  name: string;
+  values: CategoryFilterValueOption[];
 }
 
 function eur(cents: number | null): string {
@@ -213,6 +230,13 @@ export default function EditProductPage() {
   const [optInMethods, setOptInMethods] = useState<OptInMethod[]>([]);
   const [optionImagePickerTarget, setOptionImagePickerTarget] = useState<string | null>(null);
 
+  // ── Category filters ──────────────────────────────────────────────────
+  // One entry per leaf category this product is linked to, fetched lazily as
+  // categories are checked — most products touch one or two, not the whole
+  // catalogue's worth.
+  const [filtersByCategory, setFiltersByCategory] = useState<Record<string, CategoryFilterDef[]>>({});
+  const [filterSelections, setFilterSelections] = useState<Record<string, string>>({});
+
   const load = useCallback(async () => {
     setLoading(true);
     const [p, cats, tgs, attrs, fsm, optIn, prodAttrs, optImages] = await Promise.all([
@@ -226,6 +250,7 @@ export default function EditProductPage() {
       api.get<OptionImage[]>(`/next-api/admin/shop/products/${id}/option-images`).catch(() => []),
     ]);
     setProduct(p);
+    setFilterSelections(Object.fromEntries((p.filterValues ?? []).map((fv) => [fv.filterId, fv.valueId])));
     setArticleRefs(
       (p.blogRefs ?? []).map((r) => ({ postId: r.post.id, title: r.post.title, slug: r.post.slug, status: r.post.status })),
     );
@@ -250,6 +275,55 @@ export default function EditProductPage() {
     const t = setTimeout(() => load(), 0);
     return () => clearTimeout(t);
   }, [load]);
+
+  // ── Category filters: fetch + default-seed ──────────────────────────────
+  // Primary and additional categories both count — either is "this product is
+  // in that category" as far as filters are concerned.
+  const checkedCategoryIds = useMemo(() => {
+    if (!product) return [] as string[];
+    const ids = new Set(product.categories.map((c) => c.id));
+    if (product.primaryCategoryId) ids.add(product.primaryCategoryId);
+    return [...ids];
+  }, [product]);
+
+  // Only a leaf can carry filters — a branch category shows its children on
+  // the storefront, never products.
+  const leafCategoryIds = useMemo(
+    () => checkedCategoryIds.filter((cid) => !categories.some((c) => c.parentId === cid)),
+    [checkedCategoryIds, categories],
+  );
+
+  useEffect(() => {
+    const missing = leafCategoryIds.filter((cid) => !(cid in filtersByCategory));
+    if (missing.length === 0) return;
+    let cancelled = false;
+    Promise.all(missing.map((cid) => api.get<CategoryFilterDef[]>(`/next-api/admin/shop/categories/${cid}/filters`).catch(() => [])))
+      .then((results) => {
+        if (cancelled) return;
+        setFiltersByCategory((prev) => {
+          const next = { ...prev };
+          missing.forEach((cid, i) => {
+            next[cid] = results[i];
+          });
+          return next;
+        });
+      });
+    return () => {
+      cancelled = true;
+    };
+    // Re-runs once the fetch above lands (filtersByCategory changes) so it can
+    // see `missing` shrink to empty and stop — array identity, not content, is
+    // what would otherwise re-trigger this on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [leafCategoryIds.join(","), filtersByCategory]);
+
+  /** A filter with no explicit choice yet (a freshly-checked category, or a
+   *  product that predates this filter) reads as its default — computed here
+   *  rather than seeded into state, so there is one source of truth instead
+   *  of state chasing a derived value. */
+  function filterValueFor(f: CategoryFilterDef): string {
+    return filterSelections[f.id] ?? (f.values.find((v) => v.isDefault) ?? f.values[0])?.id ?? "";
+  }
 
   // ── Section AI-generate wiring ──────────────────────────────────────────
   const titleGen = useSectionGenerate<SectionTranslationOutcome<string>>("/next-api/admin/shop/products/sections/title/translate");
@@ -332,6 +406,11 @@ export default function EditProductPage() {
         primaryCategoryId: product.primaryCategoryId || null,
         categoryIds: product.categories.map((c) => c.id),
         tagIds: product.tags.map((t) => t.id),
+        filterValues: leafCategoryIds.flatMap((cid) =>
+          (filtersByCategory[cid] ?? [])
+            .map((f) => ({ filterId: f.id, valueId: filterValueFor(f) }))
+            .filter((fv) => fv.valueId),
+        ),
       });
 
       const fields = [
@@ -1270,6 +1349,46 @@ export default function EditProductPage() {
                     </label>
                   ))}
                 </div>
+                {leafCategoryIds.some((cid) => (filtersByCategory[cid] ?? []).length > 0) && (
+                  <>
+                    <div className={styles.divider} />
+                    <label className={styles.label} style={{ display: "block", marginBottom: 8 }}>
+                      Category filters
+                    </label>
+                    {/* Left at its default (already applied on save) unless
+                        changed here — no picker means no override, not "no
+                        filter". */}
+                    {leafCategoryIds.map((cid) => {
+                      const defs = filtersByCategory[cid] ?? [];
+                      if (defs.length === 0) return null;
+                      const categoryName = categories.find((c) => c.id === cid)?.name ?? "";
+                      return (
+                        <div key={cid} style={{ marginBottom: 12 }}>
+                          <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-secondary)", display: "block", marginBottom: 6 }}>
+                            {categoryName}
+                          </span>
+                          {defs.map((f) => (
+                            <div className={styles.field} key={f.id}>
+                              <label className={styles.label}>{f.name}</label>
+                              <select
+                                className={styles.select}
+                                value={filterValueFor(f)}
+                                onChange={(e) => setFilterSelections((prev) => ({ ...prev, [f.id]: e.target.value }))}
+                              >
+                                {f.values.map((v) => (
+                                  <option key={v.id} value={v.id}>
+                                    {v.label}
+                                    {v.isDefault ? " (default)" : ""}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })}
+                  </>
+                )}
                 {tags.length > 0 && (
                   <>
                     <div className={styles.divider} />

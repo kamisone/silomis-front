@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { ChevronDown } from "lucide-react";
 import ProductCard, { type ProductListItem } from "@/components/shop/ProductCard";
 import type { PromotionInfo } from "@/components/shop/PromotionBadge";
+import FilterDrawer from "@/components/shop/FilterDrawer";
 import { getTranslations, type Locale } from "@/lib/i18n";
 import PriceFilter from "./PriceFilter";
 import styles from "./CatalogListing.module.css";
@@ -187,8 +187,8 @@ export default async function CatalogListing({
   // SEO text — the intro above stays short, with an anchor down to the rest.
   const sections = (content?.sections ?? []).filter((s) => s.title?.trim() || s.body?.trim());
 
-  /** Shown in the disclosure header on mobile, where the panel is closed by
-   * default and this badge is the only clue that a filter is still applied. */
+  /** Shown as a badge on the mobile drawer trigger, where the panel is closed
+   * by default and this is the only clue that a filter is still applied. */
   const activeFilters = (sort !== "curated" ? 1 : 0) + (minPrice !== null || maxPrice !== null ? 1 : 0);
 
   /** Sort and price changes reset to page 1; page links keep both. */
@@ -235,49 +235,40 @@ export default async function CatalogListing({
       )}
 
       <div className={styles.layout}>
-        <aside className={styles.sidebar} aria-label={t.shop.filtersTitle}>
-          {/* A native <details> rather than a client disclosure: collapsed is the
-              correct initial state on mobile with or without JS, and the desktop
-              column is forced open in CSS, so one tree serves both. */}
-          <details className={styles.filters}>
-            <summary className={styles.filtersSummary}>
-              <span className={styles.filtersHeading}>{t.shop.filtersTitle}</span>
-              {/* aria-hidden: a bare "2" read after the label explains nothing, and the
-                  panel it opens states the applied filters in full. */}
-              {activeFilters > 0 && (
-                <span className={styles.filtersCount} aria-hidden="true">
-                  {activeFilters}
-                </span>
-              )}
-              <ChevronDown size={16} className={styles.filtersChevron} aria-hidden="true" />
-            </summary>
+        {/* The mobile drawer chrome (trigger, backdrop, slide-in panel,
+            dismissal, scroll lock, footer CTA) is the shared FilterDrawer —
+            same component /shop's category listing uses. On desktop it
+            dissolves into a plain static column via `styles.sidebar`. */}
+        <FilterDrawer
+          title={t.shop.filtersTitle}
+          closeLabel={t.shop.filtersCloseLabel}
+          activeCount={activeFilters}
+          footerLabel={`${t.shop.filtersShowCta} · ${total} ${total === 1 ? t.shop.resultSingular : t.shop.resultPlural}`}
+          className={styles.sidebar}
+        >
+          <div className={styles.filterBlock}>
+            <h3 className={styles.filterGroupTitle}>{t.shop.sortLabel}</h3>
+            {/* Links, not radios: keeps this server-rendered and leaves every
+                sort crawlable and shareable. */}
+            <ul className={styles.sortList}>
+              {SORTS.map((s) => (
+                <li key={s}>
+                  <Link href={href({ sort: s })} className={s === sort ? styles.sortLinkActive : styles.sortLink} aria-current={s === sort}>
+                    <span className={styles.sortMark} aria-hidden="true" />
+                    {sortLabel(s, t)}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
 
-            <div className={styles.filtersBody}>
-              <div className={styles.filterBlock}>
-                <h3 className={styles.filterGroupTitle}>{t.shop.sortLabel}</h3>
-                {/* Links, not radios: keeps the aside server-rendered and leaves
-                    every sort crawlable and shareable. */}
-                <ul className={styles.sortList}>
-                  {SORTS.map((s) => (
-                    <li key={s}>
-                      <Link href={href({ sort: s })} className={s === sort ? styles.sortLinkActive : styles.sortLink} aria-current={s === sort}>
-                        <span className={styles.sortMark} aria-hidden="true" />
-                        {sortLabel(s, t)}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <div className={styles.filterBlock}>
-                <h3 className={styles.filterGroupTitle}>{t.shop.filtersPrice}</h3>
-                {/* Keyed on the applied range so a navigation reseeds the inputs —
-                    see the note in PriceFilter about why it is not an effect. */}
-                <PriceFilter key={`${minPrice ?? ""}-${maxPrice ?? ""}`} minPriceCents={minPrice} maxPriceCents={maxPrice} />
-              </div>
-            </div>
-          </details>
-        </aside>
+          <div className={styles.filterBlock}>
+            <h3 className={styles.filterGroupTitle}>{t.shop.filtersPrice}</h3>
+            {/* Keyed on the applied range so a navigation reseeds the inputs —
+                see the note in PriceFilter about why it is not an effect. */}
+            <PriceFilter key={`${minPrice ?? ""}-${maxPrice ?? ""}`} minPriceCents={minPrice} maxPriceCents={maxPrice} />
+          </div>
+        </FilterDrawer>
 
         <main className={styles.main}>
           <div className={styles.toolbar}>

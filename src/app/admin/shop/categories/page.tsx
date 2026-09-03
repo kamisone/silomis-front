@@ -1,12 +1,16 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
+import Link from "next/link";
 import { ChevronRight, ImageOff } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import Button from "@/components/admin/ui/Button";
+import btnStyles from "@/components/admin/ui/Button.module.css";
 import Modal from "@/components/admin/ui/Modal";
 import BilingualField from "@/components/admin/BilingualField";
 import MediaPicker from "@/components/admin/ui/MediaPicker";
+import Switch from "@/components/admin/ui/Switch";
+import PriceRangeSlider from "@/components/shop/PriceRangeSlider";
 import { useEntityTranslations } from "@/hooks/useEntityTranslations";
 import { getAncestorIds, visibleRows } from "@/lib/shop/categoryTree";
 import { useCopyGenerate } from "@/hooks/useCopyGenerate";
@@ -31,6 +35,9 @@ interface Category {
   parentId: string | null;
   sortOrder: number;
   isActive: boolean;
+  showPriceFilter: boolean;
+  priceFilterMinCents: number | null;
+  priceFilterMaxCents: number | null;
 }
 
 interface CategoryRow extends Category {
@@ -53,6 +60,11 @@ interface FormState {
   parentId: string;
   sortOrder: number;
   isActive: boolean;
+  showPriceFilter: boolean;
+  /** Euros, as typed — converted to cents on submit, same as every other
+   *  price field in the admin. */
+  priceFilterMinCents: string;
+  priceFilterMaxCents: string;
 }
 
 const EMPTY_FORM: FormState = {
@@ -67,8 +79,97 @@ const EMPTY_FORM: FormState = {
   parentId: "",
   sortOrder: 0,
   isActive: true,
+  // Off by default: turning it on requires bounds, and a brand-new category
+  // has none to suggest.
+  showPriceFilter: false,
+  priceFilterMinCents: "",
+  priceFilterMaxCents: "",
 };
 const FORM_ID = "category-form";
+
+function eur(cents: number | null): string {
+  return cents === null || cents === undefined ? "" : String(cents / 100);
+}
+function toCents(v: string): number | null {
+  return v.trim() === "" ? null : Math.round(Number(v) * 100);
+}
+function euroLabel(cents: number): string {
+  return (cents / 100).toLocaleString(undefined, { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
+}
+
+/**
+ * The two inputs behind "Price filter" — min/max in euros — plus a live
+ * preview of the exact slider a shopper will see on this category's page.
+ * Reuses PriceRangeSlider itself rather than mocking up a second one: what
+ * you see here is what ships.
+ *
+ * The preview is debounced (350ms, the same delay this admin already uses
+ * for search-as-you-type elsewhere) so it settles a beat after typing stops
+ * instead of re-laying-out the slider on every keystroke, and it's
+ * non-interactive — dragging a preview that doesn't write back to the two
+ * number fields above it would just be a second, disagreeing source of truth.
+ */
+function PriceFilterFields({
+  minCents,
+  maxCents,
+  onChangeMin,
+  onChangeMax,
+}: {
+  minCents: string;
+  maxCents: string;
+  onChangeMin: (v: string) => void;
+  onChangeMax: (v: string) => void;
+}) {
+  const [debouncedMin, setDebouncedMin] = useState(minCents);
+  const [debouncedMax, setDebouncedMax] = useState(maxCents);
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedMin(minCents), 350);
+    return () => clearTimeout(t);
+  }, [minCents]);
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedMax(maxCents), 350);
+    return () => clearTimeout(t);
+  }, [maxCents]);
+
+  const previewMin = toCents(debouncedMin);
+  const previewMax = toCents(debouncedMax);
+  const hasValidPreview = previewMin !== null && previewMax !== null && previewMin < previewMax;
+
+  return (
+    <div className={styles.priceFilterFields}>
+      <div className={ui.formGrid}>
+        <div className={ui.field}>
+          <label className={ui.label}>Minimum price (€)</label>
+          <input className={ui.input} type="number" step="0.01" min="0" value={minCents} onChange={(e) => onChangeMin(e.target.value)} required />
+        </div>
+        <div className={ui.field}>
+          <label className={ui.label}>Maximum price (€)</label>
+          <input className={ui.input} type="number" step="0.01" min="0" value={maxCents} onChange={(e) => onChangeMax(e.target.value)} required />
+        </div>
+      </div>
+      <div className={styles.pricePreview}>
+        <span className={styles.pricePreviewLabel}>Storefront preview</span>
+        {hasValidPreview ? (
+          <div className={styles.pricePreviewSlider} aria-hidden="true">
+            <PriceRangeSlider
+              boundsMinCents={previewMin}
+              boundsMaxCents={previewMax}
+              valueMinCents={previewMin}
+              valueMaxCents={previewMax}
+              onCommit={() => {}}
+              minLabel="Minimum"
+              maxLabel="Maximum"
+              formatValue={euroLabel}
+            />
+          </div>
+        ) : (
+          <span className={styles.hint}>Enter a minimum and a maximum to preview the slider.</span>
+        )}
+      </div>
+    </div>
+  );
+}
 
 /** Depth-first flattening of the category list into parent/child rows for indented table display.
  *  Categories whose parent no longer exists (e.g. the parent was deleted) are appended at depth 0
@@ -138,6 +239,20 @@ export default function CategoriesPage() {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!form) return;
+
+    const priceFilterMinCents = toCents(form.priceFilterMinCents);
+    const priceFilterMaxCents = toCents(form.priceFilterMaxCents);
+    if (form.showPriceFilter) {
+      if (priceFilterMinCents === null || priceFilterMaxCents === null) {
+        toast.error("Set a minimum and maximum price before turning the price filter on");
+        return;
+      }
+      if (priceFilterMinCents >= priceFilterMaxCents) {
+        toast.error("The price filter's minimum must be less than its maximum");
+        return;
+      }
+    }
+
     setSaving(true);
     const payload = {
       name: form.name,
@@ -150,6 +265,9 @@ export default function CategoriesPage() {
       parentId: form.parentId || null,
       sortOrder: form.sortOrder,
       isActive: form.isActive,
+      showPriceFilter: form.showPriceFilter,
+      priceFilterMinCents,
+      priceFilterMaxCents,
     };
     try {
       let savedId = form.id;
@@ -281,6 +399,14 @@ export default function CategoriesPage() {
                   </td>
                   <td>
                     <div className={ui.rowActions}>
+                      {/* Filters are a leaf-category concept — a branch
+                          category shows its children on the storefront, never
+                          products, so there is nothing for a filter to narrow. */}
+                      {c.childCount === 0 && (
+                        <Link href={`/admin/shop/categories/${c.id}/filters`} className={`${btnStyles.button} ${btnStyles.secondary}`}>
+                          Filters
+                        </Link>
+                      )}
                       <Button
                         variant="secondary"
                         onClick={() =>
@@ -296,6 +422,9 @@ export default function CategoriesPage() {
                             parentId: c.parentId ?? "",
                             sortOrder: c.sortOrder,
                             isActive: c.isActive,
+                            showPriceFilter: c.showPriceFilter,
+                            priceFilterMinCents: eur(c.priceFilterMinCents),
+                            priceFilterMaxCents: eur(c.priceFilterMaxCents),
                           })
                         }
                       >
@@ -419,6 +548,20 @@ export default function CategoriesPage() {
               <input type="checkbox" checked={form.isActive} onChange={(e) => setForm({ ...form, isActive: e.target.checked })} />
               Active
             </label>
+            <Switch
+              label="Price filter"
+              hint="Shows the price-range slider on this category's storefront page. Only matters for a leaf category — a category with subcategories shows those instead of a filtered product grid."
+              checked={form.showPriceFilter}
+              onChange={(v) => setForm({ ...form, showPriceFilter: v })}
+            />
+            {form.showPriceFilter && (
+              <PriceFilterFields
+                minCents={form.priceFilterMinCents}
+                maxCents={form.priceFilterMaxCents}
+                onChangeMin={(v) => setForm({ ...form, priceFilterMinCents: v })}
+                onChangeMax={(v) => setForm({ ...form, priceFilterMaxCents: v })}
+              />
+            )}
           </form>
         </Modal>
       )}
