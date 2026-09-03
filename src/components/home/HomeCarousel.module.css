@@ -98,13 +98,14 @@
    Desktop figures first, then two narrower steps. The percentages are of the
    track, so a slide grows with the container inside each step. */
 
-/* One dominant card, with the next one's edge showing so the row reads as
-   continuing rather than ending. */
+/* A normal carousel of standard-sized cards — three across, the same 16:9
+   shape as the blog rail, rather than one oversized poster dominating the
+   row. */
 .viewport[data-variant="collections"] {
-  --carousel-slide: 70%;
+  --carousel-slide: 32%;
   --carousel-slide-min: 280px;
-  --carousel-gap: 22px;
-  --carousel-arrow-top: 38%;
+  --carousel-gap: 24px;
+  --carousel-arrow-top: 36%;
 }
 
 /* Small and tight — five across, close together. */
@@ -140,7 +141,7 @@
 }
 
 @media (max-width: 1100px) {
-  .viewport[data-variant="collections"] { --carousel-slide: 78%; }
+  .viewport[data-variant="collections"] { --carousel-slide: 46%; }
   .viewport[data-variant="sale"] { --carousel-slide: 26%; }
   .viewport[data-variant="products"] { --carousel-slide: 30%; }
   .viewport[data-variant="categories"] { --carousel-slide: 44%; }
@@ -148,7 +149,7 @@
 }
 
 @media (max-width: 760px) {
-  .viewport[data-variant="collections"] { --carousel-slide: 88%; --carousel-gap: 14px; }
+  .viewport[data-variant="collections"] { --carousel-slide: 82%; --carousel-gap: 16px; }
   .viewport[data-variant="sale"] { --carousel-slide: 46%; --carousel-slide-min: 150px; }
   .viewport[data-variant="products"] { --carousel-slide: 58%; --carousel-slide-min: 170px; }
   .viewport[data-variant="categories"] { --carousel-slide: 72%; --carousel-slide-min: 200px; }

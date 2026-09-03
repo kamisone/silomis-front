@@ -9,8 +9,8 @@ import styles from "./HomeCarousel.module.css";
  * Each home section scrolls differently on purpose, so the variant is the one
  * thing a caller passes and everything that follows from it lives here:
  *
- *  collections — one dominant card with the next peeking in, slow and
- *                deliberate, because the point is to look at one thing.
+ *  collections — standard-sized cards, three across, unhurried — a normal
+ *                carousel rather than one oversized poster dominating the row.
  *  sale        — many small cards, tight, quick; a dense run of offers.
  *  products    — four and a half portrait cards, one card per press, a small
  *                movement that does not disturb the grid-like reading.
@@ -21,7 +21,7 @@ import styles from "./HomeCarousel.module.css";
 export type CarouselVariant = "collections" | "sale" | "products" | "categories" | "blog";
 
 const BEHAVIOUR: Record<CarouselVariant, { step: "card" | "page"; durationMs: number }> = {
-  collections: { step: "card", durationMs: 760 },
+  collections: { step: "card", durationMs: 680 },
   sale: { step: "card", durationMs: 320 },
   products: { step: "card", durationMs: 420 },
   categories: { step: "page", durationMs: 520 },
