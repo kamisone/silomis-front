@@ -14,7 +14,6 @@ interface RawCategory {
   name: string;
   parentId?: string | null;
   imageUrl?: string | null;
-  translations?: Record<string, Record<string, string>>;
 }
 interface Category {
   id: string;
@@ -116,12 +115,15 @@ export default function CommerceCategoryNav({ locale, className }: Props) {
   const triggerRefs = useRef(new Map<string, HTMLDivElement>());
 
   useEffect(() => {
-    fetch("/next-api/public/shop/categories")
+    // `lang` asks the API to overlay the admin's translated name for this
+    // locale — without it every locale got back the category's base-language
+    // name, which is what left the nav stuck on English after a switch.
+    fetch(`/next-api/public/shop/categories?lang=${locale}`)
       .then((r) => (r.ok ? r.json() : []))
       .then((data: RawCategory[]) => {
         const resolved = (Array.isArray(data) ? data : []).map((c) => ({
           id: c.id,
-          name: c.translations?.name?.[locale] ?? c.name,
+          name: c.name,
           parentId: c.parentId,
           // Already a full URL from the API — the same picture the home page's
           // category tiles use.

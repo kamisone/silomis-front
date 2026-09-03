@@ -75,7 +75,9 @@ export default function ShopListing() {
   const [categoriesLoaded, setCategoriesLoaded] = useState(false);
 
   useEffect(() => {
-    fetch("/next-api/public/shop/categories")
+    // `lang` overlays the admin's translated category names — without it this
+    // list came back in the base language regardless of locale.
+    fetch(`/next-api/public/shop/categories?lang=${locale}`)
       .then((r) => (r.ok ? r.json() : []))
       .then((data) => {
         setCategories(Array.isArray(data) ? data : []);
@@ -85,7 +87,7 @@ export default function ShopListing() {
         setCategories([]);
         setCategoriesLoaded(true);
       });
-  }, []);
+  }, [locale]);
 
   useEffect(() => {
     fetch(`/next-api/public/shop/promotions/active?lang=${locale}`)

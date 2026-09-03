@@ -205,7 +205,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
     layout.some((s) => s.type === "offer_banners" && (s.config.offerBanners?.length ?? 0) > 0);
   const [heroSlides, categories, featuredCollections, allCollections, promotions, posts, railProducts, promoProducts] = await Promise.all([
     present("hero") ? fetchHeroSlides(locale, t) : [],
-    present("categories") ? fetchJson<HomeCategory[]>("/shop/categories", []) : [],
+    present("categories") ? fetchJson<HomeCategory[]>(`/shop/categories?lang=${locale}`, []) : [],
     needsFeaturedCollections ? fetchJson<HomeCollection[]>(`/shop/collections/featured?lang=${locale}`, []) : [],
     needsAllCollections ? fetchJson<HomeCollection[]>(`/shop/collections?lang=${locale}`, []) : [],
     // The banner needs the promotion list, but so do the rails' per-product
