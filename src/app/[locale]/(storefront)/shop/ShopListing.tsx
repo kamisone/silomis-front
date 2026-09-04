@@ -8,7 +8,7 @@ import { getAncestorIds } from "@/lib/shop/categoryTree";
 import ProductCard, { type ProductListItem } from "@/components/shop/ProductCard";
 import CategoryHero from "@/components/shop/CategoryHero";
 import CategoryHeroSkeleton from "@/components/shop/CategoryHeroSkeleton";
-import CategoryFilterSidebar from "@/components/shop/CategoryFilterSidebar";
+import { CategoryFiltersProvider, CategoryFilterTrigger, CategoryFilterPanel } from "@/components/shop/CategoryFilterSidebar";
 import ProductGridSkeleton from "@/components/shop/ProductGridSkeleton";
 import type { PromotionInfo } from "@/components/shop/PromotionBadge";
 import { trackSearch } from "@/lib/shop/behaviorTracking";
@@ -228,106 +228,126 @@ export default function ShopListing() {
   // keeps the existing grid on screen instead of falling back to this.
   const initialLoading = !categoriesLoaded || (loading && !hasLoadedOnce);
 
+  // Written once and reused in both branches below: the shape is identical
+  // whether or not this category has filters, only the trigger button (which
+  // renders nothing on its own when `showsFilters` is false — see
+  // `CategoryFilterTrigger`) and the `CategoryFiltersProvider` wrapper differ.
+  const mainContent = (
+    <div className={styles.main}>
+      {/* The category name that would head this page is only known once
+          the tree has loaded — show its shape rather than nothing, so the
+          banner doesn't pop in a beat after the rest of the page. */}
+      {!categoriesLoaded && categoryId ? (
+        <CategoryHeroSkeleton />
+      ) : (
+        <>
+          {categoryPath.length > 0 && (
+            <nav className={styles.breadcrumbs} aria-label={t.shop.categoriesLabel}>
+              <Link href={`/${locale}`}>
+                {t.shop.homeBreadcrumb}
+              </Link>
+              {categoryPath.map((cat, i) => (
+                <span key={cat.id} className={styles.breadcrumbSegment}>
+                  <span className={styles.breadcrumbSep}>/</span>
+                  {i === categoryPath.length - 1 ? <span className={styles.breadcrumbCurrent}>{cat.name}</span> : <Link href={buildUrl({ categoryId: cat.id })}>{cat.name}</Link>}
+                </span>
+              ))}
+            </nav>
+          )}
+
+          {/* The category's masthead: the banner is the visual, its name and
+              description sit inside it at the lower left. See CategoryHero for
+              why the overlay adapts to how bright the artwork is. */}
+          {activeCategory && (
+            <CategoryHero
+              name={activeCategory.name}
+              description={activeCategory.description}
+              bannerUrl={activeCategory.bannerUrl}
+              parentName={parentCategory?.name}
+            />
+          )}
+        </>
+      )}
+
+      {/* Mobile-only "Filters" trigger, pinned to the bottom of the banner
+          above rather than floating as its own bar further down the page —
+          renders nothing until `showsFilters` is true and there's actually
+          something in this category to filter by. */}
+      {showsFilters && <CategoryFilterTrigger />}
+
+      {search && (
+        <p className={styles.searchNotice}>
+          {t.shop.searchResultsFor} &ldquo;{search}&rdquo;
+        </p>
+      )}
+
+      {/* A count of products belongs only where products are shown; over a
+          grid of categories it would be counting the wrong thing. Stays on
+          screen (with a spinner alongside) through a refetch instead of
+          disappearing and reappearing — only the first-ever load has
+          nothing worth showing yet. */}
+      {!showsSubcategories && hasLoadedOnce && (
+        <div className={styles.resultCountRow}>
+          <p className={styles.resultCount}>
+            {total} {total === 1 ? t.shop.resultSingular : t.shop.resultPlural}
+          </p>
+          {loading && <span className={styles.spinner} role="status" aria-live="polite" aria-label={t.shop.loading} />}
+        </div>
+      )}
+
+      {showsSubcategories ? (
+        <div className={styles.categoryGrid}>
+          {subcategories.map((cat) => (
+            <Link key={cat.id} href={buildUrl({ categoryId: cat.id })} className={styles.categoryCard}>
+              <span className={styles.categoryMedia}>
+                {cat.imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={cat.imageUrl} alt="" className={styles.categoryImage} loading="lazy" />
+                ) : (
+                  // A tinted panel rather than a hole in the grid, so an
+                  // unfinished catalogue still looks deliberate.
+                  <span className={styles.categoryImageFallback} aria-hidden="true" />
+                )}
+              </span>
+              <span className={styles.categoryBody}>
+                <span className={styles.categoryName}>{cat.name}</span>
+                {cat.description && <span className={styles.categoryDesc}>{cat.description}</span>}
+                <span className={styles.categoryCue}>
+                  {t.shop.browseCategory}
+                  <ArrowRight size={14} strokeWidth={2.25} aria-hidden="true" />
+                </span>
+              </span>
+            </Link>
+          ))}
+        </div>
+      ) : initialLoading ? (
+        <ProductGridSkeleton />
+      ) : products.length === 0 && !loading ? (
+        <div className={styles.empty}>{t.shop.noProductsFound}</div>
+      ) : (
+        // `loading` here only ever means "refetching with something to
+        // show already" — dimmed in place rather than swapped out, per
+        // `initialLoading` above having already claimed the empty case.
+        <div className={`${styles.productGrid} ${loading ? styles.productGridLoading : ""}`}>
+          {products.map((p) => (
+            <ProductCard key={p.id} product={p} promotion={toPromotionInfo(findMatchingPromotion(promotions, p.id, (p.categories ?? []).map((c) => c.id)))} locale={locale} t={t} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div className={styles.container}>
       <div className={`${styles.layout} ${showsFilters ? styles.layoutFiltered : ""}`}>
-        {showsFilters && <CategoryFilterSidebar categoryId={categoryId} resultCount={total} />}
-        <div className={styles.main}>
-          {/* The category name that would head this page is only known once
-              the tree has loaded — show its shape rather than nothing, so the
-              banner doesn't pop in a beat after the rest of the page. */}
-          {!categoriesLoaded && categoryId ? (
-            <CategoryHeroSkeleton />
-          ) : (
-            <>
-              {categoryPath.length > 0 && (
-                <nav className={styles.breadcrumbs} aria-label={t.shop.categoriesLabel}>
-                  <Link href={`/${locale}`}>
-                    {t.shop.homeBreadcrumb}
-                  </Link>
-                  {categoryPath.map((cat, i) => (
-                    <span key={cat.id} className={styles.breadcrumbSegment}>
-                      <span className={styles.breadcrumbSep}>/</span>
-                      {i === categoryPath.length - 1 ? <span className={styles.breadcrumbCurrent}>{cat.name}</span> : <Link href={buildUrl({ categoryId: cat.id })}>{cat.name}</Link>}
-                    </span>
-                  ))}
-                </nav>
-              )}
-
-              {/* The category's masthead: the banner is the visual, its name and
-                  description sit inside it at the lower left. See CategoryHero for
-                  why the overlay adapts to how bright the artwork is. */}
-              {activeCategory && (
-                <CategoryHero
-                  name={activeCategory.name}
-                  description={activeCategory.description}
-                  bannerUrl={activeCategory.bannerUrl}
-                  parentName={parentCategory?.name}
-                />
-              )}
-            </>
-          )}
-
-          {search && (
-            <p className={styles.searchNotice}>
-              {t.shop.searchResultsFor} &ldquo;{search}&rdquo;
-            </p>
-          )}
-
-          {/* A count of products belongs only where products are shown; over a
-              grid of categories it would be counting the wrong thing. Stays on
-              screen (with a spinner alongside) through a refetch instead of
-              disappearing and reappearing — only the first-ever load has
-              nothing worth showing yet. */}
-          {!showsSubcategories && hasLoadedOnce && (
-            <div className={styles.resultCountRow}>
-              <p className={styles.resultCount}>
-                {total} {total === 1 ? t.shop.resultSingular : t.shop.resultPlural}
-              </p>
-              {loading && <span className={styles.spinner} role="status" aria-live="polite" aria-label={t.shop.loading} />}
-            </div>
-          )}
-
-          {showsSubcategories ? (
-            <div className={styles.categoryGrid}>
-              {subcategories.map((cat) => (
-                <Link key={cat.id} href={buildUrl({ categoryId: cat.id })} className={styles.categoryCard}>
-                  <span className={styles.categoryMedia}>
-                    {cat.imageUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={cat.imageUrl} alt="" className={styles.categoryImage} loading="lazy" />
-                    ) : (
-                      // A tinted panel rather than a hole in the grid, so an
-                      // unfinished catalogue still looks deliberate.
-                      <span className={styles.categoryImageFallback} aria-hidden="true" />
-                    )}
-                  </span>
-                  <span className={styles.categoryBody}>
-                    <span className={styles.categoryName}>{cat.name}</span>
-                    {cat.description && <span className={styles.categoryDesc}>{cat.description}</span>}
-                    <span className={styles.categoryCue}>
-                      {t.shop.browseCategory}
-                      <ArrowRight size={14} strokeWidth={2.25} aria-hidden="true" />
-                    </span>
-                  </span>
-                </Link>
-              ))}
-            </div>
-          ) : initialLoading ? (
-            <ProductGridSkeleton />
-          ) : products.length === 0 && !loading ? (
-            <div className={styles.empty}>{t.shop.noProductsFound}</div>
-          ) : (
-            // `loading` here only ever means "refetching with something to
-            // show already" — dimmed in place rather than swapped out, per
-            // `initialLoading` above having already claimed the empty case.
-            <div className={`${styles.productGrid} ${loading ? styles.productGridLoading : ""}`}>
-              {products.map((p) => (
-                <ProductCard key={p.id} product={p} promotion={toPromotionInfo(findMatchingPromotion(promotions, p.id, (p.categories ?? []).map((c) => c.id)))} locale={locale} t={t} />
-              ))}
-            </div>
-          )}
-        </div>
+        {showsFilters && categoryId ? (
+          <CategoryFiltersProvider categoryId={categoryId}>
+            <CategoryFilterPanel resultCount={total} />
+            {mainContent}
+          </CategoryFiltersProvider>
+        ) : (
+          mainContent
+        )}
       </div>
     </div>
   );

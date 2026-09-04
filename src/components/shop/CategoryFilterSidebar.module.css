@@ -17,13 +17,26 @@
   }
 }
 
-/* The loading skeleton renders this same `.sidebar` class directly (it has
-   no trigger to open a drawer with, and no drawer content to show yet), so
-   below the breakpoint it should simply not exist rather than show as an
-   unstyled inline block. */
+/* The loading skeleton renders `.sidebar` directly for its desktop shape, but
+   also — unlike `FilterDrawerPanel`, which reuses this same class for its
+   card styling and needs it to stay silent at mobile widths so its own
+   `.panel` positioning isn't fought over — needs to actually disappear below
+   the breakpoint: it has no trigger to open a drawer with and no drawer
+   content to show yet, so a bare unstyled inline block would be worse than
+   nothing. A dedicated class, added only to the skeleton's own `<aside>`,
+   keeps that hide from ever landing on the real panel too. */
 @media (max-width: 900px) {
-  .sidebar {
+  .skeletonSidebar {
     display: none;
+  }
+}
+
+/* The category banner (CategoryHero) already carries its own bottom margin,
+   so the gap above the trigger takes care of itself — this only adds a
+   little breathing room below it, before the result count / grid. */
+@media (max-width: 900px) {
+  .heroFilterTrigger {
+    margin-bottom: 18px;
   }
 }
 

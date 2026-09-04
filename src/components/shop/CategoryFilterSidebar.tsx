@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import PriceRangeSlider from "./PriceRangeSlider";
 import Switch from "@/components/admin/ui/Switch";
-import FilterDrawer from "./FilterDrawer";
+import { FilterDrawerProvider, FilterDrawerTrigger, FilterDrawerPanel } from "./FilterDrawer";
 import { getTranslations } from "@/lib/i18n";
 import { useLocale } from "@/lib/i18n/useLocale";
 import skeleton from "./skeleton.module.css";
@@ -37,7 +37,7 @@ function centsToEuroLabel(cents: number): string {
  *  nothing to filter yet, so no trigger button and no drawer either. */
 function SidebarSkeleton() {
   return (
-    <aside className={styles.sidebar} aria-hidden="true">
+    <aside className={`${styles.sidebar} ${styles.skeletonSidebar}`} aria-hidden="true">
       <div className={styles.group}>
         <div className={`${skeleton.bar} ${styles.skeletonGroupTitle}`} />
         <div className={`${skeleton.bar} ${styles.skeletonSlider}`} />
@@ -54,22 +54,36 @@ function SidebarSkeleton() {
   );
 }
 
+interface CategoryFiltersState {
+  data: FiltersResponse | null;
+  selectedValueIds: Set<string>;
+  minPriceParam: string | null;
+  maxPriceParam: string | null;
+  toggleValue: (valueId: string) => void;
+  pushQuery: (updates: Record<string, string | null>) => void;
+}
+
+const CategoryFiltersContext = createContext<CategoryFiltersState | null>(null);
+
+function useCategoryFilters(): CategoryFiltersState {
+  const ctx = useContext(CategoryFiltersContext);
+  if (!ctx) throw new Error("CategoryFilterTrigger/Panel must be rendered inside a CategoryFiltersProvider");
+  return ctx;
+}
+
 /**
- * The category listing's filter sidebar: a price range plus one multi-select
- * checkbox group per filter the admin defined on this leaf category. Entirely
- * URL-driven — `minPrice`/`maxPrice` (cents, same convention `/shop/search`
- * already uses) and `filters` (comma-separated CategoryFilterValue ids) — so
- * every state is a real, shareable, back-button-safe link, and ShopListing
- * reads the very same params to build its product query.
- *
- * The mobile-drawer chrome (trigger, backdrop, slide-in panel, dismissal,
- * scroll lock, footer CTA) lives in the shared `FilterDrawer` — this
- * component only owns the actual filter content and the URL-driven state
- * behind it.
+ * Fetches this leaf category's filters once and shares them — plus the
+ * URL-driven selection state — between `CategoryFilterTrigger` and
+ * `CategoryFilterPanel`, which `ShopListing` renders at two different DOM
+ * positions: the trigger at the bottom of the category banner, the panel
+ * further down as the desktop sidebar column. Entirely URL-driven —
+ * `minPrice`/`maxPrice` (cents, same convention `/shop/search` already uses)
+ * and `filters` (comma-separated CategoryFilterValue ids) — so every state is
+ * a real, shareable, back-button-safe link, and ShopListing reads the very
+ * same params to build its product query.
  */
-export default function CategoryFilterSidebar({ categoryId, resultCount }: { categoryId: string; resultCount: number }) {
+export function CategoryFiltersProvider({ categoryId, children }: { categoryId: string; children: ReactNode }) {
   const locale = useLocale();
-  const t = getTranslations(locale);
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -112,6 +126,39 @@ export default function CategoryFilterSidebar({ categoryId, resultCount }: { cat
     pushQuery({ filters: next.size ? [...next].join(",") : null });
   }
 
+  return (
+    <CategoryFiltersContext.Provider value={{ data, selectedValueIds, minPriceParam, maxPriceParam, toggleValue, pushQuery }}>
+      <FilterDrawerProvider>{children}</FilterDrawerProvider>
+    </CategoryFiltersContext.Provider>
+  );
+}
+
+/** The mobile-only "Filters" button — pinned at the bottom of the category
+ *  banner (`ShopListing` places it right after `CategoryHero`), rather than
+ *  floating as its own bar above the grid. Renders nothing until the
+ *  category's filters are known and at least one actually applies — no
+ *  button to open a drawer with nothing in it. */
+export function CategoryFilterTrigger() {
+  const t = getTranslations(useLocale());
+  const { data, selectedValueIds, minPriceParam, maxPriceParam } = useCategoryFilters();
+  if (!data) return null;
+  const hasPrice = !!data.priceBounds;
+  if (data.filters.length === 0 && !hasPrice) return null;
+  const activeFilterCount = selectedValueIds.size + (minPriceParam || maxPriceParam ? 1 : 0);
+  return <FilterDrawerTrigger title={t.shop.filtersButtonLabel} activeCount={activeFilterCount} className={styles.heroFilterTrigger} />;
+}
+
+/**
+ * The actual filter content: a price range plus one multi-select checkbox
+ * group per filter the admin defined on this leaf category. On desktop this
+ * is the sticky sidebar column; below the drawer breakpoint it's the panel
+ * `CategoryFilterTrigger` opens.
+ */
+export function CategoryFilterPanel({ resultCount }: { resultCount: number }) {
+  const locale = useLocale();
+  const t = getTranslations(locale);
+  const { data, selectedValueIds, minPriceParam, maxPriceParam, toggleValue, pushQuery } = useCategoryFilters();
+
   if (!data) return <SidebarSkeleton />;
   const bounds = data.priceBounds;
   // Enabling the filter is enough to show the group — a category whose
@@ -122,13 +169,10 @@ export default function CategoryFilterSidebar({ categoryId, resultCount }: { cat
   const isPriceRange = hasPrice && bounds!.minCents < bounds!.maxCents;
   if (data.filters.length === 0 && !hasPrice) return null;
 
-  const activeFilterCount = selectedValueIds.size + (minPriceParam || maxPriceParam ? 1 : 0);
-
   return (
-    <FilterDrawer
+    <FilterDrawerPanel
       title={t.shop.filtersButtonLabel}
       closeLabel={t.shop.filtersCloseLabel}
-      activeCount={activeFilterCount}
       footerLabel={`${t.shop.filtersShowCta} · ${resultCount} ${resultCount === 1 ? t.shop.resultSingularCount : t.shop.resultPluralCount}`}
       className={styles.sidebar}
     >
@@ -174,6 +218,6 @@ export default function CategoryFilterSidebar({ categoryId, resultCount }: { cat
           </div>
         </div>
       ))}
-    </FilterDrawer>
+    </FilterDrawerPanel>
   );
 }
