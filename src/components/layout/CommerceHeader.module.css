@@ -112,16 +112,41 @@
   flex-shrink: 0;
 }
 
-/* ── Row 2: discovery navigation ── */
+/* ── Row 2: discovery navigation ──
+   `flex-start` is the only value guaranteed correct everywhere: with more
+   categories than fit, this row scrolls, and start-aligned content is always
+   reachable at scrollLeft 0. `safe center` would centre it instead whenever
+   it happens to fit, and is worth having on the desktop widths below where
+   this row realistically never overflows — but real iPhones have shown two
+   different failure modes from trying to use it more broadly: plain Safari
+   doesn't support `safe` and silently falls back to plain `center`, which
+   clips the first item's leading edge once the row overflows (seen on real
+   iPhones as "Collections" rendering as "llections"); and at least one iOS
+   Safari version *passes* the `@supports` check below yet still behaves like
+   plain `center` under overflow, clipping the same row from the other edge
+   instead (seen on an iPhone XR, where an iPhone 13 right beside it was
+   fine) — so `@supports` alone isn't a reliable enough guard on its own.
+   Chrome's device emulator never showed either failure, which is why this
+   only ever surfaced on physical phones. Keeping the enhancement inside a
+   min-width query as well means every narrow viewport gets the
+   unconditionally safe `flex-start` above, regardless of which of these bugs
+   (or a future one like them) a given Safari happens to have. */
 .menuRow {
   display: flex;
   align-items: center;
-  justify-content: safe center;
+  justify-content: flex-start;
   gap: 0.2rem;
   overflow-x: auto;
   scrollbar-width: none;
 }
 .menuRow::-webkit-scrollbar { display: none; }
+@media (min-width: 641px) {
+  @supports (justify-content: safe center) {
+    .menuRow {
+      justify-content: safe center;
+    }
+  }
+}
 
 .menuItem { flex-shrink: 0; }
 

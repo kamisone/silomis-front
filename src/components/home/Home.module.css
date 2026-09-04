@@ -637,14 +637,25 @@
   aspect-ratio: 1 / 1;
   border-radius: 26px;
   overflow: hidden;
+  /* iOS Safari specifically can drop a scrolled element's `overflow: hidden`
+     corner clip after a touch-drag release inside this carousel's native
+     scroll-snap track — the rounded corner comes back square. Forcing the
+     mask-based clipping path (rather than the plain layer clip) is the
+     standard fix; harmless everywhere else, since only WebKit reads it. */
+  -webkit-mask-image: -webkit-radial-gradient(white, black);
   background: var(--color-surface);
   border: 1px solid color-mix(in srgb, var(--foreground) 10%, transparent);
   text-decoration: none;
   transition: transform 0.18s, box-shadow 0.18s;
 }
-.categoryTile:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 10px 24px color-mix(in srgb, var(--foreground) 14%, transparent);
+/* Touch has no real hover — without this guard, the lift can stick after a
+   tap on iOS (and was also the transform most often in flight right as the
+   corner-clip bug above would strike). */
+@media (hover: hover) and (pointer: fine) {
+  .categoryTile:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 24px color-mix(in srgb, var(--foreground) 14%, transparent);
+  }
 }
 
 .categoryImage {
@@ -655,8 +666,10 @@
   object-fit: cover;
   transition: transform 0.4s ease;
 }
-.categoryTile:hover .categoryImage {
-  transform: scale(1.05);
+@media (hover: hover) and (pointer: fine) {
+  .categoryTile:hover .categoryImage {
+    transform: scale(1.05);
+  }
 }
 
 /* Fallback for a category with no picture: a tinted panel rather than a hole in
@@ -695,14 +708,19 @@
   flex-direction: column;
   border-radius: 20px;
   overflow: hidden;
+  /* See .categoryTile's own comment — same iOS Safari corner-clip bug, same
+     mask-based fix, in the same kind of scroll-snap carousel. */
+  -webkit-mask-image: -webkit-radial-gradient(white, black);
   background: var(--background);
   border: 1px solid color-mix(in srgb, var(--foreground) 11%, transparent);
   text-decoration: none;
   transition: transform 0.18s, box-shadow 0.18s;
 }
-.collectionCard:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 10px 26px color-mix(in srgb, var(--foreground) 14%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .collectionCard:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 26px color-mix(in srgb, var(--foreground) 14%, transparent);
+  }
 }
 
 /* Same 16:9 crop the blog cards use — a normal carousel of standard-sized
@@ -721,8 +739,10 @@
   display: block;
   transition: transform 0.4s ease;
 }
-.collectionCard:hover .collectionImage {
-  transform: scale(1.04);
+@media (hover: hover) and (pointer: fine) {
+  .collectionCard:hover .collectionImage {
+    transform: scale(1.04);
+  }
 }
 .collectionImageFallback {
   width: 100%;
@@ -848,14 +868,19 @@
   flex-direction: column;
   border-radius: 16px;
   overflow: hidden;
+  /* See .categoryTile's own comment — same iOS Safari corner-clip bug, same
+     mask-based fix, in the same kind of scroll-snap carousel. */
+  -webkit-mask-image: -webkit-radial-gradient(white, black);
   background: var(--background);
   border: 1px solid color-mix(in srgb, var(--foreground) 11%, transparent);
   text-decoration: none;
   transition: transform 0.18s, box-shadow 0.18s;
 }
-.blogCard:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 10px 26px color-mix(in srgb, var(--foreground) 14%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .blogCard:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 26px color-mix(in srgb, var(--foreground) 14%, transparent);
+  }
 }
 .blogMedia {
   position: relative;
@@ -870,8 +895,10 @@
   display: block;
   transition: transform 0.4s ease;
 }
-.blogCard:hover .blogImage {
-  transform: scale(1.04);
+@media (hover: hover) and (pointer: fine) {
+  .blogCard:hover .blogImage {
+    transform: scale(1.04);
+  }
 }
 .blogImageFallback {
   width: 100%;
