@@ -89,6 +89,47 @@
   background: var(--background);
 }
 
+/* Dissolves the banner into the page below it rather than cutting to it. Two
+   things make this read as one continuous surface instead of a pasted-on
+   strip:
+   1. An eased curve, not a straight ramp. A plain two-stop linear-gradient
+      has a sharp kink in its rate of change right where it starts (flat
+      photo, then suddenly a constant ramp) and another where it ends — the
+      eye is extremely sensitive to that *change in slope* (a Mach band),
+      independently of the colors being technically continuous. These nine
+      stops approximate a smoothstep S-curve, whose slope is zero at both
+      ends, so there is no kink for the eye to catch anywhere.
+   2. Reaching fully opaque `--background` exactly at the hero's own bottom
+      edge — not some in-between shade. The `.section` immediately below is
+      unpainted (see globals.css), i.e. the same solid color, so the two
+      meet as one identical, unbroken color rather than two different
+      elements whose shades merely happen to be close.
+   Sized as a percentage of the hero's own height (not a fixed px band) so
+   the same long, gradual proportion holds at every breakpoint and slide
+   height, and starts well up into the photo — per spec, the fade may cover
+   the lower portion of the image itself rather than being confined to a
+   thin strip at the very edge. z-index:auto keeps it under .heroCard's own
+   z-index:1, so it never washes out the copy panel. */
+.hero::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 56%;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    color-mix(in srgb, var(--background) 5.5%, transparent) 14.3%,
+    color-mix(in srgb, var(--background) 19.8%, transparent) 28.6%,
+    color-mix(in srgb, var(--background) 39.4%, transparent) 42.9%,
+    color-mix(in srgb, var(--background) 50%, transparent) 50%,
+    color-mix(in srgb, var(--background) 60.6%, transparent) 57.1%,
+    color-mix(in srgb, var(--background) 80.2%, transparent) 71.4%,
+    color-mix(in srgb, var(--background) 94.5%, transparent) 85.7%,
+    var(--background) 100%
+  );
+  pointer-events: none;
+}
+
 /* A horizontal strip that translates one viewport-width per slide. The flex row
    stretches every slide to the tallest one's height, so the hero never changes
    height mid-slide — the reason a stacked cross-fade was the safer option is
@@ -1092,6 +1133,86 @@
   color: var(--foreground);
 }
 
+/* ── FAQ ──
+   A narrower, centred column — the same "reading" treatment .seoText uses —
+   rather than the full section width every card grid above it takes. A wall
+   of full-bleed question rows would read as another merchandising rail; this
+   is the one place on the page meant to be read, not scanned. */
+.faqList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.faqItem {
+  border: 1px solid color-mix(in srgb, var(--foreground) 12%, transparent);
+  border-radius: 14px;
+  background: var(--background);
+  overflow: hidden;
+  transition: border-color 0.15s ease;
+}
+.faqItem:hover {
+  border-color: color-mix(in srgb, var(--foreground) 22%, transparent);
+}
+/* Answered rather than hovered: an open card keeps reading as "expanded"
+   even after the pointer moves off it. */
+.faqItem[open] {
+  border-color: color-mix(in srgb, var(--color-primary) 45%, transparent);
+}
+
+.faqToggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 17px 20px;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.faqToggle::-webkit-details-marker {
+  display: none;
+}
+
+.faqQuestion {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.4;
+  color: var(--foreground);
+}
+
+.faqChevronBadge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--foreground) 6%, transparent);
+  color: color-mix(in srgb, var(--foreground) 60%, var(--background));
+  transition: background 0.15s ease, color 0.15s ease, transform 0.2s ease;
+}
+.faqItem[open] .faqChevronBadge {
+  background: color-mix(in srgb, var(--color-primary) 14%, transparent);
+  color: var(--color-primary);
+  transform: rotate(180deg);
+}
+
+.faqAnswer {
+  margin: 0;
+  padding: 0 20px 19px;
+  font-size: 14px;
+  line-height: 1.7;
+  color: color-mix(in srgb, var(--foreground) 75%, var(--background));
+  /* The admin's textarea keeps real newlines — a second paragraph in an
+     answer should read as one, not run into the first. */
+  white-space: pre-line;
+}
+
 /* ── Reduced motion ── */
 
 @media (prefers-reduced-motion: reduce) {
@@ -1109,7 +1230,9 @@
   .blogImage,
   .heroCta,
   .heroCtaSecondary,
-  .promoCta {
+  .promoCta,
+  .faqItem,
+  .faqChevronBadge {
     transition: none;
   }
   .categoryTile:hover,

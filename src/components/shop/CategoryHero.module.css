@@ -1,28 +1,80 @@
 /* ── Category landing masthead ───────────────────────────────────────────────
    The banner is the visual; the name and description live inside it at the
-   lower left, under only as much overlay as readability needs.
+   lower left, over the same long white fade the home page hero fades into at
+   its own bottom edge.
 
    Playful but sophisticated: a generous radius and a friendly, heavy heading,
    with restraint everywhere else — no borders, no badges, no drop shadows
    competing with the photograph. */
+/* Full-bleed, like the home page's hero — edge to edge of the viewport
+   rather than inset inside the page's own reading column. */
 .hero {
   position: relative;
   isolation: isolate;
   display: flex;
   align-items: flex-end;
   overflow: hidden;
-  border-radius: 20px;
   background: var(--color-surface-tint);
-  /* Wide and shallow: this is the top of a listing page, and a tall banner
-     pushes the first row of products off the screen. */
-  aspect-ratio: 21 / 9;
-  max-height: 340px;
-  /* Explicit, because `max-height` on a box with an aspect ratio otherwise
-     feeds back into the width: the clamped height was resolving through the
-     ratio and shrinking the banner to 793px inside a 1160px column. Fixing the
-     width makes the ratio set the height and the cap simply cut it short. */
+  /* Matches the collection page's own banner (Collection.module.css's
+     .hero) rather than the shallower 21:9 this used before, so the two
+     banner types read as the same kind of thing across the shop. */
+  min-height: clamp(240px, 32vw, 420px);
   width: 100%;
   margin-bottom: 22px;
+}
+
+/* The same treatment as the home hero's own bottom fade (see
+   Home.module.css's .hero::after): nine stops approximating a smoothstep
+   S-curve, not a straight two-stop ramp — a plain linear-gradient has a kink
+   in its rate of change right where it starts, and the eye reads that kink
+   as an edge even though the colors are technically continuous. Sized as a
+   percentage of the banner's own height so the same long, gradual
+   proportion holds at every breakpoint, and reaches fully opaque
+   `--background` exactly at the hero's bottom edge — the same solid color
+   the page already is there, so the two meet as one unbroken surface.
+
+   Layered with a second glow anchored at the box's own bottom-left corner
+   (where the copy sits), fading out radially rather than as a horizontal
+   band: a plain `to right` gradient carries the same strength across every
+   row of the box regardless of how far down that row is, so it would
+   appear — and disappear — right at the box's own top edge as a visible
+   line, exactly where a horizontal band has nothing above it to fade from.
+   A radial gradient's strength depends on distance from the corner in every
+   direction at once, so moving straight up from the corner it fades toward
+   zero continuously long before the box's top edge, the same way it fades
+   moving right — nothing left to draw a line there. First-listed paints on
+   top; order doesn't change the math since both are the same color. */
+.heroPhoto::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 56%;
+  pointer-events: none;
+  background:
+    linear-gradient(
+      to bottom,
+      transparent 0%,
+      color-mix(in srgb, var(--background) 5.5%, transparent) 14.3%,
+      color-mix(in srgb, var(--background) 19.8%, transparent) 28.6%,
+      color-mix(in srgb, var(--background) 39.4%, transparent) 42.9%,
+      color-mix(in srgb, var(--background) 50%, transparent) 50%,
+      color-mix(in srgb, var(--background) 60.6%, transparent) 57.1%,
+      color-mix(in srgb, var(--background) 80.2%, transparent) 71.4%,
+      color-mix(in srgb, var(--background) 94.5%, transparent) 85.7%,
+      var(--background) 100%
+    ),
+    radial-gradient(
+      ellipse 68% 92% at 0% 100%,
+      color-mix(in srgb, var(--background) 80%, transparent) 0%,
+      color-mix(in srgb, var(--background) 76%, transparent) 8.9%,
+      color-mix(in srgb, var(--background) 64%, transparent) 17.7%,
+      color-mix(in srgb, var(--background) 48%, transparent) 26.6%,
+      color-mix(in srgb, var(--background) 40%, transparent) 31%,
+      color-mix(in srgb, var(--background) 32%, transparent) 35.4%,
+      color-mix(in srgb, var(--background) 16%, transparent) 44.3%,
+      color-mix(in srgb, var(--background) 4%, transparent) 53.1%,
+      transparent 62%
+    );
 }
 
 .image {
@@ -33,38 +85,6 @@
   object-fit: cover;
   /* Subjects in banner artwork sit centre or right; the copy takes the left. */
   object-position: center;
-  /* Positive, not negative: the hero paints its own background, and a
-     negative-z child under `isolation: isolate` ended up beneath it — the photo
-     loaded, sized correctly, and was invisible. Everything stacks upward from
-     here instead: picture, then wash, then words. */
-  z-index: 0;
-}
-
-/* ── The overlay ──
-   Diagonal rather than a full-width band, so it conditions the corner the text
-   occupies and fades out before the middle of the picture. Two stops on the
-   same axis: a firmer wash under the words, then a long tail that stops the
-   gradient itself from becoming a visible edge. */
-.scrim {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  pointer-events: none;
-}
-
-.heroDark .scrim {
-  background:
-    linear-gradient(to top, rgba(12, 16, 20, 0.78) 0%, rgba(12, 16, 20, 0.42) 28%, rgba(12, 16, 20, 0) 62%),
-    linear-gradient(to right, rgba(12, 16, 20, 0.5) 0%, rgba(12, 16, 20, 0) 58%);
-}
-
-/* Chosen automatically for pale artwork: over a high-key children's photograph
-   a black slab reads as a mistake, so the same geometry runs the other way and
-   the copy turns charcoal. */
-.heroLight .scrim {
-  background:
-    linear-gradient(to top, rgba(255, 255, 255, 0.88) 0%, rgba(255, 255, 255, 0.6) 28%, rgba(255, 255, 255, 0) 62%),
-    linear-gradient(to right, rgba(255, 255, 255, 0.62) 0%, rgba(255, 255, 255, 0) 58%);
 }
 
 /* No artwork at all: a soft brand band so the page still opens with something
@@ -81,7 +101,7 @@
 
 .copy {
   position: relative;
-  z-index: 2;
+  z-index: 1;
   width: 100%;
   /* Held to the left so the picture's subject stays visible beside it, and to a
      readable measure so a long description never runs the full banner width. */
@@ -97,6 +117,7 @@
   font-weight: 800;
   letter-spacing: 0.1em;
   text-transform: uppercase;
+  color: var(--color-primary);
 }
 
 /* Large, bold and friendly — tight tracking and a snug line height keep a
@@ -108,6 +129,7 @@
   line-height: 1.08;
   letter-spacing: -0.03em;
   text-wrap: balance;
+  color: var(--foreground);
 }
 
 .description {
@@ -115,6 +137,7 @@
   max-width: 44ch;
   font-size: clamp(0.875rem, 1.15vw, 1.0625rem);
   line-height: 1.65;
+  color: color-mix(in srgb, var(--foreground) 72%, var(--background));
   /* Concise by construction: three lines is a description, more is an article. */
   display: -webkit-box;
   -webkit-line-clamp: 3;
@@ -123,71 +146,22 @@
   overflow: hidden;
 }
 
-/* ── Colour per treatment ──
-   The text shadow is deliberately soft and wide rather than a hard outline: it
-   buys contrast over an unlucky highlight without the copy looking embossed. */
-.heroDark .title,
-.heroDark .description,
-.heroDark .eyebrow {
-  color: #fff;
-}
-.heroDark .title {
-  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.42);
-}
-.heroDark .description {
-  color: rgba(255, 255, 255, 0.92);
-  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.38);
-}
-.heroDark .eyebrow {
-  color: #fff;
-  opacity: 0.86;
-}
-
-.heroLight .title {
-  color: #14181c;
-}
-.heroLight .description {
-  color: rgba(20, 24, 28, 0.78);
-}
-.heroLight .eyebrow {
-  color: var(--color-primary);
-}
-
-.heroPlain .title {
-  color: var(--foreground);
-}
-.heroPlain .description {
-  color: color-mix(in srgb, var(--foreground) 68%, var(--background));
-}
-.heroPlain .eyebrow {
-  color: var(--color-primary);
-}
-
 /* ── Tablet ──
-   The banner squares up as the column narrows, and the copy is allowed more of
-   the width because there is less picture to protect. */
+   The copy is allowed more of the width as the column narrows, because
+   there is less picture to protect beside it. */
 @media (max-width: 1024px) {
-  .hero {
-    aspect-ratio: 16 / 9;
-    max-height: 300px;
-  }
   .copy {
     max-width: 72%;
   }
 }
 
 /* ── Phones ──
-   Full-bleed to the viewport edges, matching the home page's hero, and the copy
-   takes the full width — at this size protecting a slice of photograph costs
-   more than it saves. Type steps down so the words sit in the picture rather
-   than filling it. */
+   The copy takes the full width at this size — protecting a slice of
+   photograph beside it costs more than it saves. Type steps down so the
+   words sit in the picture rather than filling it. */
 @media (max-width: 640px) {
   .hero {
-    width: calc(100% + 40px);
-    margin-inline: -20px;
-    border-radius: 0;
-    aspect-ratio: 3 / 2;
-    max-height: 260px;
+    min-height: 180px;
   }
   .copy {
     max-width: 100%;
@@ -204,12 +178,10 @@
     -webkit-line-clamp: 2;
     line-clamp: 2;
   }
-  /* The wash has to reach further up a shorter banner to cover the same copy. */
-  .heroDark .scrim {
-    background: linear-gradient(to top, rgba(12, 16, 20, 0.82) 0%, rgba(12, 16, 20, 0.45) 42%, rgba(12, 16, 20, 0) 78%);
-  }
-  .heroLight .scrim {
-    background: linear-gradient(to top, rgba(255, 255, 255, 0.92) 0%, rgba(255, 255, 255, 0.62) 42%, rgba(255, 255, 255, 0) 78%);
+  /* A shorter banner needs the fade to cover more of it to keep the same
+     proportion of solid ground under the copy. */
+  .heroPhoto::after {
+    height: 66%;
   }
   .heroPlain {
     min-height: 150px;

@@ -1,7 +1,17 @@
 .container {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 24px 20px 64px;
+  padding: 0 20px 64px;
+  width: 100%;
+}
+
+/* Sits above the full-bleed CategoryHero banner, so the breadcrumb trail
+   (and its loading-skeleton stand-in) keeps the page's normal reading width
+   even though the banner beneath it doesn't. */
+.breadcrumbBar {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px 20px 0;
   width: 100%;
 }
 

@@ -19,7 +19,7 @@ import {
   type SectionField,
 } from "@/components/home/sectionTypes";
 import LocalizedTextField from "@/components/admin/ui/LocalizedTextField";
-import type { OfferBanner, TrustBarItem } from "@/components/home/sectionTypes";
+import type { HomeFaqItem, OfferBanner, TrustBarItem } from "@/components/home/sectionTypes";
 import styles from "./HomeSections.module.css";
 
 // Every text field on this page is ordinary copy, so one endpoint serves them
@@ -241,6 +241,7 @@ export default function SectionSettings({
     (has("collections") && (config.collectionIds?.length ?? 0) > 0);
   const trustItems = config.trustItems ?? [];
   const offerBanners = config.offerBanners ?? [];
+  const faqItems = config.faqItems ?? [];
 
 
   function setTrustItems(next: TrustBarItem[]) {
@@ -248,6 +249,13 @@ export default function SectionSettings({
   }
   function patchTrustItem(id: string, patch: Partial<TrustBarItem>) {
     setTrustItems(trustItems.map((it) => (it.id === id ? { ...it, ...patch } : it)));
+  }
+
+  function setFaqItems(next: HomeFaqItem[]) {
+    onChange({ faqItems: next });
+  }
+  function patchFaqItem(id: string, patch: Partial<HomeFaqItem>) {
+    setFaqItems(faqItems.map((it) => (it.id === id ? { ...it, ...patch } : it)));
   }
 
   /** Every collection, plus whatever a banner already points at — a collection
@@ -602,6 +610,70 @@ export default function SectionSettings({
                         onCommit={(sub) => patchTrustItem(item.id, { sub })}
                         placeholder="On eligible orders"
                         translateEndpoint={TRANSLATE_TEXT}
+                        disabled={saving}
+                      />
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </div>
+        )}
+
+        {has("faqItems") && (
+          <div className={styles.fieldFull}>
+            <div className={styles.repeaterHead}>
+              <span className={styles.fieldLabel}>Questions</span>
+              <button
+                type="button"
+                className={styles.repeaterAdd}
+                onClick={() => setFaqItems([...faqItems, { id: `f${Date.now().toString(36)}`, question: {}, answer: {} }])}
+                disabled={saving}
+              >
+                <Plus size={13} strokeWidth={2.5} />
+                Add
+              </button>
+            </div>
+
+            {faqItems.length === 0 ? (
+              <p className={styles.repeaterEmpty}>
+                No questions yet — the section stays hidden on the storefront until you add at least one.
+              </p>
+            ) : (
+              <ol className={styles.repeaterList}>
+                {faqItems.map((item, i) => (
+                  <li key={item.id} className={styles.repeaterItem}>
+                    <div className={styles.repeaterItemHead}>
+                      <span className={styles.repeaterRank}>{i + 1}</span>
+                      <button
+                        type="button"
+                        className={styles.repeaterRemove}
+                        onClick={() => setFaqItems(faqItems.filter((it) => it.id !== item.id))}
+                        disabled={saving}
+                        aria-label="Remove question"
+                      >
+                        <X size={13} strokeWidth={2.4} />
+                      </button>
+                    </div>
+                    <div className={styles.repeaterFields}>
+                      <LocalizedTextField
+                        label="Question"
+                        value={item.question}
+                        onCommit={(question) => patchFaqItem(item.id, { question })}
+                        placeholder="Do you ship internationally?"
+                        translateEndpoint={TRANSLATE_TEXT}
+                        maxLength={300}
+                        disabled={saving}
+                      />
+                      <LocalizedTextField
+                        label="Answer"
+                        value={item.answer}
+                        onCommit={(answer) => patchFaqItem(item.id, { answer })}
+                        placeholder="Yes — we deliver to most of the EU, with rates shown at checkout."
+                        translateEndpoint={TRANSLATE_TEXT}
+                        multiline
+                        rows={3}
+                        maxLength={2000}
                         disabled={saving}
                       />
                     </div>

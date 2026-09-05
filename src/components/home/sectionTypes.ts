@@ -21,6 +21,7 @@ export const HOME_SECTION_TYPES = [
   "section_heading",
   "separator",
   "seo_text",
+  "faqs",
 ] as const;
 
 export type HomeSectionType = (typeof HOME_SECTION_TYPES)[number];
@@ -34,6 +35,15 @@ export interface TrustBarItem {
   icon: string;
   label?: LocalizedText;
   sub?: LocalizedText;
+}
+
+/** One question/answer pair in the home page's FAQ section. Unlike a
+ *  product's FAQ list, there is no `isActive` toggle — this list is short and
+ *  admin-curated by hand, so removing an entry is just deleting it. */
+export interface HomeFaqItem {
+  id: string;
+  question?: LocalizedText;
+  answer?: LocalizedText;
 }
 
 /**
@@ -143,6 +153,11 @@ export interface HomeSectionConfig {
 
   /** trust_bar only: the reassurances, in order. Absent means the built-in four. */
   trustItems?: TrustBarItem[];
+
+  /** faqs only: the question/answer pairs, in the order they're shown. Empty
+   *  or absent means the whole section renders nothing — there is no built-in
+   *  default FAQ content the way trust_bar has a default four reassurances. */
+  faqItems?: HomeFaqItem[];
 
   /**
    * offer_banners only: the five pictures, in slot order — see OFFER_SLOTS.
@@ -257,7 +272,7 @@ export function newSectionConfig(type: HomeSectionType): HomeSectionConfig {
  * Sections that draw no data of their own. The storefront skips every catalogue
  * query for these, and the admin card shows copy fields instead of item counts.
  */
-export const EDITORIAL_SECTION_TYPES = ["section_heading", "separator", "seo_text"] as const;
+export const EDITORIAL_SECTION_TYPES = ["section_heading", "separator", "seo_text", "faqs"] as const;
 
 export type SectionField =
   | "limit"
@@ -269,6 +284,7 @@ export type SectionField =
   | "categories"
   | "collections"
   | "trustItems"
+  | "faqItems"
   | "offerBanners"
   | "viewAll"
   | "title"
@@ -343,5 +359,10 @@ export const SECTION_META: Record<
     label: "SEO text",
     description: "Long-form copy for the bottom of the page. Mostly for search engines — set in quieter type than the rest of the page.",
     fields: ["heading", "body"],
+  },
+  faqs: {
+    label: "FAQs",
+    description: "Common questions and answers, shown as an expandable list. Leave empty to hide the section entirely.",
+    fields: ["title", "faqItems"],
   },
 };

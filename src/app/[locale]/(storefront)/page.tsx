@@ -12,6 +12,7 @@ import BlogTeasers, { type HomePost } from "@/components/home/BlogTeasers";
 import SectionHeading from "@/components/home/SectionHeading";
 import SectionSeparator from "@/components/home/SectionSeparator";
 import SeoText from "@/components/home/SeoText";
+import Faqs from "@/components/home/Faqs";
 import {
   DEFAULT_HOME_SECTIONS,
   localized,
@@ -382,6 +383,9 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             return (
               <SeoText key={section.id} config={section.config} locale={locale} tinted={tintIndex++ % 2 === 1} />
             );
+
+          case "faqs":
+            return <Faqs key={section.id} config={section.config} locale={locale} t={t} tinted={tintIndex++ % 2 === 1} />;
 
           case "blog_posts":
             return (

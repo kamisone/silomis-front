@@ -153,6 +153,23 @@ const PREVIEWS: Record<HomeSectionType, React.ReactNode> = {
       <B x={54} y={46} w={44} h={12} />
     </>
   ),
+  // A heading over a short accordion: one open row with an answer line, two
+  // closed rows below it, each with a toggle dot at the end.
+  faqs: (
+    <>
+      <L x={6} y={8} w={30} o={0.42} />
+      <B x={6} y={16} w={92} h={16} o={0.14} r={3} />
+      <L x={10} y={21} w={62} o={0.5} />
+      <circle cx={92} cy={22} r="2.4" fill="currentColor" opacity={0.4} />
+      <L x={10} y={27} w={46} o={0.22} />
+      <B x={6} y={35} w={92} h={9} o={0.14} r={3} />
+      <L x={10} y={39} w={54} o={0.4} />
+      <circle cx={92} cy={39.5} r="2.4" fill="currentColor" opacity={0.4} />
+      <B x={6} y={47} w={92} h={9} o={0.14} r={3} />
+      <L x={10} y={51} w={48} o={0.4} />
+      <circle cx={92} cy={51.5} r="2.4" fill="currentColor" opacity={0.4} />
+    </>
+  ),
   // Three article cards: wide image, category line, headline.
   blog_posts: (
     <>

@@ -10,7 +10,9 @@ import skeleton from "./skeleton.module.css";
 export default function CategoryHeroSkeleton() {
   return (
     <div aria-hidden="true">
-      <div className={`${skeleton.bar}`} style={{ height: 13, width: 160, marginBottom: 12, borderRadius: 4 }} />
+      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "20px 20px 0", width: "100%" }}>
+        <div className={`${skeleton.bar}`} style={{ height: 13, width: 160, marginBottom: 12, borderRadius: 4 }} />
+      </div>
       <div className={`${heroStyles.hero} ${skeleton.block}`} />
     </div>
   );

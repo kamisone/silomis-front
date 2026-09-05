@@ -232,43 +232,46 @@ export default function ShopListing() {
   // whether or not this category has filters, only the trigger button (which
   // renders nothing on its own when `showsFilters` is false — see
   // `CategoryFilterTrigger`) and the `CategoryFiltersProvider` wrapper differ.
-  const mainContent = (
-    <div className={styles.main}>
-      {/* The category name that would head this page is only known once
-          the tree has loaded — show its shape rather than nothing, so the
-          banner doesn't pop in a beat after the rest of the page. */}
-      {!categoriesLoaded && categoryId ? (
-        <CategoryHeroSkeleton />
-      ) : (
-        <>
-          {categoryPath.length > 0 && (
-            <nav className={styles.breadcrumbs} aria-label={t.shop.categoriesLabel}>
-              <Link href={`/${locale}`}>
-                {t.shop.homeBreadcrumb}
-              </Link>
-              {categoryPath.map((cat, i) => (
-                <span key={cat.id} className={styles.breadcrumbSegment}>
-                  <span className={styles.breadcrumbSep}>/</span>
-                  {i === categoryPath.length - 1 ? <span className={styles.breadcrumbCurrent}>{cat.name}</span> : <Link href={buildUrl({ categoryId: cat.id })}>{cat.name}</Link>}
-                </span>
-              ))}
-            </nav>
-          )}
-
-          {/* The category's masthead: the banner is the visual, its name and
-              description sit inside it at the lower left. See CategoryHero for
-              why the overlay adapts to how bright the artwork is. */}
-          {activeCategory && (
-            <CategoryHero
-              name={activeCategory.name}
-              description={activeCategory.description}
-              bannerUrl={activeCategory.bannerUrl}
-              parentName={parentCategory?.name}
-            />
-          )}
-        </>
+  // The category name that would head this page is only known once the tree
+  // has loaded — show its shape rather than nothing, so the banner doesn't
+  // pop in a beat after the rest of the page. Rendered full-bleed, outside
+  // the reading-width container below, like the home hero.
+  const masthead = !categoriesLoaded && categoryId ? (
+    <CategoryHeroSkeleton />
+  ) : (
+    <>
+      {categoryPath.length > 0 && (
+        <div className={styles.breadcrumbBar}>
+          <nav className={styles.breadcrumbs} aria-label={t.shop.categoriesLabel}>
+            <Link href={`/${locale}`}>
+              {t.shop.homeBreadcrumb}
+            </Link>
+            {categoryPath.map((cat, i) => (
+              <span key={cat.id} className={styles.breadcrumbSegment}>
+                <span className={styles.breadcrumbSep}>/</span>
+                {i === categoryPath.length - 1 ? <span className={styles.breadcrumbCurrent}>{cat.name}</span> : <Link href={buildUrl({ categoryId: cat.id })}>{cat.name}</Link>}
+              </span>
+            ))}
+          </nav>
+        </div>
       )}
 
+      {/* The category's masthead: the banner is the visual, its name and
+          description sit inside it at the lower left. See CategoryHero for
+          why the overlay adapts to how bright the artwork is. */}
+      {activeCategory && (
+        <CategoryHero
+          name={activeCategory.name}
+          description={activeCategory.description}
+          bannerUrl={activeCategory.bannerUrl}
+          parentName={parentCategory?.name}
+        />
+      )}
+    </>
+  );
+
+  const mainContent = (
+    <div className={styles.main}>
       {/* Mobile-only "Filters" trigger, pinned to the bottom of the banner
           above rather than floating as its own bar further down the page —
           renders nothing until `showsFilters` is true and there's actually
@@ -338,17 +341,20 @@ export default function ShopListing() {
   );
 
   return (
-    <div className={styles.container}>
-      <div className={`${styles.layout} ${showsFilters ? styles.layoutFiltered : ""}`}>
-        {showsFilters && categoryId ? (
-          <CategoryFiltersProvider categoryId={categoryId}>
-            <CategoryFilterPanel resultCount={total} />
-            {mainContent}
-          </CategoryFiltersProvider>
-        ) : (
-          mainContent
-        )}
+    <>
+      {masthead}
+      <div className={styles.container}>
+        <div className={`${styles.layout} ${showsFilters ? styles.layoutFiltered : ""}`}>
+          {showsFilters && categoryId ? (
+            <CategoryFiltersProvider categoryId={categoryId}>
+              <CategoryFilterPanel resultCount={total} />
+              {mainContent}
+            </CategoryFiltersProvider>
+          ) : (
+            mainContent
+          )}
+        </div>
       </div>
-    </div>
+    </>
   );
 }

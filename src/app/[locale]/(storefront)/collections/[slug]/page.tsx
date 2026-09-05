@@ -160,24 +160,29 @@ export default async function CollectionPage({ params, searchParams }: PageProps
   };
 
   return (
-    <div className={styles.container}>
-      <nav className={styles.breadcrumbs} aria-label={t.shop.collectionsTitle}>
-        <Link href={`/${locale}/collections`}>{t.shop.collectionsTitle}</Link>
-        <span className={styles.breadcrumbSep}>/</span>
-        <span className={styles.breadcrumbCurrent}>{collection.name}</span>
-      </nav>
+    <>
+      <div className={styles.breadcrumbBar}>
+        <nav className={styles.breadcrumbs} aria-label={t.shop.collectionsTitle}>
+          <Link href={`/${locale}/collections`}>{t.shop.collectionsTitle}</Link>
+          <span className={styles.breadcrumbSep}>/</span>
+          <span className={styles.breadcrumbCurrent}>{collection.name}</span>
+        </nav>
+      </div>
 
+      {/* Full-bleed, outside the reading-width container, like the home hero. */}
       <div className={styles.hero}>
         {heroImageUrl && (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={heroImageUrl} alt="" className={styles.heroImage} />
         )}
+        <div className={styles.heroFade} aria-hidden="true" />
         <div className={styles.heroOverlay}>
           <h1 className={styles.heroTitle}>{heroTitle}</h1>
           {heroSubtitle && <p className={styles.heroDesc}>{heroSubtitle}</p>}
         </div>
       </div>
 
+      <div className={styles.container}>
       {collection.heroCopy && <p className={styles.heroCopy}>{collection.heroCopy}</p>}
 
       {total > 0 && (
@@ -235,6 +240,7 @@ export default async function CollectionPage({ params, searchParams }: PageProps
       )}
 
       {collection.bodyHtml && <div className={styles.bodyHtml} dangerouslySetInnerHTML={{ __html: collection.bodyHtml }} />}
-    </div>
+      </div>
+    </>
   );
 }

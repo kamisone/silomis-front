@@ -141,6 +141,11 @@ function settingsSummary(section: HomeSection, catalogue: Catalogue): string | n
     parts.push(items.length ? countLabel(items.length, "reassurance") : "Built-in four");
   }
 
+  if (section.type === "faqs") {
+    const items = config.faqItems ?? [];
+    parts.push(items.length ? countLabel(items.length, "question") : "No questions yet — hidden");
+  }
+
   if (fields.includes("title")) {
     const title = localized(config.title, DEFAULT_LOCALE);
     if (title) parts.push(`\u201c${title}\u201d`);

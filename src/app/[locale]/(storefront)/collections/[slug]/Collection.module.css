@@ -1,7 +1,16 @@
 .container {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 24px 20px 64px;
+  padding: 0 20px 64px;
+  width: 100%;
+}
+
+/* Sits above the full-bleed hero, so the breadcrumb trail keeps the page's
+   normal reading width even though the banner beneath it doesn't. */
+.breadcrumbBar {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px 20px 0;
   width: 100%;
 }
 
@@ -25,11 +34,14 @@
   font-weight: 600;
 }
 
+/* Full-bleed, like the home page's hero — edge to edge of the viewport rather
+   than inset inside the page's own reading column. */
 .hero {
   position: relative;
-  border-radius: 18px;
+  isolation: isolate;
   overflow: hidden;
-  min-height: 240px;
+  width: 100%;
+  min-height: clamp(240px, 32vw, 420px);
   display: flex;
   align-items: flex-end;
   background: var(--color-surface-tint);
@@ -44,24 +56,79 @@
   object-fit: cover;
 }
 
+/* The same treatment as the home hero's own bottom fade (see
+   Home.module.css's .hero::after): nine stops approximating a smoothstep
+   S-curve, not a straight two-stop ramp — a plain linear-gradient has a kink
+   in its rate of change right where it starts, and the eye reads that kink
+   as an edge even though the colors are technically continuous. Sized as a
+   percentage of the banner's own height so the same long, gradual
+   proportion holds at every banner height, and reaches fully opaque
+   `--background` exactly at the hero's bottom edge — the same solid color
+   the page already is there, so the two meet as one unbroken surface. Sits
+   behind .heroOverlay (z-index:1) and in front of the photo.
+
+   Layered with a second glow anchored at the box's own bottom-left corner
+   (where the title and description start flush left), fading out radially
+   rather than as a horizontal band: a plain `to right` gradient carries the
+   same strength across every row of the box regardless of how far down that
+   row is, so it would appear — and disappear — right at the box's own top
+   edge as a visible line, exactly where a horizontal band has nothing above
+   it to fade from. A radial gradient's strength depends on distance from
+   the corner in every direction at once, so moving straight up from the
+   corner it fades toward zero continuously long before the box's top edge,
+   the same way it fades moving right — nothing left to draw a line there. */
+.heroFade {
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 56%;
+  pointer-events: none;
+  background:
+    linear-gradient(
+      to bottom,
+      transparent 0%,
+      color-mix(in srgb, var(--background) 5.5%, transparent) 14.3%,
+      color-mix(in srgb, var(--background) 19.8%, transparent) 28.6%,
+      color-mix(in srgb, var(--background) 39.4%, transparent) 42.9%,
+      color-mix(in srgb, var(--background) 50%, transparent) 50%,
+      color-mix(in srgb, var(--background) 60.6%, transparent) 57.1%,
+      color-mix(in srgb, var(--background) 80.2%, transparent) 71.4%,
+      color-mix(in srgb, var(--background) 94.5%, transparent) 85.7%,
+      var(--background) 100%
+    ),
+    radial-gradient(
+      ellipse 68% 92% at 0% 100%,
+      color-mix(in srgb, var(--background) 80%, transparent) 0%,
+      color-mix(in srgb, var(--background) 76%, transparent) 8.9%,
+      color-mix(in srgb, var(--background) 64%, transparent) 17.7%,
+      color-mix(in srgb, var(--background) 48%, transparent) 26.6%,
+      color-mix(in srgb, var(--background) 40%, transparent) 31%,
+      color-mix(in srgb, var(--background) 32%, transparent) 35.4%,
+      color-mix(in srgb, var(--background) 16%, transparent) 44.3%,
+      color-mix(in srgb, var(--background) 4%, transparent) 53.1%,
+      transparent 62%
+    );
+}
+
+/* Sits over the fade, where it has already gone nearly opaque — no
+   background of its own needed any more; just the padding that holds the
+   title away from the edges. */
 .heroOverlay {
   position: relative;
   z-index: 1;
   width: 100%;
   padding: 32px 28px;
-  background: linear-gradient(0deg, color-mix(in srgb, var(--color-secondary) 78%, transparent) 0%, transparent 100%);
 }
 
 .heroTitle {
   font-size: 30px;
   font-weight: 800;
-  color: #fff;
+  color: var(--foreground);
   margin: 0 0 6px;
 }
 
 .heroDesc {
   font-size: 15px;
-  color: color-mix(in srgb, #fff 90%, transparent);
+  color: color-mix(in srgb, var(--foreground) 78%, var(--background));
   max-width: 620px;
   margin: 0;
 }
@@ -204,6 +271,11 @@
   .heroOverlay {
     padding: 22px 18px;
   }
+  /* A shorter banner needs the fade to cover more of it to keep the same
+     proportion of solid ground under the title. */
+  .heroFade {
+    height: 66%;
+  }
 }
 
 .productGrid {
@@ -232,14 +304,3 @@
   color: var(--color-primary);
 }
 
-/* ── Full-bleed on phones ──
-   The home page's hero meets the viewport edges, and an inset, rounded one on
-   every other page reads as a different kind of thing. Pulling it back through
-   the container's 20px gutter lines the two up. Only the picture bleeds — the
-   text below keeps its gutter. */
-@media (max-width: 640px) {
-  .hero {
-    margin-inline: -20px;
-    border-radius: 0;
-  }
-}
