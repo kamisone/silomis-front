@@ -244,6 +244,17 @@ export default function HomeHero({ slides, locale }: { slides: HeroSlide[]; loca
                   </>
                 )}
 
+                {/* The bottom fade into the page, per slide rather than once
+                    on the section. It has to be inside the slide because it
+                    has to paint *between* the picture and the copy card, and
+                    .heroTrack's transform makes this slide's whole subtree
+                    one stacking context — a pseudo-element on .hero could
+                    only ever be above all of it (washing out the card) or
+                    below all of it (hidden behind the photo). Every slide is
+                    the same height and full width, so one per slide renders
+                    identically to one on the section. */}
+                <span className={styles.heroFade} aria-hidden="true" />
+
                 <div className={`${styles.container} ${styles.heroInner}`}>
                   {/* The copy is a panel over the picture, not a caption across
                       it: it carries its own background, so legibility no longer

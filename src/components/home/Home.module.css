@@ -104,14 +104,29 @@
       unpainted (see globals.css), i.e. the same solid color, so the two
       meet as one identical, unbroken color rather than two different
       elements whose shades merely happen to be close.
-   Sized as a percentage of the hero's own height (not a fixed px band) so
+   Sized as a percentage of the slide's own height (not a fixed px band) so
    the same long, gradual proportion holds at every breakpoint and slide
    height, and starts well up into the photo — per spec, the fade may cover
    the lower portion of the image itself rather than being confined to a
-   thin strip at the very edge. z-index:auto keeps it under .heroCard's own
-   z-index:1, so it never washes out the copy panel. */
-.hero::after {
-  content: "";
+   thin strip at the very edge.
+
+   Lives inside .heroSlide, not on .hero, and that placement is load-bearing.
+   The fade has to paint *between* two things — above .heroImage/.heroScrim
+   so it actually fades the picture, below .heroCard so it never washes out
+   the copy — and both of those sit inside .heroTrack, which creates its own
+   stacking context (inline `transform` for the slide animation, plus
+   `will-change: transform`; either alone is enough). From outside that
+   context there is no z-index that lands between them: a pseudo-element on
+   .hero can only rank above the whole track (covering the card — the bug
+   this replaced) or below it (hidden behind the photo). Inside the slide it
+   sits naturally where it belongs: z-index:auto puts it in the same paint
+   step as .heroImage/.heroScrim and it comes after them in tree order, so
+   it covers them; .heroInner's own z-index:1 is a step above, so the card
+   and its buttons stay clear of it without needing a z-index of their own.
+
+   A real element rather than .heroSlide::after because .heroSlideGradient
+   already claims both of that element's pseudo-elements for its blooms. */
+.heroFade {
   position: absolute;
   inset: auto 0 0 0;
   height: 56%;
