@@ -119,18 +119,76 @@
   padding: 32px 28px;
 }
 
-.heroTitle {
-  font-size: 30px;
-  font-weight: 800;
-  color: var(--foreground);
-  margin: 0 0 6px;
+/* A soft glow behind the title, sized and positioned past .heroOverlay's own
+   box on every side (see the negative `inset`) so the white has room to
+   fade out *beyond* where the text sits rather than being cut off exactly
+   at the box's edge — heroOverlay itself is the full banner width, but the
+   words only occupy its left portion, so the glow is anchored there too
+   instead of spreading from dead centre. `farthest-side` (not
+   `closest-side`, which would collapse to nothing from an edge-anchored
+   point) sizes the ellipse to reach the far side smoothly, and the same
+   nine-stop eased curve used everywhere else in this file keeps the glow
+   itself free of any ring or edge. z-index:-1 keeps it behind the title and
+   description, both of which sit inside .heroOverlay's own local stacking
+   context (established by its own z-index:1). */
+.heroOverlay::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: -70% -10% -14% -6%;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse farthest-side at 12% 60%,
+    color-mix(in srgb, var(--background) 85%, transparent) 0%,
+    color-mix(in srgb, var(--background) 80%, transparent) 14.3%,
+    color-mix(in srgb, var(--background) 68%, transparent) 28.6%,
+    color-mix(in srgb, var(--background) 52%, transparent) 42.9%,
+    color-mix(in srgb, var(--background) 43%, transparent) 50%,
+    color-mix(in srgb, var(--background) 34%, transparent) 57.1%,
+    color-mix(in srgb, var(--background) 17%, transparent) 71.4%,
+    color-mix(in srgb, var(--background) 5%, transparent) 85.7%,
+    transparent 100%
+  );
 }
 
+/* The same script as the wordmark (see brandFont in app/layout.tsx) rather
+   than a bold sans, so a collection page opens with the same signature that
+   says "Silomis" everywhere else. Pacifico ships one weight — 800 would
+   only synthesize a fake bold and distort the strokes — and its loops need
+   room a negative tracking would crowd, so weight and letter-spacing both
+   reset to what the logo itself uses. Sized up from the old 30px, since a
+   script reads visually lighter than a bold sans at the same pixel height. */
+.heroTitle {
+  font-family: var(--font-brand), "Segoe UI", system-ui, sans-serif;
+  font-weight: 400;
+  font-size: clamp(2rem, 4vw, 2.75rem);
+  line-height: 1.25;
+  color: var(--foreground);
+  margin: 0 0 8px;
+}
+
+/* The short accent rule is what keeps the pairing from reading as two
+   unrelated typefaces stacked on each other: the script title above it and
+   this plain, confident sans below share nothing stylistically on their
+   own, but a small brand-teal mark between them reads as a deliberate
+   transition rather than an accident. */
 .heroDesc {
-  font-size: 15px;
-  color: color-mix(in srgb, var(--foreground) 78%, var(--background));
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.6;
+  letter-spacing: 0.005em;
+  color: color-mix(in srgb, var(--foreground) 76%, var(--background));
   max-width: 620px;
   margin: 0;
+}
+.heroDesc::before {
+  content: "";
+  display: block;
+  width: 34px;
+  height: 3px;
+  margin-bottom: 12px;
+  border-radius: 2px;
+  background: var(--color-primary);
 }
 
 .heroCopy {
@@ -263,7 +321,11 @@
     display: none;
   }
   .heroTitle {
-    font-size: 23px;
+    font-size: 1.9rem;
+  }
+  .heroDesc::before {
+    width: 26px;
+    margin-bottom: 8px;
   }
   .hero {
     min-height: 180px;

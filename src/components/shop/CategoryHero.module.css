@@ -112,6 +112,37 @@
   gap: 8px;
 }
 
+/* A soft glow behind the words rather than a hard-edged card, and — unlike a
+   background painted on .copy itself — not clipped to that box's own
+   padding edge: this pseudo-element is deliberately sized past it on every
+   side (see the negative `inset`), so the white has room to fade out
+   *beyond* the text block instead of being cut off exactly at its border.
+   Nine stops on the same eased curve used everywhere else in this file, so
+   the glow itself has no ring or edge visible in it. z-index:-1 keeps it
+   behind .copy's own text (both sit inside .copy's local stacking context,
+   which .copy's own z-index:1 establishes), and `ellipse closest-side`
+   means the fade completes exactly at this enlarged box's edge, not
+   .copy's — so it never gets cut short by the bleed either. */
+.copy::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: -22% -16%;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse closest-side at center,
+    color-mix(in srgb, var(--background) 85%, transparent) 0%,
+    color-mix(in srgb, var(--background) 80%, transparent) 14.3%,
+    color-mix(in srgb, var(--background) 68%, transparent) 28.6%,
+    color-mix(in srgb, var(--background) 52%, transparent) 42.9%,
+    color-mix(in srgb, var(--background) 43%, transparent) 50%,
+    color-mix(in srgb, var(--background) 34%, transparent) 57.1%,
+    color-mix(in srgb, var(--background) 17%, transparent) 71.4%,
+    color-mix(in srgb, var(--background) 5%, transparent) 85.7%,
+    transparent 100%
+  );
+}
+
 .eyebrow {
   font-size: clamp(10.5px, 1vw, 12px);
   font-weight: 800;
@@ -120,30 +151,53 @@
   color: var(--color-primary);
 }
 
-/* Large, bold and friendly — tight tracking and a snug line height keep a
-   two-word category feeling like a title rather than a label. */
+/* The same script as the wordmark (see brandFont in app/layout.tsx) rather
+   than the bold sans this used before, so a category page opens with the
+   same signature that says "Silomis" everywhere else. Pacifico ships one
+   weight — 800 would only synthesize a fake bold and distort the strokes —
+   and its loops need room a tight sans tracking would crowd, so weight and
+   letter-spacing both reset to what the logo itself uses. Sized up from the
+   old sans, since a script reads visually lighter than a bold sans at the
+   same pixel height. */
 .title {
   margin: 0;
-  font-size: clamp(1.75rem, 4.2vw, 3rem);
-  font-weight: 800;
-  line-height: 1.08;
-  letter-spacing: -0.03em;
+  font-family: var(--font-brand), "Segoe UI", system-ui, sans-serif;
+  font-weight: 400;
+  font-size: clamp(2.1rem, 5vw, 3.75rem);
+  line-height: 1.2;
+  letter-spacing: 0;
   text-wrap: balance;
   color: var(--foreground);
 }
 
+/* The short accent rule is what keeps the pairing from reading as two
+   unrelated typefaces stacked on top of each other: the script title above
+   it and this plain, confident sans below share nothing stylistically on
+   their own, but a small brand-teal mark between them reads as a deliberate
+   transition rather than an accident. */
 .description {
-  margin: 0;
+  margin: 10px 0 0;
   max-width: 44ch;
-  font-size: clamp(0.875rem, 1.15vw, 1.0625rem);
-  line-height: 1.65;
-  color: color-mix(in srgb, var(--foreground) 72%, var(--background));
+  font-size: clamp(0.9375rem, 1.2vw, 1.125rem);
+  font-weight: 500;
+  line-height: 1.7;
+  letter-spacing: 0.005em;
+  color: color-mix(in srgb, var(--foreground) 76%, var(--background));
   /* Concise by construction: three lines is a description, more is an article. */
   display: -webkit-box;
   -webkit-line-clamp: 3;
   line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+.description::before {
+  content: "";
+  display: block;
+  width: 34px;
+  height: 3px;
+  margin-bottom: 12px;
+  border-radius: 2px;
+  background: var(--color-primary);
 }
 
 /* ── Tablet ──
@@ -169,7 +223,7 @@
     gap: 6px;
   }
   .title {
-    font-size: clamp(1.4rem, 7vw, 1.9rem);
+    font-size: clamp(1.7rem, 9vw, 2.3rem);
   }
   .description {
     font-size: 0.8125rem;
@@ -177,6 +231,10 @@
     /* Two lines on a small screen: three starts to cover the picture. */
     -webkit-line-clamp: 2;
     line-clamp: 2;
+  }
+  .description::before {
+    width: 26px;
+    margin-bottom: 8px;
   }
   /* A shorter banner needs the fade to cover more of it to keep the same
      proportion of solid ground under the copy. */
