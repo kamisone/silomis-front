@@ -18,7 +18,7 @@
   /* Matches the collection page's own banner (Collection.module.css's
      .hero) rather than the shallower 21:9 this used before, so the two
      banner types read as the same kind of thing across the shop. */
-  min-height: clamp(240px, 32vw, 420px);
+  min-height: clamp(300px, 40vw, 520px);
   width: 100%;
   margin-bottom: 22px;
 }
@@ -91,7 +91,7 @@
    composed rather than a bare heading. */
 .heroPlain {
   aspect-ratio: auto;
-  min-height: 180px;
+  min-height: 230px;
   background: linear-gradient(
     135deg,
     color-mix(in srgb, var(--color-primary) 12%, var(--background)),
@@ -215,7 +215,7 @@
    words sit in the picture rather than filling it. */
 @media (max-width: 640px) {
   .hero {
-    min-height: 180px;
+    min-height: 230px;
   }
   .copy {
     max-width: 100%;
@@ -242,6 +242,6 @@
     height: 66%;
   }
   .heroPlain {
-    min-height: 150px;
+    min-height: 190px;
   }
 }

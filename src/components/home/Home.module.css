@@ -175,7 +175,7 @@
      card off to one side, and that only reads as composed if there is picture
      around it. Height is driven from here rather than from .heroInner's padding
      so a short slide and a long one still stand the same. */
-  min-height: clamp(440px, 46vw, 620px);
+  min-height: clamp(520px, 54vw, 720px);
 }
 
 /* Text-only slide — the original gradient treatment, kept so an editorial slide
@@ -284,7 +284,7 @@
      which is a different banner, not the same one composed differently.
      It is a minimum, so a slide whose copy needs more room still gets it. */
   .heroSlide {
-    min-height: clamp(200px, 56vw, 320px);
+    min-height: clamp(250px, 68vw, 400px);
   }
 
   /* The card is capped at half the screen so the picture it sits on is always

@@ -41,7 +41,9 @@
   isolation: isolate;
   overflow: hidden;
   width: 100%;
-  min-height: clamp(240px, 32vw, 420px);
+  /* Kept in step with the category banner (CategoryHero.module.css's .hero)
+     so the two read as the same kind of thing across the shop. */
+  min-height: clamp(300px, 40vw, 520px);
   display: flex;
   align-items: flex-end;
   background: var(--color-surface-tint);
@@ -328,7 +330,7 @@
     margin-bottom: 8px;
   }
   .hero {
-    min-height: 180px;
+    min-height: 230px;
   }
   .heroOverlay {
     padding: 22px 18px;
