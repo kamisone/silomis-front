@@ -112,10 +112,9 @@ interface FreeShipMethod {
   estimatedDaysMax: number;
   zone: { name: string; countryCodes?: string[] } | null;
 }
-/** A method the admin must enable per product — same shape, plus its own country scope. */
+/** A method the admin must enable per product. Its reach is its zone's. */
 interface OptInMethod extends FreeShipMethod {
   isActive: boolean;
-  supportedCountryCodes: string[];
 }
 interface Inventory {
   available: number;
@@ -1193,9 +1192,9 @@ export default function EditProductPage() {
                                 {" "}
                                 — €{(m.priceCents / 100).toFixed(2)} · {m.estimatedDaysMin}–{m.estimatedDaysMax} days
                               </span>
-                              {m.supportedCountryCodes?.length > 0 && (
+                              {(m.zone?.countryCodes?.length ?? 0) > 0 && (
                                 <span className={styles.hint} style={{ display: "block", fontSize: 11.5 }}>
-                                  Delivers to: {m.supportedCountryCodes.join(", ")} — not offered for any other destination
+                                  Delivers to: {m.zone!.countryCodes!.join(", ")} — not offered for any other destination
                                 </span>
                               )}
                               {!m.isActive && (

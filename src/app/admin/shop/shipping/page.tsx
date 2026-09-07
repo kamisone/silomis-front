@@ -57,7 +57,6 @@ interface Method {
   availableForFreeShipping: boolean;
   requiresProductOptIn: boolean;
   requiresPickupPoint: boolean;
-  supportedCountryCodes: string[];
   carrierCode: string | null;
 }
 
@@ -89,7 +88,6 @@ interface MethodForm {
   availableForFreeShipping: boolean;
   requiresProductOptIn: boolean;
   requiresPickupPoint: boolean;
-  supportedCountryCodes: string[];
   carrierCode: string;
 }
 
@@ -113,14 +111,17 @@ const ZONE_FORM_ID = "shipping-zone-form";
 const METHOD_FORM_ID = "shipping-method-form";
 
 /**
- * The countries the pickers offer, name first with the ISO code beneath.
+ * The countries a picker offers, name first with the ISO code beneath.
  *
  * A country that exists but is not shipping-enabled is still listed, marked as
  * such rather than hidden: a zone is often drawn up before the country is
  * switched on, and silently omitting it looks like the country is missing.
- * One already saved on a zone is kept in the list too — see `extra` — so a
- * later change in admin/shop/countries can never make a saved code vanish
- * from the form without a word.
+ * One already saved is kept in the list too — see `extra` — so a later change
+ * elsewhere can never make a saved code vanish from the form without a word.
+ *
+ * Countries belong to the zone and only to the zone: it is what a destination
+ * resolves to, and every method inside it inherits that reach. A method that
+ * should serve less than its zone belongs in a zone of its own.
  */
 function countryOptions(countries: Country[], extra: string[]): PickerOption[] {
   const known = new Set(countries.map((c) => c.isoCode));
@@ -131,18 +132,22 @@ function countryOptions(countries: Country[], extra: string[]): PickerOption[] {
     sublabel: c.isShippingEnabled ? c.isoCode : `${c.isoCode} · shipping off`,
   }));
   for (const code of extra) {
-    if (!known.has(code)) {
-      options.push({ id: code, label: code, chipLabel: `${flagEmoji(code)} ${code}`, sublabel: "No longer in your countries list" });
-    }
+    if (known.has(code)) continue;
+    options.push({
+      id: code,
+      label: code,
+      chipLabel: `${flagEmoji(code)} ${code}`,
+      sublabel: "No longer in your countries list",
+    });
   }
   return options;
 }
 
 /**
- * "FR" → 🇫🇷. An ISO 3166-1 alpha-2 code maps onto the flag by shifting each
- * letter into its regional-indicator symbol, so no flag assets or lookup table
- * are needed. A code that isn't two ASCII letters is returned unchanged rather
- * than turned into stray symbols.
+ * "FR" -> the flag. An ISO 3166-1 alpha-2 code maps onto its flag by shifting
+ * each letter into the matching regional-indicator symbol, so no flag assets
+ * or lookup table are needed. A code that isn't two ASCII letters is returned
+ * unchanged rather than turned into stray symbols.
  */
 function flagEmoji(isoCode: string): string {
   const code = isoCode.trim().toUpperCase();
@@ -227,7 +232,6 @@ export default function ShippingPage() {
       availableForFreeShipping: false,
       requiresProductOptIn: false,
       requiresPickupPoint: false,
-      supportedCountryCodes: [],
       carrierCode: "",
     };
   }
@@ -295,7 +299,6 @@ export default function ShippingPage() {
       requiresProductOptIn: methodForm.requiresProductOptIn,
       requiresPickupPoint: methodForm.requiresPickupPoint,
       carrierCode: methodForm.carrierCode.trim() || null,
-      supportedCountryCodes: methodForm.supportedCountryCodes,
     };
     try {
       let id = methodForm.id;
@@ -465,7 +468,6 @@ export default function ShippingPage() {
                             code: m.code ?? "",
                             requiresProductOptIn: m.requiresProductOptIn,
                             requiresPickupPoint: m.requiresPickupPoint,
-                            supportedCountryCodes: m.supportedCountryCodes ?? [],
                             carrierCode: m.carrierCode ?? "",
                           })
                         }
@@ -668,20 +670,6 @@ export default function ShippingPage() {
                 <label className={ui.label}>Est. days (max)</label>
                 <input className={ui.input} type="number" min={0} value={methodForm.estimatedDaysMax} onChange={(e) => setMethodForm({ ...methodForm, estimatedDaysMax: e.target.value })} />
               </div>
-            </div>
-            <div className={ui.field}>
-              <EntityPicker
-                label="Countries served"
-                hint="Narrows this method to part of its zone. Leave empty and it serves the whole zone."
-                options={countryOptions(countries, methodForm.supportedCountryCodes)}
-                value={methodForm.supportedCountryCodes}
-                onChange={(supportedCountryCodes) => setMethodForm({ ...methodForm, supportedCountryCodes })}
-                placeholder="Search countries…"
-                emptyLabel="No countries picked — serves the whole zone."
-                reorderable={false}
-                chips
-                disabled={saving}
-              />
             </div>
             <div className={ui.field}>
               <label className={ui.label}>Carrier code</label>

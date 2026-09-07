@@ -31,7 +31,6 @@ interface ShippingMethod {
   name: string;
   isActive: boolean;
   requiresPickupPoint: boolean;
-  supportedCountryCodes: string[];
   carrierCode: string | null;
 }
 
