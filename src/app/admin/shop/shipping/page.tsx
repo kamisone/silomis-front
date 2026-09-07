@@ -5,7 +5,17 @@ import { api, ApiError } from "@/lib/api";
 import { useToast } from "@/components/toast/ToastContext";
 import Button from "@/components/admin/ui/Button";
 import Modal from "@/components/admin/ui/Modal";
+import EntityPicker, { type PickerOption } from "@/components/admin/ui/EntityPicker";
 import ui from "@/components/admin/ui/admin-ui.module.css";
+
+/** The shipping-enabled subset of admin/shop/countries — a zone can only
+ *  serve somewhere that exists in the catalogue of countries. */
+interface Country {
+  isoCode: string;
+  name: string;
+  isActive: boolean;
+  isShippingEnabled: boolean;
+}
 
 interface Zone {
   id: string;
@@ -39,7 +49,7 @@ interface Method {
 interface ZoneForm {
   id: string | null;
   name: string;
-  countryCodes: string;
+  countryCodes: string[];
   isActive: boolean;
   surchargeCents: string;
   freeShippingThresholdCents: string;
@@ -62,7 +72,7 @@ interface MethodForm {
   requiresProductOptIn: boolean;
   requiresPickupPoint: boolean;
   /** Comma-separated ISO codes, same free-text convention as the zone form. */
-  supportedCountryCodes: string;
+  supportedCountryCodes: string[];
   carrierCode: string;
 }
 
@@ -70,14 +80,53 @@ function eur(cents: number): string {
   return (cents / 100).toLocaleString(undefined, { style: "currency", currency: "EUR" });
 }
 
-const EMPTY_ZONE_FORM: ZoneForm = { id: null, name: "", countryCodes: "", isActive: true, surchargeCents: "0", freeShippingThresholdCents: "", estimatedDeliveryDays: "" };
+const EMPTY_ZONE_FORM: ZoneForm = { id: null, name: "", countryCodes: [], isActive: true, surchargeCents: "0", freeShippingThresholdCents: "", estimatedDeliveryDays: "" };
 const ZONE_FORM_ID = "shipping-zone-form";
 const METHOD_FORM_ID = "shipping-method-form";
+
+/**
+ * The countries the pickers offer, name first with the ISO code beneath.
+ *
+ * A country that exists but is not shipping-enabled is still listed, marked as
+ * such rather than hidden: a zone is often drawn up before the country is
+ * switched on, and silently omitting it looks like the country is missing.
+ * One already saved on a zone is kept in the list too — see `extra` — so a
+ * later change in admin/shop/countries can never make a saved code vanish
+ * from the form without a word.
+ */
+function countryOptions(countries: Country[], extra: string[]): PickerOption[] {
+  const known = new Set(countries.map((c) => c.isoCode));
+  const options: PickerOption[] = countries.map((c) => ({
+    id: c.isoCode,
+    label: c.name,
+    chipLabel: `${flagEmoji(c.isoCode)} ${c.isoCode}`,
+    sublabel: c.isShippingEnabled ? c.isoCode : `${c.isoCode} · shipping off`,
+  }));
+  for (const code of extra) {
+    if (!known.has(code)) {
+      options.push({ id: code, label: code, chipLabel: `${flagEmoji(code)} ${code}`, sublabel: "No longer in your countries list" });
+    }
+  }
+  return options;
+}
+
+/**
+ * "FR" → 🇫🇷. An ISO 3166-1 alpha-2 code maps onto the flag by shifting each
+ * letter into its regional-indicator symbol, so no flag assets or lookup table
+ * are needed. A code that isn't two ASCII letters is returned unchanged rather
+ * than turned into stray symbols.
+ */
+function flagEmoji(isoCode: string): string {
+  const code = isoCode.trim().toUpperCase();
+  if (!/^[A-Z]{2}$/.test(code)) return isoCode;
+  return String.fromCodePoint(...[...code].map((c) => 0x1f1e6 + c.charCodeAt(0) - 65));
+}
 
 export default function ShippingPage() {
   const { toast } = useToast();
   const [zones, setZones] = useState<Zone[]>([]);
   const [methods, setMethods] = useState<Method[]>([]);
+  const [countries, setCountries] = useState<Country[]>([]);
   const [loading, setLoading] = useState(true);
   const [zoneForm, setZoneForm] = useState<ZoneForm | null>(null);
   const [methodForm, setMethodForm] = useState<MethodForm | null>(null);
@@ -86,9 +135,14 @@ export default function ShippingPage() {
   async function load() {
     setLoading(true);
     try {
-      const [z, m] = await Promise.all([api.get<Zone[]>("/next-api/admin/shop/shipping/zones"), api.get<Method[]>("/next-api/admin/shop/shipping/methods")]);
+      const [z, m, c] = await Promise.all([
+        api.get<Zone[]>("/next-api/admin/shop/shipping/zones"),
+        api.get<Method[]>("/next-api/admin/shop/shipping/methods"),
+        api.get<Country[]>("/next-api/admin/shop/countries"),
+      ]);
       setZones(z);
       setMethods(m);
+      setCountries(c);
     } finally {
       setLoading(false);
     }
@@ -114,7 +168,7 @@ export default function ShippingPage() {
       availableForFreeShipping: false,
       requiresProductOptIn: false,
       requiresPickupPoint: false,
-      supportedCountryCodes: "",
+      supportedCountryCodes: [],
       carrierCode: "",
     };
   }
@@ -126,10 +180,7 @@ export default function ShippingPage() {
     const isNew = !zoneForm.id;
     const payload = {
       name: zoneForm.name,
-      countryCodes: zoneForm.countryCodes
-        .split(",")
-        .map((c) => c.trim().toUpperCase())
-        .filter(Boolean),
+      countryCodes: zoneForm.countryCodes,
       isActive: zoneForm.isActive,
       surchargeCents: parseInt(zoneForm.surchargeCents || "0", 10),
       freeShippingThresholdCents: zoneForm.freeShippingThresholdCents ? parseInt(zoneForm.freeShippingThresholdCents, 10) : null,
@@ -182,10 +233,7 @@ export default function ShippingPage() {
       requiresProductOptIn: methodForm.requiresProductOptIn,
       requiresPickupPoint: methodForm.requiresPickupPoint,
       carrierCode: methodForm.carrierCode.trim() || null,
-      supportedCountryCodes: methodForm.supportedCountryCodes
-        .split(",")
-        .map((c) => c.trim().toUpperCase())
-        .filter(Boolean),
+      supportedCountryCodes: methodForm.supportedCountryCodes,
     };
     try {
       if (methodForm.id) {
@@ -262,7 +310,7 @@ export default function ShippingPage() {
                           setZoneForm({
                             id: z.id,
                             name: z.name,
-                            countryCodes: z.countryCodes.join(", "),
+                            countryCodes: z.countryCodes,
                             isActive: z.isActive,
                             surchargeCents: String(z.surchargeCents),
                             freeShippingThresholdCents: z.freeShippingThresholdCents !== null ? String(z.freeShippingThresholdCents) : "",
@@ -351,7 +399,7 @@ export default function ShippingPage() {
                             code: m.code ?? "",
                             requiresProductOptIn: m.requiresProductOptIn,
                             requiresPickupPoint: m.requiresPickupPoint,
-                            supportedCountryCodes: (m.supportedCountryCodes ?? []).join(", "),
+                            supportedCountryCodes: m.supportedCountryCodes ?? [],
                             carrierCode: m.carrierCode ?? "",
                           })
                         }
@@ -391,8 +439,18 @@ export default function ShippingPage() {
               <input className={ui.input} value={zoneForm.name} onChange={(e) => setZoneForm({ ...zoneForm, name: e.target.value })} required autoFocus />
             </div>
             <div className={ui.field}>
-              <label className={ui.label}>Country codes (comma-separated ISO codes, empty = worldwide fallback)</label>
-              <input className={ui.input} value={zoneForm.countryCodes} onChange={(e) => setZoneForm({ ...zoneForm, countryCodes: e.target.value })} placeholder="FR, BE, LU" />
+              <EntityPicker
+                label="Countries"
+                hint="Picked from the countries you have set up. Leave empty to make this the worldwide fallback zone."
+                options={countryOptions(countries, zoneForm.countryCodes)}
+                value={zoneForm.countryCodes}
+                onChange={(countryCodes) => setZoneForm({ ...zoneForm, countryCodes })}
+                placeholder="Search countries…"
+                emptyLabel="No countries picked — this zone is the worldwide fallback."
+                reorderable={false}
+                chips
+                disabled={saving}
+              />
             </div>
             <div className={ui.formGrid}>
               <div className={ui.field}>
@@ -482,12 +540,17 @@ export default function ShippingPage() {
               </div>
             </div>
             <div className={ui.field}>
-              <label className={ui.label}>Countries served</label>
-              <input
-                className={ui.input}
+              <EntityPicker
+                label="Countries served"
+                hint="Narrows this method to part of its zone. Leave empty and it serves the whole zone."
+                options={countryOptions(countries, methodForm.supportedCountryCodes)}
                 value={methodForm.supportedCountryCodes}
-                onChange={(e) => setMethodForm({ ...methodForm, supportedCountryCodes: e.target.value })}
-                placeholder="FR, BE, LU — leave empty for the whole zone"
+                onChange={(supportedCountryCodes) => setMethodForm({ ...methodForm, supportedCountryCodes })}
+                placeholder="Search countries…"
+                emptyLabel="No countries picked — serves the whole zone."
+                reorderable={false}
+                chips
+                disabled={saving}
               />
             </div>
             <div className={ui.field}>

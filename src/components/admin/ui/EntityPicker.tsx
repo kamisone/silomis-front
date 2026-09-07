@@ -8,6 +8,11 @@ import styles from "./EntityPicker.module.css";
 export interface PickerOption {
   id: string;
   label: string;
+  /** Short form for `chips` mode — a country's "🇫🇷 FR" against a label of
+   *  "France". The full label still drives search, so the dropdown stays
+   *  findable by name while the picked row stays compact. Falls back to
+   *  `label`. */
+  chipLabel?: string;
   /** Optional second line — a SKU, a price, a parent category. */
   sublabel?: string | null;
   imageUrl?: string | null;
@@ -43,6 +48,8 @@ export default function EntityPicker({
   loading = false,
   disabled = false,
   max,
+  reorderable = true,
+  chips = false,
 }: {
   label: string;
   hint?: string;
@@ -54,6 +61,18 @@ export default function EntityPicker({
   loading?: boolean;
   disabled?: boolean;
   max?: number;
+  /** False for a set whose order carries no meaning (a product's tags, the
+   *  countries in a shipping zone) — hides the rank number and the up/down
+   *  buttons, which otherwise imply a sequence nothing reads. Defaults to
+   *  true, so the home-section rails, where the order *is* the
+   *  merchandising, are unaffected. */
+  reorderable?: boolean;
+  /** Render the picked set as small inline pills instead of full-width rows.
+   *  For a set that is both unordered and potentially long — a dozen shipping
+   *  countries as stacked rows is a wall; as chips it is two lines. Implies
+   *  no ordering, so the rank and arrows are dropped whatever `reorderable`
+   *  says. */
+  chips?: boolean;
 }) {
   const [filter, setFilter] = useState("");
   const [open, setOpen] = useState(false);
@@ -133,11 +152,29 @@ export default function EntityPicker({
 
       {picked.length === 0 ? (
         <p className={styles.empty}>{emptyLabel}</p>
+      ) : chips ? (
+        <ul className={styles.chipList}>
+          {picked.map((item) => (
+            <li key={item.id} className={styles.chip}>
+              <span className={styles.chipText}>{item.chipLabel ?? item.label}</span>
+              <button
+                type="button"
+                className={styles.chipRemove}
+                onClick={() => remove(item.id)}
+                disabled={disabled}
+                aria-label={`Remove ${item.label}`}
+                title={item.label}
+              >
+                <X size={11} strokeWidth={2.6} />
+              </button>
+            </li>
+          ))}
+        </ul>
       ) : (
         <ol className={styles.chosen}>
           {picked.map((item, i) => (
             <li key={item.id} className={styles.chosenItem}>
-              <span className={styles.rank}>{i + 1}</span>
+              {reorderable && <span className={styles.rank}>{i + 1}</span>}
               {item.imageUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={item.imageUrl} alt="" className={styles.thumb} />
@@ -165,12 +202,16 @@ export default function EntityPicker({
                 </span>
               )}
               <span className={styles.chosenActions}>
-                <button type="button" className={styles.iconBtn} onClick={() => move(i, -1)} disabled={i === 0 || disabled} aria-label="Move up">
-                  <ArrowUp size={13} strokeWidth={2.4} />
-                </button>
-                <button type="button" className={styles.iconBtn} onClick={() => move(i, 1)} disabled={i === picked.length - 1 || disabled} aria-label="Move down">
-                  <ArrowDown size={13} strokeWidth={2.4} />
-                </button>
+                {reorderable && (
+                  <>
+                    <button type="button" className={styles.iconBtn} onClick={() => move(i, -1)} disabled={i === 0 || disabled} aria-label="Move up">
+                      <ArrowUp size={13} strokeWidth={2.4} />
+                    </button>
+                    <button type="button" className={styles.iconBtn} onClick={() => move(i, 1)} disabled={i === picked.length - 1 || disabled} aria-label="Move down">
+                      <ArrowDown size={13} strokeWidth={2.4} />
+                    </button>
+                  </>
+                )}
                 <button type="button" className={styles.removeBtn} onClick={() => remove(item.id)} disabled={disabled} aria-label="Remove">
                   <X size={13} strokeWidth={2.4} />
                 </button>

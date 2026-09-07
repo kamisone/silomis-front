@@ -166,6 +166,62 @@
   cursor: default;
 }
 
+/* ── Chips ──
+   The compact form of the picked set: unordered, potentially long, and not
+   worth a full-width row each. Wraps, so a dozen shipping countries is two
+   lines rather than a dozen. */
+.chipList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px 3px 3px 9px;
+  border: 1px solid var(--field-border, color-mix(in srgb, var(--foreground) 14%, transparent));
+  border-radius: 999px;
+  background: var(--background);
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--foreground);
+  white-space: nowrap;
+}
+
+.chipText {
+  /* Tabular-ish spacing so a column of two-letter codes reads evenly. */
+  letter-spacing: 0.01em;
+}
+
+.chipRemove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-secondary);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.chipRemove:hover:not(:disabled) {
+  background: color-mix(in srgb, #ef4444 14%, transparent);
+  color: #dc2626;
+}
+.chipRemove:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
 /* ── Adding ── */
 .searchWrap {
   position: relative;
