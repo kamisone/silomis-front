@@ -22,14 +22,18 @@ export default function CategoryHero({
   parentName?: string | null;
 }) {
   // No artwork: the copy still needs a ground, so the block becomes a soft
-  // brand-tinted band rather than a heading floating on white.
-  const variant = bannerUrl ? styles.heroPhoto : styles.heroPlain;
-
+  // brand-tinted band rather than a heading floating on white. A banner
+  // needs no modifier of its own — the photo and its fade are elements.
   return (
-    <header className={`${styles.hero} ${variant}`}>
+    <header className={`${styles.hero} ${bannerUrl ? "" : styles.heroPlain}`}>
       {bannerUrl && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={bannerUrl} alt="" className={styles.image} />
+        <>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={bannerUrl} alt="" className={styles.image} />
+          {/* A real element rather than a pseudo-element on .hero — see
+              .heroFade in the stylesheet for the iOS rendering reason. */}
+          <div className={styles.heroFade} aria-hidden="true" />
+        </>
       )}
 
       <div className={styles.copy}>

@@ -43,28 +43,52 @@
    direction at once, so moving straight up from the corner it fades toward
    zero continuously long before the box's top edge, the same way it fades
    moving right — nothing left to draw a line there. First-listed paints on
-   top; order doesn't change the math since both are the same color. */
-.heroPhoto::after {
-  content: "";
+   top; order doesn't change the math since both are the same color.
+
+   A real element rather than a `::after` on .hero, deliberately, and it
+   matches the collection banner's own .heroFade for the same reason: as a
+   pseudo-element on a box that is also `overflow: hidden` + `isolation:
+   isolate`, older iOS WebKit (seen on an iPhone XR) promoted it to its own
+   compositing layer and rasterised the top of the gradient with a hard
+   horizontal seam instead of fading to transparent. The identical gradient
+   on a plain child element renders clean there. */
+.heroFade {
   position: absolute;
-  inset: auto 0 0 0;
-  height: 56%;
+  /* All four edges, not `inset: auto 0 0 0` + `height: 56%`, and this is the
+     iPhone XR fix. A percentage height on an absolutely positioned box
+     resolves against its containing block's *used* height, and .hero has no
+     explicit `height` — only `min-height`. Whether that used height ends up
+     coming from the min-height or from the content differs between this
+     banner and the collection one (this .copy is narrower, so its text wraps
+     taller), and older iOS WebKit resolves the two paths inconsistently —
+     landing the fade box's top edge on a hard line instead of on
+     transparency. `inset: 0` needs no percentage resolution at all: the box
+     is simply the parent's padding box, however that height was arrived at.
+     The "only the bottom stretch fades" shaping moves into the stops below
+     instead, which is where it can't be got wrong. */
+  inset: 0;
   pointer-events: none;
   background:
+    /* Same nine-stop smoothstep curve as before, remapped from "0-100% of a
+       56%-tall box" onto "44-100% of a full-height box" — identical
+       rendering, no percentage height involved. */
     linear-gradient(
       to bottom,
       transparent 0%,
-      color-mix(in srgb, var(--background) 5.5%, transparent) 14.3%,
-      color-mix(in srgb, var(--background) 19.8%, transparent) 28.6%,
-      color-mix(in srgb, var(--background) 39.4%, transparent) 42.9%,
-      color-mix(in srgb, var(--background) 50%, transparent) 50%,
-      color-mix(in srgb, var(--background) 60.6%, transparent) 57.1%,
-      color-mix(in srgb, var(--background) 80.2%, transparent) 71.4%,
-      color-mix(in srgb, var(--background) 94.5%, transparent) 85.7%,
+      transparent 44%,
+      color-mix(in srgb, var(--background) 5.5%, transparent) 52%,
+      color-mix(in srgb, var(--background) 19.8%, transparent) 60%,
+      color-mix(in srgb, var(--background) 39.4%, transparent) 68%,
+      color-mix(in srgb, var(--background) 50%, transparent) 72%,
+      color-mix(in srgb, var(--background) 60.6%, transparent) 76%,
+      color-mix(in srgb, var(--background) 80.2%, transparent) 84%,
+      color-mix(in srgb, var(--background) 94.5%, transparent) 92%,
       var(--background) 100%
     ),
+    /* Vertical radius rescaled the same way (92% of the old 56%-tall box is
+       52% of the full-height one); the corner anchor is the same point. */
     radial-gradient(
-      ellipse 68% 92% at 0% 100%,
+      ellipse 68% 52% at 0% 100%,
       color-mix(in srgb, var(--background) 80%, transparent) 0%,
       color-mix(in srgb, var(--background) 76%, transparent) 8.9%,
       color-mix(in srgb, var(--background) 64%, transparent) 17.7%,
@@ -237,9 +261,39 @@
     margin-bottom: 8px;
   }
   /* A shorter banner needs the fade to cover more of it to keep the same
-     proportion of solid ground under the copy. */
-  .heroPhoto::after {
-    height: 66%;
+     proportion of solid ground under the copy. The box is full-height now
+     (see .heroFade), so that is the first stop moving up rather than the
+     box growing — same effect, and still no percentage height for old
+     WebKit to resolve. Only the two leading stops need restating; the rest
+     of the curve is inherited from the base rule's second background layer
+     being re-declared here in full. */
+  .heroFade {
+    background:
+      linear-gradient(
+        to bottom,
+        transparent 0%,
+        transparent 34%,
+        color-mix(in srgb, var(--background) 5.5%, transparent) 43.4%,
+        color-mix(in srgb, var(--background) 19.8%, transparent) 52.9%,
+        color-mix(in srgb, var(--background) 39.4%, transparent) 62.3%,
+        color-mix(in srgb, var(--background) 50%, transparent) 67%,
+        color-mix(in srgb, var(--background) 60.6%, transparent) 71.7%,
+        color-mix(in srgb, var(--background) 80.2%, transparent) 81.1%,
+        color-mix(in srgb, var(--background) 94.5%, transparent) 90.6%,
+        var(--background) 100%
+      ),
+      radial-gradient(
+        ellipse 68% 61% at 0% 100%,
+        color-mix(in srgb, var(--background) 80%, transparent) 0%,
+        color-mix(in srgb, var(--background) 76%, transparent) 8.9%,
+        color-mix(in srgb, var(--background) 64%, transparent) 17.7%,
+        color-mix(in srgb, var(--background) 48%, transparent) 26.6%,
+        color-mix(in srgb, var(--background) 40%, transparent) 31%,
+        color-mix(in srgb, var(--background) 32%, transparent) 35.4%,
+        color-mix(in srgb, var(--background) 16%, transparent) 44.3%,
+        color-mix(in srgb, var(--background) 4%, transparent) 53.1%,
+        transparent 62%
+      );
   }
   .heroPlain {
     min-height: 190px;
