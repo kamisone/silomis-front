@@ -1153,12 +1153,15 @@
    rather than the full section width every card grid above it takes. A wall
    of full-bleed question rows would read as another merchandising rail; this
    is the one place on the page meant to be read, not scanned. */
+/* Full width, same measure as the section heading above it — the list used
+   to be capped at 760px and centred, which read as a narrow column floating
+   under a full-width title. The *card* is now as wide as the heading; the
+   answer text inside it keeps its own readable measure (see .faqAnswer), so
+   width and legibility are not traded against each other. */
 .faqList {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  max-width: 760px;
-  margin: 0 auto;
+  gap: 10px;
 }
 
 .faqItem {
@@ -1166,23 +1169,26 @@
   border-radius: 14px;
   background: var(--background);
   overflow: hidden;
-  transition: border-color 0.15s ease;
+  transition: border-color 0.15s ease, background 0.15s ease;
 }
 .faqItem:hover {
   border-color: color-mix(in srgb, var(--foreground) 22%, transparent);
 }
 /* Answered rather than hovered: an open card keeps reading as "expanded"
-   even after the pointer moves off it. */
+   even after the pointer moves off it. The tint matters more now the card
+   is full width — a border colour alone is a thin signal to carry across
+   1280px. */
 .faqItem[open] {
-  border-color: color-mix(in srgb, var(--color-primary) 45%, transparent);
+  border-color: color-mix(in srgb, var(--color-primary) 40%, transparent);
+  background: color-mix(in srgb, var(--color-primary) 4%, var(--background));
 }
 
 .faqToggle {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 17px 20px;
+  gap: 24px;
+  padding: 20px 24px;
   cursor: pointer;
   list-style: none;
   user-select: none;
@@ -1191,12 +1197,22 @@
 .faqToggle::-webkit-details-marker {
   display: none;
 }
+/* A full-width row is a big click target, so the keyboard focus ring has to
+   be just as legible — the summary is the focusable element here. */
+.faqToggle:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+  border-radius: 13px;
+}
 
 .faqQuestion {
-  font-size: 15px;
+  font-size: 16.5px;
   font-weight: 700;
-  line-height: 1.4;
+  line-height: 1.45;
   color: var(--foreground);
+  /* Stops a long question running the full 1280px into the chevron; the
+     answer below sets the same measure. */
+  max-width: 68ch;
 }
 
 .faqChevronBadge {
@@ -1204,12 +1220,15 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
   background: color-mix(in srgb, var(--foreground) 6%, transparent);
   color: color-mix(in srgb, var(--foreground) 60%, var(--background));
   transition: background 0.15s ease, color 0.15s ease, transform 0.2s ease;
+}
+.faqItem:hover .faqChevronBadge {
+  background: color-mix(in srgb, var(--foreground) 10%, transparent);
 }
 .faqItem[open] .faqChevronBadge {
   background: color-mix(in srgb, var(--color-primary) 14%, transparent);
@@ -1217,15 +1236,46 @@
   transform: rotate(180deg);
 }
 
+/* A rule between question and answer, only while open. Across a full-width
+   card the two otherwise float apart with nothing tying them together. */
+.faqItem[open] .faqToggle {
+  border-bottom: 1px solid color-mix(in srgb, var(--foreground) 10%, transparent);
+}
+
 .faqAnswer {
   margin: 0;
-  padding: 0 20px 19px;
-  font-size: 14px;
+  padding: 16px 24px 20px;
+  font-size: 15px;
   line-height: 1.7;
   color: color-mix(in srgb, var(--foreground) 75%, var(--background));
+  /* The card is as wide as the heading, but a 1280px line of prose is not
+     readable — the measure is capped here rather than by narrowing the card. */
+  max-width: 78ch;
   /* The admin's textarea keeps real newlines — a second paragraph in an
      answer should read as one, not run into the first. */
   white-space: pre-line;
+}
+
+/* ── FAQ on small screens ──
+   The row is already full width here, so the gains go the other way: tighter
+   padding and slightly smaller type, keeping the tap target generous. */
+@media (max-width: 720px) {
+  .faqToggle {
+    gap: 14px;
+    padding: 16px 16px;
+  }
+  .faqQuestion {
+    font-size: 15px;
+  }
+  .faqChevronBadge {
+    width: 26px;
+    height: 26px;
+  }
+  .faqAnswer {
+    padding: 14px 16px 18px;
+    font-size: 14px;
+    line-height: 1.65;
+  }
 }
 
 /* ── Reduced motion ── */
