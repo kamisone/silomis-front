@@ -928,11 +928,25 @@ export default function ShopProductDetail({
 
             {!!reviewStats && reviewStats.count > 0 && (
               <a href="#reviews" className={styles.rating}>
-                {Array.from({ length: 5 }, (_, i) => (
-                  <span key={i} style={{ opacity: i < Math.round(reviewStats.average) ? 1 : 0.25 }}>
-                    ★
+                {/* A grey row with a gold copy clipped over it, rather than five
+                    gold stars at two opacities: a 25%-opacity gold star still
+                    reads as a star, so a 4.0 looked no different from a 5.0.
+                    The clip also keeps this honest about halves — the summary
+                    card further down draws the same average the same way, and
+                    rounding here made the two disagree on anything but a whole
+                    number. */}
+                <span className={styles.ratingStars} role="img" aria-label={`${reviewStats.average.toFixed(1)} / 5`}>
+                  <span className={styles.ratingStarsBase} aria-hidden="true">
+                    ★★★★★
                   </span>
-                ))}
+                  <span
+                    className={styles.ratingStarsFill}
+                    style={{ width: `${Math.max(0, Math.min(100, (reviewStats.average / 5) * 100))}%` }}
+                    aria-hidden="true"
+                  >
+                    ★★★★★
+                  </span>
+                </span>
                 <span className={styles.ratingCount}>({reviewStats.count})</span>
               </a>
             )}

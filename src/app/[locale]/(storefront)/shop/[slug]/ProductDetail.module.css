@@ -134,9 +134,28 @@
   align-items: center;
   gap: 4px;
   font-size: 14px;
-  color: #f59e0b;
   margin-bottom: 10px;
   width: fit-content;
+}
+
+/* Grey base row, gold copy clipped over it to the rated fraction — the same
+   construction the reviews summary card uses, so the two agree on a 4.4.
+   Text glyphs rather than the card's SVGs: nothing to shrink, so the clip
+   just clips. */
+.ratingStars {
+  position: relative;
+  display: inline-block;
+  line-height: 1;
+  letter-spacing: 1px;
+  color: color-mix(in srgb, var(--foreground) 20%, transparent);
+}
+.ratingStarsFill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  color: #f59e0b;
 }
 .ratingCount {
   color: color-mix(in srgb, var(--foreground) 55%, var(--background));
