@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { AlignCenter, AlignLeft, Minus, Plus, Sparkles, Star, Tag, X } from "lucide-react";
 import MediaPicker from "@/components/admin/ui/MediaPicker";
 import EntityPicker, { type PickerOption } from "@/components/admin/ui/EntityPicker";
@@ -7,6 +8,7 @@ import Select, { type SelectOption } from "@/components/admin/ui/Select";
 import Segmented from "@/components/admin/ui/Segmented";
 import Switch from "@/components/admin/ui/Switch";
 import TrustBadgeIconSelect from "@/components/admin/shop/TrustBadgeIconSelect";
+import StarRatingInput from "@/components/admin/ui/StarRatingInput";
 import type { TrustBadgeIconName } from "@/lib/shop/productContent.types";
 import ui from "@/components/admin/ui/admin-ui.module.css";
 import {
@@ -19,7 +21,7 @@ import {
   type SectionField,
 } from "@/components/home/sectionTypes";
 import LocalizedTextField from "@/components/admin/ui/LocalizedTextField";
-import type { HomeFaqItem, OfferBanner, TrustBarItem } from "@/components/home/sectionTypes";
+import type { HomeFaqItem, HomeTestimonial, OfferBanner, TrustBarItem } from "@/components/home/sectionTypes";
 import styles from "./HomeSections.module.css";
 
 // Every text field on this page is ordinary copy, so one endpoint serves them
@@ -146,6 +148,81 @@ function Group({ title, children }: { title: string; children: React.ReactNode }
   );
 }
 
+/**
+ * A plain text field that commits on blur, not on every keystroke.
+ *
+ * Every write here PATCHes the section (see patchSection on the page), and the
+ * `saving` flag it flips is wired to this panel's `disabled` props — so an
+ * input that called onCommit per keystroke would fire a request per letter and
+ * then disable itself mid-word, which drops focus. Hence the local draft: the
+ * page's own promise is "changes save as you leave each field", and this is
+ * what keeps a non-translated field to it. LocalizedTextField does exactly the
+ * same thing for translated copy; this is its one-language sibling.
+ */
+function CommitOnBlurInput({
+  id,
+  value,
+  onCommit,
+  placeholder,
+  maxLength,
+  disabled,
+}: {
+  id?: string;
+  value: string;
+  onCommit: (next: string) => void;
+  placeholder?: string;
+  maxLength?: number;
+  disabled?: boolean;
+}) {
+  const [draft, setDraft] = useState(value);
+  // Re-sync when the saved value comes back changed (another field's PATCH
+  // returns the whole record), but never while this field has focus — a save
+  // elsewhere must not yank text out from under the cursor.
+  const focused = useRef(false);
+  const committed = useRef(value);
+  useEffect(() => {
+    committed.current = value;
+    if (focused.current) return;
+    setDraft(value);
+  }, [value]);
+
+  function commit() {
+    const next = draft.trim();
+    if (next === committed.current) return;
+    committed.current = next;
+    onCommit(next);
+  }
+
+  return (
+    <input
+      id={id}
+      className={ui.input}
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onFocus={() => {
+        focused.current = true;
+      }}
+      onBlur={() => {
+        focused.current = false;
+        commit();
+      }}
+      onKeyDown={(e) => {
+        // Enter commits without waiting for a blur, matching what a form field
+        // is expected to do; Escape abandons the edit.
+        if (e.key === "Enter") {
+          e.preventDefault();
+          commit();
+        } else if (e.key === "Escape") {
+          setDraft(committed.current);
+        }
+      }}
+      placeholder={placeholder}
+      maxLength={maxLength}
+      disabled={disabled}
+    />
+  );
+}
+
 /** Small −/+ stepper. The native number spinners are tiny, differ per browser,
  *  and sit at the wrong end of the field; these are real targets. */
 function Stepper({
@@ -242,6 +319,7 @@ export default function SectionSettings({
   const trustItems = config.trustItems ?? [];
   const offerBanners = config.offerBanners ?? [];
   const faqItems = config.faqItems ?? [];
+  const testimonials = config.testimonials ?? [];
 
 
   function setTrustItems(next: TrustBarItem[]) {
@@ -256,6 +334,13 @@ export default function SectionSettings({
   }
   function patchFaqItem(id: string, patch: Partial<HomeFaqItem>) {
     setFaqItems(faqItems.map((it) => (it.id === id ? { ...it, ...patch } : it)));
+  }
+
+  function setTestimonials(next: HomeTestimonial[]) {
+    onChange({ testimonials: next });
+  }
+  function patchTestimonial(id: string, patch: Partial<HomeTestimonial>) {
+    setTestimonials(testimonials.map((it) => (it.id === id ? { ...it, ...patch } : it)));
   }
 
   /** Every collection, plus whatever a banner already points at — a collection
@@ -674,6 +759,96 @@ export default function SectionSettings({
                         multiline
                         rows={3}
                         maxLength={2000}
+                        disabled={saving}
+                      />
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </div>
+        )}
+
+        {has("testimonials") && (
+          <div className={styles.fieldFull}>
+            <div className={styles.repeaterHead}>
+              <span className={styles.fieldLabel}>Testimonials</span>
+              <button
+                type="button"
+                className={styles.repeaterAdd}
+                onClick={() => setTestimonials([...testimonials, { id: `t${Date.now().toString(36)}`, rating: 5, quote: {}, name: "", meta: {} }])}
+                disabled={saving}
+              >
+                <Plus size={13} strokeWidth={2.5} />
+                Add
+              </button>
+            </div>
+
+            {testimonials.length === 0 ? (
+              <p className={styles.repeaterEmpty}>
+                No testimonials yet — the section stays hidden on the storefront until you add at least one.
+              </p>
+            ) : (
+              <ol className={styles.repeaterList}>
+                {testimonials.map((item, i) => (
+                  <li key={item.id} className={styles.repeaterItem}>
+                    <div className={styles.repeaterItemHead}>
+                      <span className={styles.repeaterRank}>{i + 1}</span>
+                      <button
+                        type="button"
+                        className={styles.repeaterRemove}
+                        onClick={() => setTestimonials(testimonials.filter((it) => it.id !== item.id))}
+                        disabled={saving}
+                        aria-label="Remove testimonial"
+                      >
+                        <X size={13} strokeWidth={2.4} />
+                      </button>
+                    </div>
+                    <div className={styles.repeaterFields}>
+                      <div className={styles.field}>
+                        <span className={styles.fieldLabel}>Rating</span>
+                        <StarRatingInput
+                          value={item.rating ?? 5}
+                          onChange={(rating) => patchTestimonial(item.id, { rating })}
+                          disabled={saving}
+                          size={20}
+                          ariaLabel="Testimonial rating"
+                        />
+                      </div>
+                      <LocalizedTextField
+                        label="Quote"
+                        value={item.quote}
+                        onCommit={(quote) => patchTestimonial(item.id, { quote })}
+                        placeholder="The sandals arrived in two days and my daughter hasn't taken them off since."
+                        translateEndpoint={TRANSLATE_TEXT}
+                        multiline
+                        rows={3}
+                        maxLength={600}
+                        disabled={saving}
+                      />
+                      {/* A name is the same word in every language, so it is a
+                          plain input rather than a translated field. */}
+                      <div className={styles.field}>
+                        <label className={styles.fieldLabel} htmlFor={`testimonial-name-${item.id}`}>
+                          Name
+                        </label>
+                        <CommitOnBlurInput
+                          id={`testimonial-name-${item.id}`}
+                          value={item.name ?? ""}
+                          onCommit={(name) => patchTestimonial(item.id, { name })}
+                          placeholder="Marc"
+                          maxLength={80}
+                          disabled={saving}
+                        />
+                      </div>
+                      <LocalizedTextField
+                        label="Detail"
+                        hint="Age, city, who they shop for — whatever makes the quote read as a real person."
+                        value={item.meta}
+                        onCommit={(meta) => patchTestimonial(item.id, { meta })}
+                        placeholder="45 ans, père de deux enfants"
+                        translateEndpoint={TRANSLATE_TEXT}
+                        maxLength={120}
                         disabled={saving}
                       />
                     </div>

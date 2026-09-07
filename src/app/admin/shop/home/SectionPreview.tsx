@@ -170,6 +170,27 @@ const PREVIEWS: Record<HomeSectionType, React.ReactNode> = {
       <circle cx={92} cy={51.5} r="2.4" fill="currentColor" opacity={0.4} />
     </>
   ),
+  // A heading over quote cards running off the right edge — the third is cut
+  // to say "this scrolls sideways", which is the one thing the shape has to
+  // convey. Stars along the top of each card, attribution line at the foot.
+  testimonials: (
+    <>
+      <L x={6} y={8} w={34} o={0.42} />
+      {[6, 40, 74].map((x) => (
+        <g key={x}>
+          <B x={x} y={17} w={28} h={38} o={0.14} r={3} />
+          {[0, 1, 2, 3, 4].map((s) => (
+            <circle key={s} cx={x + 4 + s * 4.2} cy={24} r="1.4" fill="currentColor" opacity={0.42} />
+          ))}
+          <L x={x + 4} y={31} w={20} o={0.3} />
+          <L x={x + 4} y={36} w={16} o={0.3} />
+          <circle cx={x + 7} cy={47} r="3.2" fill="currentColor" opacity={0.26} />
+          <L x={x + 12} y={45} w={11} o={0.38} />
+          <L x={x + 12} y={49.5} w={8} o={0.22} />
+        </g>
+      ))}
+    </>
+  ),
   // Three article cards: wide image, category line, headline.
   blog_posts: (
     <>

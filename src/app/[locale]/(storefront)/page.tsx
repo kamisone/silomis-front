@@ -13,6 +13,7 @@ import SectionHeading from "@/components/home/SectionHeading";
 import SectionSeparator from "@/components/home/SectionSeparator";
 import SeoText from "@/components/home/SeoText";
 import Faqs from "@/components/home/Faqs";
+import Testimonials from "@/components/home/Testimonials";
 import {
   DEFAULT_HOME_SECTIONS,
   localized,
@@ -386,6 +387,9 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
 
           case "faqs":
             return <Faqs key={section.id} config={section.config} locale={locale} t={t} tinted={tintIndex++ % 2 === 1} />;
+
+          case "testimonials":
+            return <Testimonials key={section.id} config={section.config} locale={locale} t={t} tinted={tintIndex++ % 2 === 1} />;
 
           case "blog_posts":
             return (

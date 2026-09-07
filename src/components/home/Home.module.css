@@ -1278,6 +1278,160 @@
   }
 }
 
+/* ── Customer testimonials ───────────────────────────────────────────────────
+   A rail that scrolls sideways with no visible scrollbar. Deliberately a plain
+   overflow container rather than a JS carousel: wheel, trackpad, touch and
+   keyboard all already work on one, and the section is social proof — it does
+   not warrant shipping interaction code to the browser.
+
+   It bleeds past the container to the viewport edge on purpose. A card clipped
+   by the screen edge is the affordance that says "there is more this way";
+   ending the row neatly inside the gutter says the opposite. `scroll-padding`
+   then lines the first card up with the heading above it, so the bleed costs
+   nothing in alignment. */
+.testimonialRail {
+  display: flex;
+  gap: 16px;
+  margin: 0;
+  padding: 4px var(--home-gutter) 8px;
+  list-style: none;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  scroll-padding-inline: var(--home-gutter);
+  /* Momentum on iOS; harmless elsewhere. */
+  -webkit-overflow-scrolling: touch;
+  /* No scrollbar, in every engine that has an opinion about it. The rail is
+     still keyboard-scrollable and still announces as a list. */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.testimonialRail::-webkit-scrollbar {
+  display: none;
+}
+
+/* Centred on the container at wide widths so the rail starts where the
+   heading does even once the page stops growing. */
+@media (min-width: 1360px) {
+  .testimonialRail {
+    padding-inline: max(var(--home-gutter), calc((100vw - var(--home-max)) / 2));
+    scroll-padding-inline: max(var(--home-gutter), calc((100vw - var(--home-max)) / 2));
+  }
+}
+
+.testimonialCard {
+  position: relative;
+  flex: 0 0 auto;
+  /* Wide enough for three or four lines of quote without becoming a column of
+     one-word rows; capped so a long testimonial doesn't own the viewport. */
+  width: min(340px, 78vw);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 24px 22px 20px;
+  border: 1px solid color-mix(in srgb, var(--foreground) 11%, transparent);
+  border-radius: 18px;
+  background: var(--background);
+  scroll-snap-align: start;
+  /* Shadow rather than a heavier border: the card should read as lifted off
+     the page, which is what makes a quote feel like a person and not a table
+     row. Kept soft — this section sits among several other card blocks. */
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--foreground) 5%, transparent),
+    0 12px 28px color-mix(in srgb, var(--foreground) 6%, transparent);
+}
+
+/* The quote mark is decoration, so it sits behind the words and stays faint —
+   it marks the card as a quotation at a glance without competing to be read. */
+.testimonialMark {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  color: color-mix(in srgb, var(--color-primary) 22%, transparent);
+  pointer-events: none;
+}
+
+.testimonialStars {
+  display: flex;
+  gap: 2px;
+}
+.testimonialStarOn {
+  color: #f5a524;
+  fill: #f5a524;
+}
+.testimonialStarOff {
+  color: color-mix(in srgb, var(--foreground) 20%, transparent);
+  fill: none;
+}
+
+.testimonialQuote {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.65;
+  color: color-mix(in srgb, var(--foreground) 88%, var(--background));
+  /* The admin's textarea keeps real newlines — same contract as the FAQ
+     answer, so a two-paragraph quote reads as two paragraphs. */
+  white-space: pre-line;
+}
+
+/* Pushed to the foot of the card so every attribution line sits on the same
+   baseline across the rail, however long the quotes above them run. */
+.testimonialWho {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 1px solid color-mix(in srgb, var(--foreground) 9%, transparent);
+}
+
+.testimonialAvatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--color-primary) 12%, var(--background));
+  color: var(--color-primary);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.testimonialWhoText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.testimonialName {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--foreground);
+}
+
+.testimonialMeta {
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: color-mix(in srgb, var(--foreground) 58%, var(--background));
+}
+
+@media (max-width: 720px) {
+  .testimonialRail {
+    gap: 12px;
+  }
+  .testimonialCard {
+    width: min(300px, 82vw);
+    padding: 20px 18px 16px;
+    border-radius: 16px;
+  }
+  .testimonialQuote {
+    font-size: 14.5px;
+  }
+}
+
 /* ── Reduced motion ── */
 
 @media (prefers-reduced-motion: reduce) {

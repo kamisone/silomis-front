@@ -22,6 +22,7 @@ export const HOME_SECTION_TYPES = [
   "separator",
   "seo_text",
   "faqs",
+  "testimonials",
 ] as const;
 
 export type HomeSectionType = (typeof HOME_SECTION_TYPES)[number];
@@ -44,6 +45,31 @@ export interface HomeFaqItem {
   id: string;
   question?: LocalizedText;
   answer?: LocalizedText;
+}
+
+/**
+ * One customer quote in the testimonials rail.
+ *
+ * Hand-curated by the admin rather than pulled from ProductReview: these are
+ * the brand's chosen social proof for the home page, and a shopper-submitted
+ * product review is a different thing with a different lifecycle.
+ *
+ * `quote` is translatable — a testimonial that only exists in French would
+ * otherwise show French copy to a German shopper. The attribution fields are
+ * not: a name is a name in every language, and the meta line is short enough
+ * that the admin can write it per locale in the one field that is translated
+ * if they need to.
+ */
+export interface HomeTestimonial {
+  id: string;
+  /** 1–5 whole stars. Absent renders no star row rather than zero stars. */
+  rating?: number;
+  quote?: LocalizedText;
+  /** "Marc" — printed as the attribution line. */
+  name?: string;
+  /** Free-form context, e.g. "45 ans, mère de deux enfants". Translatable
+   *  because it is prose, not a proper noun. */
+  meta?: LocalizedText;
 }
 
 /**
@@ -159,6 +185,11 @@ export interface HomeSectionConfig {
    *  default FAQ content the way trust_bar has a default four reassurances. */
   faqItems?: HomeFaqItem[];
 
+  /** testimonials only: the customer quotes, in the order they scroll. Empty
+   *  or absent hides the section — invented social proof is worse than none,
+   *  so there is no built-in default here either. */
+  testimonials?: HomeTestimonial[];
+
   /**
    * offer_banners only: the five pictures, in slot order — see OFFER_SLOTS.
    *
@@ -272,7 +303,7 @@ export function newSectionConfig(type: HomeSectionType): HomeSectionConfig {
  * Sections that draw no data of their own. The storefront skips every catalogue
  * query for these, and the admin card shows copy fields instead of item counts.
  */
-export const EDITORIAL_SECTION_TYPES = ["section_heading", "separator", "seo_text", "faqs"] as const;
+export const EDITORIAL_SECTION_TYPES = ["section_heading", "separator", "seo_text", "faqs", "testimonials"] as const;
 
 export type SectionField =
   | "limit"
@@ -285,6 +316,7 @@ export type SectionField =
   | "collections"
   | "trustItems"
   | "faqItems"
+  | "testimonials"
   | "offerBanners"
   | "viewAll"
   | "title"
@@ -364,5 +396,10 @@ export const SECTION_META: Record<
     label: "FAQs",
     description: "Common questions and answers, shown as an expandable list. Leave empty to hide the section entirely.",
     fields: ["title", "faqItems"],
+  },
+  testimonials: {
+    label: "Customer testimonials",
+    description: "Quotes from real customers, scrolled sideways. Leave empty to hide the section entirely.",
+    fields: ["title", "testimonials"],
   },
 };

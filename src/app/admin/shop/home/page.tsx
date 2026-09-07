@@ -146,6 +146,11 @@ function settingsSummary(section: HomeSection, catalogue: Catalogue): string | n
     parts.push(items.length ? countLabel(items.length, "question") : "No questions yet — hidden");
   }
 
+  if (section.type === "testimonials") {
+    const items = config.testimonials ?? [];
+    parts.push(items.length ? countLabel(items.length, "testimonial") : "No testimonials yet — hidden");
+  }
+
   if (fields.includes("title")) {
     const title = localized(config.title, DEFAULT_LOCALE);
     if (title) parts.push(`\u201c${title}\u201d`);

@@ -388,6 +388,7 @@ export const en = {
     lastSeenDismiss: "Hide",
     homePromoTitle: "On sale now",
     homeFaqsTitle: "Frequently asked questions",
+    homeTestimonialsTitle: "What our customers say",
     homePromoCta: "Shop the offer",
   },
   footer: {
@@ -900,6 +901,7 @@ export const fr: Translations = {
     lastSeenDismiss: "Masquer",
     homePromoTitle: "En promotion",
     homeFaqsTitle: "Questions fréquentes",
+    homeTestimonialsTitle: "Ce que disent nos clients",
     homePromoCta: "Profiter de l'offre",
   },
   footer: {
@@ -1412,6 +1414,7 @@ export const es: Translations = {
     lastSeenDismiss: "Ocultar",
     homePromoTitle: "En oferta",
     homeFaqsTitle: "Preguntas frecuentes",
+    homeTestimonialsTitle: "Lo que dicen nuestros clientes",
     homePromoCta: "Aprovechar la oferta",
   },
   footer: {
@@ -1924,6 +1927,7 @@ export const it: Translations = {
     lastSeenDismiss: "Nascondi",
     homePromoTitle: "In offerta",
     homeFaqsTitle: "Domande frequenti",
+    homeTestimonialsTitle: "Cosa dicono i nostri clienti",
     homePromoCta: "Approfitta dell'offerta",
   },
   footer: {
@@ -2436,6 +2440,7 @@ export const de: Translations = {
     lastSeenDismiss: "Ausblenden",
     homePromoTitle: "Jetzt reduziert",
     homeFaqsTitle: "Häufig gestellte Fragen",
+    homeTestimonialsTitle: "Was unsere Kunden sagen",
     homePromoCta: "Angebot sichern",
   },
   footer: {
@@ -2948,6 +2953,7 @@ export const nl: Translations = {
     lastSeenDismiss: "Verbergen",
     homePromoTitle: "Nu in de aanbieding",
     homeFaqsTitle: "Veelgestelde vragen",
+    homeTestimonialsTitle: "Wat onze klanten zeggen",
     homePromoCta: "Profiteer van de actie",
   },
   footer: {
@@ -3460,6 +3466,7 @@ export const pl: Translations = {
     lastSeenDismiss: "Ukryj",
     homePromoTitle: "Teraz w promocji",
     homeFaqsTitle: "Najczęściej zadawane pytania",
+    homeTestimonialsTitle: "Co mówią nasi klienci",
     homePromoCta: "Skorzystaj z oferty",
   },
   footer: {
