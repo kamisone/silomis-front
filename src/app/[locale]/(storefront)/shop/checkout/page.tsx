@@ -284,6 +284,36 @@ export default function CheckoutPage() {
     saveCheckoutSession(token, { step, form, snapshot, selectedMethodId, clientSecret });
   }, [step, form, snapshot, selectedMethodId, clientSecret, token, restoring]);
 
+  // Re-quote whenever the snapshot in hand was not produced in the language
+  // being read.
+  //
+  // Two ways that happens, and both showed the shipping step's method names in
+  // the wrong language. A visitor switches language mid-checkout, and the
+  // order's own locale — written once at the address step — does not follow
+  // them. Or the page is reloaded and the snapshot comes back verbatim out of
+  // sessionStorage, carrying whatever names were quoted when it was cached,
+  // possibly days earlier and before the order's locale was ever set right.
+  //
+  // Null rather than the current locale, so a restored snapshot (which never
+  // sets it) is always re-quoted once; the address POST sets it, so the
+  // snapshot that call just returned is not fetched twice.
+  const quotedLocale = useRef<string | null>(null);
+  useEffect(() => {
+    const orderId = snapshot?.orderId;
+    if (restoring || !orderId || quotedLocale.current === locale) return;
+    quotedLocale.current = locale;
+    let cancelled = false;
+    fetch(`/next-api/public/shop/checkout/${orderId}?lang=${locale}`)
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((snap: CheckoutSnapshot) => {
+        if (!cancelled) setSnapshot(snap);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [locale, snapshot?.orderId, restoring]);
+
   // Debounced sync of form + step to the DB checkout session — lets an
   // abandoned-cart link (or a different device) resume the same state.
   // Fire-and-forget — never blocks the UI.
@@ -408,6 +438,12 @@ export default function CheckoutPage() {
         zip: form.zip,
         country: form.country,
         couponCode: form.couponCode || null,
+        // Stored on the order as customerLocale, and it is what the backend
+        // translates the shipping methods (and later the order emails and
+        // documents) into. Left out, the DTO defaults it to "fr", so every
+        // visitor was quoted French method names whatever language they were
+        // browsing in.
+        locale,
         ...getMetaCookies(),
         ...getTikTokCookies(),
       }),
@@ -422,6 +458,8 @@ export default function CheckoutPage() {
     }
 
     const snap: CheckoutSnapshot = await res.json();
+    // Quoted with the locale just posted — see the re-quote effect above.
+    quotedLocale.current = locale;
     setSnapshot(snap);
 
     // Meta Pixel: value/currency/ids only — never add customer PII here.
