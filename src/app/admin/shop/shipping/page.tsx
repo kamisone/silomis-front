@@ -6,7 +6,21 @@ import { useToast } from "@/components/toast/ToastContext";
 import Button from "@/components/admin/ui/Button";
 import Modal from "@/components/admin/ui/Modal";
 import EntityPicker, { type PickerOption } from "@/components/admin/ui/EntityPicker";
+import Switch from "@/components/admin/ui/Switch";
+import BilingualField from "@/components/admin/BilingualField";
+import { useEntityTranslations, type OverlayLang } from "@/hooks/useEntityTranslations";
+import { useSectionGenerate } from "@/hooks/useSectionGenerate";
+import { summarizeGenerateErrors, type SectionTranslationOutcome } from "@/lib/sectionTranslate";
 import ui from "@/components/admin/ui/admin-ui.module.css";
+
+/** Must match ET_SHIPPING_ZONE / ET_SHIPPING_METHOD in the backend's
+ *  translation-entities.ts — a mismatch writes rows no reader ever looks up,
+ *  and nothing fails loudly when that happens. */
+const ET_ZONE = "shop_shipping_zone";
+const ET_METHOD = "shop_shipping_method";
+/** The shared plain-copy route rather than one per field: these are short
+ *  strings that need no prompt of their own. */
+const TEXT_TRANSLATE = "/next-api/admin/shop/translate/text";
 
 /** The shipping-enabled subset of admin/shop/countries — a zone can only
  *  serve somewhere that exists in the catalogue of countries. */
@@ -32,6 +46,7 @@ interface Method {
   zoneId: string;
   code: string | null;
   name: string;
+  description: string | null;
   carrier: string | null;
   priceCents: number;
   freeAboveCents: number | null;
@@ -62,6 +77,7 @@ interface MethodForm {
   zoneId: string;
   code: string;
   name: string;
+  description: string;
   carrier: string;
   /** Euros, as typed. Converted to cents on submit — see `toCents`. */
   price: string;
@@ -144,6 +160,36 @@ export default function ShippingPage() {
   const [methodForm, setMethodForm] = useState<MethodForm | null>(null);
   const [saving, setSaving] = useState(false);
 
+  // Null while creating: the row has no id until the POST comes back, so the
+  // overlay languages sit in the hook and are flushed by saveTranslations once
+  // there is something to attach them to.
+  const { translations: zoneTr, setTranslation: setZoneTr, saveTranslations: saveZoneTr } = useEntityTranslations(ET_ZONE, zoneForm?.id ?? null);
+  const { translations: methodTr, setTranslation: setMethodTr, saveTranslations: saveMethodTr } = useEntityTranslations(ET_METHOD, methodForm?.id ?? null);
+
+  const zoneNameGen = useSectionGenerate<SectionTranslationOutcome<string>>(TEXT_TRANSLATE);
+  const zoneEtaGen = useSectionGenerate<SectionTranslationOutcome<string>>(TEXT_TRANSLATE);
+  const methodNameGen = useSectionGenerate<SectionTranslationOutcome<string>>(TEXT_TRANSLATE);
+  const methodDescGen = useSectionGenerate<SectionTranslationOutcome<string>>(TEXT_TRANSLATE);
+  const [genErrors, setGenErrors] = useState<Record<string, string | null>>({});
+
+  /** Fills every overlay language for one field from its English value. The
+   *  setter is a parameter because the two modals write to two different
+   *  translation scopes. */
+  async function applyGenerate(
+    gen: ReturnType<typeof useSectionGenerate<SectionTranslationOutcome<string>>>,
+    sourceText: string,
+    field: string,
+    setTranslation: (lang: OverlayLang, field: string, value: string) => void,
+    errorKey: string,
+  ) {
+    const outcome = await gen.generate({ text: sourceText });
+    if (!outcome) return;
+    for (const [lang, value] of Object.entries(outcome.result) as [OverlayLang, string][]) {
+      setTranslation(lang, field, value);
+    }
+    setGenErrors((prev) => ({ ...prev, [errorKey]: summarizeGenerateErrors(outcome.errors) }));
+  }
+
   async function load() {
     setLoading(true);
     try {
@@ -170,6 +216,7 @@ export default function ShippingPage() {
       zoneId: zones[0]?.id ?? "",
       code: "",
       name: "",
+      description: "",
       carrier: "",
       price: "0",
       freeAbove: "",
@@ -199,11 +246,13 @@ export default function ShippingPage() {
       estimatedDeliveryDays: zoneForm.estimatedDeliveryDays || null,
     };
     try {
-      if (zoneForm.id) {
-        await api.patch(`/next-api/admin/shop/shipping/zones/${zoneForm.id}`, payload);
+      let id = zoneForm.id;
+      if (id) {
+        await api.patch(`/next-api/admin/shop/shipping/zones/${id}`, payload);
       } else {
-        await api.post("/next-api/admin/shop/shipping/zones", payload);
+        id = (await api.post<{ id: string }>("/next-api/admin/shop/shipping/zones", payload)).id;
       }
+      await saveZoneTr(id, ["name", "estimatedDeliveryDays"]);
       setZoneForm(null);
       await load();
       toast.success(isNew ? "Zone created" : "Zone updated");
@@ -234,6 +283,7 @@ export default function ShippingPage() {
       zoneId: methodForm.zoneId,
       code: methodForm.code.trim() || null,
       name: methodForm.name,
+      description: methodForm.description || null,
       carrier: methodForm.carrier || null,
       priceCents: toCents(methodForm.price) ?? 0,
       freeAboveCents: toCents(methodForm.freeAbove),
@@ -248,11 +298,13 @@ export default function ShippingPage() {
       supportedCountryCodes: methodForm.supportedCountryCodes,
     };
     try {
-      if (methodForm.id) {
-        await api.patch(`/next-api/admin/shop/shipping/methods/${methodForm.id}`, payload);
+      let id = methodForm.id;
+      if (id) {
+        await api.patch(`/next-api/admin/shop/shipping/methods/${id}`, payload);
       } else {
-        await api.post("/next-api/admin/shop/shipping/methods", payload);
+        id = (await api.post<{ id: string }>("/next-api/admin/shop/shipping/methods", payload)).id;
       }
+      await saveMethodTr(id, ["name", "description"]);
       setMethodForm(null);
       await load();
       toast.success(isNew ? "Method created" : "Method updated");
@@ -374,10 +426,11 @@ export default function ShippingPage() {
               {methods.map((m) => (
                 <tr key={m.id}>
                   <td>
-                    {m.name} {m.availableForFreeShipping && <span className={ui.badgeActive}>upgrade</span>}
+                    {m.name}
                     {/* Neutral, not green: these describe how the method behaves,
                         not whether it is switched on — the active/inactive badge
                         in the status column is the one that says that. */}
+                    {m.availableForFreeShipping && <span className={ui.badge}>free-shipping upgrade</span>}
                     {m.requiresPickupPoint && <span className={ui.badge}>pickup point</span>}
                     {m.requiresProductOptIn && <span className={ui.badge}>per-product</span>}
                   </td>
@@ -400,6 +453,7 @@ export default function ShippingPage() {
                             id: m.id,
                             zoneId: m.zoneId,
                             name: m.name,
+                            description: m.description ?? "",
                             carrier: m.carrier ?? "",
                             price: eur(m.priceCents),
                             freeAbove: eur(m.freeAboveCents),
@@ -446,10 +500,20 @@ export default function ShippingPage() {
           }
         >
           <form id={ZONE_FORM_ID} onSubmit={handleZoneSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-            <div className={ui.field}>
-              <label className={ui.label}>Name</label>
-              <input className={ui.input} value={zoneForm.name} onChange={(e) => setZoneForm({ ...zoneForm, name: e.target.value })} required autoFocus />
-            </div>
+            <BilingualField
+              label="Name"
+              field="name"
+              baseValue={zoneForm.name}
+              baseOnChange={(v) => setZoneForm({ ...zoneForm, name: v })}
+              basePlaceholder="Europe"
+              baseRequired
+              translations={zoneTr}
+              onTranslationChange={setZoneTr}
+              maxLength={200}
+              onGenerate={() => applyGenerate(zoneNameGen, zoneForm.name, "name", setZoneTr, "zoneName")}
+              generating={zoneNameGen.generating}
+              generateError={zoneNameGen.error ?? genErrors.zoneName}
+            />
             <div className={ui.field}>
               <EntityPicker
                 label="Countries"
@@ -481,25 +545,32 @@ export default function ShippingPage() {
                 <input
                   className={ui.input}
                   type="number"
+                  step="0.01"
                   min={0}
                   value={zoneForm.freeShippingThreshold}
                   onChange={(e) => setZoneForm({ ...zoneForm, freeShippingThreshold: e.target.value })}
                 />
               </div>
             </div>
-            <div className={ui.field}>
-              <label className={ui.label}>Estimated delivery (display string)</label>
-              <input
-                className={ui.input}
-                value={zoneForm.estimatedDeliveryDays}
-                onChange={(e) => setZoneForm({ ...zoneForm, estimatedDeliveryDays: e.target.value })}
-                placeholder="3-7 business days"
-              />
-            </div>
-            <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.9rem" }}>
-              <input type="checkbox" checked={zoneForm.isActive} onChange={(e) => setZoneForm({ ...zoneForm, isActive: e.target.checked })} />
-              Active
-            </label>
+            <BilingualField
+              label="Estimated delivery (display string)"
+              field="estimatedDeliveryDays"
+              baseValue={zoneForm.estimatedDeliveryDays}
+              baseOnChange={(v) => setZoneForm({ ...zoneForm, estimatedDeliveryDays: v })}
+              basePlaceholder="3-7 business days"
+              translations={zoneTr}
+              onTranslationChange={setZoneTr}
+              maxLength={100}
+              onGenerate={() => applyGenerate(zoneEtaGen, zoneForm.estimatedDeliveryDays, "estimatedDeliveryDays", setZoneTr, "zoneEta")}
+              generating={zoneEtaGen.generating}
+              generateError={zoneEtaGen.error ?? genErrors.zoneEta}
+            />
+            <Switch
+              label="Active"
+              hint="An inactive zone is quoted to nobody, whatever its methods say."
+              checked={zoneForm.isActive}
+              onChange={(isActive) => setZoneForm({ ...zoneForm, isActive })}
+            />
           </form>
         </Modal>
       )}
@@ -530,10 +601,35 @@ export default function ShippingPage() {
                 ))}
               </select>
             </div>
-            <div className={ui.field}>
-              <label className={ui.label}>Name</label>
-              <input className={ui.input} value={methodForm.name} onChange={(e) => setMethodForm({ ...methodForm, name: e.target.value })} required />
-            </div>
+            <BilingualField
+              label="Name"
+              field="name"
+              baseValue={methodForm.name}
+              baseOnChange={(v) => setMethodForm({ ...methodForm, name: v })}
+              basePlaceholder="Standard delivery"
+              baseRequired
+              translations={methodTr}
+              onTranslationChange={setMethodTr}
+              maxLength={200}
+              onGenerate={() => applyGenerate(methodNameGen, methodForm.name, "name", setMethodTr, "methodName")}
+              generating={methodNameGen.generating}
+              generateError={methodNameGen.error ?? genErrors.methodName}
+            />
+            <BilingualField
+              label="Description"
+              field="description"
+              baseValue={methodForm.description}
+              baseOnChange={(v) => setMethodForm({ ...methodForm, description: v })}
+              basePlaceholder="Delivered to your door by our standard carrier."
+              translations={methodTr}
+              onTranslationChange={setMethodTr}
+              multiline
+              rows={3}
+              maxLength={2000}
+              onGenerate={() => applyGenerate(methodDescGen, methodForm.description, "description", setMethodTr, "methodDesc")}
+              generating={methodDescGen.generating}
+              generateError={methodDescGen.error ?? genErrors.methodDesc}
+            />
             <div className={ui.field}>
               <label className={ui.label}>Carrier (optional)</label>
               <input className={ui.input} value={methodForm.carrier} onChange={(e) => setMethodForm({ ...methodForm, carrier: e.target.value })} />
@@ -609,34 +705,40 @@ export default function ShippingPage() {
               <label className={ui.label}>Sort order</label>
               <input className={ui.input} type="number" value={methodForm.sortOrder} onChange={(e) => setMethodForm({ ...methodForm, sortOrder: e.target.value })} />
             </div>
-            <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.9rem" }}>
-              <input type="checkbox" checked={methodForm.isActive} onChange={(e) => setMethodForm({ ...methodForm, isActive: e.target.checked })} />
-              Active
-            </label>
-            <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.9rem" }}>
-              <input
-                type="checkbox"
+            {/* The four behaviour switches, grouped and labelled. They were
+                four bare checkboxes trailing off the end of a long form, which
+                is how "Used for free shipping" managed to be invisible. */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem", marginTop: "0.25rem" }}>
+              <span className={ui.label}>Behaviour</span>
+              <Switch
+                label="Active"
+                hint="An inactive method is never quoted."
+                checked={methodForm.isActive}
+                onChange={(isActive) => setMethodForm({ ...methodForm, isActive })}
+              />
+              {/* Eligibility only — a product still has to pick this method.
+                  The wording matches what the product editor already tells
+                  admins to look for ("No method is marked 'Used for free
+                  shipping' yet"). */}
+              <Switch
+                label="Used for free shipping"
+                hint="Makes this method selectable as the paid faster option on a free-shipping product, for customers who want to pay to receive it sooner. It is excluded from ordinary quoting, and offered only on the products where an admin picks it."
                 checked={methodForm.availableForFreeShipping}
-                onChange={(e) => setMethodForm({ ...methodForm, availableForFreeShipping: e.target.checked })}
+                onChange={(availableForFreeShipping) => setMethodForm({ ...methodForm, availableForFreeShipping })}
               />
-              Paid upgrade alongside free shipping (excluded from ordinary quoting)
-            </label>
-            <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.9rem" }}>
-              <input
-                type="checkbox"
+              <Switch
+                label="Enabled per product"
+                hint="Offered only when every product in the basket allows it. One product without the link withdraws the method for the whole basket."
                 checked={methodForm.requiresProductOptIn}
-                onChange={(e) => setMethodForm({ ...methodForm, requiresProductOptIn: e.target.checked })}
+                onChange={(requiresProductOptIn) => setMethodForm({ ...methodForm, requiresProductOptIn })}
               />
-              Enabled per product (offered only when every product in the basket allows it)
-            </label>
-            <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.9rem" }}>
-              <input
-                type="checkbox"
+              <Switch
+                label="Requires a pickup point"
+                hint="The customer must choose a pickup point before they can pay."
                 checked={methodForm.requiresPickupPoint}
-                onChange={(e) => setMethodForm({ ...methodForm, requiresPickupPoint: e.target.checked })}
+                onChange={(requiresPickupPoint) => setMethodForm({ ...methodForm, requiresPickupPoint })}
               />
-              Customer must choose a pickup point before paying
-            </label>
+            </div>
           </form>
         </Modal>
       )}
