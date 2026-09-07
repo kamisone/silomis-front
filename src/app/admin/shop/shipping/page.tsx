@@ -51,8 +51,9 @@ interface ZoneForm {
   name: string;
   countryCodes: string[];
   isActive: boolean;
-  surchargeCents: string;
-  freeShippingThresholdCents: string;
+  /** Euros, as typed. Converted to cents on submit — see `toCents`. */
+  surcharge: string;
+  freeShippingThreshold: string;
   estimatedDeliveryDays: string;
 }
 
@@ -62,8 +63,9 @@ interface MethodForm {
   code: string;
   name: string;
   carrier: string;
-  priceCents: string;
-  freeAboveCents: string;
+  /** Euros, as typed. Converted to cents on submit — see `toCents`. */
+  price: string;
+  freeAbove: string;
   estimatedDaysMin: string;
   estimatedDaysMax: string;
   isActive: boolean;
@@ -71,16 +73,26 @@ interface MethodForm {
   availableForFreeShipping: boolean;
   requiresProductOptIn: boolean;
   requiresPickupPoint: boolean;
-  /** Comma-separated ISO codes, same free-text convention as the zone form. */
   supportedCountryCodes: string[];
   carrierCode: string;
 }
 
-function eur(cents: number): string {
+/**
+ * Money crosses the API in cents and is typed in euros, so every amount is
+ * converted at the form's edges — read in through `eur`, written back through
+ * `toCents`. Same trio of helpers as the products and categories pages.
+ */
+function euroLabel(cents: number): string {
   return (cents / 100).toLocaleString(undefined, { style: "currency", currency: "EUR" });
 }
+function eur(cents: number | null): string {
+  return cents === null || cents === undefined ? "" : String(cents / 100);
+}
+function toCents(v: string): number | null {
+  return v.trim() === "" ? null : Math.round(Number(v) * 100);
+}
 
-const EMPTY_ZONE_FORM: ZoneForm = { id: null, name: "", countryCodes: [], isActive: true, surchargeCents: "0", freeShippingThresholdCents: "", estimatedDeliveryDays: "" };
+const EMPTY_ZONE_FORM: ZoneForm = { id: null, name: "", countryCodes: [], isActive: true, surcharge: "0", freeShippingThreshold: "", estimatedDeliveryDays: "" };
 const ZONE_FORM_ID = "shipping-zone-form";
 const METHOD_FORM_ID = "shipping-method-form";
 
@@ -159,8 +171,8 @@ export default function ShippingPage() {
       code: "",
       name: "",
       carrier: "",
-      priceCents: "0",
-      freeAboveCents: "",
+      price: "0",
+      freeAbove: "",
       estimatedDaysMin: "2",
       estimatedDaysMax: "5",
       isActive: true,
@@ -182,8 +194,8 @@ export default function ShippingPage() {
       name: zoneForm.name,
       countryCodes: zoneForm.countryCodes,
       isActive: zoneForm.isActive,
-      surchargeCents: parseInt(zoneForm.surchargeCents || "0", 10),
-      freeShippingThresholdCents: zoneForm.freeShippingThresholdCents ? parseInt(zoneForm.freeShippingThresholdCents, 10) : null,
+      surchargeCents: toCents(zoneForm.surcharge) ?? 0,
+      freeShippingThresholdCents: toCents(zoneForm.freeShippingThreshold),
       estimatedDeliveryDays: zoneForm.estimatedDeliveryDays || null,
     };
     try {
@@ -223,8 +235,8 @@ export default function ShippingPage() {
       code: methodForm.code.trim() || null,
       name: methodForm.name,
       carrier: methodForm.carrier || null,
-      priceCents: parseInt(methodForm.priceCents || "0", 10),
-      freeAboveCents: methodForm.freeAboveCents ? parseInt(methodForm.freeAboveCents, 10) : null,
+      priceCents: toCents(methodForm.price) ?? 0,
+      freeAboveCents: toCents(methodForm.freeAbove),
       estimatedDaysMin: parseInt(methodForm.estimatedDaysMin || "0", 10),
       estimatedDaysMax: parseInt(methodForm.estimatedDaysMax || "0", 10),
       isActive: methodForm.isActive,
@@ -296,8 +308,8 @@ export default function ShippingPage() {
                 <tr key={z.id}>
                   <td>{z.name}</td>
                   <td>{z.countryCodes.length ? z.countryCodes.join(", ") : "Worldwide (fallback)"}</td>
-                  <td>{eur(z.surchargeCents)}</td>
-                  <td>{z.freeShippingThresholdCents !== null ? eur(z.freeShippingThresholdCents) : "—"}</td>
+                  <td>{euroLabel(z.surchargeCents)}</td>
+                  <td>{z.freeShippingThresholdCents !== null ? euroLabel(z.freeShippingThresholdCents) : "—"}</td>
                   <td>{z.estimatedDeliveryDays ?? "—"}</td>
                   <td>
                     <span className={z.isActive ? ui.badgeActive : ui.badgeInactive}>{z.isActive ? "active" : "inactive"}</span>
@@ -312,8 +324,8 @@ export default function ShippingPage() {
                             name: z.name,
                             countryCodes: z.countryCodes,
                             isActive: z.isActive,
-                            surchargeCents: String(z.surchargeCents),
-                            freeShippingThresholdCents: z.freeShippingThresholdCents !== null ? String(z.freeShippingThresholdCents) : "",
+                            surcharge: eur(z.surchargeCents),
+                            freeShippingThreshold: eur(z.freeShippingThresholdCents),
                             estimatedDeliveryDays: z.estimatedDeliveryDays ?? "",
                           })
                         }
@@ -371,8 +383,8 @@ export default function ShippingPage() {
                   </td>
                   <td>{zoneName(m.zoneId)}</td>
                   <td>{m.carrier ?? "—"}</td>
-                  <td>{eur(m.priceCents)}</td>
-                  <td>{m.freeAboveCents !== null ? eur(m.freeAboveCents) : "—"}</td>
+                  <td>{euroLabel(m.priceCents)}</td>
+                  <td>{m.freeAboveCents !== null ? euroLabel(m.freeAboveCents) : "—"}</td>
                   <td>
                     {m.estimatedDaysMin}–{m.estimatedDaysMax}
                   </td>
@@ -389,8 +401,8 @@ export default function ShippingPage() {
                             zoneId: m.zoneId,
                             name: m.name,
                             carrier: m.carrier ?? "",
-                            priceCents: String(m.priceCents),
-                            freeAboveCents: m.freeAboveCents !== null ? String(m.freeAboveCents) : "",
+                            price: eur(m.priceCents),
+                            freeAbove: eur(m.freeAboveCents),
                             estimatedDaysMin: String(m.estimatedDaysMin),
                             estimatedDaysMax: String(m.estimatedDaysMax),
                             isActive: m.isActive,
@@ -454,17 +466,24 @@ export default function ShippingPage() {
             </div>
             <div className={ui.formGrid}>
               <div className={ui.field}>
-                <label className={ui.label}>Surcharge (cents)</label>
-                <input className={ui.input} type="number" min={0} value={zoneForm.surchargeCents} onChange={(e) => setZoneForm({ ...zoneForm, surchargeCents: e.target.value })} />
+                <label className={ui.label}>Surcharge (€)</label>
+                <input
+                  className={ui.input}
+                  type="number"
+                  step="0.01"
+                  min={0}
+                  value={zoneForm.surcharge}
+                  onChange={(e) => setZoneForm({ ...zoneForm, surcharge: e.target.value })}
+                />
               </div>
               <div className={ui.field}>
-                <label className={ui.label}>Free-shipping threshold (cents, optional)</label>
+                <label className={ui.label}>Free-shipping threshold (€, optional)</label>
                 <input
                   className={ui.input}
                   type="number"
                   min={0}
-                  value={zoneForm.freeShippingThresholdCents}
-                  onChange={(e) => setZoneForm({ ...zoneForm, freeShippingThresholdCents: e.target.value })}
+                  value={zoneForm.freeShippingThreshold}
+                  onChange={(e) => setZoneForm({ ...zoneForm, freeShippingThreshold: e.target.value })}
                 />
               </div>
             </div>
@@ -521,12 +540,27 @@ export default function ShippingPage() {
             </div>
             <div className={ui.formGrid}>
               <div className={ui.field}>
-                <label className={ui.label}>Price (cents)</label>
-                <input className={ui.input} type="number" min={0} value={methodForm.priceCents} onChange={(e) => setMethodForm({ ...methodForm, priceCents: e.target.value })} required />
+                <label className={ui.label}>Price (€)</label>
+                <input
+                  className={ui.input}
+                  type="number"
+                  step="0.01"
+                  min={0}
+                  value={methodForm.price}
+                  onChange={(e) => setMethodForm({ ...methodForm, price: e.target.value })}
+                  required
+                />
               </div>
               <div className={ui.field}>
-                <label className={ui.label}>Free above (cents, optional)</label>
-                <input className={ui.input} type="number" min={0} value={methodForm.freeAboveCents} onChange={(e) => setMethodForm({ ...methodForm, freeAboveCents: e.target.value })} />
+                <label className={ui.label}>Free above (€, optional)</label>
+                <input
+                  className={ui.input}
+                  type="number"
+                  step="0.01"
+                  min={0}
+                  value={methodForm.freeAbove}
+                  onChange={(e) => setMethodForm({ ...methodForm, freeAbove: e.target.value })}
+                />
               </div>
             </div>
             <div className={ui.formGrid}>
