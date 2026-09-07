@@ -99,7 +99,7 @@ export default function ReviewsSection({ productId, locale, stats, initialReview
   async function loadMore() {
     setLoadingMore(true);
     try {
-      const res = await fetch(`/next-api/public/shop/reviews/product/${productId}?limit=10&offset=${reviews.length}`, { cache: "no-store" });
+      const res = await fetch(`/next-api/public/shop/reviews/product/${productId}?limit=10&offset=${reviews.length}&lang=${locale}`, { cache: "no-store" });
       if (res.ok) {
         const data = await res.json();
         setReviews((prev) => [...prev, ...(data.items ?? [])]);
@@ -111,7 +111,7 @@ export default function ReviewsSection({ productId, locale, stats, initialReview
   }
 
   async function refreshFirstPage() {
-    const res = await fetch(`/next-api/public/shop/reviews/product/${productId}?limit=${Math.max(reviews.length, 10)}`, { cache: "no-store" });
+    const res = await fetch(`/next-api/public/shop/reviews/product/${productId}?limit=${Math.max(reviews.length, 10)}&lang=${locale}`, { cache: "no-store" });
     if (res.ok) {
       const data = await res.json();
       setReviews(data.items ?? []);

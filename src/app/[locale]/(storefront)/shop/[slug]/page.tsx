@@ -81,9 +81,12 @@ interface InitialReviews {
   total: number;
 }
 
-async function fetchInitialReviews(productId: string): Promise<InitialReviews> {
+async function fetchInitialReviews(productId: string, locale: string): Promise<InitialReviews> {
   try {
-    const res = await fetch(`${API_BASE_URL}/public/shop/reviews/product/${productId}?limit=10`, { cache: "no-store" });
+    // `lang` overlays the translated comment — an imported review is written in
+    // whatever language its source listing used, so without this a shopper
+    // reads the wall of reviews in someone else's language.
+    const res = await fetch(`${API_BASE_URL}/public/shop/reviews/product/${productId}?limit=10&lang=${locale}`, { cache: "no-store" });
     if (!res.ok) return { items: [], total: 0 };
     return (await res.json()) as InitialReviews;
   } catch {
@@ -155,7 +158,7 @@ export default async function ProductPage({ params }: PageProps) {
   const [reviewStats, activePromotion, initialReviews] = await Promise.all([
     fetchReviewStats(slug),
     fetchActivePromotion(product.id),
-    fetchInitialReviews(product.id),
+    fetchInitialReviews(product.id, locale),
   ]);
 
   const defaultVariant = product.variants.find((v) => v.isDefault) ?? product.variants[0] ?? null;

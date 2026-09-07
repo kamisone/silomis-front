@@ -8,9 +8,18 @@ import Button from "@/components/admin/ui/Button";
 import Modal from "@/components/admin/ui/Modal";
 import MediaPicker from "@/components/admin/ui/MediaPicker";
 import StarRatingInput from "@/components/admin/ui/StarRatingInput";
+import BilingualField from "@/components/admin/BilingualField";
+import { useEntityTranslations, type OverlayLang } from "@/hooks/useEntityTranslations";
+import { useSectionGenerate } from "@/hooks/useSectionGenerate";
+import { summarizeGenerateErrors, type SectionTranslationOutcome } from "@/lib/sectionTranslate";
 import ui from "@/components/admin/ui/admin-ui.module.css";
 import styles from "./Reviews.module.css";
 import { useToast } from "@/components/toast/ToastContext";
+
+/** Must match ET_SHOP_PRODUCT_REVIEW in the backend's translation-entities.ts —
+ *  the admin writes these rows and the storefront reads them, so a typo here
+ *  silently orphans every translation rather than failing. */
+const ENTITY_TYPE = "shop_product_review";
 
 type ReviewStatus = "pending" | "approved" | "rejected" | "hidden";
 
@@ -131,6 +140,25 @@ export default function ReviewsAdminPage() {
 
   // ── The add / edit form ──
   const [formMode, setFormMode] = useState<FormMode | null>(null);
+
+  // Null while adding: the review has no id until it is created, so the
+  // overlay languages are held in the hook and flushed with saveTranslations
+  // once the POST comes back with one.
+  const editingId = formMode?.kind === "edit" ? formMode.review.id : null;
+  const { translations, setTranslation, saveTranslations } = useEntityTranslations(ENTITY_TYPE, editingId);
+  // The shared plain-copy route, not one of its own: a review comment is just
+  // copy, and a route per field means a backend deploy per field.
+  const bodyGen = useSectionGenerate<SectionTranslationOutcome<string>>("/next-api/admin/shop/translate/text");
+  const [bodyGenError, setBodyGenError] = useState<string | null>(null);
+
+  async function generateBody() {
+    const outcome = await bodyGen.generate({ text: form.body });
+    if (!outcome) return;
+    for (const [lang, value] of Object.entries(outcome.result) as [OverlayLang, string][]) {
+      setTranslation(lang, "body", value);
+    }
+    setBodyGenError(summarizeGenerateErrors(outcome.errors));
+  }
   const [form, setForm] = useState<ReviewForm>(emptyReviewForm);
   const [formSaving, setFormSaving] = useState(false);
   const [products, setProducts] = useState<ProductOption[]>([]);
@@ -240,9 +268,13 @@ export default function ReviewsAdminPage() {
     try {
       if (formMode.kind === "edit") {
         await api.patch(`/next-api/admin/shop/reviews/${formMode.review.id}`, payload);
+        await saveTranslations(formMode.review.id, ["body"]);
         toast.success("Review updated");
       } else {
-        await api.post("/next-api/admin/shop/reviews", { ...payload, productId: form.productId });
+        // The id only exists once the review is created, which is why the
+        // translations are flushed here rather than sent with the payload.
+        const created = await api.post<{ id: string }>("/next-api/admin/shop/reviews", { ...payload, productId: form.productId });
+        await saveTranslations(created.id, ["body"]);
         toast.success("Review added");
       }
       setFormMode(null);
@@ -655,14 +687,20 @@ export default function ReviewsAdminPage() {
             </div>
 
             <div className={styles.field}>
-              <span className={styles.label}>Comment</span>
-              <textarea
-                className={ui.textarea}
-                value={form.body}
-                onChange={(e) => setForm({ ...form, body: e.target.value })}
+              <BilingualField
+                label="Comment"
+                field="body"
+                baseValue={form.body}
+                baseOnChange={(v) => setForm({ ...form, body: v })}
+                basePlaceholder="What the reviewer wrote"
+                translations={translations}
+                onTranslationChange={setTranslation}
+                multiline
                 rows={4}
-                placeholder="What the reviewer wrote"
                 maxLength={5000}
+                onGenerate={generateBody}
+                generating={bodyGen.generating}
+                generateError={bodyGen.error ?? bodyGenError}
               />
             </div>
 
