@@ -336,8 +336,22 @@ export default function EditProductPage() {
   const articlesTitleGen = useSectionGenerate<SectionTranslationOutcome<string>>("/next-api/admin/shop/translate/text");
   const [genErrors, setGenErrors] = useState<Record<string, string | null>>({});
 
-  async function applyPlainGenerate(gen: ReturnType<typeof useSectionGenerate<SectionTranslationOutcome<string>>>, sourceText: string, field: string) {
-    const outcome = await gen.generate({ text: sourceText });
+  /**
+   * `payloadKey` is not cosmetic: the routes behind these buttons validate a
+   * named field, and they do not all name it the same thing. `title` and
+   * `short-description` take `{ text }`, but `description` is rich text and
+   * takes `{ html }` — sending `text` there fails validation with "expected
+   * string, received undefined" and surfaces as "Generation failed" with
+   * nothing on screen to explain it. Whoever adds the next generate button
+   * has to pick the key their route actually reads.
+   */
+  async function applyPlainGenerate(
+    gen: ReturnType<typeof useSectionGenerate<SectionTranslationOutcome<string>>>,
+    sourceText: string,
+    field: string,
+    payloadKey: "text" | "html" = "text",
+  ) {
+    const outcome = await gen.generate({ [payloadKey]: sourceText });
     if (!outcome) return;
     for (const [lang, value] of Object.entries(outcome.result) as [OverlayLang, string][]) {
       setTranslation(lang, field, value);
@@ -697,7 +711,7 @@ export default function EditProductPage() {
                   translations={translations}
                   onTranslationChange={setTranslation}
                   richText
-                  onGenerate={() => applyPlainGenerate(descGen, product.description ?? "", "description")}
+                  onGenerate={() => applyPlainGenerate(descGen, product.description ?? "", "description", "html")}
                   generating={descGen.generating}
                   generateError={descGen.error ?? genErrors.description ?? null}
                 />
