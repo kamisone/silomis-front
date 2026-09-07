@@ -89,9 +89,20 @@
 
 /* The filled row sits on top of the outline row and is revealed by width, so a
    fractional average renders as a part-filled star instead of a rounded one. */
+/* `width: fit-content` is load-bearing, not tidying. .starsClip shows a
+   fraction of the row by taking a percentage width of this box, so this box
+   has to be exactly as wide as the five stars. `display: inline-block` gives
+   that in normal flow — but a flex item is blockified and stretched, and
+   .reviewCard is a column flex container with no `align-items`, so the
+   default `stretch` made this box the full width of the card (~208px). 80%
+   of that is ~166px, far wider than the ~68px star row, so nothing was ever
+   clipped and every rating rendered as five gold stars. (.score sets
+   `align-items: flex-start`, which is why the average beside it looked
+   right.) fit-content pins the width to the content in any container. */
 .stars {
   position: relative;
   display: inline-block;
+  width: fit-content;
   line-height: 0;
 }
 
