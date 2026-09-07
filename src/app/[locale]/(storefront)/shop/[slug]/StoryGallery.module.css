@@ -191,6 +191,15 @@
   flex-direction: column;
   gap: 64px;
 }
+/* The editorial serif of the section (see --font-display in app/layout.tsx).
+   Scoped to the narrative copy rather than set globally: it is a display face,
+   and the rest of the product page is deliberately a neutral sans. */
+.narrativeOverline,
+.narrativeHeading,
+.narrativeText {
+  font-family: var(--font-display), "Iowan Old Style", Georgia, "Times New Roman", serif;
+}
+
 .narrativeOverline {
   align-self: center;
   font-size: 12px;
@@ -199,6 +208,9 @@
   text-transform: uppercase;
   color: var(--color-primary);
   margin: 0 0 -16px;
+  /* Fraunces ships an optical-size axis; its default sits at the text end,
+     which sands off the contrast that makes the face worth using at all. */
+  font-variation-settings: "opsz" 60;
 }
 
 .narrativeRow {
@@ -272,18 +284,42 @@
 }
 
 .narrativeHeading {
-  font-size: clamp(20px, 2.6vw, 26px);
-  font-weight: 700;
-  line-height: 1.25;
+  font-size: clamp(22px, 2.8vw, 29px);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.005em;
   color: var(--foreground);
   margin: 0 0 12px;
+  font-variation-settings: "opsz" 144;
 }
+
+/* Rich text from the admin's WYSIWYG. `white-space: pre-line` lived here while
+   the field was a textarea; against real markup it turns every newline between
+   tags into a blank line, so the block elements carry the rhythm instead. */
 .narrativeText {
-  font-size: 14.5px;
-  line-height: 1.7;
+  font-size: 15.5px;
+  line-height: 1.75;
   color: color-mix(in srgb, var(--foreground) 78%, var(--background));
   margin: 0;
-  white-space: pre-line;
+  font-variation-settings: "opsz" 14;
+}
+.narrativeText > :first-child { margin-top: 0; }
+.narrativeText > :last-child { margin-bottom: 0; }
+.narrativeText p { margin: 0 0 12px; }
+.narrativeText ul,
+.narrativeText ol { padding-left: 20px; margin: 0 0 12px; }
+.narrativeText li { margin-bottom: 6px; }
+.narrativeText h2 { font-size: 20px; font-weight: 600; color: var(--foreground); margin: 1em 0 0.5em; font-variation-settings: "opsz" 144; }
+.narrativeText h3 { font-size: 17px; font-weight: 600; color: var(--foreground); margin: 0.9em 0 0.4em; font-variation-settings: "opsz" 144; }
+.narrativeText strong { font-weight: 700; }
+.narrativeText em { font-style: italic; }
+.narrativeText s { opacity: 0.7; }
+.narrativeText a { color: var(--color-primary); text-decoration: underline; }
+.narrativeText blockquote {
+  margin: 0 0 12px;
+  padding-left: 14px;
+  border-left: 2px solid color-mix(in srgb, var(--color-primary) 45%, transparent);
+  font-style: italic;
 }
 
 @media (max-width: 760px) {

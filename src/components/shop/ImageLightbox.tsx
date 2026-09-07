@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { stripHtml } from "@/lib/html";
 import styles from "./ImageLightbox.module.css";
 
 /** Shape-compatible with StoryGalleryItem — story items can be passed as-is. */
@@ -79,7 +80,10 @@ export default function ImageLightbox({ images, initialIndex = 0, onClose, ariaL
   const active = images[current];
   const hasMany = images.length > 1;
   const title = active.title?.trim();
-  const description = active.description?.trim();
+  // A story block's description is rich text; the caption is a single line of
+  // plain copy, so the markup is stripped rather than rendered. Harmless for
+  // the galleries that still pass plain text — there is nothing to strip.
+  const description = stripHtml(active.description);
 
   return createPortal(
     <div className={styles.backdrop} onClick={onClose} role="dialog" aria-modal="true" aria-label={ariaLabel}>

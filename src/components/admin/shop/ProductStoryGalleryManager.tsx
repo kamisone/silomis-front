@@ -7,6 +7,7 @@ import SectionGenerateButton from "@/components/admin/SectionGenerateButton";
 import { useSectionGenerate } from "@/hooks/useSectionGenerate";
 import { summarizeGenerateErrors, type SectionTranslationOutcome } from "@/lib/sectionTranslate";
 import { OVERLAY_LANGS, type OverlayLang } from "@/hooks/useEntityTranslations";
+import { stripHtml } from "@/lib/html";
 import type { ProductStoryItem, StoryGalleryLocation, StoryImageAspectRatio } from "@/lib/shop/productContent.types";
 import { GripVertical, Trash2, Eye, EyeOff, PanelRight, BookOpen } from "lucide-react";
 import peStyles from "@/app/admin/shop/products/ProductEdit.module.css";
@@ -126,7 +127,9 @@ export default function ProductStoryGalleryManager({ initialItems, translations,
     const item = narrative[index];
     const enTitle = item.title?.trim();
     const enDescription = item.description?.trim();
-    if (!enTitle || !enDescription) {
+    // The description is rich text, and an "empty" editor still hands back
+    // `<p></p>` — which `.trim()` reads as written. Check the visible text.
+    if (!enTitle || !stripHtml(enDescription)) {
       setItemError({ id: item.id, message: "Write the English title and description first." });
       return;
     }
@@ -309,8 +312,7 @@ export default function ProductStoryGalleryManager({ initialItems, translations,
                   baseValue={item.description}
                   baseOnChange={val => update("narrative", i, { description: val })}
                   basePlaceholder="Tell the story behind this image…"
-                  multiline
-                  rows={3}
+                  richText
                   translations={translations}
                   onTranslationChange={onTranslationChange}
                   overlayPlaceholder="Racontez l'histoire derrière cette image…"

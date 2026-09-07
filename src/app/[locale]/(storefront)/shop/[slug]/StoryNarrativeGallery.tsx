@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import ImageLightbox from "@/components/shop/ImageLightbox";
+import { stripHtml } from "@/lib/html";
 import StoryLazyImage from "./StoryLazyImage";
 import type { StoryGalleryItem } from "./StorySideGallery";
 import styles from "./StoryGallery.module.css";
@@ -34,7 +35,11 @@ function NarrativeRow({ item, index, onOpen }: { item: StoryGalleryItem; index: 
   }, []);
 
   const reversed = index % 2 === 1;
-  const hasCopy = !!(item.title?.trim() || item.description?.trim());
+  // The description is rich text written in the admin's WYSIWYG. An editor
+  // left untouched still stores `<p></p>`, so emptiness is a question about
+  // the visible text, not the string.
+  const description = stripHtml(item.description) ? item.description : "";
+  const hasCopy = !!(item.title?.trim() || description);
 
   return (
     <div
@@ -62,7 +67,7 @@ function NarrativeRow({ item, index, onOpen }: { item: StoryGalleryItem; index: 
       {hasCopy && (
         <div className={styles.narrativeCopy}>
           {item.title?.trim() && <h3 className={styles.narrativeHeading}>{item.title}</h3>}
-          {item.description?.trim() && <p className={styles.narrativeText}>{item.description}</p>}
+          {description && <div className={styles.narrativeText} dangerouslySetInnerHTML={{ __html: description }} />}
         </div>
       )}
     </div>

@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono, Pacifico } from "next/font/google";
+import { Geist, Geist_Mono, Pacifico, Fraunces } from "next/font/google";
 import { headers } from "next/headers";
 import NextTopLoader from "nextjs-toploader";
 import { ToastProvider } from "@/components/toast/ToastContext";
@@ -30,6 +30,27 @@ const brandFont = Pacifico({
   variable: "--font-brand",
   subsets: ["latin"],
   weight: "400",
+  display: "swap",
+});
+
+/**
+ * The editorial serif, used by the product page's narrative story gallery and
+ * nothing else so far.
+ *
+ * Stands in for P22 Mackinac, which is what that section was designed around
+ * and is a commercial licence. Fraunces is the closest thing on Google Fonts —
+ * an old-style serif with the same wedge serifs and high stroke contrast — and
+ * because everything reads it through `--font-display`, dropping in a licensed
+ * Mackinac later is a change to this declaration alone.
+ *
+ * `opsz` is requested explicitly: Fraunces defaults to its text optical size,
+ * which sands off exactly the display contrast the section wants, so the CSS
+ * dials it up per element.
+ */
+const displayFont = Fraunces({
+  variable: "--font-display",
+  subsets: ["latin"],
+  axes: ["opsz"],
   display: "swap",
 });
 
@@ -69,7 +90,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   const locale = (await headers()).get("x-locale") ?? "en";
 
   return (
-    <html lang={locale} className={`${geistSans.variable} ${geistMono.variable} ${brandFont.variable}`}>
+    <html lang={locale} className={`${geistSans.variable} ${geistMono.variable} ${brandFont.variable} ${displayFont.variable}`}>
       <body>
         {/* Global nav-in-progress feedback — mounted once here so it covers
             every route (storefront + admin) instead of each section rolling
