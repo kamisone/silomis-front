@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { useLocale } from "@/lib/i18n/useLocale";
 import { parseApiError, type CartMutationResult } from "@/lib/shop/stockError";
 import { pixelTrack } from "@/lib/metaPixel";
 import { ttqTrack } from "@/lib/tiktokPixel";
@@ -72,6 +73,11 @@ function getOrCreateToken(): string {
 }
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
+  // Every cart response carries copy the shopper reads — the product title and
+  // its variation options — and the API only overlays translations when asked
+  // for a language. Without this the drawer showed base-locale copy whatever
+  // the page around it was in.
+  const locale = useLocale();
   const [token, setToken] = useState<string>(() => {
     if (typeof window === "undefined") return "";
     return getOrCreateToken();
@@ -99,14 +105,17 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     if (!token) return;
     setLoading(true);
     try {
-      const res = await fetch(`/next-api/public/shop/cart/${token}`);
+      const res = await fetch(`/next-api/public/shop/cart/${token}?lang=${locale}`);
       if (res.ok) applyCart(await res.json());
     } finally {
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+  }, [token, locale]);
 
+  // Re-fetched on a locale change too, not just a token change: switching
+  // language has to restate the cart in the new one, and the copy lives in
+  // the response rather than in the client.
   useEffect(() => {
     if (!token) return;
     const t = setTimeout(() => fetchCart(), 0);
@@ -117,7 +126,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     async (variantId: string, quantity = 1, selectedOptionValueIds?: string[]): Promise<CartMutationResult> => {
       setMutating(true);
       try {
-        const res = await fetch(`/next-api/public/shop/cart/${token}/items`, {
+        const res = await fetch(`/next-api/public/shop/cart/${token}/items?lang=${locale}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ variantId, quantity, selectedOptionValueIds }),
@@ -172,7 +181,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [token],
+    [token, locale],
   );
 
   const updateItem = useCallback(
@@ -195,7 +204,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
       setMutating(true);
       try {
-        const res = await fetch(`/next-api/public/shop/cart/${token}/items/${itemId}`, {
+        const res = await fetch(`/next-api/public/shop/cart/${token}/items/${itemId}?lang=${locale}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ quantity }),
@@ -216,7 +225,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [token],
+    [token, locale],
   );
 
   const removeItem = useCallback(
@@ -238,7 +247,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
       setMutating(true);
       try {
-        const res = await fetch(`/next-api/public/shop/cart/${token}/items/${itemId}`, {
+        const res = await fetch(`/next-api/public/shop/cart/${token}/items/${itemId}?lang=${locale}`, {
           method: "DELETE",
         });
         if (res.ok) applyCart(await res.json());
@@ -250,7 +259,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [token],
+    [token, locale],
   );
 
   const clearCart = useCallback(() => {
