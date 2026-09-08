@@ -1253,6 +1253,13 @@ export default function ShopProductDetail({
       {/* Sticky mobile buy bar — mobile/tablet only, hidden when the whole
           product is out of stock (the sticky notice above communicates that). */}
       <div ref={stickyBarRef} className={`${styles.stickyBuyBar} ${showStickyBar && !allOutOfStock ? styles.stickyBuyBarVisible : ""}`} aria-hidden={!showStickyBar || allOutOfStock}>
+        {/* Pinned to the card's top-right corner rather than trailing the price
+            row: it is the card's status, so it belongs where a status badge is
+            looked for, and it no longer competes for space with a long
+            per-unit variant label. */}
+        {resolveStatus === "available" && <span className={`${styles.stickyStock} ${styles.stickyStockAvail}`}>{t.shop.stockAvailable}</span>}
+        {resolveStatus === "out_of_stock" && <span className={`${styles.stickyStock} ${styles.stickyStockOos}`}>{t.shop.stockOutOfStock}</span>}
+
         <StickyVariantSelector selection={variantSelection} visible={showStickyBar && !allOutOfStock} />
 
         <div className={styles.stickyMeta}>
@@ -1263,8 +1270,6 @@ export default function ShopProductDetail({
               into "2x Black / M" — with the quantity already shown in the
               price, spelling out every unit separately would say it twice. */}
           {stickyVariantLabel && <span className={styles.stickyVariant}>{stickyVariantLabel}</span>}
-          {resolveStatus === "available" && <span className={`${styles.stickyStock} ${styles.stickyStockAvail}`}>{t.shop.stockAvailable}</span>}
-          {resolveStatus === "out_of_stock" && <span className={`${styles.stickyStock} ${styles.stickyStockOos}`}>{t.shop.stockOutOfStock}</span>}
         </div>
         <div className={styles.stickyActions}>
           <AddToCartButton

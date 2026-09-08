@@ -729,6 +729,10 @@
     box-shadow: 0 -4px 24px rgba(0, 24, 41, 0.1);
     transform: translateY(100%);
   }
+  .stickyStock {
+    top: 10px;
+    right: 16px;
+  }
   .stickyBuyBarVisible {
     transform: translateY(0);
   }
@@ -758,6 +762,10 @@
        consistently whichever card is occupying it. */
     transform: translateY(14px) scale(0.97);
   }
+  .stickyStock {
+    top: 12px;
+    right: 16px;
+  }
   .stickyBuyBarVisible {
     transform: none;
   }
@@ -768,6 +776,12 @@
   gap: 6px 10px;
   flex-wrap: wrap;
   line-height: 1;
+}
+/* Only when the price row is the card's first row — with no variant picker
+   above it, the badge sits in this row's band and the label would otherwise
+   truncate underneath it instead of before it. */
+.stickyStock + .stickyMeta {
+  padding-right: 92px;
 }
 .stickyPrice {
   font-size: 20px;
@@ -793,13 +807,25 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* The card's status, pinned to its top-right corner. Absolute rather than a
+   row of its own so it costs the bar no height, and a pill rather than bare
+   text so it stays legible over whatever the first row happens to be — a long
+   attribute value in the variant picker can otherwise reach under it.
+   `top`/`right` track each breakpoint's own padding below. */
 .stickyStock {
+  position: absolute;
+  z-index: 1;
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  padding: 3px 9px;
+  border-radius: 999px;
   font-size: 12px;
   font-weight: 600;
+  line-height: 1.25;
   flex-shrink: 0;
+  /* Tinted from the badge's own colour, so one rule covers both states. */
+  background: color-mix(in srgb, currentColor 12%, var(--background));
 }
 .stickyStock::before {
   content: "";
