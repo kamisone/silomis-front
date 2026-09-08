@@ -518,45 +518,7 @@
 }
 .settingsInput:focus { border-color: var(--color-secondary); }
 
-.settingsLabel { font-size: 13px; font-weight: 500; color: var(--color-primary); }
-
-.settingsPhones { display: flex; flex-direction: column; gap: 8px; }
 .settingsHint { font-size: 11px; color: var(--color-secondary); }
-.settingsWarn { font-size: 11px; font-weight: 600; color: var(--color-warning); }
-
-.phoneChip {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 5px 10px;
-  background: var(--color-surface-tint);
-  border: 1px solid var(--color-surface);
-  border-radius: 8px;
-  font-size: 12px;
-}
-.phoneChip button {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  font-size: 14px;
-  color: var(--color-secondary);
-  line-height: 1;
-}
-
-.phoneAddRow { display: flex; gap: 8px; }
-
-.addPhoneBtn {
-  padding: 6px 12px;
-  border: 1px solid var(--color-secondary);
-  border-radius: 8px;
-  background: transparent;
-  color: var(--color-secondary);
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
 /* ── Tab switcher ── */
 .tabRow {
   display: flex;

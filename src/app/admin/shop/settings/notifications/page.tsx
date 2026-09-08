@@ -32,9 +32,16 @@ const EVENT_OPTIONS: { key: string; label: string; desc: string }[] = [
   { key: "order_shipped", label: "Order Shipped", desc: "When an order is marked as shipped" },
   { key: "order_delivered", label: "Order Delivered", desc: "When an order is marked as delivered" },
   { key: "low_stock", label: "Low Stock Alert", desc: "When product inventory runs low" },
+  { key: "support_message", label: "Support Message", desc: "When a customer writes in the support chat" },
 ];
 
 const EVENT_LABELS: Record<string, string> = Object.fromEntries(EVENT_OPTIONS.map((e) => [e.key, e.label]));
+
+interface SupportSettings {
+  /** One conversation pages at most this often, however chatty the guest is. */
+  smsCooldownMin: number;
+  inactiveCloseHours: number;
+}
 
 const LOGS_PAGE_SIZE = 30;
 
@@ -43,6 +50,7 @@ type Tab = "settings" | "logs";
 export default function AdminNotificationsPage() {
   const [tab, setTab] = useState<Tab>("settings");
   const [settings, setSettings] = useState<Settings | null>(null);
+  const [support, setSupport] = useState<SupportSettings | null>(null);
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -70,7 +78,10 @@ export default function AdminNotificationsPage() {
   );
 
   useEffect(() => {
-    api.get<Settings>("/next-api/admin/shop/notifications/settings").then(setSettings);
+    // Both cards render independently, so a failure on one leaves the other
+    // usable rather than taking the page down with an unhandled rejection.
+    api.get<Settings>("/next-api/admin/shop/notifications/settings").then(setSettings).catch(() => {});
+    api.get<SupportSettings>("/next-api/support/admin/settings").then(setSupport).catch(() => {});
   }, []);
 
   // Re-fetches the first page whenever a filter changes. The spinner is turned
@@ -113,10 +124,19 @@ export default function AdminNotificationsPage() {
 
   const patch = (p: Partial<Settings>) => {
     setSettings((s) => (s ? { ...s, ...p } : s));
+    markDirty();
+  };
+
+  const patchSupport = (p: Partial<SupportSettings>) => {
+    setSupport((s) => (s ? { ...s, ...p } : s));
+    markDirty();
+  };
+
+  function markDirty() {
     setDirty(true);
     setSaved(false);
     setSaveError(null);
-  };
+  }
 
   async function save() {
     if (!settings) return;
@@ -124,6 +144,9 @@ export default function AdminNotificationsPage() {
     setSaveError(null);
     try {
       setSettings(await api.patch<Settings>("/next-api/admin/shop/notifications/settings", settings));
+      if (support) {
+        setSupport(await api.patch<SupportSettings>("/next-api/support/admin/settings", { smsCooldownMin: support.smsCooldownMin }));
+      }
       setDirty(false);
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
@@ -295,24 +318,62 @@ export default function AdminNotificationsPage() {
             </div>
             <div className={styles.cardBody}>
               <div className={styles.eventList}>
-                {EVENT_OPTIONS.map((ev) => (
-                  <label key={ev.key} className={styles.eventRow}>
-                    <input
-                      type="checkbox"
-                      className={styles.eventCheckbox}
-                      checked={settings.events.includes(ev.key)}
-                      onChange={() => toggleEvent(ev.key)}
-                    />
-                    <div>
-                      <span className={styles.eventLabel}>{ev.label}</span>
-                      <br />
-                      <span className={styles.eventDesc}>{ev.desc}</span>
-                    </div>
-                  </label>
-                ))}
+                {EVENT_OPTIONS.map((ev) => {
+                  const on = settings.events.includes(ev.key);
+                  return (
+                    // The whole row is the control, so the label and the
+                    // description are as clickable as the switch itself.
+                    <button
+                      key={ev.key}
+                      type="button"
+                      role="switch"
+                      aria-checked={on}
+                      className={`${styles.eventRow} ${on ? styles.eventRowOn : ""}`}
+                      onClick={() => toggleEvent(ev.key)}
+                    >
+                      <span className={styles.eventText}>
+                        <span className={styles.eventLabel}>{ev.label}</span>
+                        <span className={styles.eventDesc}>{ev.desc}</span>
+                      </span>
+                      <span className={`${styles.toggle} ${on ? styles.toggleOn : ""}`} aria-hidden="true" />
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>
+
+          {/* ── Support behaviour ── */}
+          {support && (
+            <div className={styles.card} style={{ marginTop: 24 }}>
+              <div className={styles.cardHeader}>
+                <h2 className={styles.cardTitle}>Support Chat</h2>
+              </div>
+              <div className={styles.cardBody}>
+                <label className={styles.numberRow}>
+                  <span className={styles.eventText}>
+                    <span className={styles.eventLabel}>Cooldown between alerts</span>
+                    <span className={styles.eventDesc}>
+                      Minutes before the same conversation may alert again, so a customer sending six
+                      messages in a row does not send six texts.
+                    </span>
+                  </span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={1440}
+                    className={styles.numberInput}
+                    value={support.smsCooldownMin}
+                    onChange={(e) => patchSupport({ smsCooldownMin: Number(e.target.value) })}
+                  />
+                </label>
+                <p className={styles.cardNote}>
+                  Turn the alerts themselves on or off with <strong>Support Message</strong> above. Auto-closing
+                  idle conversations is set in the Support panel.
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* ── Save ── */}
           <div className={styles.saveBar}>

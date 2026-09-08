@@ -25,6 +25,8 @@ interface NavItem {
   href:  string;
   icon:  LucideIcon;
   label: string;
+  /** Renders the live unread-conversation count next to the label. */
+  badge?: "support";
 }
 
 interface NavCategory {
@@ -64,7 +66,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: "Communication",
     items: [
-      { href: "/admin/support",  icon: Headphones, label: "Support"  },
+      { href: "/admin/support",  icon: Headphones, label: "Support", badge: "support" },
       { href: "/admin/contacts", icon: Mail,        label: "Contact" },
     ],
   },
@@ -291,6 +293,31 @@ export default function AdminSidebar({
     setUserOpenedCategories(new Set());
   }, [pathname]);
 
+  // ── Support unread badge ──────────────────────────────────────────────────
+  // Polled rather than pushed: the sidebar is not a socket client, and a count
+  // that is at most 30 s stale is enough to make someone open the panel. The
+  // pathname dependency refreshes it on the way out of /admin/support, where
+  // opening a conversation has just marked it read.
+  const [supportUnread, setSupportUnread] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    const read = () => {
+      fetch("/next-api/support/admin/conversations/unread-count")
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data: { count?: number } | null) => {
+          if (active && typeof data?.count === "number") setSupportUnread(data.count);
+        })
+        .catch(() => {});
+    };
+    read();
+    const id = setInterval(read, 30_000);
+    return () => {
+      active = false;
+      clearInterval(id);
+    };
+  }, [pathname]);
+
   const toggleCategory = useCallback((label: string, isRouteActive: boolean) => {
     if (isRouteActive) return;
     setUserOpenedCategories((prev) => {
@@ -319,6 +346,16 @@ export default function AdminSidebar({
       >
         <Icon icon={item.icon} className={styles.navIcon} />
         <span className={styles.navLabel}>{item.label}</span>
+        {item.badge === "support" && supportUnread > 0 && (
+          // Collapsed the label is hidden, so the count would have nowhere to
+          // sit — a dot on the icon carries the same signal in that state.
+          <span
+            className={styles.navBadge}
+            title={`${supportUnread} unanswered support message${supportUnread === 1 ? "" : "s"}`}
+          >
+            {supportUnread > 99 ? "99+" : supportUnread}
+          </span>
+        )}
         {active && <span className={styles.navActiveBar} />}
       </Link>
     );

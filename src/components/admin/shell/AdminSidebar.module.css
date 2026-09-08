@@ -251,6 +251,34 @@
   color: var(--brand-primary);
 }
 
+/* ── Support unread badge ── */
+.navBadge {
+  margin-left: auto;
+  flex-shrink: 0;
+  min-width: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--color-accent);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+}
+
+/* Collapsed the label is gone, so the pill becomes a dot on the icon. */
+.sidebarCollapsed .navBadge {
+  position: absolute;
+  top: 4px;
+  right: 50%;
+  transform: translateX(14px);
+  min-width: 8px;
+  height: 8px;
+  padding: 0;
+  font-size: 0;
+  line-height: 0;
+}
+
 .navIcon {
   width: 16px;
   flex-shrink: 0;

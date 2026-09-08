@@ -147,21 +147,61 @@
 .addBtn:hover { opacity: 0.88; }
 .addBtn:disabled { opacity: 0.4; cursor: default; }
 
-/* ── Event checkboxes ── */
+/* ── Event switches ── */
 .eventList { display: flex; flex-direction: column; gap: 8px; }
+
+/* The whole row is the switch: label, description and the pill all toggle. */
 .eventRow {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  border-radius: 8px;
-  transition: background 0.1s;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--color-surface);
+  border-radius: 10px;
+  background: var(--background);
+  font: inherit;
+  text-align: left;
   cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
 }
 .eventRow:hover { background: var(--color-surface); }
-.eventCheckbox { width: 16px; height: 16px; accent-color: var(--color-primary); cursor: pointer; }
-.eventLabel { font-size: 13px; color: var(--foreground); font-weight: 500; }
+.eventRow:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+.eventRowOn {
+  border-color: color-mix(in srgb, var(--color-primary) 40%, var(--background));
+  background: color-mix(in srgb, var(--color-primary) 5%, var(--background));
+}
+.eventRowOn:hover { background: color-mix(in srgb, var(--color-primary) 9%, var(--background)); }
+
+.eventText { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.eventLabel { font-size: 13px; color: var(--foreground); font-weight: 600; }
 .eventDesc { font-size: 11px; color: var(--color-secondary); }
+
+/* ── Number setting row ── */
+.numberRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  cursor: pointer;
+}
+.numberInput {
+  width: 88px;
+  flex-shrink: 0;
+  padding: 7px 10px;
+  border: 1px solid color-mix(in srgb, var(--color-secondary) 17%, var(--background));
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--foreground);
+  background: var(--background);
+  outline: none;
+  transition: border-color 0.15s;
+}
+.numberInput:focus { border-color: var(--color-primary); }
 
 /* ── Save bar ── */
 .saveBar { display: flex; justify-content: flex-end; align-items: center; margin-top: 20px; }

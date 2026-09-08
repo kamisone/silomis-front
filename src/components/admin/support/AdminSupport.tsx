@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { io, Socket } from "socket.io-client";
 import { WS_HOST, WS_PATH } from "@/lib/wsConfig";
 import styles from "./AdminSupport.module.css";
-import { X, Headphones, SlidersHorizontal, Search, Menu, MessageCircle, CheckCircle2, RotateCcw, Trash2, Send } from "lucide-react";
+import { Headphones, SlidersHorizontal, Search, Menu, MessageCircle, CheckCircle2, RotateCcw, Trash2, Send } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -36,12 +36,12 @@ interface Message {
   _status?: "sending" | "sent" | "failed";
 }
 
+/**
+ * Only support's own lifecycle knob lives here now. Whether a guest message
+ * alerts anyone, over which channel and to whom, is the `support_message`
+ * event on Shop -> Settings -> Notifications.
+ */
 interface NotifSettings {
-  /** How many numbers a guest message would actually reach right now. */
-  resolvedPhoneCount?: number;
-  smsEnabled:         boolean;
-  smsPhones:          string[];
-  smsCooldownMin:     number;
   inactiveCloseHours: number;
 }
 
@@ -155,7 +155,6 @@ export default function AdminSupport() {
   const [msgLoading,      setMsgLoading]      = useState(false);
   const [settings,        setSettings]        = useState<NotifSettings | null>(null);
   const [showSettings,    setShowSettings]    = useState(false);
-  const [phoneDraft,      setPhoneDraft]      = useState("");
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [wsStatus,        setWsStatus]        = useState<"connecting" | "connected" | "error" | "disconnected">("connecting");
   const [analytics,       setAnalytics]       = useState<Analytics | null>(null);
@@ -501,13 +500,6 @@ export default function AdminSupport() {
     });
   };
 
-  const addPhone = () => {
-    const p = phoneDraft.trim();
-    if (!p || settings?.smsPhones.includes(p)) return;
-    setSettings(s => s ? { ...s, smsPhones: [...s.smsPhones, p] } : s);
-    setPhoneDraft("");
-  };
-
   useEffect(() => { if (showSettings) loadSettings(); }, [showSettings]);  
 
   // ── Analytics ──────────────────────────────────────────────────────────────
@@ -775,47 +767,19 @@ export default function AdminSupport() {
       {showSettings && (
         <div className={styles.modalOverlay} onClick={() => setShowSettings(false)}>
           <div className={styles.modal} onClick={e => e.stopPropagation()}>
-            <h3 className={styles.modalTitle}>Notification Settings</h3>
+            <h3 className={styles.modalTitle}>Support Settings</h3>
             {settings && (
               <div className={styles.settingsForm}>
-                <label className={styles.settingsRow}>
-                  <span>Enable SMS notifications</span>
-                  <input type="checkbox" checked={settings.smsEnabled} onChange={e => setSettings(s => s ? { ...s, smsEnabled: e.target.checked } : s)} />
-                </label>
-                <label className={styles.settingsRow}>
-                  <span>Cooldown between SMS (minutes)</span>
-                  <input type="number" min={1} max={1440} value={settings.smsCooldownMin} className={styles.settingsInput}
-                    onChange={e => setSettings(s => s ? { ...s, smsCooldownMin: Number(e.target.value) } : s)} />
-                </label>
                 <label className={styles.settingsRow}>
                   <span>Auto-close after inactivity (hours)</span>
                   <input type="number" min={1} max={8760} value={settings.inactiveCloseHours} className={styles.settingsInput}
                     onChange={e => setSettings(s => s ? { ...s, inactiveCloseHours: Number(e.target.value) } : s)} />
                 </label>
-                <div className={styles.settingsPhones}>
-                  <span className={styles.settingsLabel}>Notification phone numbers</span>
-                  {settings.smsPhones.map(p => (
-                    <div key={p} className={styles.phoneChip}>
-                      {p}
-                      <button onClick={() => setSettings(s => s ? { ...s, smsPhones: s.smsPhones.filter(x => x !== p) } : s)}><X size={14} strokeWidth={2} /></button>
-                    </div>
-                  ))}
-                  <div className={styles.phoneAddRow}>
-                    <input className={styles.settingsInput} placeholder="+1 555 123 4567" value={phoneDraft}
-                      onChange={e => setPhoneDraft(e.target.value)}
-                      onKeyDown={e => { if (e.key === "Enter") addPhone(); }} />
-                    <button className={styles.addPhoneBtn} onClick={addPhone}>Add</button>
-                  </div>
-                  <span className={styles.settingsHint}>
-                    Leave empty to text every admin account that has a phone number on file.
-                  </span>
-                  {settings.smsEnabled && settings.resolvedPhoneCount === 0 && (
-                    <span className={styles.settingsWarn}>
-                      SMS is on but no number would be reached — add one above, or give an admin a phone
-                      number under Settings → Admins.
-                    </span>
-                  )}
-                </div>
+                <span className={styles.settingsHint}>
+                  Alerts for new customer messages &mdash; which channels, who they reach, and how often one
+                  conversation may alert &mdash; are set under Shop &rarr; Settings &rarr; Notifications, with the
+                  rest of the admin notifications.
+                </span>
               </div>
             )}
             <div className={styles.modalActions}>
