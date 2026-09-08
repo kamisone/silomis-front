@@ -804,6 +804,9 @@ export default function AdminSupport() {
                       onKeyDown={e => { if (e.key === "Enter") addPhone(); }} />
                     <button className={styles.addPhoneBtn} onClick={addPhone}>Add</button>
                   </div>
+                  <span className={styles.settingsHint}>
+                    Leave empty to text every admin account that has a phone number on file.
+                  </span>
                 </div>
               </div>
             )}

@@ -521,6 +521,7 @@
 .settingsLabel { font-size: 13px; font-weight: 500; color: var(--color-primary); }
 
 .settingsPhones { display: flex; flex-direction: column; gap: 8px; }
+.settingsHint { font-size: 11px; color: var(--color-secondary); }
 
 .phoneChip {
   display: flex;
