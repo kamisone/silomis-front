@@ -32,10 +32,10 @@ export default function AdminDetailPage() {
   /** The logged-in admin, so this page can refuse to delete the chair it is sitting on. */
   const [meId, setMeId] = useState<string | null>(null);
 
-  const [profile, setProfile] = useState({ name: "", email: "", role: "admin" as AdminRole });
+  const [profile, setProfile] = useState({ name: "", email: "", phone: "", role: "admin" as AdminRole });
   const [savingProfile, setSavingProfile] = useState(false);
 
-  const [mfa, setMfa] = useState({ mfaEnabled: false, preferredMfaMethod: "email" as "email" | "sms", phone: "" });
+  const [mfa, setMfa] = useState({ mfaEnabled: false, preferredMfaMethod: "email" as "email" | "sms" });
   const [savingMfa, setSavingMfa] = useState(false);
 
   const [password, setPassword] = useState("");
@@ -46,11 +46,10 @@ export default function AdminDetailPage() {
 
   function hydrate(data: AdminAccount) {
     setAdmin(data);
-    setProfile({ name: data.name, email: data.email, role: data.role });
+    setProfile({ name: data.name, email: data.email, phone: data.phone ?? "", role: data.role });
     setMfa({
       mfaEnabled: data.mfaEnabled ?? false,
       preferredMfaMethod: data.preferredMfaMethod ?? "email",
-      phone: data.phone ?? "",
     });
   }
 
@@ -81,6 +80,7 @@ export default function AdminDetailPage() {
         await api.patch<AdminAccount>(`/next-api/admins/${id}`, {
           name: profile.name.trim(),
           email: profile.email.trim(),
+          phone: profile.phone.trim() || null,
           role: profile.role,
         }),
       );
@@ -97,8 +97,8 @@ export default function AdminDetailPage() {
     // Checked here as well as on the way in: enabling SMS with no number
     // stores a setting that can only fail at the login prompt, which is the
     // worst possible moment to discover it.
-    if (mfa.mfaEnabled && mfa.preferredMfaMethod === "sms" && !mfa.phone.trim()) {
-      toast.error("A phone number is required for SMS verification");
+    if (mfa.mfaEnabled && mfa.preferredMfaMethod === "sms" && !admin?.phone) {
+      toast.error("Add a phone number under Profile and save it first");
       return;
     }
     setSavingMfa(true);
@@ -107,7 +107,6 @@ export default function AdminDetailPage() {
         await api.patch<AdminAccount>(`/next-api/admins/${id}/mfa`, {
           mfaEnabled: mfa.mfaEnabled,
           preferredMfaMethod: mfa.preferredMfaMethod,
-          phone: mfa.phone.trim() || null,
         }),
       );
       toast.success("Two-factor settings saved");
@@ -201,6 +200,20 @@ export default function AdminDetailPage() {
             <input className={ui.input} type="email" value={profile.email} onChange={(e) => setProfile({ ...profile, email: e.target.value })} required />
             <span className={ui.pageHint}>This is the address they sign in with.</span>
           </div>
+          <div className={ui.field}>
+            <label className={ui.label}>Phone number</label>
+            <input
+              className={ui.input}
+              type="tel"
+              placeholder="+33 6 12 34 56 78"
+              value={profile.phone}
+              onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
+            />
+            <span className={ui.pageHint}>
+              Where admin SMS alerts go — new orders, low stock and support messages — and where an SMS
+              two-factor code is sent. Leave blank and this admin gets email only.
+            </span>
+          </div>
           <div>
             <Button type="submit" disabled={savingProfile}>
               {savingProfile ? "Saving…" : "Save changes"}
@@ -224,10 +237,13 @@ export default function AdminDetailPage() {
                 <label className={ui.label}>Where to send the code</label>
                 <Select value={mfa.preferredMfaMethod} options={MFA_METHODS} onChange={(preferredMfaMethod) => setMfa({ ...mfa, preferredMfaMethod })} />
               </div>
-              <div className={ui.field}>
-                <label className={ui.label}>Phone number {mfa.preferredMfaMethod === "sms" ? "(required)" : "(optional)"}</label>
-                <input className={ui.input} type="tel" placeholder="+33 6 12 34 56 78" value={mfa.phone} onChange={(e) => setMfa({ ...mfa, phone: e.target.value })} />
-              </div>
+              {mfa.preferredMfaMethod === "sms" && (
+                <span className={ui.pageHint}>
+                  {admin.phone
+                    ? `Codes are texted to ${admin.phone} — change it under Profile above.`
+                    : "No phone number on file. Add one under Profile above and save before turning this on."}
+                </span>
+              )}
             </>
           )}
           <div>

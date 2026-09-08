@@ -15,11 +15,12 @@ const FORM_ID = "admin-create-form";
 interface CreateForm {
   name: string;
   email: string;
+  phone: string;
   password: string;
   role: AdminRole;
 }
 
-const EMPTY_FORM: CreateForm = { name: "", email: "", password: "", role: "admin" };
+const EMPTY_FORM: CreateForm = { name: "", email: "", phone: "", password: "", role: "admin" };
 
 export default function AdminsPage() {
   const { toast } = useToast();
@@ -49,6 +50,7 @@ export default function AdminsPage() {
       await api.post("/next-api/admins", {
         name: form.name.trim(),
         email: form.email.trim(),
+        phone: form.phone.trim() || null,
         password: form.password,
         role: form.role,
       });
@@ -83,6 +85,7 @@ export default function AdminsPage() {
               <tr>
                 <th>Name</th>
                 <th>Email</th>
+                <th>Phone</th>
                 <th>Role</th>
                 <th>Two-factor</th>
                 <th>Created</th>
@@ -94,6 +97,7 @@ export default function AdminsPage() {
                 <tr key={a.id}>
                   <td>{a.name}</td>
                   <td>{a.email}</td>
+                  <td>{a.phone ?? <span className={ui.muted}>—</span>}</td>
                   <td>
                     <span className={roleBadgeClass(a.role, ui)}>{a.role}</span>
                   </td>
@@ -142,6 +146,11 @@ export default function AdminsPage() {
             <div className={ui.field}>
               <label className={ui.label}>Email</label>
               <input className={ui.input} type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
+            </div>
+            <div className={ui.field}>
+              <label className={ui.label}>Phone number</label>
+              <input className={ui.input} type="tel" placeholder="+33 6 12 34 56 78" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+              <span className={ui.pageHint}>Optional. Where admin SMS alerts reach them.</span>
             </div>
             <div className={ui.field}>
               <label className={ui.label}>Password</label>

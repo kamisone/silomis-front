@@ -522,6 +522,7 @@
 
 .settingsPhones { display: flex; flex-direction: column; gap: 8px; }
 .settingsHint { font-size: 11px; color: var(--color-secondary); }
+.settingsWarn { font-size: 11px; font-weight: 600; color: var(--color-warning); }
 
 .phoneChip {
   display: flex;

@@ -37,6 +37,8 @@ interface Message {
 }
 
 interface NotifSettings {
+  /** How many numbers a guest message would actually reach right now. */
+  resolvedPhoneCount?: number;
   smsEnabled:         boolean;
   smsPhones:          string[];
   smsCooldownMin:     number;
@@ -807,6 +809,12 @@ export default function AdminSupport() {
                   <span className={styles.settingsHint}>
                     Leave empty to text every admin account that has a phone number on file.
                   </span>
+                  {settings.smsEnabled && settings.resolvedPhoneCount === 0 && (
+                    <span className={styles.settingsWarn}>
+                      SMS is on but no number would be reached — add one above, or give an admin a phone
+                      number under Settings → Admins.
+                    </span>
+                  )}
                 </div>
               </div>
             )}
