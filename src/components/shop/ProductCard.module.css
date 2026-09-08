@@ -1,6 +1,6 @@
 .productGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr));
   gap: 18px;
 }
 
@@ -329,3 +329,7 @@
   background: var(--color-primary);
   color: var(--background);
 }
+
+/* The variant photo is a layer of the same stack, so switching to it uses the
+   gallery's own 0.28s opacity crossfade above — a separate animation here
+   would fight .productImageHidden for control of opacity. */

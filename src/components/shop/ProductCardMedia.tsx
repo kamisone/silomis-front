@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useCardVariant } from "./ProductCardVariantContext";
 import styles from "./ProductCard.module.css";
 
 /**
@@ -17,6 +18,12 @@ import styles from "./ProductCard.module.css";
  *    image and the cursor's X position picks the band, so a single sweep walks
  *    the whole gallery without a click.
  *  - touch / small screens: prev-next arrows, since there is no hover.
+ *
+ * When the card's variation picker resolves to an option with its own photo,
+ * that photo joins the gallery and becomes the shown one. It is added rather
+ * than substituted: clicking "Black" is a request to see black, but the rest
+ * of the product's photos are still worth scrubbing through afterwards, and
+ * the arrows and dots keep working across the whole set.
  */
 export default function ProductCardMedia({
   images,
@@ -33,12 +40,39 @@ export default function ProductCardMedia({
   nextLabel: string;
   children?: React.ReactNode;
 }) {
-  const multiImage = images.length > 1;
+  const variantImage = useCardVariant()?.activeImageUrl ?? null;
+
+  // The variant photo is often already one of the product's gallery images —
+  // then picking the option just moves to it. When it is not (a colour shot
+  // attached only to the variant), it is prepended so it is still reachable
+  // with the arrows once the shopper scrubs away.
+  const gallery = useMemo(
+    () => (variantImage && !images.includes(variantImage) ? [variantImage, ...images] : images),
+    [variantImage, images],
+  );
+  const variantIndex = variantImage ? gallery.indexOf(variantImage) : -1;
+
+  const multiImage = gallery.length > 1;
   const [index, setIndex] = useState(0);
   // Images past the first are left out of the DOM until the card is actually
   // interacted with. A 24-product grid would otherwise request up to 120
   // images on load, nearly all of which are never looked at.
   const [activated, setActivated] = useState(false);
+
+  // Jumping to the newly picked option's photo is a render-phase adjustment,
+  // not an effect: it is derived from a prop change and an effect would paint
+  // the old image for a frame first. Tracking the previous value is what makes
+  // it run once per change, leaving the shopper free to scrub away afterwards.
+  const [lastVariantImage, setLastVariantImage] = useState(variantImage);
+  if (variantImage !== lastVariantImage) {
+    setLastVariantImage(variantImage);
+    if (variantIndex >= 0) {
+      setIndex(variantIndex);
+      // The prepended photo pushes every other image up one slot, so the rest
+      // of the gallery has to be in the DOM for the switch to land.
+      setActivated(true);
+    }
+  }
 
   // Pointer events rather than mouse events: a tap on a touch screen fires
   // synthetic mousemove/mouseleave just before the arrow's click, which would
@@ -49,15 +83,17 @@ export default function ProductCardMedia({
     const rect = e.currentTarget.getBoundingClientRect();
     if (rect.width === 0) return;
     const ratio = (e.clientX - rect.left) / rect.width;
-    const next = Math.min(images.length - 1, Math.max(0, Math.floor(ratio * images.length)));
+    const next = Math.min(gallery.length - 1, Math.max(0, Math.floor(ratio * gallery.length)));
     setActivated(true);
     setIndex(next);
   }
 
   function handleScrubEnd(e: React.PointerEvent<HTMLDivElement>) {
-    // Back to the featured image on the way out, so a grid never keeps a row
-    // of cards frozen on whichever image the cursor happened to cross last.
-    if (e.pointerType === "mouse") setIndex(0);
+    // Back to the resting image on the way out, so a grid never keeps a row of
+    // cards frozen on whichever image the cursor happened to cross last. That
+    // is the picked option's photo when there is one — returning to the
+    // featured shot would silently undo the shopper's choice.
+    if (e.pointerType === "mouse") setIndex(variantIndex >= 0 ? variantIndex : 0);
   }
 
   function step(e: React.MouseEvent, direction: 1 | -1) {
@@ -65,7 +101,7 @@ export default function ProductCardMedia({
     e.preventDefault();
     e.stopPropagation();
     setActivated(true);
-    setIndex((i) => (i + direction + images.length) % images.length);
+    setIndex((i) => (i + direction + gallery.length) % gallery.length);
   }
 
   return (
@@ -74,8 +110,8 @@ export default function ProductCardMedia({
       onPointerMove={multiImage ? handleScrub : undefined}
       onPointerLeave={multiImage ? handleScrubEnd : undefined}
     >
-      {images.length > 0 ? (
-        images.map(
+      {gallery.length > 0 ? (
+        gallery.map(
           (url, i) =>
             (i === 0 || activated) && (
               // eslint-disable-next-line @next/next/no-img-element
@@ -103,7 +139,7 @@ export default function ProductCardMedia({
       {multiImage && (
         <>
           <span className={styles.imageDots} aria-hidden="true">
-            {images.map((url, i) => (
+            {gallery.map((url, i) => (
               <span key={url} className={`${styles.imageDot} ${i === index ? styles.imageDotActive : ""}`} />
             ))}
           </span>

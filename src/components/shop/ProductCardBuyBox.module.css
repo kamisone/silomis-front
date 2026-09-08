@@ -1,0 +1,300 @@
+/*
+ * The card's variation picker. Deliberately not a reuse of
+ * ProductVariantSelector.module.css: that one sizes for the product page's
+ * details column, where a swatch is 34px and every attribute gets a full
+ * label row. A card is a third of that width and has to leave the price and
+ * the add button visible, so everything here is one size down and the
+ * attribute name shares a line with its chosen value.
+ */
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin-top: 0.15rem;
+}
+
+/* Owns the trigger and its panel as one row of .root, so the collapsed
+   zero-height panel adds no gap of its own. */
+.picker { display: flex; flex-direction: column; }
+
+/* ── Collapsible trigger ── */
+.trigger {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: 100%;
+  padding: 0.32rem 0.45rem;
+  border: 1px solid color-mix(in srgb, var(--color-secondary) 18%, var(--background));
+  border-radius: 8px;
+  background: var(--background);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.trigger:hover { border-color: var(--color-primary); }
+.trigger:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+.triggerOpen {
+  border-color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 5%, var(--background));
+}
+
+.triggerSwatches { display: flex; flex-shrink: 0; }
+.triggerSwatches:empty { display: none; }
+.triggerSwatch {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  border: 1px solid var(--background);
+  background-position: center;
+  background-size: cover;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-secondary) 20%, transparent);
+}
+/* Overlapped so two or three attributes still fit on one narrow row. */
+.triggerSwatch + .triggerSwatch { margin-left: -4px; }
+
+.triggerText {
+  display: flex;
+  align-items: baseline;
+  gap: 0.3rem;
+  flex: 1;
+  min-width: 0;
+}
+.triggerLabel {
+  flex-shrink: 0;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-secondary);
+}
+.triggerValue {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chevron {
+  flex-shrink: 0;
+  color: var(--color-secondary);
+  transition: transform 0.24s cubic-bezier(0.4, 0, 0.2, 1), color 0.15s;
+}
+.triggerOpen .chevron {
+  transform: rotate(180deg);
+  color: var(--color-primary);
+}
+
+/* ── Collapsible panel ──
+   grid-template-rows 0fr -> 1fr animates to the content's own height: no JS
+   measuring, and no max-height guess for a long attribute list to outgrow. */
+.panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition: grid-template-rows 0.26s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.18s ease;
+}
+.panelOpen {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+/* Spacing lives inside the clipped box, not around it: a closed panel then
+   collapses to nothing at all, where an outer gap would leave a stray few
+   pixels under the trigger, and the padding never jumps mid-transition. */
+.panelInner {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  overflow: hidden;
+  min-height: 0;
+  padding-top: 0.4rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel { transition: none; }
+  .chevron { transition: none; }
+}
+
+.group { display: flex; flex-direction: column; gap: 0.28rem; }
+
+.groupLabel {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--color-secondary);
+}
+.groupValue {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 500;
+  color: var(--foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.options { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+
+/* ── Text chips ── */
+.chip {
+  min-width: 1.85rem;
+  padding: 0.2rem 0.42rem;
+  border: 1px solid color-mix(in srgb, var(--color-secondary) 20%, var(--background));
+  border-radius: 6px;
+  background: var(--background);
+  color: var(--foreground);
+  font: inherit;
+  font-size: 0.72rem;
+  line-height: 1.25;
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s, color 0.12s;
+}
+.chip:hover:not(:disabled) { border-color: var(--color-primary); }
+
+/* ── Swatches ── */
+.swatch {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 2px;
+  border: 1px solid color-mix(in srgb, var(--color-secondary) 20%, var(--background));
+  border-radius: 50%;
+  background: var(--background);
+  cursor: pointer;
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+.swatch:hover:not(:disabled) { border-color: var(--color-primary); }
+.swatchInner {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background-color: var(--color-surface-tint);
+  background-position: center;
+  background-size: cover;
+  font-size: 0.55rem;
+  font-weight: 700;
+  color: var(--color-secondary);
+  text-transform: uppercase;
+}
+
+/* ── Option states ── */
+.optionSelected {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 1px var(--color-primary);
+}
+.chip.optionSelected {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+/* Buildable, but nothing left in stock — dimmed and struck through, still
+   clickable so the shopper can see the price and ask to be notified. */
+.optionOos {
+  opacity: 0.45;
+  text-decoration: line-through;
+}
+.swatch.optionOos { text-decoration: none; }
+
+/* No variant exists with this combination at all — not a stock problem. */
+.optionUnavailable {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* ── Dropdown ── */
+.select {
+  width: 100%;
+  padding: 0.3rem 0.4rem;
+  border: 1px solid color-mix(in srgb, var(--color-secondary) 20%, var(--background));
+  border-radius: 6px;
+  background: var(--background);
+  color: var(--foreground);
+  font: inherit;
+  font-size: 0.74rem;
+  cursor: pointer;
+}
+
+/* ── Quantity + add ── */
+.buyRow { display: flex; flex-direction: column; gap: 0.35rem; }
+
+.qty {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.1rem;
+  border: 1px solid color-mix(in srgb, var(--color-secondary) 18%, var(--background));
+  border-radius: 8px;
+  background: var(--background);
+}
+.qtyBtn {
+  flex-shrink: 0;
+  width: 1.55rem;
+  height: 1.55rem;
+  border: none;
+  border-radius: 6px;
+  background: var(--color-surface-tint);
+  color: var(--foreground);
+  font-size: 0.9rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.12s, opacity 0.12s;
+}
+.qtyBtn:hover:not(:disabled) { background: var(--color-surface); }
+.qtyBtn:disabled { opacity: 0.35; cursor: default; }
+
+.qtyValue {
+  display: flex;
+  align-items: baseline;
+  gap: 0.25rem;
+  flex: 1;
+  min-width: 0;
+  justify-content: center;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--foreground);
+}
+.qtyCombo {
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: var(--color-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.soldOut,
+.detailsBtn {
+  display: block;
+  padding: 0.42rem 0.6rem;
+  border-radius: 8px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  text-align: center;
+}
+.soldOut {
+  background: var(--color-surface);
+  color: var(--color-secondary);
+}
+.detailsBtn {
+  border: 1px solid var(--color-primary);
+  color: var(--color-primary);
+  text-decoration: none;
+}
+.detailsBtn:hover { background: color-mix(in srgb, var(--color-primary) 8%, var(--background)); }
+
+.chip:disabled,
+.swatch:disabled { cursor: not-allowed; }

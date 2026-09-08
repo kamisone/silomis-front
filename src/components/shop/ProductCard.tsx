@@ -1,6 +1,8 @@
 import Link from "next/link";
 import AddToCartButton from "@/components/shop/AddToCartButton";
 import ProductCardMedia from "@/components/shop/ProductCardMedia";
+import ProductCardBuyBox from "@/components/shop/ProductCardBuyBox";
+import { CardVariantProvider, type CardVariant } from "@/components/shop/ProductCardVariantContext";
 import PromotionBadge, { type PromotionInfo } from "@/components/shop/PromotionBadge";
 import type { Locale } from "@/lib/i18n";
 import { getTranslations } from "@/lib/i18n";
@@ -11,6 +13,14 @@ export interface ProductVariantSummary {
   priceCents: number;
   compareAtPriceCents: number | null;
   isDefault: boolean;
+  /** Present on the public listing payload; absent for callers that build
+   *  cards from a leaner shape (e.g. the last-seen rail). Without it the card
+   *  falls back to adding the default variant, exactly as it did before. */
+  sku?: string | null;
+  title?: string | null;
+  options?: CardVariant["options"];
+  inventoryItem?: { available: number } | null;
+  featuredMediaUrl?: string | null;
 }
 
 export interface ProductListItem {
@@ -69,11 +79,17 @@ export default function ProductCard({
 
   const href = `/${locale}/shop/${product.slug}`;
 
+  // Only variants carrying options can drive a picker. A product whose single
+  // variant has none is an ordinary one-click add, and wrapping it in the
+  // provider would ship the context for nothing.
+  const pickerVariants = product.variants.filter((v): v is ProductVariantSummary & CardVariant => !!v.options?.length) as unknown as CardVariant[];
+  const hasVariations = pickerVariants.length > 0;
+
   // The card is a div rather than one big <Link>: it now carries its own
   // add-to-cart control, and a button nested inside an anchor is invalid markup
   // that navigates on click. The image and the title are each their own link,
   // so the whole visual card still reads (and tabs) as one target.
-  return (
+  const card = (
     <div className={styles.productCard}>
       {/* Badges stay here, server-rendered, and are slotted over the image by
           ProductCardMedia — only the image switcher itself needs client JS. */}
@@ -119,12 +135,15 @@ export default function ProductCard({
         </div>
         {defaultVariantOos && !outOfStock && <span className={styles.variantOosNote}>{t.shop.selectedOptionOutOfStock}</span>}
 
-        {/* Nothing left to buy → a dead pill; a product whose default variant is
-            gone but which has other options → send them to the PDP to pick one;
-            otherwise add the default variant straight from the card. */}
+        {/* Nothing left to buy → a dead pill. A product with variations gets
+            the inline picker, which resolves its own variant and handles a
+            sold-out combination itself. Everything else adds the default
+            variant straight from the card. */}
         <div className={styles.cardAction}>
           {outOfStock ? (
             <span className={styles.outOfStockBtn}>{t.shop.outOfStock}</span>
+          ) : hasVariations ? (
+            <ProductCardBuyBox href={href} />
           ) : defaultVariantOos ? (
             <Link href={href} className={styles.seeDetailsBtn}>
               {t.shop.seeDetails}
@@ -140,4 +159,9 @@ export default function ProductCard({
       </div>
     </div>
   );
+
+  // The provider is client-side, but everything above stays server-rendered —
+  // React passes an already-rendered server tree through as children, so the
+  // title, price and badges are still in the HTML.
+  return hasVariations ? <CardVariantProvider variants={pickerVariants}>{card}</CardVariantProvider> : card;
 }
