@@ -868,6 +868,43 @@ export default function ShopProductDetail({
   // there is no width test here any more.
   const actionsRef = useRef<HTMLDivElement>(null);
   const [showStickyBar, setShowStickyBar] = useState(false);
+  const stickyBarRef = useRef<HTMLDivElement>(null);
+
+  // Publishes the bar's real height so anything else pinned to the bottom of
+  // the viewport can ride above it — the back-to-top button, which otherwise
+  // sits on top of the buy bar on phones. Measured rather than hard-coded
+  // because StickyVariantSelector expands to 34vh when its options are open
+  // and the per-unit label rewraps as the selection changes; same
+  // ResizeObserver approach ScrollAwareHeader uses for --header-offset.
+  //
+  // The value is 0 while the bar is hidden: it is only translated off-screen,
+  // so its measured height never drops to zero on its own. Which breakpoints
+  // act on it is left to CSS — the bar is a floating corner card on desktop
+  // and overlaps nothing there.
+  const stickyBarActive = showStickyBar && !allOutOfStock;
+  useEffect(() => {
+    const el = stickyBarRef.current;
+    const root = document.documentElement;
+    const clear = () => root.style.setProperty("--buy-bar-height", "0px");
+
+    if (!el || !stickyBarActive) {
+      clear();
+      return;
+    }
+
+    const publish = () => root.style.setProperty("--buy-bar-height", `${el.offsetHeight}px`);
+    publish();
+
+    const observer = new ResizeObserver(publish);
+    observer.observe(el);
+    return () => {
+      observer.disconnect();
+      // Leaving the product page must not leave every other page's floating
+      // controls pushed up by a bar that is no longer there.
+      clear();
+    };
+  }, [stickyBarActive]);
+
   useEffect(() => {
     const HEADER = 84;
     const handle = () => {
@@ -1215,7 +1252,7 @@ export default function ShopProductDetail({
 
       {/* Sticky mobile buy bar — mobile/tablet only, hidden when the whole
           product is out of stock (the sticky notice above communicates that). */}
-      <div className={`${styles.stickyBuyBar} ${showStickyBar && !allOutOfStock ? styles.stickyBuyBarVisible : ""}`} aria-hidden={!showStickyBar || allOutOfStock}>
+      <div ref={stickyBarRef} className={`${styles.stickyBuyBar} ${showStickyBar && !allOutOfStock ? styles.stickyBuyBarVisible : ""}`} aria-hidden={!showStickyBar || allOutOfStock}>
         <StickyVariantSelector selection={variantSelection} visible={showStickyBar && !allOutOfStock} />
 
         <div className={styles.stickyMeta}>
