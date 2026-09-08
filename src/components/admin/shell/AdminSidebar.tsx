@@ -15,7 +15,7 @@ import {
   CreditCard, Receipt, ArrowLeftRight, Zap, AlertCircle,
   Tag, Send, Percent, Hash, Ticket, Home,
   Settings, Coins, Landmark, Mail, Target, Headphones,
-  FileEdit, BookOpen, Plug,
+  FileEdit, BookOpen, Plug, ShieldCheck,
   ChevronRight, ChevronLeft, ChevronDown, Sparkles } from "lucide-react";
 import styles from "./AdminSidebar.module.css";
 
@@ -185,6 +185,14 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/admin/blog/categories", icon: Tag,      label: "Categories" },
       { href: "/admin/blog/tags",       icon: Hash,     label: "Tags"       },
       { href: "/admin/content",         icon: BookOpen, label: "Policies"   },
+    ],
+  },
+  // Account-level settings, distinct from the Commerce > Settings category,
+  // which configures the shop rather than who may administer it.
+  {
+    label: "Settings",
+    items: [
+      { href: "/admin/settings/admins", icon: ShieldCheck, label: "Admins" },
     ],
   },
 ];
