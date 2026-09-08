@@ -356,6 +356,24 @@
   white-space: nowrap;
 }
 
+/* Belt and braces for the grid above: its three columns were filled by
+   document order alone, so any child that failed to render shifted every
+   later one into the wrong column. Pinning them means the layout no longer
+   depends on which parts happen to be present. Scoped to the media layout —
+   .surfaceTextOnly is a single column, and the stacked layout below assigns
+   rows instead. */
+@media (min-width: 961px) {
+  .surface:not(.surfaceTextOnly) .rail {
+    grid-column: 1;
+  }
+  .surface:not(.surfaceTextOnly) .stage {
+    grid-column: 2;
+  }
+  .surface:not(.surfaceTextOnly) .panel {
+    grid-column: 3;
+  }
+}
+
 /* ── Stacked layout ── */
 
 @media (max-width: 960px) {

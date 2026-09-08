@@ -141,7 +141,13 @@ export default function ReviewMediaViewer({
     year: "numeric",
   });
 
-  const thumbs = current && entries.length > 1 && (
+  // Rendered for a single photo too, not just for a set. The desktop surface is
+  // a three-column grid placed by document order, so dropping the rail slid the
+  // stage into the 76px rail column and the panel into the stage's — the whole
+  // layout collapsed for the one case where the product has exactly one review
+  // photo. A one-tab rail keeps the shape, and the tile is a correct
+  // representation of what is on the stage.
+  const thumbs = current && (
     <div className={styles.rail} ref={railRef} role="tablist" aria-label={t.shop.reviewsHeading}>
       {entries.map((e, i) => (
         <button
