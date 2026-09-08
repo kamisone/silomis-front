@@ -1,0 +1,238 @@
+/*
+ * Its own module rather than more inline styles on admin-ui's generic .card —
+ * this page is four unrelated forms plus a destructive action, and the shared
+ * card has no header, no footer and no notion of a danger variant. Same
+ * precedent as AdminSupport.module.css and contacts.module.css.
+ */
+
+/* ── Header ── */
+.back {
+  /* .page is a column flex container, so without this the link stretches the
+     full width and the whole row becomes a click target. */
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: var(--color-secondary);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+.back:hover { color: var(--color-primary); }
+
+.hero {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 1.15rem 1.25rem;
+  border: 1px solid var(--color-surface);
+  border-radius: 14px;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-primary) 7%, var(--background)),
+    var(--background) 60%
+  );
+}
+
+.avatar {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  user-select: none;
+}
+
+.heroText { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1; }
+.heroName {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--foreground);
+}
+.heroMeta {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  flex-wrap: wrap;
+  font-size: 0.8rem;
+  color: var(--color-secondary);
+}
+.heroMetaItem { display: inline-flex; align-items: center; gap: 5px; }
+.heroMetaMissing { color: color-mix(in srgb, var(--color-secondary) 65%, var(--background)); font-style: italic; }
+
+/* "You" — flags the account you are signed in with, which cannot be deleted. */
+.selfChip {
+  padding: 0.1rem 0.5rem;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 35%, var(--background));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-primary) 10%, var(--background));
+  color: var(--color-primary);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+/* ── Two-column layout ── */
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  align-items: start;
+  gap: 1.25rem;
+}
+.column { display: flex; flex-direction: column; gap: 1.25rem; min-width: 0; }
+@media (max-width: 960px) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ── Card ── */
+.card {
+  border: 1px solid var(--color-surface);
+  border-radius: 12px;
+  background: var(--background);
+  overflow: hidden;
+}
+.cardHeader {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 0.9rem 1.15rem;
+  border-bottom: 1px solid var(--color-surface);
+}
+.cardIcon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: var(--color-surface-tint);
+  color: var(--color-primary);
+}
+.cardHeading { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cardTitle { margin: 0; font-size: 0.92rem; font-weight: 700; color: var(--foreground); }
+.cardDesc { font-size: 0.78rem; line-height: 1.5; color: var(--color-secondary); }
+
+.cardBody { display: flex; flex-direction: column; gap: 1rem; padding: 1.15rem; }
+
+/* Actions sit on a tinted strip so a long form always ends somewhere obvious. */
+.cardFooter {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 0.75rem 1.15rem;
+  border-top: 1px solid var(--color-surface);
+  background: var(--color-surface-tint);
+}
+.footerNote { margin-right: auto; font-size: 0.76rem; color: var(--color-secondary); }
+
+/* ── Fields ── */
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+@media (max-width: 560px) { .grid2 { grid-template-columns: 1fr; } }
+
+.hint { font-size: 0.76rem; line-height: 1.5; color: var(--color-secondary); }
+
+/* A field-level warning: says why the setting above cannot work yet. */
+.warn {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 0.76rem;
+  line-height: 1.5;
+  color: var(--color-warning);
+}
+.warnIcon { flex-shrink: 0; margin-top: 1px; }
+
+.passwordWrap { position: relative; display: flex; }
+.passwordWrap input { flex: 1; padding-right: 2.4rem; }
+.revealBtn {
+  position: absolute;
+  top: 50%;
+  right: 0.55rem;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  padding: 4px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--color-secondary);
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+}
+.revealBtn:hover { color: var(--foreground); background: var(--color-surface); }
+
+/* ── Summary rail ── */
+.summaryList { display: flex; flex-direction: column; }
+.summaryRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.6rem 1.15rem;
+  font-size: 0.8rem;
+  border-bottom: 1px solid var(--color-surface);
+}
+.summaryRow:last-child { border-bottom: none; }
+.summaryLabel { color: var(--color-secondary); }
+.summaryValue {
+  color: var(--foreground);
+  font-weight: 600;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+.summaryValueMuted { color: var(--color-secondary); font-weight: 500; font-style: italic; }
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0.12rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+.pillOn { background: var(--color-success-bg); color: var(--color-success); }
+.pillOff { background: var(--color-surface); color: var(--color-secondary); }
+
+/* ── Danger zone ── */
+.dangerCard { border-color: var(--color-error-border); }
+.dangerCard .cardHeader { border-bottom-color: var(--color-error-border); }
+.dangerCard .cardIcon { background: var(--color-error-bg); color: var(--color-error); }
+.dangerCard .cardTitle { color: var(--color-error); }
+
+/* ── Loading skeleton ── */
+.skeleton {
+  border-radius: 8px;
+  background: linear-gradient(
+    90deg,
+    var(--color-surface) 25%,
+    var(--color-surface-tint) 50%,
+    var(--color-surface) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+.skeletonHero { height: 86px; border-radius: 14px; }
+.skeletonCard { height: 210px; border-radius: 12px; }
+
+@keyframes shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton { animation: none; }
+}
