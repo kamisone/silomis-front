@@ -125,40 +125,42 @@ export default function SessionReplayModal({ onClose, productId, productTitle, w
             ) : sessions.length === 0 ? (
               <p>No recorded sessions yet — recordings only happen on test-product pages.</p>
             ) : (
-              <table className={styles.table}>
-                <thead>
-                  <tr>
-                    <th>Product</th>
-                    <th>Device</th>
-                    <th>Country</th>
-                    <th>Source</th>
-                    <th>Clicks</th>
-                    <th>Max scroll</th>
-                    <th>Status</th>
-                    <th>Started</th>
-                    <th />
-                  </tr>
-                </thead>
-                <tbody>
-                  {sessions.map((s) => (
-                    <tr key={s.id}>
-                      <td>{s.product?.title ?? s.productId ?? "—"}</td>
-                      <td>{s.device ?? "—"}</td>
-                      <td>{s.countryCode ?? "—"}</td>
-                      <td>{s.source ?? "—"}</td>
-                      <td>{s.clickCount}</td>
-                      <td>{s.maxScrollPct}%</td>
-                      <td>{s.status}</td>
-                      <td>{new Date(s.startedAt).toLocaleString()}</td>
-                      <td>
-                        <Button variant="secondary" onClick={() => openSession(s)}>
-                          {s.viewedAt ? "Watch again" : "Watch"}
-                        </Button>
-                      </td>
+              <div className={styles.tableWrap}>
+                <table className={styles.table}>
+                  <thead>
+                    <tr>
+                      <th>Product</th>
+                      <th>Device</th>
+                      <th>Country</th>
+                      <th>Source</th>
+                      <th>Clicks</th>
+                      <th>Max scroll</th>
+                      <th>Status</th>
+                      <th>Started</th>
+                      <th />
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {sessions.map((s) => (
+                      <tr key={s.id}>
+                        <td>{s.product?.title ?? s.productId ?? "—"}</td>
+                        <td>{s.device ?? "—"}</td>
+                        <td>{s.countryCode ?? "—"}</td>
+                        <td>{s.source ?? "—"}</td>
+                        <td>{s.clickCount}</td>
+                        <td>{s.maxScrollPct}%</td>
+                        <td>{s.status}</td>
+                        <td>{new Date(s.startedAt).toLocaleString()}</td>
+                        <td>
+                          <Button variant="secondary" onClick={() => openSession(s)}>
+                            {s.viewedAt ? "Watch again" : "Watch"}
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )
           ) : loadingDetail ? (
             <p>Loading recording…</p>

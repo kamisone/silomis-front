@@ -2,10 +2,13 @@
 
 import { useEffect, useMemo, useState, useCallback } from "react";
 import Link from "next/link";
+import { ChevronDown, ChevronUp, Play } from "lucide-react";
 import { api } from "@/lib/api";
+import Button from "@/components/admin/ui/Button";
 import SessionReplayModal from "@/components/admin/shop/SessionReplayModal";
 import replayStyles from "@/components/admin/shop/SessionReplay.module.css";
 import ui from "@/components/admin/ui/admin-ui.module.css";
+import styles from "./TestProducts.module.css";
 
 interface TestProductDemand {
   productId: string;
@@ -47,6 +50,16 @@ const SORT_COLUMNS: Array<{ key: keyof TestProductDemand; label: string }> = [
   { key: "viewToCheckoutRatePct", label: "View → checkout" },
 ];
 
+/** Typing in the filters refetches; this is how long typing has to stop first. */
+const SEARCH_DEBOUNCE_MS = 350;
+
+/** Euros as typed -> cents, or null when the box holds nothing usable. */
+function toCents(value: string): string | null {
+  if (!value.trim()) return null;
+  const cents = Math.round(Number(value) * 100);
+  return Number.isFinite(cents) ? String(cents) : null;
+}
+
 export default function TestProductsAnalyticsPage() {
   const [days, setDays] = useState("30");
   const [search, setSearch] = useState("");
@@ -62,7 +75,9 @@ export default function TestProductsAnalyticsPage() {
 
   const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [rows, setRows] = useState<TestProductDemand[]>([]);
+  /** First load only — a refetch keeps the previous rows on screen. */
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
   const [replayProduct, setReplayProduct] = useState<{ id: string; title: string } | null>(null);
 
@@ -75,12 +90,16 @@ export default function TestProductsAnalyticsPage() {
 
   const query = useMemo(() => {
     const params = new URLSearchParams({ days });
-    if (search) params.set("search", search);
+    if (search.trim()) params.set("search", search.trim());
     if (categoryId) params.set("categoryId", categoryId);
     if (status) params.set("productStatus", status);
-    if (minPrice) params.set("minPriceCents", String(Math.round(Number(minPrice) * 100)));
-    if (maxPrice) params.set("maxPriceCents", String(Math.round(Number(maxPrice) * 100)));
-    if (minViews) params.set("minViews", minViews);
+    // A half-typed "-" or "1e" is not a filter — sending NaN made the whole
+    // request come back empty with nothing on screen to explain why.
+    const min = toCents(minPrice);
+    const max = toCents(maxPrice);
+    if (min) params.set("minPriceCents", min);
+    if (max) params.set("maxPriceCents", max);
+    if (minViews.trim()) params.set("minViews", minViews.trim());
     if (activeOnly) params.set("activeOnly", "true");
     if (reachedCheckoutOnly) params.set("reachedCheckoutOnly", "true");
     if (sort) {
@@ -90,14 +109,25 @@ export default function TestProductsAnalyticsPage() {
     return params.toString();
   }, [days, search, categoryId, status, minPrice, maxPrice, minViews, activeOnly, reachedCheckoutOnly, sort, order]);
 
+  const filtersActive =
+    !!search.trim() || !!categoryId || !!status || !!minPrice || !!maxPrice || !!minViews || activeOnly || reachedCheckoutOnly;
+
   useEffect(() => {
+    // Debounced: `query` changes on every keystroke in the search and number
+    // boxes, and the previous zero-delay timeout fired a request for each one.
+    // The dimming starts when the request does, not on the keystroke — a table
+    // that greys out between letters is worse than one that just waits.
     const t = setTimeout(() => {
-      setLoading(true);
+      setRefreshing(true);
       api
         .get<TestProductDemand[]>(`/next-api/admin/shop/analytics/test-products?${query}`)
         .then((data) => setRows(Array.isArray(data) ? data : []))
-        .finally(() => setLoading(false));
-    }, 0);
+        .catch(() => setRows([]))
+        .finally(() => {
+          setLoading(false);
+          setRefreshing(false);
+        });
+    }, SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(t);
   }, [query]);
 
@@ -143,90 +173,184 @@ export default function TestProductsAnalyticsPage() {
     }
   }
 
+  function clearFilters() {
+    setSearch("");
+    setCategoryId("");
+    setStatus("");
+    setMinPrice("");
+    setMaxPrice("");
+    setMinViews("");
+    setActiveOnly(false);
+    setReachedCheckoutOnly(false);
+  }
+
+  /**
+   * The four numbers are one funnel, not four unrelated counters — the whole
+   * point of the page is where people fall out of it. Rendering them as a row
+   * of identical cards buried that; each step now carries what share of the
+   * previous step reached it.
+   */
+  const funnel = [
+    { key: "views", label: "Viewed", value: totals.views, of: null as number | null },
+    { key: "cart", label: "Added to cart", value: totals.addsToCart, of: totals.views },
+    { key: "shipping", label: "Reached shipping", value: totals.reachedShipping, of: totals.addsToCart },
+    { key: "checkout", label: "Reached checkout", value: totals.reachedCheckout, of: totals.reachedShipping },
+  ];
+
+  const pct = (value: number, of: number) => (of > 0 ? Math.round((value / of) * 100) : 0);
+  const periodLabel = days === "7" ? "last 7 days" : days === "90" ? "last 90 days" : "last 30 days";
+
   return (
     <div className={ui.page}>
       <div className={ui.pageHeader}>
         <h1 className={ui.pageTitle}>Test products</h1>
       </div>
 
-      <p style={{ fontSize: "0.85rem", color: "var(--color-secondary)", maxWidth: 760, lineHeight: 1.6, marginTop: "-0.5rem" }}>
+      <p className={ui.pageHint} style={{ maxWidth: 760 }}>
         Test products behave like real products until checkout, which is refused before the payment form loads. <strong>Reached shipping</strong> counts customers who submitted their address and landed on the shipping step; <strong>reached checkout</strong> counts those who then chose a
         shipping method and clicked through to payment — the furthest a test product can be taken, and the people who would have bought it. Both are counted once per customer, so retries after the error do not inflate them.
       </p>
 
-      <div className={ui.toolbar}>
-        <select className={ui.select} value={days} onChange={(e) => setDays(e.target.value)}>
-          <option value="7">Last 7 days</option>
-          <option value="30">Last 30 days</option>
-          <option value="90">Last 90 days</option>
-        </select>
-        <input className={ui.searchInput} placeholder="Search title…" value={search} onChange={(e) => setSearch(e.target.value)} />
-        <select className={ui.select} value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
-          <option value="">All categories</option>
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
-        <select className={ui.select} value={status} onChange={(e) => setStatus(e.target.value)}>
-          <option value="">Any status</option>
-          {STATUS_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
-        <input className={ui.input} style={{ width: 90 }} type="number" min={0} placeholder="Min €" value={minPrice} onChange={(e) => setMinPrice(e.target.value)} />
-        <input className={ui.input} style={{ width: 90 }} type="number" min={0} placeholder="Max €" value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} />
-        <input className={ui.input} style={{ width: 90 }} type="number" min={0} placeholder="Min views" value={minViews} onChange={(e) => setMinViews(e.target.value)} />
-        <label style={{ display: "flex", alignItems: "center", gap: "0.35rem", fontSize: "0.85rem" }}>
-          <input type="checkbox" checked={activeOnly} onChange={(e) => setActiveOnly(e.target.checked)} /> Hide no activity
-        </label>
-        <label style={{ display: "flex", alignItems: "center", gap: "0.35rem", fontSize: "0.85rem" }}>
-          <input type="checkbox" checked={reachedCheckoutOnly} onChange={(e) => setReachedCheckoutOnly(e.target.checked)} /> Reached checkout only
-        </label>
-      </div>
-
-      {loading ? (
-        <div className={ui.emptyState}>Loading…</div>
-      ) : rows.length === 0 ? (
-        <div className={ui.emptyState}>No test products match these filters. Turn on &ldquo;Test product&rdquo; on a product, or loosen the filters above.</div>
-      ) : (
-        <>
-          <div className={ui.card} style={{ display: "flex", gap: "2rem", flexWrap: "wrap" }}>
-            <div>
-              <div style={{ fontSize: "0.75rem", color: "var(--color-secondary)", textTransform: "uppercase" }}>Test products</div>
-              <div style={{ fontSize: "1.4rem", fontWeight: 700 }}>{rows.length}</div>
-            </div>
-            <div>
-              <div style={{ fontSize: "0.75rem", color: "var(--color-secondary)", textTransform: "uppercase" }}>Views</div>
-              <div style={{ fontSize: "1.4rem", fontWeight: 700 }}>{totals.views}</div>
-            </div>
-            <div>
-              <div style={{ fontSize: "0.75rem", color: "var(--color-secondary)", textTransform: "uppercase" }}>Added to cart</div>
-              <div style={{ fontSize: "1.4rem", fontWeight: 700 }}>{totals.addsToCart}</div>
-            </div>
-            <div>
-              <div style={{ fontSize: "0.75rem", color: "var(--color-secondary)", textTransform: "uppercase" }}>Reached shipping</div>
-              <div style={{ fontSize: "1.4rem", fontWeight: 700 }}>{totals.reachedShipping}</div>
-            </div>
-            <div>
-              <div style={{ fontSize: "0.75rem", color: "var(--color-secondary)", textTransform: "uppercase" }}>Reached checkout</div>
-              <div style={{ fontSize: "1.4rem", fontWeight: 700, color: "#b45309" }}>{totals.reachedCheckout}</div>
+      <div className={styles.filterCard}>
+        <div className={styles.filterRow}>
+          <label className={`${styles.filter} ${styles.search}`}>
+            <span className={styles.filterLabel}>Search</span>
+            <input className={styles.control} placeholder="Product title…" value={search} onChange={(e) => setSearch(e.target.value)} />
+          </label>
+          <label className={styles.filter}>
+            <span className={styles.filterLabel}>Period</span>
+            <select className={styles.control} value={days} onChange={(e) => setDays(e.target.value)}>
+              <option value="7">Last 7 days</option>
+              <option value="30">Last 30 days</option>
+              <option value="90">Last 90 days</option>
+            </select>
+          </label>
+          <label className={styles.filter}>
+            <span className={styles.filterLabel}>Category</span>
+            <select className={styles.control} value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
+              <option value="">All categories</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className={styles.filter}>
+            <span className={styles.filterLabel}>Status</span>
+            <select className={styles.control} value={status} onChange={(e) => setStatus(e.target.value)}>
+              <option value="">Any status</option>
+              {STATUS_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          {/* One field, not two: min and max are a single range, and pairing
+              them inside one bordered box says so without a second label. */}
+          <div className={styles.filter}>
+            <span className={styles.filterLabel}>Price (€)</span>
+            <div className={styles.range}>
+              <input className={styles.rangeInput} type="number" min={0} step="0.01" placeholder="min" aria-label="Minimum price in euros" value={minPrice} onChange={(e) => setMinPrice(e.target.value)} />
+              <span className={styles.rangeDash} aria-hidden="true">
+                –
+              </span>
+              <input className={styles.rangeInput} type="number" min={0} step="0.01" placeholder="max" aria-label="Maximum price in euros" value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} />
             </div>
           </div>
+          <label className={styles.filter}>
+            <span className={styles.filterLabel}>Min views</span>
+            <input className={`${styles.control} ${styles.num}`} type="number" min={0} placeholder="0" value={minViews} onChange={(e) => setMinViews(e.target.value)} />
+          </label>
+        </div>
 
-          <div className={ui.card} style={{ overflowX: "auto" }}>
+        <div className={styles.filterFooter}>
+          <div className={styles.toggles}>
+            <label className={styles.toggle}>
+              <input type="checkbox" checked={activeOnly} onChange={(e) => setActiveOnly(e.target.checked)} /> Hide no activity
+            </label>
+            <label className={styles.toggle}>
+              <input type="checkbox" checked={reachedCheckoutOnly} onChange={(e) => setReachedCheckoutOnly(e.target.checked)} /> Reached checkout only
+            </label>
+          </div>
+          {filtersActive && (
+            <Button variant="secondary" onClick={clearFilters}>
+              Clear filters
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Stays mounted through a refetch: it is the page's summary, and having
+          it disappear on every keystroke was most of why the page felt jumpy. */}
+      <section className={styles.funnelCard} aria-label="Demand funnel">
+        <header className={styles.funnelHead}>
+          <h2 className={styles.funnelTitle}>Demand funnel</h2>
+          <span className={styles.funnelMeta}>
+            {loading ? "—" : `${rows.length} test ${rows.length === 1 ? "product" : "products"}`} · {periodLabel}
+          </span>
+        </header>
+
+        <ol className={styles.funnel}>
+          {funnel.map((step, i) => {
+            const last = i === funnel.length - 1;
+            const share = step.of === null ? null : pct(step.value, step.of);
+            return (
+              <li key={step.key} className={`${styles.step} ${last ? styles.stepEnd : ""}`}>
+                <span className={styles.stepLabel}>{step.label}</span>
+                <span className={styles.stepValue}>{loading ? "—" : step.value.toLocaleString()}</span>
+                <span className={styles.stepShare}>
+                  {loading || share === null ? (
+                    <span className={styles.stepShareStart}>start of funnel</span>
+                  ) : (
+                    <>
+                      <span className={styles.stepPct}>{share}%</span> of previous step
+                    </>
+                  )}
+                </span>
+                {/* A bar, not a decoration: its width is the step's share of
+                    the top of the funnel, so the drop-off is visible before
+                    any number is read. */}
+                <span className={styles.stepBarTrack} aria-hidden="true">
+                  <span className={styles.stepBar} style={{ width: `${loading ? 0 : pct(step.value, totals.views)}%` }} />
+                </span>
+              </li>
+            );
+          })}
+        </ol>
+      </section>
+
+      <div className={ui.card}>
+        {loading ? (
+          <div className={ui.emptyState}>Loading…</div>
+        ) : rows.length === 0 ? (
+          <div className={ui.emptyState}>
+            No test products match these filters. Turn on &ldquo;Test product&rdquo; on a product, or loosen the filters above.
+          </div>
+        ) : (
+          <div className={`${styles.tableWrap} ${refreshing ? styles.refreshing : ""}`}>
             <table className={ui.table}>
               <thead>
                 <tr>
                   <th>Product</th>
-                  {SORT_COLUMNS.map((col) => (
-                    <th key={col.key} style={{ cursor: "pointer", whiteSpace: "nowrap" }} onClick={() => toggleSort(col.key)}>
-                      {col.label} {sort === col.key ? (order === "asc" ? "▲" : "▼") : ""}
-                    </th>
-                  ))}
+                  {SORT_COLUMNS.map((col) => {
+                    const active = sort === col.key;
+                    const Icon = active && order === "asc" ? ChevronUp : ChevronDown;
+                    return (
+                      <th key={col.key} aria-sort={active ? (order === "asc" ? "ascending" : "descending") : "none"}>
+                        <button
+                          type="button"
+                          className={styles.sortBtn}
+                          onClick={() => toggleSort(col.key)}
+                          title={`Sort by ${col.label}`}
+                        >
+                          {col.label}
+                          <Icon size={13} strokeWidth={2.4} className={`${styles.sortIcon} ${active ? styles.sortIconActive : ""}`} aria-hidden="true" />
+                        </button>
+                      </th>
+                    );
+                  })}
                   <th />
                 </tr>
               </thead>
@@ -236,17 +360,18 @@ export default function TestProductsAnalyticsPage() {
                     <td>
                       <Link href={`/admin/shop/products/${r.productId}`}>{r.title}</Link>
                     </td>
-                    <td>{r.views}</td>
-                    <td>{r.addsToCart}</td>
-                    <td>{r.reachedShipping}</td>
-                    <td style={{ fontWeight: 700, color: "#b45309" }}>{r.reachedCheckout}</td>
-                    <td>{r.viewToCartRatePct}%</td>
-                    <td>{r.cartToShippingRatePct}%</td>
-                    <td>{r.cartToCheckoutRatePct}%</td>
-                    <td>{r.viewToCheckoutRatePct}%</td>
+                    <td className={styles.numCell}>{r.views}</td>
+                    <td className={styles.numCell}>{r.addsToCart}</td>
+                    <td className={styles.numCell}>{r.reachedShipping}</td>
+                    <td className={styles.checkoutCell}>{r.reachedCheckout}</td>
+                    <td className={styles.rateCell}>{r.viewToCartRatePct}%</td>
+                    <td className={styles.rateCell}>{r.cartToShippingRatePct}%</td>
+                    <td className={styles.rateCell}>{r.cartToCheckoutRatePct}%</td>
+                    <td className={styles.rateCell}>{r.viewToCheckoutRatePct}%</td>
                     <td>
                       <button type="button" className={replayStyles.replayBtn} onClick={() => setReplayProduct({ id: r.productId, title: r.title })}>
-                        ▶ Replays
+                        <Play size={12} strokeWidth={2.4} aria-hidden="true" />
+                        Replays
                         {!!unreadCounts[r.productId] && <span className={replayStyles.unreadBadge}>{unreadCounts[r.productId]}</span>}
                       </button>
                     </td>
@@ -255,8 +380,8 @@ export default function TestProductsAnalyticsPage() {
               </tbody>
             </table>
           </div>
-        </>
-      )}
+        )}
+      </div>
 
       {replayProduct && (
         <SessionReplayModal

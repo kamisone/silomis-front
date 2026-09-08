@@ -42,9 +42,21 @@
   margin-left: 8px;
 }
 
+/* Vertical only. `overflow-y: auto` with an unset x axis computes x to `auto`
+   too, so anything too wide made the whole modal body scroll sideways — and a
+   sideways-scrolled body takes the timeline column with it, which is how the
+   left-hand side ended up off screen. Wide things now scroll inside their own
+   container (see .tableWrap) instead of moving the layout. */
 .body {
   padding: 20px;
   overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* The session list is nine columns wide and has to scroll on a narrow screen —
+   but only the table, not the modal. */
+.tableWrap {
+  overflow-x: auto;
 }
 
 .table {
@@ -72,14 +84,20 @@
   flex-wrap: wrap;
 }
 
+/* `min-width: 0` is load-bearing: a flex item defaults to min-width:auto, so
+   it refuses to shrink below its content. The player inside was a fixed 880px
+   widget, so this column stayed 880px wide however narrow the modal got, and
+   the overflow shoved the timeline column out of view. The player now measures
+   this column and sizes itself to it, which only works if the column is free
+   to be narrower than the player currently is. */
 .playerCol {
-  flex: 2;
-  min-width: 400px;
+  flex: 2 1 420px;
+  min-width: 0;
 }
 
 .timelineCol {
-  flex: 1;
-  min-width: 240px;
+  flex: 1 1 240px;
+  min-width: 0;
 }
 
 .timelineTrack {

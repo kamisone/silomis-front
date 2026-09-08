@@ -1,0 +1,368 @@
+/* ── Filters ──
+   Each control gets a standing label. The bar used to be nine bare inputs
+   whose only labels were placeholders, which disappear the moment you type —
+   so a filled-in bar gave no way to tell "90" (min views) from "90" (max €). */
+.filterCard {
+  border: 1px solid var(--color-surface);
+  border-radius: 12px;
+  background: var(--background);
+  overflow: hidden;
+}
+
+.filterRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.85rem 1rem;
+  padding: 1rem 1.1rem;
+}
+
+/* The controls and the toggles are different kinds of thing — one narrows the
+   result set by value, the other by a yes/no — so a hairline and a tinted
+   ground separate them instead of letting all nine run together in one row. */
+.filterFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.6rem 1rem;
+  padding: 0.7rem 1.1rem;
+  border-top: 1px solid var(--color-surface);
+  background: color-mix(in srgb, var(--color-surface) 45%, var(--background));
+}
+
+.filter {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.filterLabel {
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-secondary);
+  opacity: 0.75;
+  white-space: nowrap;
+}
+
+/* One control style for inputs and selects alike — the page was mixing
+   `searchInput`, `input` and `select`, which are three different heights. */
+.control {
+  height: 36px;
+  box-sizing: border-box;
+  border: 1px solid var(--field-border, var(--color-surface));
+  border-radius: 8px;
+  padding: 0 0.65rem;
+  font-size: 0.88rem;
+  font-family: inherit;
+  background: var(--background);
+  color: var(--foreground);
+}
+
+.control:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 14%, transparent);
+}
+
+select.control {
+  padding-right: 0.35rem;
+  cursor: pointer;
+}
+
+/* Capped rather than greedy: at `flex: 1` the search box ate every pixel of
+   slack and left the rest of the bar crowded into the right-hand edge. */
+.search {
+  flex: 1 1 200px;
+  max-width: 280px;
+}
+
+.num {
+  width: 92px;
+}
+
+/* min–max as one control. Two separately-bordered boxes read as two unrelated
+   filters; one box with a dash reads as a range. */
+.range {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  height: 36px;
+  box-sizing: border-box;
+  padding: 0 0.5rem;
+  border: 1px solid var(--field-border, var(--color-surface));
+  border-radius: 8px;
+  background: var(--background);
+}
+
+.range:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 14%, transparent);
+}
+
+.rangeInput {
+  width: 62px;
+  border: none;
+  background: none;
+  font-size: 0.88rem;
+  font-family: inherit;
+  color: var(--foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+.rangeInput:focus {
+  outline: none;
+}
+
+.rangeDash {
+  color: var(--color-secondary);
+  opacity: 0.5;
+}
+
+.toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.25rem;
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.85rem;
+  color: var(--foreground);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.toggle input {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+}
+
+/* ── Funnel ──
+   The four counts are one journey. As five equal cards they read as five
+   unrelated totals, which is the opposite of what the page is for. */
+.funnelCard {
+  margin-top: 1rem;
+  border: 1px solid var(--color-surface);
+  border-radius: 12px;
+  background: var(--background);
+  overflow: hidden;
+}
+
+.funnelHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.4rem 1rem;
+  padding: 0.85rem 1.1rem;
+  border-bottom: 1px solid var(--color-surface);
+}
+
+.funnelTitle {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--foreground);
+}
+
+.funnelMeta {
+  font-size: 0.78rem;
+  color: var(--color-secondary);
+  opacity: 0.8;
+}
+
+.funnel {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.95rem 1.1rem 1.05rem;
+  border-left: 1px solid var(--color-surface);
+}
+
+.step:first-child {
+  border-left: none;
+}
+
+.stepLabel {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-secondary);
+  opacity: 0.75;
+}
+
+.stepValue {
+  font-size: 1.6rem;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--color-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The end of the funnel: the customers who would have paid. */
+.stepEnd .stepValue {
+  color: #b45309;
+}
+
+.stepShare {
+  font-size: 0.74rem;
+  color: var(--color-secondary);
+  opacity: 0.85;
+}
+
+.stepPct {
+  font-weight: 700;
+  opacity: 1;
+}
+
+.stepShareStart {
+  opacity: 0.6;
+}
+
+.stepBarTrack {
+  display: block;
+  height: 4px;
+  margin-top: 0.35rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--foreground) 8%, transparent);
+  overflow: hidden;
+}
+
+.stepBar {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--color-primary);
+  transition: width 0.25s ease;
+}
+
+.stepEnd .stepBar {
+  background: #b45309;
+}
+
+@media (max-width: 900px) {
+  .funnel {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  /* With two per row the third and fourth start a new row, so the vertical
+     rule on the left of the third would be a stray line. */
+  .step:nth-child(odd) {
+    border-left: none;
+  }
+  .step:nth-child(n + 3) {
+    border-top: 1px solid var(--color-surface);
+  }
+}
+
+@media (max-width: 520px) {
+  .funnel {
+    grid-template-columns: 1fr;
+  }
+  .step {
+    border-left: none;
+  }
+  .step + .step {
+    border-top: 1px solid var(--color-surface);
+  }
+  .search {
+    max-width: none;
+  }
+}
+
+/* ── Table ── */
+
+/* The results are refetched on every filter keystroke. Unmounting the table
+   while that happens collapsed the page to a one-line "Loading…" and threw the
+   scroll position away on each change, so the old result stays put and is
+   dimmed instead. */
+.refreshing {
+  opacity: 0.45;
+  pointer-events: none;
+  transition: opacity 0.12s ease;
+}
+
+.tableWrap {
+  overflow-x: auto;
+}
+
+/* A real button, not a <th> with a click handler: the header was unreachable
+   by keyboard and gave no hint it could be sorted until you happened to click. */
+.sortBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-weight: inherit;
+  color: inherit;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.sortBtn:hover {
+  color: var(--color-accent);
+}
+
+.sortBtn:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Reserves the arrow's space at all times so the header row does not reflow
+   when the sort column changes. */
+.sortIcon {
+  flex-shrink: 0;
+  opacity: 0;
+}
+
+.sortIconActive {
+  opacity: 1;
+  color: var(--color-accent);
+}
+
+.sortBtn:hover .sortIcon {
+  opacity: 0.45;
+}
+
+.sortBtn:hover .sortIconActive {
+  opacity: 1;
+}
+
+.num td,
+.numCell {
+  font-variant-numeric: tabular-nums;
+}
+
+/* The end of the funnel — the number the page exists to surface. */
+.checkoutCell {
+  font-weight: 700;
+  color: #b45309;
+  font-variant-numeric: tabular-nums;
+}
+
+.rateCell {
+  color: var(--color-secondary);
+  font-variant-numeric: tabular-nums;
+}
