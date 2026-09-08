@@ -1,0 +1,286 @@
+/*
+ * Ported from the reference project's notifications page, with its slate/navy
+ * literals swapped for silomis's brand tokens: #00466E -> --color-primary,
+ * #0f172a -> --foreground, #64748b/#334155 -> --color-secondary at varying
+ * mixes, and the #e2e8f0 / #f1f5f9 / #f8fafc greys -> --color-surface and
+ * --color-surface-tint, which already sit on the brand's white base.
+ */
+
+/* ── Layout ── */
+.page { padding: 24px; max-width: 1100px; }
+.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; flex-wrap: wrap; gap: 12px; }
+.title { font-size: 22px; font-weight: 700; margin: 0; color: var(--color-primary); }
+.subtitle { font-size: 13px; color: var(--color-secondary); margin: 4px 0 0; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+@media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
+
+/* ── Tabs ── */
+.tabRow {
+  display: flex;
+  gap: 0;
+  margin-bottom: 24px;
+  border-bottom: 2px solid var(--color-surface);
+}
+.tab {
+  padding: 10px 20px;
+  border: none;
+  background: none;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-secondary);
+  cursor: pointer;
+  position: relative;
+  transition: color 0.15s;
+}
+.tab:hover { color: var(--foreground); }
+.tabActive { color: var(--color-primary); }
+.tabActive::after {
+  content: "";
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--color-primary);
+  border-radius: 1px;
+}
+
+/* ── Cards ── */
+.card {
+  background: var(--background);
+  border: 1px solid var(--color-surface);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.cardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--color-surface);
+}
+.cardTitle { font-size: 14px; font-weight: 700; color: var(--foreground); margin: 0; }
+.cardBody { padding: 16px 20px; display: flex; flex-direction: column; gap: 14px; }
+.cardNote { font-size: 12px; color: var(--color-secondary); margin: 0; }
+
+/* ── Toggle ── */
+.toggleLabel { font-size: 13px; font-weight: 600; color: var(--foreground); margin: 0 0 8px; }
+.toggle {
+  position: relative;
+  width: 40px;
+  height: 22px;
+  border-radius: 11px;
+  border: none;
+  cursor: pointer;
+  background: color-mix(in srgb, var(--color-secondary) 30%, var(--background));
+  transition: background 0.15s;
+  padding: 0;
+  flex-shrink: 0;
+}
+.toggle::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.15s;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 15%);
+}
+.toggleOn { background: var(--color-primary); }
+.toggleOn::after { transform: translateX(18px); }
+
+/* ── Chips (phones / emails) ── */
+.chipList { display: flex; flex-wrap: wrap; gap: 6px; }
+.chipList:empty { display: none; }
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: var(--color-surface-tint);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--foreground);
+}
+.chipRemove {
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 0;
+  color: var(--color-secondary);
+  display: flex;
+  align-items: center;
+  transition: color 0.15s;
+}
+.chipRemove:hover { color: var(--color-error); }
+
+/* ── Add row (input + button) ── */
+.addRow { display: flex; gap: 8px; }
+.addInput {
+  flex: 1;
+  padding: 7px 12px;
+  border: 1px solid color-mix(in srgb, var(--color-secondary) 17%, var(--background));
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--foreground);
+  background: var(--background);
+  outline: none;
+  transition: border-color 0.15s;
+}
+.addInput:focus { border-color: var(--color-primary); }
+.addBtn {
+  padding: 7px 14px;
+  border: none;
+  border-radius: 8px;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity 0.15s;
+}
+.addBtn:hover { opacity: 0.88; }
+.addBtn:disabled { opacity: 0.4; cursor: default; }
+
+/* ── Event checkboxes ── */
+.eventList { display: flex; flex-direction: column; gap: 8px; }
+.eventRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  transition: background 0.1s;
+  cursor: pointer;
+}
+.eventRow:hover { background: var(--color-surface); }
+.eventCheckbox { width: 16px; height: 16px; accent-color: var(--color-primary); cursor: pointer; }
+.eventLabel { font-size: 13px; color: var(--foreground); font-weight: 500; }
+.eventDesc { font-size: 11px; color: var(--color-secondary); }
+
+/* ── Save bar ── */
+.saveBar { display: flex; justify-content: flex-end; align-items: center; margin-top: 20px; }
+.saveBtn {
+  padding: 9px 22px;
+  border: none;
+  border-radius: 8px;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.1s;
+}
+.saveBtn:hover { opacity: 0.88; transform: translateY(-1px); }
+.saveBtn:disabled { opacity: 0.4; cursor: default; transform: none; }
+.saved {
+  font-size: 13px;
+  color: var(--color-success);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 12px;
+}
+.saveError { font-size: 13px; color: var(--color-error); font-weight: 600; margin-right: 12px; }
+
+/* ── Logs section ── */
+.logsSection { margin-top: 8px; }
+.logsHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.logsTitle { font-size: 16px; font-weight: 700; color: var(--foreground); margin: 0; }
+.logsFilters { display: flex; gap: 8px; flex-wrap: wrap; }
+.filterSelect {
+  padding: 6px 10px;
+  border: 1px solid color-mix(in srgb, var(--color-secondary) 17%, var(--background));
+  border-radius: 8px;
+  font-size: 12px;
+  background: var(--background);
+  color: var(--foreground);
+  outline: none;
+  cursor: pointer;
+}
+
+.logsTableWrap { overflow-x: auto; }
+.logsTable {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--background);
+  border: 1px solid var(--color-surface);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.logsTable th {
+  text-align: left;
+  padding: 10px 14px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-secondary);
+  background: var(--color-surface-tint);
+  border-bottom: 1px solid var(--color-surface);
+  white-space: nowrap;
+}
+.logsTable td {
+  padding: 10px 14px;
+  font-size: 13px;
+  color: var(--foreground);
+  border-bottom: 1px solid var(--color-surface);
+}
+.logsTable tr:last-child td { border-bottom: none; }
+.logsTable tr:hover td { background: var(--color-surface); }
+.logError { font-size: 11px; color: var(--color-error); margin-top: 2px; }
+
+/* ── Status badges ── */
+.statusSent,
+.statusFailed,
+.statusSkipped {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.statusSent { background: var(--color-success-bg); color: var(--color-success); }
+.statusFailed { background: var(--color-error-bg); color: var(--color-error); }
+.statusSkipped { background: var(--color-surface-tint); color: var(--color-secondary); }
+
+.channelSms,
+.channelEmail {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.channelSms { color: var(--color-accent); }
+.channelEmail { color: var(--color-accent-secondary); }
+
+.emptyLogs { text-align: center; padding: 40px 16px; color: var(--color-secondary); font-size: 14px; }
+
+.loadMore {
+  display: block;
+  margin: 16px auto 0;
+  padding: 8px 20px;
+  border: 1px solid var(--color-surface);
+  border-radius: 8px;
+  background: var(--background);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--foreground);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.loadMore:hover { background: var(--color-surface); }
