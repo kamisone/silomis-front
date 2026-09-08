@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Headphones, X, MessageCircle, Send } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Headphones, X, MessageCircle, Send, Check } from "lucide-react";
 import { useSupportChat, type SupportMessage } from "@/hooks/useSupportChat";
 import { useCart } from "@/components/shop/CartContext";
 import { getTranslations } from "@/lib/i18n";
@@ -10,6 +10,9 @@ import styles from "./SupportWidget.module.css";
 interface Props { locale: string }
 
 const MAX_LEN = 2000;
+
+/** Beyond half an hour the "looking for someone" card stops being true. */
+const MAX_WAIT_DISPLAY_SECONDS = 30 * 60;
 
 // Cache formatters — creating Intl objects is expensive
 const rtfCache = new Map<string, Intl.RelativeTimeFormat>();
@@ -33,6 +36,34 @@ function lastSeenGuestMsgId(msgs: SupportMessage[]): string | null {
     if (msgs[i].senderType === "guest" && msgs[i].readAt) return msgs[i].id;
   }
   return null;
+}
+
+/**
+ * How long the guest has been waiting on a reply, or null when they are not.
+ *
+ * Anchored to the OLDEST message in the unanswered trailing run, not the
+ * newest: someone who sends three messages in a row has been waiting since the
+ * first one, and restarting the clock on each would keep the status stuck on
+ * "connecting" forever. A failed send is not a wait — the retry button is the
+ * right thing to look at there, so the waiting card stands down.
+ */
+function pendingSince(msgs: SupportMessage[]): string | null {
+  let oldest: string | null = null;
+  for (let i = msgs.length - 1; i >= 0; i--) {
+    const msg = msgs[i];
+    if (msg.senderType !== "guest") break;
+    if (msg._status === "failed") return null;
+    oldest = msg.createdAt;
+  }
+  return oldest;
+}
+
+/** Seconds waited -> which reassurance to show. */
+function waitStage(seconds: number): "connecting" | "searching" | "shortly" | "long" {
+  if (seconds < 5) return "connecting";
+  if (seconds < 25) return "searching";
+  if (seconds < 90) return "shortly";
+  return "long";
 }
 
 function StatusIcon({ status, t }: { status: SupportMessage["_status"]; t: ReturnType<typeof getTranslations>["support"] }) {
@@ -121,6 +152,37 @@ export default function SupportWidget({ locale }: Props) {
 
   const seenId = lastSeenGuestMsgId(messages);
 
+  // ── "Someone will be with you" waiting state ──────────────────────────────
+  // The admin actually typing is a better signal than any of this, so the
+  // typing indicator wins and this stands down while it is showing.
+  const waitingSince = useMemo(() => pendingSince(messages), [messages]);
+
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    if (!open || !waitingSince) return;
+    const id = setInterval(() => setNowMs(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [open, waitingSince]);
+
+  // max(0, …) covers a server timestamp a moment ahead of the client: the ACK
+  // swaps the optimistic message for the stored row, and a skewed clock would
+  // otherwise make the wait negative.
+  const waitedSeconds = waitingSince ? Math.max(0, Math.floor((nowMs - new Date(waitingSince).getTime()) / 1000)) : 0;
+
+  // Past the ceiling nobody is plausibly still "searching" — an animated hunt
+  // over a message left unanswered since yesterday would be a lie. The card
+  // simply stands down and the conversation reads as ordinary history.
+  const showWaiting =
+    open && !!waitingSince && !adminTyping && status === "connected" && waitedSeconds < MAX_WAIT_DISPLAY_SECONDS;
+
+  const stage = waitStage(waitedSeconds);
+  const waitingText = {
+    connecting: t.waitingConnecting,
+    searching: t.waitingSearching,
+    shortly: t.waitingShortly,
+    long: t.waitingLong,
+  }[stage];
+
   useEffect(() => {
     if (open) {
       setTimeout(() => {
@@ -130,9 +192,12 @@ export default function SupportWidget({ locale }: Props) {
     }
   }, [open]);
 
+  // `stage`/`showWaiting` are dependencies too: the waiting card grows when it
+  // reaches the long-wait hint, which would otherwise push the newest message
+  // out of view.
   useEffect(() => {
     if (open) bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, open]);
+  }, [messages, open, showWaiting, stage]);
 
   const handleTypingChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value.slice(0, MAX_LEN));
@@ -239,6 +304,41 @@ export default function SupportWidget({ locale }: Props) {
                 <span className={styles.typingDot} />
                 <span className={styles.typingDot} />
                 <span className={styles.typingLabel}>{t.agentTyping}</span>
+              </div>
+            )}
+
+            {showWaiting && (
+              <div className={styles.waiting} role="status" aria-live="polite">
+                <span className={styles.waitingAvatar} aria-hidden="true">
+                  {/* Two rings expand outwards on a loop — the "scanning for
+                      someone" motion, rather than a spinner that only says
+                      "busy". */}
+                  <span className={styles.waitingRing} />
+                  <span className={`${styles.waitingRing} ${styles.waitingRingDelayed}`} />
+                  <Headphones size={15} strokeWidth={1.9} />
+                </span>
+
+                <div className={styles.waitingBody}>
+                  <span className={styles.waitingReceived}>
+                    <Check size={12} strokeWidth={2.5} /> {t.waitingReceived}
+                  </span>
+
+                  {/* Keyed so the fade-in replays whenever the wording moves on. */}
+                  <span key={stage} className={styles.waitingText}>
+                    {waitingText}
+                    <span className={styles.waitingDots} aria-hidden="true">
+                      <span />
+                      <span />
+                      <span />
+                    </span>
+                  </span>
+
+                  <span className={styles.waitingTrack} aria-hidden="true">
+                    <span className={styles.waitingBar} />
+                  </span>
+
+                  {stage === "long" && <span className={styles.waitingHint}>{t.waitingHint}</span>}
+                </div>
               </div>
             )}
             <div ref={bottomRef} />
