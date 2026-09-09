@@ -2,13 +2,96 @@
 
 import { useEffect, useMemo, useState, useCallback } from "react";
 import Link from "next/link";
-import { ChevronDown, ChevronUp, Play } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, Play } from "lucide-react";
 import { api } from "@/lib/api";
 import Button from "@/components/admin/ui/Button";
 import SessionReplayModal from "@/components/admin/shop/SessionReplayModal";
+import AnalyticsDetailModal, { TEST_EVENT_TYPES } from "@/components/admin/shop/AnalyticsDetailModal";
+import ProductPicker from "@/components/admin/shop/ProductPicker";
 import replayStyles from "@/components/admin/shop/SessionReplay.module.css";
 import ui from "@/components/admin/ui/admin-ui.module.css";
 import styles from "./TestProducts.module.css";
+
+interface CountryOption {
+  isoCode: string;
+  name: string;
+}
+
+/** Matches Country.continentCode in the schema — the column countryCodesFor filters on. */
+const CONTINENT_OPTIONS = [
+  { value: "AF", label: "Africa" },
+  { value: "AS", label: "Asia" },
+  { value: "EU", label: "Europe" },
+  { value: "NA", label: "North America" },
+  { value: "SA", label: "South America" },
+  { value: "OC", label: "Oceania" },
+  { value: "AN", label: "Antarctica" },
+];
+
+/**
+ * Shortest first, so the default sits at the top and the two shortest windows
+ * read against each other.
+ *
+ * "Last 2 days" is not "Yesterday": a numeric preset is a rolling window
+ * ending now (resolveWindow: since = now - N x 24h), so it is the last 48
+ * hours — today plus yesterday — while "Yesterday" is that one calendar day
+ * alone, today excluded.
+ */
+const DATE_PRESETS = [
+  { value: "today", label: "Today" },
+  { value: "yesterday", label: "Yesterday" },
+  { value: "2", label: "Last 2 days" },
+  { value: "3", label: "Last 3 days" },
+  { value: "7", label: "Last 7 days" },
+  { value: "14", label: "Last 14 days" },
+  { value: "30", label: "Last 30 days" },
+  { value: "90", label: "Last 90 days" },
+  { value: "month", label: "This month" },
+  { value: "lastmonth", label: "Last month" },
+  { value: "custom", label: "Custom range…" },
+];
+
+const LIMIT_OPTIONS = [
+  { value: "10", label: "Top 10" },
+  { value: "20", label: "Top 20" },
+  { value: "50", label: "Top 50" },
+];
+
+function fmtDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/**
+ * A preset becomes the concrete window the API takes. Named ranges resolve to
+ * explicit start/end dates rather than a day count, so "This month" on the 3rd
+ * means three days, not thirty.
+ */
+function dateRangeToQuery(range: string, startDate: string, endDate: string): Record<string, string> {
+  const now = new Date();
+  const today = fmtDate(now);
+
+  switch (range) {
+    case "today":
+      return { startDate: today, endDate: today };
+    case "yesterday": {
+      const y = new Date(now);
+      y.setDate(y.getDate() - 1);
+      return { startDate: fmtDate(y), endDate: fmtDate(y) };
+    }
+    case "month":
+      return { startDate: fmtDate(new Date(now.getFullYear(), now.getMonth(), 1)), endDate: today };
+    case "lastmonth":
+      return {
+        startDate: fmtDate(new Date(now.getFullYear(), now.getMonth() - 1, 1)),
+        // Day 0 of this month is the last day of the previous one.
+        endDate: fmtDate(new Date(now.getFullYear(), now.getMonth(), 0)),
+      };
+    case "custom":
+      return { ...(startDate ? { startDate } : {}), ...(endDate ? { endDate } : {}) };
+    default:
+      return { days: range };
+  }
+}
 
 interface TestProductDemand {
   productId: string;
@@ -61,9 +144,14 @@ function toCents(value: string): string | null {
 }
 
 export default function TestProductsAnalyticsPage() {
-  const [days, setDays] = useState("30");
-  const [search, setSearch] = useState("");
+  const [range, setRange] = useState("today");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [productId, setProductId] = useState("");
+  const [limit, setLimit] = useState("");
   const [categoryId, setCategoryId] = useState("");
+  const [countryCode, setCountryCode] = useState("");
+  const [continent, setContinent] = useState("");
   const [status, setStatus] = useState("");
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
@@ -74,24 +162,35 @@ export default function TestProductsAnalyticsPage() {
   const [order, setOrder] = useState<"asc" | "desc">("desc");
 
   const [categories, setCategories] = useState<CategoryOption[]>([]);
+  const [countries, setCountries] = useState<CountryOption[]>([]);
   const [rows, setRows] = useState<TestProductDemand[]>([]);
   /** First load only — a refetch keeps the previous rows on screen. */
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
   const [replayProduct, setReplayProduct] = useState<{ id: string; title: string } | null>(null);
+  const [detailProduct, setDetailProduct] = useState<{ id: string; title: string } | null>(null);
 
   useEffect(() => {
     fetch("/next-api/admin/shop/categories")
       .then((r) => (r.ok ? r.json() : []))
       .then((data) => setCategories(Array.isArray(data) ? data : (data.items ?? [])))
       .catch(() => {});
+    fetch("/next-api/admin/shop/countries")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => setCountries(Array.isArray(data) ? data : []))
+      .catch(() => {});
   }, []);
 
   const query = useMemo(() => {
-    const params = new URLSearchParams({ days });
-    if (search.trim()) params.set("search", search.trim());
+    const params = new URLSearchParams(dateRangeToQuery(range, startDate, endDate));
+    if (productId) params.set("productId", productId);
+    if (limit) params.set("limit", limit);
     if (categoryId) params.set("categoryId", categoryId);
+    // Mutually exclusive by construction (see the selects): the backend reads
+    // countryCode first and would otherwise silently ignore the continent.
+    if (countryCode) params.set("countryCode", countryCode);
+    else if (continent) params.set("continent", continent);
     if (status) params.set("productStatus", status);
     // A half-typed "-" or "1e" is not a filter — sending NaN made the whole
     // request come back empty with nothing on screen to explain why.
@@ -107,10 +206,18 @@ export default function TestProductsAnalyticsPage() {
       params.set("order", order);
     }
     return params.toString();
-  }, [days, search, categoryId, status, minPrice, maxPrice, minViews, activeOnly, reachedCheckoutOnly, sort, order]);
+  }, [range, startDate, endDate, productId, limit, categoryId, countryCode, continent, status, minPrice, maxPrice, minViews, activeOnly, reachedCheckoutOnly, sort, order]);
+
+  /** Date window + country scope, so the modal opens on the same slice the table is showing. */
+  const windowParams = useMemo(() => {
+    const p: Record<string, string> = dateRangeToQuery(range, startDate, endDate);
+    if (countryCode) p.countryCode = countryCode;
+    else if (continent) p.continent = continent;
+    return p;
+  }, [range, startDate, endDate, countryCode, continent]);
 
   const filtersActive =
-    !!search.trim() || !!categoryId || !!status || !!minPrice || !!maxPrice || !!minViews || activeOnly || reachedCheckoutOnly;
+    !!productId || !!limit || !!categoryId || !!countryCode || !!continent || !!status || !!minPrice || !!maxPrice || !!minViews || activeOnly || reachedCheckoutOnly;
 
   useEffect(() => {
     // Debounced: `query` changes on every keystroke in the search and number
@@ -140,13 +247,13 @@ export default function TestProductsAnalyticsPage() {
         setUnreadCounts({});
         return;
       }
-      const params = new URLSearchParams({ days, productIds: productIds.join(",") });
+      const params = new URLSearchParams({ ...dateRangeToQuery(range, startDate, endDate), productIds: productIds.join(",") });
       fetch(`/next-api/admin/shop/analytics/replay/unread-counts?${params.toString()}`)
         .then((r) => (r.ok ? r.json() : {}))
         .then((data: Record<string, number>) => setUnreadCounts(data && typeof data === "object" ? data : {}))
         .catch(() => {});
     },
-    [days],
+    [range, startDate, endDate],
   );
 
   useEffect(() => {
@@ -174,8 +281,11 @@ export default function TestProductsAnalyticsPage() {
   }
 
   function clearFilters() {
-    setSearch("");
+    setProductId("");
+    setLimit("");
     setCategoryId("");
+    setCountryCode("");
+    setContinent("");
     setStatus("");
     setMinPrice("");
     setMaxPrice("");
@@ -198,7 +308,10 @@ export default function TestProductsAnalyticsPage() {
   ];
 
   const pct = (value: number, of: number) => (of > 0 ? Math.round((value / of) * 100) : 0);
-  const periodLabel = days === "7" ? "last 7 days" : days === "90" ? "last 90 days" : "last 30 days";
+  const periodLabel =
+    range === "custom"
+      ? [startDate, endDate].filter(Boolean).join(" → ") || "custom range"
+      : (DATE_PRESETS.find((p) => p.value === range)?.label ?? range).toLowerCase();
 
   return (
     <div className={ui.page}>
@@ -213,24 +326,66 @@ export default function TestProductsAnalyticsPage() {
 
       <div className={styles.filterCard}>
         <div className={styles.filterRow}>
-          <label className={`${styles.filter} ${styles.search}`}>
-            <span className={styles.filterLabel}>Search</span>
-            <input className={styles.control} placeholder="Product title…" value={search} onChange={(e) => setSearch(e.target.value)} />
-          </label>
           <label className={styles.filter}>
-            <span className={styles.filterLabel}>Period</span>
-            <select className={styles.control} value={days} onChange={(e) => setDays(e.target.value)}>
-              <option value="7">Last 7 days</option>
-              <option value="30">Last 30 days</option>
-              <option value="90">Last 90 days</option>
+            <span className={styles.filterLabel}>Date range</span>
+            <select className={styles.control} value={range} onChange={(e) => setRange(e.target.value)}>
+              {DATE_PRESETS.map((p) => (
+                <option key={p.value} value={p.value}>
+                  {p.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          {/* Only while "Custom range…" is chosen — two empty date boxes on
+              every other preset are two controls that do nothing. Each bounds
+              the other so an inverted window cannot be picked. */}
+          {range === "custom" && (
+            <>
+              <label className={styles.filter}>
+                <span className={styles.filterLabel}>From</span>
+                <input className={styles.control} type="date" value={startDate} max={endDate || undefined} onChange={(e) => setStartDate(e.target.value)} />
+              </label>
+              <label className={styles.filter}>
+                <span className={styles.filterLabel}>To</span>
+                <input className={styles.control} type="date" value={endDate} min={startDate || undefined} onChange={(e) => setEndDate(e.target.value)} />
+              </label>
+            </>
+          )}
+          <ProductPicker value={productId} onChange={setProductId} scope="test" placeholder="Search test products…" />
+          {/* Picking one clears the other: the backend resolves countryCode
+              before continent, so leaving both set would quietly drop the
+              continent and show a scope the controls do not describe. */}
+          <label className={styles.filter}>
+            <span className={styles.filterLabel}>Continent</span>
+            <select
+              className={styles.control}
+              value={continent}
+              onChange={(e) => {
+                setContinent(e.target.value);
+                setCountryCode("");
+              }}
+            >
+              <option value="">All continents</option>
+              {CONTINENT_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
             </select>
           </label>
           <label className={styles.filter}>
-            <span className={styles.filterLabel}>Category</span>
-            <select className={styles.control} value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
-              <option value="">All categories</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
+            <span className={styles.filterLabel}>Country</span>
+            <select
+              className={styles.control}
+              value={countryCode}
+              onChange={(e) => {
+                setCountryCode(e.target.value);
+                setContinent("");
+              }}
+            >
+              <option value="">All countries</option>
+              {countries.map((c) => (
+                <option key={c.isoCode} value={c.isoCode}>
                   {c.name}
                 </option>
               ))}
@@ -247,31 +402,63 @@ export default function TestProductsAnalyticsPage() {
               ))}
             </select>
           </label>
-          {/* One field, not two: min and max are a single range, and pairing
-              them inside one bordered box says so without a second label. */}
-          <div className={styles.filter}>
-            <span className={styles.filterLabel}>Price (€)</span>
-            <div className={styles.range}>
-              <input className={styles.rangeInput} type="number" min={0} step="0.01" placeholder="min" aria-label="Minimum price in euros" value={minPrice} onChange={(e) => setMinPrice(e.target.value)} />
-              <span className={styles.rangeDash} aria-hidden="true">
-                –
-              </span>
-              <input className={styles.rangeInput} type="number" min={0} step="0.01" placeholder="max" aria-label="Maximum price in euros" value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} />
-            </div>
-          </div>
           <label className={styles.filter}>
+            <span className={styles.filterLabel}>Category</span>
+            <select className={styles.control} value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
+              <option value="">All categories</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className={`${styles.filter} ${styles.numFilter}`}>
+            <span className={styles.filterLabel}>Min price</span>
+            <div className={styles.numWrap}>
+              <span className={styles.numPrefix} aria-hidden="true">€</span>
+              <input className={`${styles.control} ${styles.num}`} type="number" min={0} step="0.01" placeholder="0" value={minPrice} onChange={(e) => setMinPrice(e.target.value)} />
+            </div>
+          </label>
+          <label className={`${styles.filter} ${styles.numFilter}`}>
+            <span className={styles.filterLabel}>Max price</span>
+            <div className={styles.numWrap}>
+              <span className={styles.numPrefix} aria-hidden="true">€</span>
+              <input className={`${styles.control} ${styles.num}`} type="number" min={0} step="0.01" placeholder="∞" value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} />
+            </div>
+          </label>
+          <label className={`${styles.filter} ${styles.numFilter}`}>
             <span className={styles.filterLabel}>Min views</span>
             <input className={`${styles.control} ${styles.num}`} type="number" min={0} placeholder="0" value={minViews} onChange={(e) => setMinViews(e.target.value)} />
+          </label>
+          <label className={styles.filter}>
+            <span className={styles.filterLabel}>Show</span>
+            <select className={styles.control} value={limit} onChange={(e) => setLimit(e.target.value)}>
+              <option value="">All</option>
+              {LIMIT_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
           </label>
         </div>
 
         <div className={styles.filterFooter}>
           <div className={styles.toggles}>
             <label className={styles.toggle}>
-              <input type="checkbox" checked={activeOnly} onChange={(e) => setActiveOnly(e.target.checked)} /> Hide no activity
+              <input type="checkbox" checked={activeOnly} onChange={(e) => setActiveOnly(e.target.checked)} />
+              <span className={styles.toggleDot} aria-hidden="true">
+                <Check size={9} strokeWidth={3.5} />
+              </span>
+              Hide no activity
             </label>
             <label className={styles.toggle}>
-              <input type="checkbox" checked={reachedCheckoutOnly} onChange={(e) => setReachedCheckoutOnly(e.target.checked)} /> Reached checkout only
+              <input type="checkbox" checked={reachedCheckoutOnly} onChange={(e) => setReachedCheckoutOnly(e.target.checked)} />
+              <span className={styles.toggleDot} aria-hidden="true">
+                <Check size={9} strokeWidth={3.5} />
+              </span>
+              Reached checkout only
             </label>
           </div>
           {filtersActive && (
@@ -356,9 +543,28 @@ export default function TestProductsAnalyticsPage() {
               </thead>
               <tbody>
                 {rows.map((r) => (
-                  <tr key={r.productId}>
+                  // The row is the drill-down: the numbers are aggregates, and
+                  // the only way to tell a real signal from one visitor
+                  // refreshing is to see the events behind them.
+                  <tr
+                    key={r.productId}
+                    className={styles.clickableRow}
+                    tabIndex={0}
+                    role="button"
+                    aria-label={`Show events for ${r.title}`}
+                    onClick={() => setDetailProduct({ id: r.productId, title: r.title })}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setDetailProduct({ id: r.productId, title: r.title });
+                      }
+                    }}
+                  >
                     <td>
-                      <Link href={`/admin/shop/products/${r.productId}`}>{r.title}</Link>
+                      {/* Stops the link from also opening the modal underneath it. */}
+                      <Link href={`/admin/shop/products/${r.productId}`} onClick={(e) => e.stopPropagation()}>
+                        {r.title}
+                      </Link>
                     </td>
                     <td className={styles.numCell}>{r.views}</td>
                     <td className={styles.numCell}>{r.addsToCart}</td>
@@ -369,7 +575,14 @@ export default function TestProductsAnalyticsPage() {
                     <td className={styles.rateCell}>{r.cartToCheckoutRatePct}%</td>
                     <td className={styles.rateCell}>{r.viewToCheckoutRatePct}%</td>
                     <td>
-                      <button type="button" className={replayStyles.replayBtn} onClick={() => setReplayProduct({ id: r.productId, title: r.title })}>
+                      <button
+                        type="button"
+                        className={replayStyles.replayBtn}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setReplayProduct({ id: r.productId, title: r.title });
+                        }}
+                      >
                         <Play size={12} strokeWidth={2.4} aria-hidden="true" />
                         Replays
                         {!!unreadCounts[r.productId] && <span className={replayStyles.unreadBadge}>{unreadCounts[r.productId]}</span>}
@@ -383,11 +596,23 @@ export default function TestProductsAnalyticsPage() {
         )}
       </div>
 
+      {detailProduct && (
+        <AnalyticsDetailModal
+          open
+          onClose={() => setDetailProduct(null)}
+          title={detailProduct.title}
+          subtitle="Every event behind this row — country, device, source and IP"
+          // The same window and country scope the table is showing, so the
+          // detail can never disagree with the number that was clicked.
+          params={{ ...windowParams, productId: detailProduct.id, eventType: TEST_EVENT_TYPES, limit: "200" }}
+        />
+      )}
+
       {replayProduct && (
         <SessionReplayModal
           productId={replayProduct.id}
           productTitle={replayProduct.title}
-          windowParams={{ days }}
+          windowParams={windowParams}
           onClose={() => {
             setReplayProduct(null);
             fetchUnreadCounts(rows.map((r) => r.productId));
