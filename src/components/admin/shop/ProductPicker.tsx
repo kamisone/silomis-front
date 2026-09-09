@@ -31,7 +31,7 @@ export default function ProductPicker({
   label?: string;
   placeholder?: string;
   /** Narrows the list to test products, or to everything except them. */
-  scope?: "test" | "real";
+  scope?: "test" | "live";
 }) {
   const [term, setTerm] = useState("");
   const [results, setResults] = useState<ProductOption[]>([]);

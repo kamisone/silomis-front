@@ -12,6 +12,13 @@ import replayStyles from "@/components/admin/shop/SessionReplay.module.css";
 import ui from "@/components/admin/ui/admin-ui.module.css";
 import styles from "./TestProducts.module.css";
 
+type Scope = "test" | "live";
+
+const SCOPES: Array<{ value: Scope; label: string }> = [
+  { value: "test", label: "Tests" },
+  { value: "live", label: "Live" },
+];
+
 interface CountryOption {
   isoCode: string;
   name: string;
@@ -98,6 +105,9 @@ interface TestProductDemand {
   title: string;
   slug: string;
   status: string;
+  /** The flag TODAY. A row whose flag disagrees with the tab it is on is a
+   *  product that changed phase and still has history here. */
+  isTestProduct: boolean;
   views: number;
   addsToCart: number;
   reachedShipping: number;
@@ -144,6 +154,13 @@ function toCents(value: string): string | null {
 }
 
 export default function TestProductsAnalyticsPage() {
+  /**
+   * Which phase of the catalogue this page is reporting on. Not derived from
+   * the product's flag today: the backend matches it against the state
+   * recorded on each event, so a product promoted from test to live appears in
+   * both tabs, each showing only the events from its own phase.
+   */
+  const [scope, setScope] = useState<Scope>("test");
   const [range, setRange] = useState("today");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -184,6 +201,7 @@ export default function TestProductsAnalyticsPage() {
 
   const query = useMemo(() => {
     const params = new URLSearchParams(dateRangeToQuery(range, startDate, endDate));
+    params.set("scope", scope);
     if (productId) params.set("productId", productId);
     if (limit) params.set("limit", limit);
     if (categoryId) params.set("categoryId", categoryId);
@@ -206,15 +224,15 @@ export default function TestProductsAnalyticsPage() {
       params.set("order", order);
     }
     return params.toString();
-  }, [range, startDate, endDate, productId, limit, categoryId, countryCode, continent, status, minPrice, maxPrice, minViews, activeOnly, reachedCheckoutOnly, sort, order]);
+  }, [scope, range, startDate, endDate, productId, limit, categoryId, countryCode, continent, status, minPrice, maxPrice, minViews, activeOnly, reachedCheckoutOnly, sort, order]);
 
   /** Date window + country scope, so the modal opens on the same slice the table is showing. */
   const windowParams = useMemo(() => {
-    const p: Record<string, string> = dateRangeToQuery(range, startDate, endDate);
+    const p: Record<string, string> = { ...dateRangeToQuery(range, startDate, endDate), scope };
     if (countryCode) p.countryCode = countryCode;
     else if (continent) p.continent = continent;
     return p;
-  }, [range, startDate, endDate, countryCode, continent]);
+  }, [scope, range, startDate, endDate, countryCode, continent]);
 
   const filtersActive =
     !!productId || !!limit || !!categoryId || !!countryCode || !!continent || !!status || !!minPrice || !!maxPrice || !!minViews || activeOnly || reachedCheckoutOnly;
@@ -247,13 +265,13 @@ export default function TestProductsAnalyticsPage() {
         setUnreadCounts({});
         return;
       }
-      const params = new URLSearchParams({ ...dateRangeToQuery(range, startDate, endDate), productIds: productIds.join(",") });
+      const params = new URLSearchParams({ ...dateRangeToQuery(range, startDate, endDate), scope, productIds: productIds.join(",") });
       fetch(`/next-api/admin/shop/analytics/replay/unread-counts?${params.toString()}`)
         .then((r) => (r.ok ? r.json() : {}))
         .then((data: Record<string, number>) => setUnreadCounts(data && typeof data === "object" ? data : {}))
         .catch(() => {});
     },
-    [range, startDate, endDate],
+    [scope, range, startDate, endDate],
   );
 
   useEffect(() => {
@@ -316,12 +334,43 @@ export default function TestProductsAnalyticsPage() {
   return (
     <div className={ui.page}>
       <div className={ui.pageHeader}>
-        <h1 className={ui.pageTitle}>Test products</h1>
+        <h1 className={ui.pageTitle}>Product demand</h1>
+      </div>
+
+      {/* Two reports over one funnel, so the tab is the whole switch — every
+          filter, the table and the drill-downs all follow it. */}
+      <div className={styles.tabs} role="tablist" aria-label="Catalogue phase">
+        {SCOPES.map((s) => (
+          <button
+            key={s.value}
+            type="button"
+            role="tab"
+            aria-selected={scope === s.value}
+            className={`${styles.tab} ${scope === s.value ? styles.tabActive : ""}`}
+            onClick={() => setScope(s.value)}
+          >
+            {s.label}
+          </button>
+        ))}
       </div>
 
       <p className={ui.pageHint} style={{ maxWidth: 760 }}>
-        Test products behave like real products until checkout, which is refused before the payment form loads. <strong>Reached shipping</strong> counts customers who submitted their address and landed on the shipping step; <strong>reached checkout</strong> counts those who then chose a
-        shipping method and clicked through to payment — the furthest a test product can be taken, and the people who would have bought it. Both are counted once per customer, so retries after the error do not inflate them.
+        {scope === "test" ? (
+          <>
+            Test products behave like real products until checkout, which is refused before the payment form loads.{" "}
+            <strong>Reached shipping</strong> counts customers who submitted their address and landed on the shipping step;{" "}
+            <strong>reached checkout</strong> counts those who then chose a shipping method and clicked through to payment — the
+            furthest a test product can be taken, and the people who would have bought it.
+          </>
+        ) : (
+          <>
+            The same funnel for products actually on sale. <strong>Reached shipping</strong> counts customers who submitted their
+            address; <strong>reached checkout</strong> counts those who chose a shipping method and clicked through to payment.
+            Nothing is refused here, so the drop-off after that step is customers who reached the payment form and did not pay.
+          </>
+        )}{" "}
+        Both are counted once per customer, so retries do not inflate them. A product keeps the phase it was in when each event
+        happened, so promoting one from test to live leaves its earlier numbers on the Tests tab rather than moving them here.
       </p>
 
       <div className={styles.filterCard}>
@@ -351,7 +400,12 @@ export default function TestProductsAnalyticsPage() {
               </label>
             </>
           )}
-          <ProductPicker value={productId} onChange={setProductId} scope="test" placeholder="Search test products…" />
+          <ProductPicker
+            value={productId}
+            onChange={setProductId}
+            scope={scope}
+            placeholder={scope === "test" ? "Search test products…" : "Search live products…"}
+          />
           {/* Picking one clears the other: the backend resolves countryCode
               before continent, so leaving both set would quietly drop the
               continent and show a scope the controls do not describe. */}
@@ -513,7 +567,9 @@ export default function TestProductsAnalyticsPage() {
           <div className={ui.emptyState}>Loading…</div>
         ) : rows.length === 0 ? (
           <div className={ui.emptyState}>
-            No test products match these filters. Turn on &ldquo;Test product&rdquo; on a product, or loosen the filters above.
+            {scope === "test"
+              ? "No test products match these filters. Turn on “Test product” on a product, or loosen the filters above."
+              : "No live products match these filters. Loosen the filters above, or check the Tests tab if the product you are looking for is still in testing."}
           </div>
         ) : (
           <div className={`${styles.tableWrap} ${refreshing ? styles.refreshing : ""}`}>
@@ -565,6 +621,11 @@ export default function TestProductsAnalyticsPage() {
                       <Link href={`/admin/shop/products/${r.productId}`} onClick={(e) => e.stopPropagation()}>
                         {r.title}
                       </Link>
+                      {/* Says why a product is listed under a tab its current
+                          flag disagrees with: these are the numbers from the
+                          phase it used to be in. */}
+                      {scope === "test" && !r.isTestProduct && <span className={styles.phaseChip}>Promoted to live</span>}
+                      {scope === "live" && r.isTestProduct && <span className={styles.phaseChip}>Back in testing</span>}
                     </td>
                     <td className={styles.numCell}>{r.views}</td>
                     <td className={styles.numCell}>{r.addsToCart}</td>

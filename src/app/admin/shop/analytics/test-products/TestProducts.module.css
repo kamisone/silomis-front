@@ -1,3 +1,58 @@
+/* ── Phase tabs ──
+   Two reports over the same funnel. A segmented control rather than links:
+   switching is a filter on this page, not a navigation, and every control
+   below follows it. The sliding underline is the state — a bare colour change
+   reads as a hover on a row of plain buttons. */
+.tabs {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--color-surface);
+  border-radius: 10px;
+  background: var(--color-surface-tint);
+}
+
+.tab {
+  position: relative;
+  padding: 0.42rem 1.15rem;
+  border: none;
+  border-radius: 7px;
+  background: none;
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--color-secondary);
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+}
+.tab:hover { color: var(--foreground); }
+.tab:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+.tabActive {
+  background: var(--background);
+  color: var(--color-primary);
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--color-secondary) 14%, transparent);
+}
+
+/* Marks a row listed under a tab its current flag disagrees with — the
+   numbers are from the phase the product used to be in. */
+.phaseChip {
+  display: inline-block;
+  margin-left: 0.45rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  background: var(--color-surface);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--color-secondary);
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
 /* ── Filters ──
    Each control gets a standing label. The bar used to be nine bare inputs
    whose only labels were placeholders, which disappear the moment you type —
