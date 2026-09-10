@@ -117,3 +117,162 @@
 .form > * {
   max-width: 820px;
 }
+
+
+/* ── Section headers ──
+   The page was a stack of bordered boxes whose only headings were inline
+   styles on a bare <h2>. An icon tile plus a line of description makes each
+   block say what it is for, matching the admin detail pages elsewhere. */
+.sectionIcon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: var(--color-surface-tint);
+  color: var(--color-primary);
+}
+
+.sectionHeading { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.sectionTitle { margin: 0; font-size: 0.92rem; font-weight: 700; color: var(--foreground); }
+.sectionDesc { font-size: 0.78rem; line-height: 1.5; color: var(--color-secondary); }
+
+.sectionHeader {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 0.9rem 1.15rem;
+  border-bottom: 1px solid var(--color-surface);
+}
+
+/* Inside the form, where a heading separates two groups of fields. */
+.formDivider {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  margin-top: 0.6rem;
+  padding-top: 1.1rem;
+  border-top: 1px solid var(--color-surface);
+}
+
+.switchGroup { display: flex; flex-direction: column; gap: 0.4rem; }
+
+/* ── Products ── */
+.productsCard {
+  border: 1px solid var(--color-surface);
+  border-radius: 12px;
+  background: var(--background);
+  overflow: hidden;
+}
+
+.addRow {
+  padding: 0.9rem 1.15rem;
+  border-bottom: 1px solid var(--color-surface);
+  background: var(--color-surface-tint);
+}
+/* Wide enough that a long product title is readable in the results, capped so
+   it does not run the width of the admin column. */
+.addPicker { max-width: 30rem; }
+
+.productList {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.productRow {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 1.15rem;
+  border-bottom: 1px solid var(--color-surface);
+  transition: background 0.12s;
+}
+.productRow:last-child { border-bottom: none; }
+.productRow:hover { background: var(--color-surface); }
+
+/* Decorative: reordering is the arrows. The grip says "this row has a
+   position" — which is the point of the list — without promising a drag this
+   page does not implement. */
+.rowHandle { flex-shrink: 0; color: color-mix(in srgb, var(--color-secondary) 45%, var(--background)); }
+
+.rowIndex {
+  flex-shrink: 0;
+  width: 1.4rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--color-secondary);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.rowThumb {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: var(--color-surface-tint);
+}
+.rowThumbEmpty { display: grid; place-items: center; color: var(--color-secondary); }
+
+.rowTitle {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.87rem;
+  color: var(--foreground);
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rowTitle:hover { color: var(--color-primary); text-decoration: underline; }
+
+.rowActions {
+  display: flex;
+  gap: 0.25rem;
+  flex-shrink: 0;
+  /* Revealed on hover on a pointer device, always visible on touch — three
+     buttons per row on a long list is a lot of chrome to carry at rest. */
+  opacity: 0.35;
+  transition: opacity 0.12s;
+}
+.productRow:hover .rowActions,
+.productRow:focus-within .rowActions { opacity: 1; }
+@media (hover: none) {
+  .rowActions { opacity: 1; }
+}
+
+.iconBtn {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--color-surface);
+  border-radius: 7px;
+  background: var(--background);
+  color: var(--color-secondary);
+  cursor: pointer;
+  transition: border-color 0.12s, color 0.12s, background 0.12s;
+}
+.iconBtn:hover:not(:disabled) { border-color: var(--color-primary); color: var(--color-primary); }
+.iconBtn:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 1px; }
+.iconBtn:disabled { opacity: 0.3; cursor: default; }
+.iconBtnDanger:hover:not(:disabled) {
+  border-color: var(--color-error-border);
+  background: var(--color-error-bg);
+  color: var(--color-error);
+}
+
+.emptyProducts {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 2.5rem 1rem;
+  color: var(--color-secondary);
+}
+.emptyProducts p { margin: 0; font-size: 0.88rem; }

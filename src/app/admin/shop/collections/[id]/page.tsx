@@ -4,8 +4,12 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { api, ApiError } from "@/lib/api";
+import { ArrowDown, ArrowUp, GripVertical, ImageOff, Package, Search, Sparkles, Trash2 } from "lucide-react";
 import Button from "@/components/admin/ui/Button";
+import Modal from "@/components/admin/ui/Modal";
+import Switch from "@/components/admin/ui/Switch";
 import MediaPicker from "@/components/admin/ui/MediaPicker";
+import ProductPicker from "@/components/admin/shop/ProductPicker";
 import BilingualField from "@/components/admin/BilingualField";
 import { useEntityTranslations } from "@/hooks/useEntityTranslations";
 import { useCopyGenerate } from "@/hooks/useCopyGenerate";
@@ -15,13 +19,6 @@ import { useToast } from "@/components/toast/ToastContext";
 
 const ENTITY_TYPE = "shop_collection";
 const FORM_ID = "collection-form";
-
-interface CollectionProductLink {
-  id: string;
-  productId: string;
-  sortOrder: number;
-  product: { id: string; title: string };
-}
 
 interface Collection {
   id: string;
@@ -46,9 +43,11 @@ interface Collection {
   productLinks: CollectionProductLink[];
 }
 
-interface ProductLite {
+interface CollectionProductLink {
   id: string;
-  title: string;
+  productId: string;
+  sortOrder: number;
+  product: { id: string; title: string; featuredImageUrl?: string | null; status?: string };
 }
 
 function toDateInput(iso: string | null): string {
@@ -61,23 +60,28 @@ export default function CollectionDetailPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [collection, setCollection] = useState<Collection | null>(null);
-  const [products, setProducts] = useState<ProductLite[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const { translations, setTranslation, saveTranslations } = useEntityTranslations(ENTITY_TYPE, collection?.id ?? null);
 
   const gen = useCopyGenerate(setTranslation);
 
+  /**
+   * No `setLoading(true)` here. It is already true on the first render, and
+   * every later call is a refresh after adding, removing or reordering a
+   * product — flipping it back would replace the whole page with "Loading…"
+   * and lose the admin's place for each one. (It also tripped
+   * react-hooks/set-state-in-effect, being a synchronous setState in the
+   * mount effect below.)
+   */
   async function load() {
-    setLoading(true);
     try {
-      const [c, prodRes] = await Promise.all([
-        api.get<Collection>(`/next-api/admin/shop/collections/${params.id}`),
-        api.get<{ items: ProductLite[]; total: number }>("/next-api/admin/shop/products?limit=200"),
-      ]);
-      setCollection(c);
-      setProducts(prodRes.items);
+      // The whole catalogue is no longer pulled up front: the picker below
+      // searches server-side, so a shop with more than 200 products is not
+      // silently truncated to the first page of them.
+      setCollection(await api.get<Collection>(`/next-api/admin/shop/collections/${params.id}`));
     } finally {
       setLoading(false);
     }
@@ -157,7 +161,8 @@ export default function CollectionDetailPage() {
   }
 
   async function handleDelete() {
-    if (!collection || !confirm(`Delete collection "${collection.name}"?`)) return;
+    if (!collection) return;
+    setConfirmDelete(false);
     try {
       await api.delete(`/next-api/admin/shop/collections/${collection.id}`);
       toast.success("Collection deleted");
@@ -176,7 +181,7 @@ export default function CollectionDetailPage() {
   }
 
   const sortedLinks = [...collection.productLinks].sort((a, b) => a.sortOrder - b.sortOrder);
-  const linkedIds = new Set(sortedLinks.map((l) => l.productId));
+  const linkedIdList = sortedLinks.map((l) => l.productId);
 
   return (
     <div className={ui.page}>
@@ -190,7 +195,7 @@ export default function CollectionDetailPage() {
           <h1 className={ui.pageTitle}>{collection.name}</h1>
         </div>
         <div className={styles.headerActions}>
-          <Button variant="danger" onClick={handleDelete}>
+          <Button variant="danger" onClick={() => setConfirmDelete(true)}>
             Delete
           </Button>
           {/* Outside the form, bound to it by id — the form is further down the page. */}
@@ -261,15 +266,22 @@ export default function CollectionDetailPage() {
             </div>
           </div>
 
-          <div className={ui.formGrid}>
-            <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.9rem" }}>
-              <input type="checkbox" checked={collection.isActive} onChange={(e) => setCollection({ ...collection, isActive: e.target.checked })} />
-              Active
-            </label>
-            <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.9rem" }}>
-              <input type="checkbox" checked={collection.isFeatured} onChange={(e) => setCollection({ ...collection, isFeatured: e.target.checked })} />
-              Featured on homepage
-            </label>
+          {/* The shared Switch, not bare checkboxes: it owns the row layout,
+              so a setting with a sentence of explanation cannot wrap into an L
+              and drag the next field out of alignment. */}
+          <div className={styles.switchGroup}>
+            <Switch
+              label="Active"
+              hint="Off keeps the collection and its products but hides it from the storefront."
+              checked={collection.isActive}
+              onChange={(isActive) => setCollection({ ...collection, isActive })}
+            />
+            <Switch
+              label="Featured on homepage"
+              hint="Eligible for the featured-collections section."
+              checked={collection.isFeatured}
+              onChange={(isFeatured) => setCollection({ ...collection, isFeatured })}
+            />
           </div>
 
           <div className={ui.formGrid}>
@@ -288,7 +300,18 @@ export default function CollectionDetailPage() {
             </div>
           </div>
 
-          <h2 style={{ fontSize: "1rem", fontWeight: 600, marginTop: "0.5rem" }}>SEO / landing page</h2>
+          {/* A real divider, not a bare heading in the middle of a field
+              stack: everything below is about the public page rather than the
+              collection itself. */}
+          <div className={styles.formDivider}>
+            <span className={styles.sectionIcon}>
+              <Sparkles size={15} strokeWidth={2} />
+            </span>
+            <div className={styles.sectionHeading}>
+              <h2 className={styles.sectionTitle}>SEO &amp; landing page</h2>
+              <span className={styles.sectionDesc}>How the collection reads in search results and at the top of its own page.</span>
+            </div>
+          </div>
 
           <BilingualField
             label="SEO title"
@@ -345,65 +368,121 @@ export default function CollectionDetailPage() {
         </form>
       </div>
 
-      <div className={ui.card}>
-        <h2 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "0.75rem" }}>Products ({sortedLinks.length})</h2>
+      <section className={styles.productsCard}>
+        <header className={styles.sectionHeader}>
+          <span className={styles.sectionIcon}>
+            <Package size={16} strokeWidth={2} />
+          </span>
+          <div className={styles.sectionHeading}>
+            <h2 className={styles.sectionTitle}>Products</h2>
+            <span className={styles.sectionDesc}>
+              {sortedLinks.length === 0
+                ? "Nothing in this collection yet."
+                : `${sortedLinks.length} product${sortedLinks.length === 1 ? "" : "s"}, shown in this order on the storefront.`}
+            </span>
+          </div>
+        </header>
+
+        {/* The picker searches the catalogue server-side and never offers a
+            product that is already here, so adding is one search and one
+            click — the old control was a native <select> holding the first
+            200 products in creation order, with no search at all. */}
+        <div className={styles.addRow}>
+          <ProductPicker
+            value=""
+            onChange={addProduct}
+            label="Add a product"
+            placeholder="Search the catalogue…"
+            excludeIds={linkedIdList}
+            withThumbnails
+            className={styles.addPicker}
+          />
+        </div>
 
         {sortedLinks.length === 0 ? (
-          <p className={ui.emptyState}>No products in this collection yet.</p>
+          <div className={styles.emptyProducts}>
+            <Search size={20} strokeWidth={1.75} aria-hidden="true" />
+            <p>Search above to add the first product.</p>
+          </div>
         ) : (
-          <table className={ui.table}>
-            <thead>
-              <tr>
-                <th>Product</th>
-                <th />
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {sortedLinks.map((link, i) => (
-                <tr key={link.id}>
-                  <td>{link.product.title}</td>
-                  <td>
-                    <div className={ui.rowActions}>
-                      <Button variant="secondary" type="button" disabled={i === 0} onClick={() => moveProduct(i, -1)}>
-                        ↑
-                      </Button>
-                      <Button variant="secondary" type="button" disabled={i === sortedLinks.length - 1} onClick={() => moveProduct(i, 1)}>
-                        ↓
-                      </Button>
-                    </div>
-                  </td>
-                  <td>
-                    <Button variant="danger" type="button" onClick={() => removeProduct(link.productId)}>
-                      Remove
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+          <ol className={styles.productList}>
+            {sortedLinks.map((link, i) => (
+              <li key={link.id} className={styles.productRow}>
+                <span className={styles.rowHandle} aria-hidden="true">
+                  <GripVertical size={14} strokeWidth={2} />
+                </span>
+                <span className={styles.rowIndex} aria-hidden="true">
+                  {i + 1}
+                </span>
 
-        <div className={ui.field} style={{ marginTop: "1rem" }}>
-          <label className={ui.label}>Add product</label>
-          <select
-            className={ui.select}
-            value=""
-            onChange={(e) => {
-              if (e.target.value) addProduct(e.target.value);
-            }}
-          >
-            <option value="">Add product…</option>
-            {products
-              .filter((p) => !linkedIds.has(p.id))
-              .map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.title}
-                </option>
-              ))}
-          </select>
-        </div>
-      </div>
+                {link.product.featuredImageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={link.product.featuredImageUrl} alt="" className={styles.rowThumb} loading="lazy" />
+                ) : (
+                  <span className={`${styles.rowThumb} ${styles.rowThumbEmpty}`} aria-hidden="true">
+                    <ImageOff size={14} strokeWidth={2} />
+                  </span>
+                )}
+
+                <Link href={`/admin/shop/products/${link.productId}`} className={styles.rowTitle}>
+                  {link.product.title}
+                </Link>
+
+                <div className={styles.rowActions}>
+                  <button
+                    type="button"
+                    className={styles.iconBtn}
+                    disabled={i === 0}
+                    onClick={() => moveProduct(i, -1)}
+                    aria-label={`Move ${link.product.title} up`}
+                  >
+                    <ArrowUp size={14} strokeWidth={2.2} />
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.iconBtn}
+                    disabled={i === sortedLinks.length - 1}
+                    onClick={() => moveProduct(i, 1)}
+                    aria-label={`Move ${link.product.title} down`}
+                  >
+                    <ArrowDown size={14} strokeWidth={2.2} />
+                  </button>
+                  <button
+                    type="button"
+                    className={`${styles.iconBtn} ${styles.iconBtnDanger}`}
+                    onClick={() => removeProduct(link.productId)}
+                    aria-label={`Remove ${link.product.title}`}
+                  >
+                    <Trash2 size={14} strokeWidth={2.2} />
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ol>
+        )}
+      </section>
+
+      {confirmDelete && collection && (
+        <Modal
+          title="Delete collection"
+          onClose={() => setConfirmDelete(false)}
+          footer={
+            <>
+              <Button type="button" variant="secondary" onClick={() => setConfirmDelete(false)}>
+                Cancel
+              </Button>
+              <Button type="button" variant="danger" onClick={handleDelete}>
+                Delete
+              </Button>
+            </>
+          }
+        >
+          <p>
+            Delete <strong>{collection.name}</strong>? The products stay in the catalogue — only the collection and its ordering
+            are removed. This cannot be undone.
+          </p>
+        </Modal>
+      )}
     </div>
   );
 }

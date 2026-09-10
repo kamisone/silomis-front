@@ -96,3 +96,64 @@
 }
 .option:hover, .option:focus-visible { background: var(--color-surface); outline: none; }
 .empty { padding: 0.6rem 0.55rem; font-size: 0.8rem; color: var(--color-secondary); }
+
+/* ── Rich rows ──
+   For a pick that commits to something (adding a product to a collection)
+   rather than one that only narrows a table: the image is how an admin
+   recognises the right product among near-identical titles. */
+.optionRich {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  width: 100%;
+  padding: 0.35rem 0.45rem;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.optionRich:hover,
+.optionRich:focus-visible { background: var(--color-surface); outline: none; }
+
+.thumb {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 7px;
+  object-fit: cover;
+  background: var(--color-surface-tint);
+}
+.thumbEmpty {
+  display: grid;
+  place-items: center;
+  color: var(--color-secondary);
+}
+
+.optionText { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.optionTitle {
+  font-size: 0.83rem;
+  font-weight: 500;
+  color: var(--foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.optionMeta {
+  display: flex;
+  gap: 0.5rem;
+  font-size: 0.7rem;
+  color: var(--color-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.optionStatus {
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  background: var(--color-surface);
+  font-weight: 600;
+  text-transform: capitalize;
+}

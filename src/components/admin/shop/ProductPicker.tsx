@@ -1,13 +1,17 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { Search, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ImageOff, Search, X } from "lucide-react";
 import styles from "./ProductPicker.module.css";
 
 interface ProductOption {
   id: string;
   title: string;
   slug?: string;
+  sku?: string | null;
+  status?: string;
+  basePriceCents?: number | null;
+  featuredImageUrl?: string | null;
 }
 
 /**
@@ -25,13 +29,29 @@ export default function ProductPicker({
   label = "Product",
   placeholder = "Search products…",
   scope,
+  excludeIds,
+  withThumbnails = false,
+  className,
 }: {
+  /**
+   * The chosen product. Leave it permanently empty for an "add" control: the
+   * chip below only renders for a held value, so a parent that acts on the
+   * pick and never feeds one back gets a box that resets and stays ready for
+   * the next one.
+   */
   value: string;
   onChange: (productId: string) => void;
   label?: string;
   placeholder?: string;
   /** Narrows the list to test products, or to everything except them. */
   scope?: "test" | "live";
+  /** Products already chosen elsewhere — dropped from the list rather than
+   *  offered and then rejected. */
+  excludeIds?: readonly string[];
+  /** Richer rows: image, price and status. Worth it where the pick is a
+   *  commitment; noise where it is a filter. */
+  withThumbnails?: boolean;
+  className?: string;
 }) {
   const [term, setTerm] = useState("");
   const [results, setResults] = useState<ProductOption[]>([]);
@@ -63,6 +83,11 @@ export default function ProductPicker({
   // The menu only renders while open with nothing chosen, so results left in
   // state at other times are never displayed and need no clearing here.
   const menuOpen = open && !value;
+
+  // A Set keyed by content, so a parent passing a fresh array each render does
+  // not restart the search on every keystroke of its own state.
+  const excludeKey = excludeIds?.join(",") ?? "";
+  const exclude = useMemo(() => new Set(excludeKey ? excludeKey.split(",") : []), [excludeKey]);
   useEffect(() => {
     if (!menuOpen) return;
     let cancelled = false;
@@ -78,8 +103,8 @@ export default function ProductPicker({
           .then((r) => (r.ok ? r.json() : { items: [] }))
           .then((data) => {
             if (cancelled) return;
-            const items = Array.isArray(data) ? data : (data.items ?? []);
-            setResults(items);
+            const items: ProductOption[] = Array.isArray(data) ? data : (data.items ?? []);
+            setResults(exclude.size ? items.filter((p) => !exclude.has(p.id)) : items);
           })
           .catch(() => {
             if (!cancelled) setResults([]);
@@ -91,7 +116,7 @@ export default function ProductPicker({
       cancelled = true;
       clearTimeout(handle);
     };
-  }, [term, menuOpen, scope]);
+  }, [term, menuOpen, scope, exclude]);
 
   // Clicking outside closes the list without choosing anything.
   useEffect(() => {
@@ -116,7 +141,7 @@ export default function ProductPicker({
   }
 
   return (
-    <div className={styles.root} ref={boxRef}>
+    <div className={`${styles.root} ${className ?? ""}`} ref={boxRef}>
       <span className={styles.label}>{label}</span>
 
       {value ? (
@@ -161,8 +186,35 @@ export default function ProductPicker({
           ) : (
             results.map((p) => (
               <li key={p.id}>
-                <button type="button" className={styles.option} role="option" aria-selected={false} onClick={() => choose(p)}>
-                  {p.title}
+                <button
+                  type="button"
+                  className={withThumbnails ? styles.optionRich : styles.option}
+                  role="option"
+                  aria-selected={false}
+                  onClick={() => choose(p)}
+                >
+                  {withThumbnails ? (
+                    <>
+                      {p.featuredImageUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={p.featuredImageUrl} alt="" className={styles.thumb} loading="lazy" />
+                      ) : (
+                        <span className={`${styles.thumb} ${styles.thumbEmpty}`} aria-hidden="true">
+                          <ImageOff size={13} strokeWidth={2} />
+                        </span>
+                      )}
+                      <span className={styles.optionText}>
+                        <span className={styles.optionTitle}>{p.title}</span>
+                        <span className={styles.optionMeta}>
+                          {p.sku ? <span>{p.sku}</span> : null}
+                          {typeof p.basePriceCents === "number" ? <span>{(p.basePriceCents / 100).toFixed(2)} €</span> : null}
+                          {p.status && p.status !== "active" ? <span className={styles.optionStatus}>{p.status}</span> : null}
+                        </span>
+                      </span>
+                    </>
+                  ) : (
+                    p.title
+                  )}
                 </button>
               </li>
             ))
