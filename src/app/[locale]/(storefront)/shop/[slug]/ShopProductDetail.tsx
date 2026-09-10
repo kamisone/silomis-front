@@ -10,6 +10,7 @@ import PerUnitVariantPicker, { groupUnits, variantLabel } from "@/components/sho
 import StickyVariantSelector from "@/components/shop/StickyVariantSelector";
 import { useVariantSelection } from "@/components/shop/useVariantSelection";
 import WishlistButton from "@/components/shop/WishlistButton";
+import ShareButton from "@/components/shop/ShareButton";
 import ReplayRecorderMount from "@/components/shop/ReplayRecorderMount";
 import PromotionBadge, { type PromotionInfo } from "@/components/shop/PromotionBadge";
 import BackToTopButton from "@/components/BackToTopButton";
@@ -1144,6 +1145,16 @@ export default function ShopProductDetail({
                 />
               )}
               <WishlistButton productId={product.id} variantId={selectedVariant?.id} />
+              {/* Beside wishlist rather than up by the title: sharing a product
+                  is something a customer decides after looking at it, and this
+                  is where their attention already is. The variant photo is
+                  passed when one is chosen, so a link shared from "Black" pins
+                  the black shot. */}
+              <ShareButton
+                title={product.title}
+                url={`/${locale}/shop/${product.slug}`}
+                imageUrl={activeHeroUrl ?? product.featuredImageUrl}
+              />
             </div>
 
             {!noMatch && !isBlocked && (
