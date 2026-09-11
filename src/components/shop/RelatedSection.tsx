@@ -8,9 +8,12 @@ interface Recommendations {
   similar: RelatedProduct[];
 }
 
-async function fetchRecommendations(slug: string): Promise<Recommendations> {
+async function fetchRecommendations(slug: string, locale: Locale): Promise<Recommendations> {
   try {
-    const res = await fetch(`${API_BASE_URL}/shop/products/${slug}/recommendations`, { next: { revalidate: 3600 } });
+    // `lang` is part of the URL, so Next's own fetch cache keys per locale for
+    // free — one revalidating entry per language rather than whichever one
+    // happened to warm it first.
+    const res = await fetch(`${API_BASE_URL}/shop/products/${slug}/recommendations?lang=${locale}`, { next: { revalidate: 3600 } });
     if (!res.ok || res.status === 204) return { frequentlyBoughtTogether: [], similar: [] };
     return (await res.json()) as Recommendations;
   } catch {
@@ -25,7 +28,7 @@ interface Props {
 
 export default async function RelatedSection({ slug, locale }: Props) {
   const t = getTranslations(locale);
-  const { frequentlyBoughtTogether, similar } = await fetchRecommendations(slug);
+  const { frequentlyBoughtTogether, similar } = await fetchRecommendations(slug, locale);
 
   if (!frequentlyBoughtTogether.length && !similar.length) return null;
 

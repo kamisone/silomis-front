@@ -36,13 +36,13 @@ export default function WishlistPage() {
         return;
       }
       setLoading(true);
-      fetch(`/next-api/public/shop/products?ids=${items.map((i) => i.productId).join(",")}&limit=100`, { cache: "no-store" })
+      fetch(`/next-api/public/shop/products?ids=${items.map((i) => i.productId).join(",")}&limit=100&lang=${locale}`, { cache: "no-store" })
         .then((r) => r.json())
         .then((data) => setProducts(data.items ?? []))
         .finally(() => setLoading(false));
     }, 0);
     return () => clearTimeout(t);
-  }, [items, wishlistLoading]);
+  }, [items, wishlistLoading, locale]);
 
   return (
     <div className={styles.page}>

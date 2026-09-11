@@ -138,6 +138,10 @@ export default function ShopListing() {
       }
       setLoading(true);
       const qs = new URLSearchParams();
+      // Without this the cards came back in the base language on every locale
+      // — the category and promotion fetches above already send it, and this
+      // one is what supplies the titles the shopper actually reads.
+      qs.set("lang", locale);
       if (categoryId) qs.set("categoryId", categoryId);
       if (search) qs.set("search", search);
       if (featured) qs.set("featured", featured);
@@ -189,7 +193,7 @@ export default function ShopListing() {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [categoryId, search, featured, minPrice, maxPrice, filterValues, categoriesLoaded, showsSubcategories]);
+  }, [locale, categoryId, search, featured, minPrice, maxPrice, filterValues, categoriesLoaded, showsSubcategories]);
 
   const activeCategory = categoryId ? categories.find((c) => c.id === categoryId) ?? null : null;
   /** The branch this category sits in — context the name alone cannot give. */
