@@ -5,17 +5,18 @@ import { useCookieConsent } from "@/components/consent/CookieConsentContext";
 
 interface Props {
   productId: string;
-  /** Server-resolved — this component still no-ops without it as defense in depth. */
-  isTestProduct: boolean;
 }
 
 /**
- * Starts the session-replay recorder on a test-product landing page. Scoped to
- * test products only (the backend independently re-verifies the product before
- * it ever returns a session id, so a stale or forged client claim can't start a
- * recording of a real product) — a deliberate privacy-minimisation choice: test
- * products can't be purchased and draw a small, controlled audience, unlike
- * ordinary shoppers moving through checkout with real PII on-screen.
+ * Starts the session-replay recorder on a product page.
+ *
+ * Recording used to be limited to test products. It now covers the live
+ * catalogue too, because the question it answers — why does paid traffic land
+ * on a product page and leave — is asked about real products, and there were
+ * no recordings of them at all. The backend decides what is actually recorded:
+ * it re-reads the product (a stale or forged client claim starts nothing) and
+ * samples live sessions per REPLAY_LIVE_SAMPLE_RATE, so asking to record is
+ * not the same as recording.
  *
  * Gated on analytics consent, same pattern as MetaPixelLoader/TikTokPixelLoader:
  * nothing starts — not even the rrweb bundle, which is imported lazily below —
@@ -31,11 +32,11 @@ interface Props {
  * end an in-flight recording. It only ends on the recorder's own
  * tab-close/hidden signals.
  */
-export default function ReplayRecorderMount({ productId, isTestProduct }: Props) {
+export default function ReplayRecorderMount({ productId }: Props) {
   const { consent } = useCookieConsent();
   const startedRef = useRef(false);
 
-  const canRecord = isTestProduct && consent?.analytics === true;
+  const canRecord = consent?.analytics === true;
 
   useEffect(() => {
     if (!canRecord || startedRef.current) return;
