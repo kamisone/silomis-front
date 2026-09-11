@@ -12,12 +12,79 @@ const Turnstile = dynamic(() => import("@/components/Turnstile"), { ssr: false }
 
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
 
+/**
+ * One consent line: a real checkbox, a drawn box, and a sentence that carries
+ * a link to the document being accepted.
+ *
+ * The input is visually hidden rather than replaced, so the label association,
+ * focus order, keyboard toggle and form semantics stay the browser's — only
+ * the box is drawn, because a native checkbox cannot be sized or coloured
+ * consistently across platforms.
+ */
+function ConsentCheckbox({
+  checked,
+  onChange,
+  template,
+  linkText,
+  href,
+  invalid,
+}: {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  /** Carries a `{link}` placeholder — the article differs by language
+   *  ("les"/"la"), so the whole sentence has to be translatable, not glued
+   *  together from fragments. */
+  template: string;
+  linkText: string;
+  href: string;
+  invalid: boolean;
+}) {
+  const [before, after] = template.split("{link}");
+
+  return (
+    <label className={`${styles.consent} ${checked ? styles.consentChecked : ""} ${invalid ? styles.consentInvalid : ""}`}>
+      <input
+        type="checkbox"
+        className={styles.consentInput}
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        aria-invalid={invalid || undefined}
+        required
+      />
+      <span className={styles.consentBox} aria-hidden="true">
+        <Check size={12} strokeWidth={3.2} />
+      </span>
+      <span className={styles.consentText}>
+        {before}
+        <Link
+          href={href}
+          className={styles.consentLink}
+          target="_blank"
+          rel="noopener noreferrer"
+          // Without this the click reaches the label and toggles the box on
+          // the way out — the reader would come back to a form that silently
+          // changed state behind them. A new tab also keeps their typed
+          // message intact.
+          onClick={(e) => e.stopPropagation()}
+        >
+          {linkText}
+        </Link>
+        {after}
+        <span className={styles.consentReq} aria-hidden="true"> *</span>
+      </span>
+    </label>
+  );
+}
+
 export default function ContactPage() {
   const params = useParams();
   const locale = (params?.locale as string) ?? "en";
   const t = getTranslations(locale).contact;
 
   const [form, setForm]         = useState({ name: "", contact: "", subject: "", message: "" });
+  const [consent, setConsent]   = useState({ terms: false, privacy: false });
+  /** Only after a blocked submit — nagging before the first attempt is rude. */
+  const [consentTouched, setConsentTouched] = useState(false);
   const [honeypot, setHoneypot] = useState("");
   const [token, setToken]       = useState<string | null>(null);
   const [status, setStatus]     = useState<"idle" | "sending" | "success" | "error">("idle");
@@ -30,10 +97,15 @@ export default function ContactPage() {
       setForm(prev => ({ ...prev, [field]: e.target.value }));
 
   const needsTurnstile = !!TURNSTILE_SITE_KEY;
-  const canSubmit = status === "idle" && (!needsTurnstile || !!token);
+  const consentGiven = consent.terms && consent.privacy;
+  const canSubmit = status === "idle" && consentGiven && (!needsTurnstile || !!token);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!consentGiven) {
+      setConsentTouched(true);
+      return;
+    }
     if (!canSubmit) return;
     setStatus("sending");
     try {
@@ -136,6 +208,30 @@ export default function ContactPage() {
                   rows={5}
                   required
                 />
+              </div>
+
+              <div className={styles.consentGroup}>
+                <ConsentCheckbox
+                  checked={consent.terms}
+                  onChange={(terms) => setConsent((c) => ({ ...c, terms }))}
+                  template={t.consentTerms}
+                  linkText={t.consentTermsLink}
+                  href={`/${locale}/legal`}
+                  invalid={consentTouched && !consent.terms}
+                />
+                <ConsentCheckbox
+                  checked={consent.privacy}
+                  onChange={(privacy) => setConsent((c) => ({ ...c, privacy }))}
+                  template={t.consentPrivacy}
+                  linkText={t.consentPrivacyLink}
+                  href={`/${locale}/privacy-policy`}
+                  invalid={consentTouched && !consent.privacy}
+                />
+                {consentTouched && !consentGiven && (
+                  <p className={styles.consentError} role="alert">
+                    {t.consentRequired}
+                  </p>
+                )}
               </div>
 
               {needsTurnstile && (

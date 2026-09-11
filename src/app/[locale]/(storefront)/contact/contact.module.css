@@ -251,3 +251,107 @@
   .field { min-width: 0; }
   .submitBtn { align-self: stretch; text-align: center; }
 }
+
+/* ── Consent ──
+   Two required acknowledgements. Each is a row you can click anywhere on, not
+   a 13px native box with a sentence trailing off it — these are the last thing
+   between a visitor and sending, so they have to be effortless to tick and
+   unmistakable once ticked. */
+.consentGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 0.7rem 0.85rem;
+  border: 1.5px solid color-mix(in srgb, var(--foreground) 12%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--foreground) 2%, transparent);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.consent:hover { border-color: color-mix(in srgb, var(--color-primary) 45%, transparent); }
+
+.consentChecked {
+  border-color: color-mix(in srgb, var(--color-primary) 55%, transparent);
+  background: color-mix(in srgb, var(--color-primary) 6%, transparent);
+}
+
+/* Only after a blocked submit — see consentTouched. */
+.consentInvalid {
+  border-color: #fca5a5;
+  background: #fef2f2;
+}
+
+/* Hidden, not replaced: the real input keeps the label association, the
+   keyboard toggle and the focus ring's target. */
+.consentInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.consentBox {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  margin-top: 1px;
+  border: 1.5px solid color-mix(in srgb, var(--foreground) 28%, transparent);
+  border-radius: 6px;
+  background: var(--background);
+  color: transparent;
+  transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.12s;
+}
+.consentChecked .consentBox {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: #fff;
+}
+/* The tick lands rather than appears — a 120ms pop is what makes the state
+   change legible at a glance. */
+.consentChecked .consentBox { transform: scale(1.04); }
+.consentInvalid .consentBox { border-color: #dc2626; }
+
+.consent:focus-within .consentBox {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.consentText {
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: color-mix(in srgb, var(--foreground) 85%, transparent);
+}
+
+.consentLink {
+  color: var(--color-primary);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.consentLink:hover { color: var(--color-accent); }
+
+.consentReq {
+  color: var(--color-accent);
+  font-weight: 800;
+}
+
+.consentError {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #dc2626;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .consent, .consentBox { transition: none; }
+  .consentChecked .consentBox { transform: none; }
+}
