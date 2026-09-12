@@ -36,7 +36,7 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
   const locale: Locale = isValidLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE;
   const t = getTranslations(locale).shop;
   return {
-    // `absolute` so the home page is "Slippers, sandals and flip-flops |
+    // `absolute` so the home page is "Headwear, made personal |
     // Silomis" rather than repeating the brand through the template.
     title: { absolute: `${t.homeTitle} | ${SITE_NAME}` },
     description: t.homeSubtitle,

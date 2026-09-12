@@ -61,11 +61,11 @@ export const metadata: Metadata = {
    */
   metadataBase: new URL(SITE_URL),
   title: {
-    default: `${SITE_NAME} — slippers, sandals and flip-flops`,
+    default: `${SITE_NAME} — personalised headwear`,
     /** Pages set only their own subject; the brand is appended once, here. */
     template: `%s | ${SITE_NAME}`,
   },
-  description: "Comfortable slippers, sandals and flip-flops for indoors, the beach and everywhere in between. Fast delivery and easy returns.",
+  description: "A curated universe of headwear — caps, bucket hats, beanies, headbands and visors — made personal with custom embroidery. Fast delivery and easy returns.",
   applicationName: SITE_NAME,
   openGraph: {
     siteName: SITE_NAME,

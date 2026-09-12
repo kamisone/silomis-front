@@ -55,7 +55,7 @@ async function trimmed(file) {
 async function square(art, size, coverage, background) {
   const inner = Math.round(size * coverage);
   let pipeline = sharp(art).resize(inner, inner, { fit: "inside", background: TRANSPARENT });
-  // Under ~48px the downscale blurs the sandal inside the S into a grey smear
+  // Under ~48px the downscale blurs the mark inside the S into a grey smear
   // and the two stop reading as separate shapes. A mild unsharp pass costs
   // nothing at these sizes and buys back the edge between them.
   if (size <= 48) pipeline = pipeline.sharpen({ sigma: 0.6, m1: 0.6, m2: 2 });
@@ -114,7 +114,8 @@ const write = async (file, buf) => {
 };
 
 // Tab strip. No padding at all below 32px: the mark is a thin swoosh around a
-// sandal, and at 16 square every pixel spent on margin is one it cannot spare.
+// smaller shape, and at 16 square every pixel spent on margin is one it cannot
+// spare.
 const icoSizes = [16, 32, 48, 64];
 const entries = [];
 for (const size of icoSizes) {

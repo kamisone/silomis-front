@@ -10,9 +10,9 @@ import { SITE_NAME } from "@/lib/seo";
  */
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: `${SITE_NAME} — sandals, slippers and flip-flops`,
+    name: `${SITE_NAME} — personalised headwear`,
     short_name: SITE_NAME,
-    description: "Comfortable sandals, slippers and flip-flops for indoors, the beach and everywhere in between.",
+    description: "Caps, bucket hats, beanies, headbands and visors — each one personalisable with custom embroidery.",
     start_url: "/",
     display: "standalone",
     background_color: "#ffffff",

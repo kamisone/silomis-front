@@ -819,7 +819,7 @@ export default function SectionSettings({
                         label="Quote"
                         value={item.quote}
                         onCommit={(quote) => patchTestimonial(item.id, { quote })}
-                        placeholder="The sandals arrived in two days and my daughter hasn't taken them off since."
+                        placeholder="The cap arrived in two days and the embroidery is exactly what I asked for."
                         translateEndpoint={TRANSLATE_TEXT}
                         multiline
                         rows={3}
