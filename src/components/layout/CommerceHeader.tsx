@@ -28,7 +28,7 @@ export default function CommerceHeader({ locale }: { locale: Locale }) {
                   stays crisp at any density, recolours with the theme, is
                   translatable, and drops a render-blocking request from the
                   header. Only the mark itself is still an image. */}
-              <Image src="/assets/logo_silomis_icon.png" alt="" width={40} height={42} className={styles.logoIcon} priority />
+              <Image src="/assets/logo_silomis_mark.webp" alt="" width={42} height={50} className={styles.logoIcon} priority />
               {/* No S: the mark to its left is the S. aria-hidden because the
                   link already carries the real name — without it a screen
                   reader would announce the brand as "ilomis". */}

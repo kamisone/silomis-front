@@ -3,12 +3,13 @@
  *
  *     node scripts/generate-icons.mjs
  *
- * Run it after replacing public/assets/logo_silomis_icon.png — nothing else
+ * Run it after replacing public/assets/logo_silomis_icon.webp — nothing else
  * reads that file to build the favicons, so without this they silently keep
  * showing the previous brand in browser tabs and on home screens, which is the
  * one place a stale asset is most visible and least likely to be noticed.
  *
  * Everything below is derived, so nothing here should ever be hand-edited:
+ *   public/assets/logo_silomis_mark.webp  the mark alone, for the UI lockups
  *   src/app/favicon.ico        16/32/48/64 in one container, for the tab strip
  *   src/app/icon.png           Next's own <link rel="icon"> at 512
  *   src/app/apple-icon.png     iOS home screen, 180, opaque
@@ -18,7 +19,7 @@
 import sharp from "sharp";
 import { writeFile, mkdir } from "node:fs/promises";
 
-const SRC = "public/assets/logo_silomis_icon.png";
+const SRC = "public/assets/logo_silomis_icon.webp";
 /** iOS and Android launchers composite an icon over their own background —
  *  black on iOS — so anything they own has to carry its own opaque one. */
 const OPAQUE_BG = { r: 255, g: 255, b: 255, alpha: 1 };
@@ -113,6 +114,16 @@ const write = async (file, buf) => {
   written.push(`${file}  ${(buf.length / 1024).toFixed(1)} KB`);
 };
 
+// The mark alone, with whatever transparent slack the export carried removed.
+// The header, footer and login lockups set it against the wordmark beside it,
+// so they need art whose box *is* the mark: padding baked into the source reads
+// as the logo mysteriously shrinking next to the name, and a square source in a
+// non-square box gets letterboxed by `object-fit: contain` on top of that.
+// 512 wide is far more than the 50px it is ever drawn at, even at 3x.
+const uiMark = await sharp(art).resize({ width: 512, withoutEnlargement: true }).webp({ quality: 92 }).toBuffer();
+const uiMarkSize = await sharp(uiMark).metadata();
+await write("public/assets/logo_silomis_mark.webp", uiMark);
+
 // Tab strip. No padding at all below 32px: the mark is a thin swoosh around a
 // smaller shape, and at 16 square every pixel spent on margin is one it cannot
 // spare.
@@ -137,3 +148,11 @@ await write("src/app/apple-icon.png", await square(art, 180, 0.78, OPAQUE_BG));
 await write("public/icons/maskable-512.png", await square(art, 512, 0.566, OPAQUE_BG));
 
 console.log(written.join("\n"));
+// The four lockups hardcode this ratio (next/image needs intrinsic numbers, and
+// the header's mobile rule an aspect-ratio), so a replacement mark with a
+// different silhouette means updating them — print it rather than leaving the
+// mismatch to show up as a squashed logo nobody connects back to this script.
+console.log(
+  `\nmark is ${uiMarkSize.width}x${uiMarkSize.height} — CommerceHeader.module.css (.logoIcon),\n` +
+    "CommerceFooter/CommerceHeader/login width+height attrs carry this ratio.",
+);

@@ -246,7 +246,11 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
         url: SITE_URL,
         // The real asset the header uses — a logo URL that 404s is worse
         // than none at all.
-        logo: `${SITE_URL}/assets/logo_silomis_icon.png`,
+        // The generated 512 PNG, not the WebP source. Structured-data
+        // consumers are a long tail of crawlers and social cards, and a square
+        // PNG is the one format all of them read; it is regenerated from the
+        // same source mark by scripts/generate-icons.mjs, so it cannot drift.
+        logo: `${SITE_URL}/icons/icon-512.png`,
       },
       {
         "@type": "WebSite",

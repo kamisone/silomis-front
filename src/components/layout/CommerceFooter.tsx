@@ -34,9 +34,9 @@ export default function CommerceFooter({ locale }: { locale: Locale }) {
           <div className={styles.footerCol}>
             <div className={styles.footerLogo}>
               <Image
-                src="/assets/logo_silomis_icon.png"
+                src="/assets/logo_silomis_mark.webp"
                 alt="Silomis"
-                width={30}
+                width={27}
                 height={32}
                 className={styles.logoIcon}
               />

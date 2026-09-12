@@ -103,7 +103,8 @@
 }
 
 .logoIcon {
-  width: 30px;
+  /* Follows the 512x608 mark's ratio, so `contain` has nothing to letterbox. */
+  width: 27px;
   height: 32px;
   object-fit: contain;
 }
@@ -118,11 +119,11 @@
   font-family: var(--font-brand), "Segoe UI", system-ui, sans-serif;
   font-weight: 400;
   font-size: 20px;
-  /* The mark's own baseline sits at 95.9% of its box — there is a detached
-     ground shadow below that — so centring the word leaves it floating above
-     the line the S stands on. Measured against the art and against Pacifico's
-     metrics, which is why it is a pixel value and not a ratio, and why it
-     depends on line-height being exactly 1. */
+  /* line-height 1 so the word's box is its type and nothing else — the mark
+     beside it carries a ground ellipse under the S's baseline (the letter ends
+     at 97.2% of its box), and any leading here would stack on top of that and
+     push the two apart. No margin nudge at this size: unlike the header's
+     32px lockup, the gap the reflection opens is under a pixel. */
   line-height: 1;
 }
 

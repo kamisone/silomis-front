@@ -48,14 +48,15 @@
 }
 
 .logoIcon {
-  /* 862x905 source — the box follows that ratio so `contain` has nothing to
-     letterbox and the mark fills the space it is given. Kept a touch narrower
-     than the name so the pyramid widens on every row. */
+  /* 512x608 source (scripts/generate-icons.mjs prints it) — the box follows
+     that ratio so `contain` has nothing to letterbox and the mark fills the
+     space it is given. Kept a touch narrower than the name so the pyramid
+     widens on every row. */
   /* Larger than the stacked version it replaces: a letterform standing in for
      a capital has to out-measure the ascenders beside it, and the lockup is
      now half as tall, so the height is there to spend. */
   height: 50px;
-  width: 48px;
+  width: 42px;
   object-fit: contain;
 }
 
@@ -73,11 +74,14 @@
   font-family: var(--font-brand), "Segoe UI", system-ui, sans-serif;
   font-weight: 400;
   font-size: 32px;
-  /* The mark's own baseline sits at 95.9% of its box — there is a detached
-     ground shadow below that — so centring the word leaves it floating above
-     the line the S stands on. Measured against the art and against Pacifico's
+  /* The mark's own baseline sits at 97.2% of its box — a detached ground
+     ellipse takes the rest — so centring the word leaves it floating above the
+     line the S stands on. Measured against the art and against Pacifico's
      metrics, which is why it is a pixel value and not a ratio, and why it
-     depends on line-height being exactly 1. */
+     depends on line-height being exactly 1. Re-measure it whenever the mark is
+     replaced: the baseline has landed anywhere from 91.9% (a version with a
+     deep reflection, which wanted 0 here) to 97.2%, and anything inside about
+     a percent of this is under half a pixel at 50px and not worth chasing. */
   line-height: 1;
   margin-top: 2px;
   color: var(--color-secondary);
@@ -190,7 +194,7 @@
   .logoIcon {
     height: clamp(34px, 10vw, 44px);
     width: auto;
-    aspect-ratio: 842 / 894;
+    aspect-ratio: 512 / 608;
   }
 
   /* Buys back 12px for the wordmark. The utility cluster is the only other

@@ -37,7 +37,7 @@ function BrandPanel() {
         <div className={styles.brandLogo}>
           {/* No S: the mark to its left is the S. The whole panel is already
               aria-hidden, so there is nothing to restate for a screen reader. */}
-          <Image src="/assets/logo_silomis_icon.png" alt="" width={38} height={40} priority />
+          <Image src="/assets/logo_silomis_mark.webp" alt="" width={34} height={40} priority />
           <span className={styles.brandWordmark}>ilomis</span>
         </div>
 
@@ -205,7 +205,7 @@ function LoginForm() {
           {/* Phones lose the brand panel, so the mark comes back here — a
               sign-in with no logo on it is the one thing that reads as a phish. */}
           <div className={styles.compactBrand}>
-            <Image src="/assets/logo_silomis_icon.png" alt="Silomis" width={24} height={25} priority />
+            <Image src="/assets/logo_silomis_mark.webp" alt="Silomis" width={21} height={25} priority />
           </div>
 
           {challenge ? (
