@@ -175,3 +175,53 @@
   font-size: 0.7rem;
   font-weight: 700;
 }
+
+/* ── Row actions ──
+   Icon-only: the column held one wide button whose label changed between
+   "Watch" and "Watch again", which made every row a different width and left
+   no room for a second control. Two 30px squares fit, and the label moves to
+   the tooltip and the accessible name. */
+.rowActions {
+  display: flex;
+  gap: 4px;
+  justify-content: flex-end;
+}
+
+.iconBtn {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--color-surface);
+  border-radius: 7px;
+  background: var(--background);
+  color: var(--color-secondary);
+  cursor: pointer;
+  transition: border-color 0.12s, color 0.12s, background 0.12s;
+}
+.iconBtn:hover:not(:disabled):not(.iconRead) {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 7%, var(--background));
+}
+.iconBtn:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+.iconBtn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* A state, not a control — already-viewed sessions have nothing left to mark,
+   so this reads as a tick rather than inviting a click. */
+.iconRead {
+  border-color: transparent;
+  background: none;
+  color: var(--color-success);
+  cursor: default;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .iconBtn { transition: none; }
+}

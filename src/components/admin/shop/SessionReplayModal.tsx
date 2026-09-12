@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
+import { Check, CheckCheck, Play, RotateCcw } from "lucide-react";
 import { api } from "@/lib/api";
 import Button from "@/components/admin/ui/Button";
 import styles from "./SessionReplay.module.css";
@@ -85,6 +86,30 @@ export default function SessionReplayModal({ onClose, productId, productTitle, w
       .finally(() => setLoading(false));
   }, [productId, windowKey]);
 
+  const [markingId, setMarkingId] = useState<string | null>(null);
+
+  /**
+   * Clears one session's unread badge without loading its recording. Most of a
+   * long list is identifiable as uninteresting from the row alone — a
+   * two-second bounce with no clicks — and playing each one back to dismiss it
+   * is the slow way to do that.
+   */
+  const markViewed = useCallback(async (session: ReplaySession) => {
+    if (session.viewedAt) return;
+    setMarkingId(session.id);
+    try {
+      const { viewedAt } = await api.patch<{ viewedAt: string }>(`/next-api/admin/shop/replay/sessions/${session.id}/viewed`, {});
+      // Patched in place rather than refetching the list: a refetch would
+      // reset the scroll position, which is the one thing someone working
+      // down a long list cannot afford to lose.
+      setSessions((prev) => prev.map((s) => (s.id === session.id ? { ...s, viewedAt } : s)));
+    } catch {
+      // Leaving the row unread is the honest outcome of a failed write.
+    } finally {
+      setMarkingId(null);
+    }
+  }, []);
+
   async function openSession(session: ReplaySession) {
     setSelected(session);
     setLoadingDetail(true);
@@ -123,7 +148,7 @@ export default function SessionReplayModal({ onClose, productId, productTitle, w
             loading ? (
               <p>Loading…</p>
             ) : sessions.length === 0 ? (
-              <p>No recorded sessions yet — recordings only happen on test-product pages.</p>
+              <p>No recorded sessions in this window. Recording needs the visitor to have accepted analytics cookies, and live-product sessions are sampled (see REPLAY_LIVE_SAMPLE_RATE).</p>
             ) : (
               <div className={styles.tableWrap}>
                 <table className={styles.table}>
@@ -152,9 +177,41 @@ export default function SessionReplayModal({ onClose, productId, productTitle, w
                         <td>{s.status}</td>
                         <td>{new Date(s.startedAt).toLocaleString()}</td>
                         <td>
-                          <Button variant="secondary" onClick={() => openSession(s)}>
-                            {s.viewedAt ? "Watch again" : "Watch"}
-                          </Button>
+                          <div className={styles.rowActions}>
+                            <button
+                              type="button"
+                              className={styles.iconBtn}
+                              onClick={() => openSession(s)}
+                              // Icon-only, so the label lives in the tooltip
+                              // and the accessible name — both still say which
+                              // of the two states this is.
+                              title={s.viewedAt ? "Watch again" : "Watch"}
+                              aria-label={s.viewedAt ? "Watch again" : "Watch"}
+                            >
+                              {s.viewedAt ? <RotateCcw size={15} strokeWidth={2.2} /> : <Play size={15} strokeWidth={2.2} />}
+                            </button>
+
+                            {s.viewedAt ? (
+                              // Not a button: there is nothing left to do to a
+                              // session that has been seen, and a control that
+                              // looks live but does nothing is worse than a
+                              // state indicator.
+                              <span className={`${styles.iconBtn} ${styles.iconRead}`} title="Already viewed" aria-label="Already viewed">
+                                <CheckCheck size={15} strokeWidth={2.2} />
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                className={styles.iconBtn}
+                                onClick={() => markViewed(s)}
+                                disabled={markingId === s.id}
+                                title="Mark as viewed"
+                                aria-label="Mark as viewed"
+                              >
+                                <Check size={15} strokeWidth={2.4} />
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}
