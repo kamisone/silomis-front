@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Check, Loader2, Plus, Trash2, AlertTriangle, ImageOff, ChevronDown } from "lucide-react";
+import { Check, Loader2, Plus, Trash2, AlertTriangle, ImageOff, ChevronDown, Crosshair } from "lucide-react";
 import { api } from "@/lib/api";
 import MediaPicker from "@/components/admin/ui/MediaPicker";
+import ProductPicker from "@/components/admin/shop/ProductPicker";
 import LocalizedTextField, { type LocalizedTextMap } from "@/components/admin/ui/LocalizedTextField";
 import PlacementTraceEditor from "@/components/admin/shop/PlacementTraceEditor";
 import { isUsableQuad, defaultQuad, type Quad } from "@/lib/shop/perspective";
@@ -30,13 +31,6 @@ interface Placement {
   corners: { x: number; y: number }[];
 }
 
-interface Template {
-  id: string;
-  key: string;
-  name: string;
-  placements: Placement[];
-}
-
 function eur(cents: number): string {
   return (cents / 100).toFixed(2);
 }
@@ -50,7 +44,9 @@ function eur(cents: number): string {
  * about it lives on one card, and adding a position means finishing it.
  */
 export default function PlacementStudioPage() {
-  const [templates, setTemplates] = useState<Template[]>([]);
+  const [productId, setProductId] = useState("");
+  const [placements, setPlacements] = useState<Placement[]>([]);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -63,18 +59,29 @@ export default function PlacementStudioPage() {
   });
 
   const load = useCallback(async () => {
-    try {
-      setTemplates(await api.get<Template[]>("/next-api/admin/shop/personalization/placements"));
-    } catch {
-      setError("Could not load the positions.");
+    if (!productId) {
+      setPlacements([]);
+      return;
     }
-  }, []);
+    setLoading(true);
+    try {
+      setPlacements(await api.get<Placement[]>(`/next-api/admin/shop/personalization/products/${productId}/placements`));
+    } catch {
+      setError("Could not load this product's positions.");
+    } finally {
+      setLoading(false);
+    }
+  }, [productId]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
-  const template = templates[0] ?? null;
+  // A position belongs to one product, so nothing from the last one carries over.
+  useEffect(() => {
+    setOpenId("");
+    setAdding(false);
+  }, [productId]);
 
   const patch = useCallback(
     async (id: string, body: Record<string, unknown>) => {
@@ -93,11 +100,10 @@ export default function PlacementStudioPage() {
   );
 
   const create = useCallback(async () => {
-    if (!template || !draft.key.trim() || !Object.keys(draft.label).length || !draft.mediaKey) return;
+    if (!productId || !draft.key.trim() || !Object.keys(draft.label).length || !draft.mediaKey) return;
     setSaving(true);
     try {
-      await api.post("/next-api/admin/shop/personalization/placements", {
-        templateId: template.id,
+      await api.post(`/next-api/admin/shop/personalization/products/${productId}/placements`, {
         key: draft.key,
         label: draft.label,
         mediaKey: draft.mediaKey,
@@ -110,7 +116,7 @@ export default function PlacementStudioPage() {
     } finally {
       setSaving(false);
     }
-  }, [template, draft, load]);
+  }, [productId, draft, load]);
 
   const remove = useCallback(
     async (p: Placement) => {
@@ -134,8 +140,8 @@ export default function PlacementStudioPage() {
         <div>
           <h1 className={ui.pageTitle}>Embroidery positions</h1>
           <p className={ui.pageHint}>
-            Every position a customer can choose: what it is called in each language, what it costs, the area the
-            machine can reach, and the photo they place their embroidery on.
+            Pick a product, then set up where it can be embroidered — each position has its own name in every
+            language, its own price, the area the machine can reach, and the photo the customer places artwork on.
           </p>
         </div>
       </div>
@@ -146,13 +152,32 @@ export default function PlacementStudioPage() {
         </p>
       )}
 
+      {/* The product comes first: a position is a photograph of one product, so
+          there is nothing meaningful to add or edit until one is chosen.
+
+          A combobox rather than a <select>: a catalogue does not fit in a
+          dropdown, and the admin already knows the name of the product they
+          want. `personalizable` is applied server-side, so the list pages
+          through exactly the products that can hold a position. */}
       <div className={ui.toolbar}>
-        <button type="button" className={styles.primaryBtn} onClick={() => setAdding((v) => !v)}>
-          <Plus size={14} aria-hidden="true" /> Add a position
-        </button>
+        <ProductPicker
+          value={productId}
+          onChange={setProductId}
+          label="Product"
+          placeholder="Search products…"
+          personalizable
+          withThumbnails
+          className={styles.productField}
+        />
+
+        {productId && (
+          <button type="button" className={styles.primaryBtn} onClick={() => setAdding((v) => !v)}>
+            <Plus size={14} aria-hidden="true" /> Add a position
+          </button>
+        )}
       </div>
 
-      {adding && (
+      {productId && adding && (
         <div className={styles.addCard}>
           <label className={ui.field}>
             <span className={ui.label}>Key</span>
@@ -200,11 +225,24 @@ export default function PlacementStudioPage() {
         </div>
       )}
 
-      {!template ? (
-        <p className={ui.muted}>No personalisation template exists yet.</p>
+      {!productId ? (
+        <div className={ui.emptyState}>
+          <Crosshair size={22} aria-hidden="true" />
+          <p>Choose a product to set up where it can be embroidered.</p>
+        </div>
+      ) : loading ? (
+        <p className={ui.muted}>Loading…</p>
+      ) : !placements.length ? (
+        <div className={ui.emptyState}>
+          <ImageOff size={22} aria-hidden="true" />
+          <p>
+            No positions on this product yet. Add one — each needs a flat, evenly lit photo of this product from the
+            angle that shows it.
+          </p>
+        </div>
       ) : (
         <div className={styles.placementList}>
-          {template.placements.map((p) => (
+          {placements.map((p) => (
             <PlacementCard
               key={p.id}
               placement={p}

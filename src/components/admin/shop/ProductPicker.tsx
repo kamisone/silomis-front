@@ -29,6 +29,7 @@ export default function ProductPicker({
   label = "Product",
   placeholder = "Search products…",
   scope,
+  personalizable,
   excludeIds,
   withThumbnails = false,
   className,
@@ -45,6 +46,14 @@ export default function ProductPicker({
   placeholder?: string;
   /** Narrows the list to test products, or to everything except them. */
   scope?: "test" | "live";
+  /**
+   * Narrows to products personalisation is switched on for.
+   *
+   * Applied server-side rather than by filtering what comes back: the list is
+   * paged, so a client-side filter would show an empty dropdown whenever the
+   * first page happened to be all ordinary products.
+   */
+  personalizable?: boolean;
   /** Products already chosen elsewhere — dropped from the list rather than
    *  offered and then rejected. */
   excludeIds?: readonly string[];
@@ -99,6 +108,7 @@ export default function ProductPicker({
         const params = new URLSearchParams({ limit: "10" });
         if (q) params.set("search", q);
         if (scope) params.set("isTestProduct", scope === "test" ? "true" : "false");
+        if (personalizable !== undefined) params.set("personalizable", String(personalizable));
         fetch(`/next-api/admin/shop/products?${params.toString()}`)
           .then((r) => (r.ok ? r.json() : { items: [] }))
           .then((data) => {
@@ -116,7 +126,7 @@ export default function ProductPicker({
       cancelled = true;
       clearTimeout(handle);
     };
-  }, [term, menuOpen, scope, exclude]);
+  }, [term, menuOpen, scope, exclude, personalizable]);
 
   // Clicking outside closes the list without choosing anything.
   useEffect(() => {

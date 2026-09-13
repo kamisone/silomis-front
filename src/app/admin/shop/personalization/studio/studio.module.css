@@ -1,3 +1,12 @@
+/* The picker brings its own label and layout; this only reserves enough width
+   for a product name to be readable while typing. Wide enough to be the first
+   thing on the toolbar, not so wide it crowds out the add button. */
+.productField {
+  min-width: 300px;
+  flex: 1;
+  max-width: 460px;
+}
+
 /* ── Add form ─────────────────────────────────────────────────────────────
    Dashed and tinted so it reads as a thing being built rather than a thing
    that exists — it disappears the moment the position is created. */
