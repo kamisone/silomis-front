@@ -1021,6 +1021,17 @@ export default function CheckoutPage() {
                     {item.optionsSnapshot && item.optionsSnapshot.length > 0 && (
                       <span className={styles.summaryItemOptions}>{item.optionsSnapshot.map((o) => `${o.attributeName}: ${o.displayValue ?? o.value}`).join(" · ")}</span>
                     )}
+                    {/* The embroidery, verbatim. This is the last screen before
+                        payment, and a personalised item cannot be returned, so
+                        the spelling has to be visible here and not only in the
+                        cart drawer the customer may never have opened. */}
+                    {item.personalizations?.map((d) => (
+                      <span key={d.placementKey} className={styles.summaryItemPersonalization}>
+                        <span className={styles.summaryItemPersonalizationChip} style={{ background: d.threadColors[0]?.hex }} aria-hidden="true" />
+                        <span className={styles.summaryItemPersonalizationText}>“{d.text}”</span>
+                        <span className={styles.summaryItemPersonalizationMeta}>{d.placementLabel}</span>
+                      </span>
+                    ))}
                   </span>
                 </>
               );

@@ -1,0 +1,1502 @@
+/* ── Shell ────────────────────────────────────────────────────────────────
+   The action bar is fixed to the bottom on every size, not just phones: the
+   price and the one live control belong in the same place whether the layout
+   is one column or two, and a customer scrolling a long swatch grid should
+   never have to hunt for the thing that moves them forward. */
+.page {
+  min-height: 100vh;
+  background: var(--color-surface);
+  padding-bottom: 104px;
+}
+
+.topBar {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 18px 20px 14px;
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: var(--background);
+  border: 1px solid var(--field-border, #e2e6eb);
+  color: var(--color-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.backLink:hover {
+  background: var(--color-surface-tint);
+  border-color: var(--color-primary);
+}
+
+.topTitle {
+  min-width: 0;
+}
+
+.eyebrow {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--color-primary);
+}
+
+.title {
+  margin: 2px 0 0;
+  font-size: clamp(16px, 2.4vw, 22px);
+  font-weight: 700;
+  color: var(--color-secondary);
+  /* One line: the product name is context here, not the subject of the page,
+     and a three-line title pushes the editor itself below the fold. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.layout {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 20px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 22px;
+}
+
+@media (min-width: 900px) {
+  .layout {
+    grid-template-columns: minmax(0, 480px) minmax(0, 1fr);
+    gap: 34px;
+  }
+}
+
+/* ── Preview column ────────────────────────────────────────────────────────
+   Which element sticks depends on the layout, and getting this wrong is silent:
+   a sticky element can only travel inside its containing block, so if that box
+   is exactly its own height it never moves and nothing looks broken — it just
+   scrolls away.
+
+   Stacked (one column), the preview IS its own grid row, so the inner div has
+   no room; the column itself sticks instead, travelling inside the grid, which
+   is as tall as both rows. Side by side, the column is a full-height cell —
+   note the deliberate absence of `align-items: start` above, which would size
+   it to its content and take that room away again — so the inner div sticks
+   within it and stops when the controls run out. */
+.previewCol {
+  position: sticky;
+  top: var(--header-offset, 90px);
+  z-index: 5;
+  /* Opaque: the controls scroll *under* this, not through it. Matches the page
+     so the 20px gutters either side stay invisible. */
+  background: var(--color-surface);
+  padding: 10px 0 12px;
+  /* Reads as a layer over the page rather than as part of it. */
+  box-shadow: 0 8px 12px -10px rgb(16 24 40 / 28%);
+}
+
+.controlCol {
+  min-width: 0;
+}
+
+.previewSticky {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Stacked, the preview shares the screen with the controls and the action bar,
+   so it is capped rather than square — a 1:1 image would leave the step panel
+   in a letterbox. `contain` means the whole product is still visible. */
+@media (max-width: 899px) {
+  .previewImageWrap {
+    aspect-ratio: auto;
+    height: clamp(150px, 28vh, 280px);
+  }
+}
+
+@media (min-width: 900px) {
+  .previewCol {
+    position: static;
+    background: none;
+    padding: 0;
+    box-shadow: none;
+  }
+
+  .previewSticky {
+    position: sticky;
+    /* Clears the fixed site header, whose real height is measured at runtime. */
+    top: calc(var(--header-offset, 90px) + 12px);
+  }
+
+  /* A sticky block taller than the viewport is worse than no sticky at all —
+     its bottom is simply unreachable. On a short laptop the image gives up the
+     height instead; `contain` means the whole product still shows, just
+     smaller. 250px is what the tabs, fit meter and position row below it need. */
+  .previewImageWrap {
+    max-height: calc(100vh - var(--header-offset, 90px) - 250px);
+  }
+}
+
+.previewStage {
+  background: var(--background);
+  border: 1px solid var(--field-border, #e2e6eb);
+  border-radius: 18px;
+  padding: 14px;
+  box-shadow: 0 1px 2px rgb(16 24 40 / 5%);
+}
+
+.previewImageWrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 12px;
+  /* clip, not hidden: the photo still gets its rounded corners, but this does
+     not become a scroll container — which would break the sticky preview above
+     it, per the overflow interdependence rule. The rotate handle can sit half
+     outside the frame near an edge and is allowed to be trimmed there; what
+     must not happen is the whole page gaining a scrollbar. */
+  overflow: clip;
+  background: var(--color-surface-tint);
+}
+
+.previewImage {
+  object-fit: contain;
+}
+
+.previewImageFallback {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(45deg, #eef1f4, #eef1f4 10px, #e6eaee 10px, #e6eaee 20px);
+}
+
+/* The hoop field. Its outline is always faintly visible so the customer can
+   see the boundary their design has to live inside — which is what makes the
+   fit meter below mean something rather than being an abstract number. */
+.previewField {
+  position: absolute;
+  transform-origin: center;
+  border: 1px dashed rgb(18 156 152 / 35%);
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.2s ease;
+}
+
+.previewFieldInvalid {
+  border-color: rgb(200 24 24 / 45%);
+}
+
+.previewSvg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  /* A hint of thread: stitched lettering sits proud of the fabric and throws
+     a short shadow. Deliberately subtle — over-rendering it would promise a
+     finish the preview cannot actually predict. */
+  filter: drop-shadow(0 0.5px 0.5px rgb(0 0 0 / 28%));
+}
+
+/* ── Fit meter ────────────────────────────────────────────────────────── */
+
+.fitRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.fitMeter {
+  flex: 1;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--color-surface-tint);
+  overflow: hidden;
+}
+
+.fitFill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--color-primary);
+  transition: width 0.18s ease, background 0.18s ease;
+}
+
+.fitFillOver {
+  background: #c81818;
+}
+
+.fitText {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-muted, #6b7280);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.specGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.spec {
+  background: var(--background);
+  border: 1px solid var(--field-border, #e2e6eb);
+  border-radius: 12px;
+  padding: 9px 11px;
+  min-width: 0;
+}
+
+.spec dt {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-muted, #6b7280);
+}
+
+.spec dd {
+  margin: 3px 0 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Step rail ────────────────────────────────────────────────────────── */
+
+.stepRail {
+  display: flex;
+  gap: 6px;
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+  /* Four steps fit at 320px only by scrolling; the alternative is truncating
+     the labels into initials nobody can act on. */
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.stepRail::-webkit-scrollbar {
+  display: none;
+}
+
+.stepRailItem {
+  flex: 1;
+  min-width: fit-content;
+}
+
+.stepDot {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 11px;
+  border-radius: 10px;
+  border: 1px solid var(--field-border, #e2e6eb);
+  background: var(--background);
+  color: var(--color-muted, #6b7280);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+.stepDot:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.stepDotActive {
+  border-color: var(--color-primary);
+  background: var(--color-surface-tint);
+  color: var(--color-primary);
+}
+
+.stepDotDone {
+  color: var(--color-secondary);
+}
+
+.stepNum {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 19px;
+  height: 19px;
+  border-radius: 999px;
+  background: currentColor;
+  color: var(--background);
+  font-size: 11px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.stepDotDone .stepNum {
+  background: var(--color-primary);
+}
+
+/* ── Panels ───────────────────────────────────────────────────────────── */
+
+.panel {
+  background: var(--background);
+  border: 1px solid var(--field-border, #e2e6eb);
+  border-radius: 16px;
+  padding: 18px;
+  margin: 0 0 14px;
+  /* A fieldset carries the grouping for assistive tech; its default border
+     and padding are what we are replacing, not keeping. */
+  min-width: 0;
+}
+
+.panelTitle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-secondary);
+}
+
+.panelHint {
+  margin: 7px 0 14px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--color-muted, #6b7280);
+}
+
+/* ── Placement cards ──────────────────────────────────────────────────── */
+
+.optionCards {
+  display: grid;
+  gap: 9px;
+}
+
+.optionCard {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 11px 13px;
+  border-radius: 13px;
+  border: 1.5px solid var(--field-border, #e2e6eb);
+  background: var(--background);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.optionCard:hover {
+  border-color: var(--color-primary);
+}
+
+.optionCardActive {
+  border-color: var(--color-primary);
+  background: var(--color-surface-tint);
+}
+
+.optionCardTitle {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-secondary);
+}
+
+.optionCardHint {
+  font-size: 12px;
+  color: var(--color-muted, #6b7280);
+}
+
+.optionCardMeta {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.optionCardBadge {
+  position: absolute;
+  top: 13px;
+  right: 13px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--color-secondary);
+  color: var(--background);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* ── Segmented control ────────────────────────────────────────────────── */
+
+.segmented {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 11px;
+  background: var(--color-surface-tint);
+  margin-bottom: 15px;
+}
+
+.segment {
+  padding: 7px 17px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--color-muted, #6b7280);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.segmentActive {
+  background: var(--background);
+  color: var(--color-secondary);
+  box-shadow: 0 1px 2px rgb(16 24 40 / 8%);
+}
+
+/* ── Text field ───────────────────────────────────────────────────────── */
+
+.fieldLabel {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-secondary);
+  margin-bottom: 6px;
+}
+
+/* Set in the chosen embroidery face at a size you can read across a room:
+   this input IS the product, and rendering it in 14px system sans would hide
+   the one decision the customer came here to make. */
+.textInput {
+  width: 100%;
+  padding: 13px 15px;
+  border-radius: 12px;
+  border: 1.5px solid var(--field-border, #e2e6eb);
+  background: var(--background);
+  color: var(--color-secondary);
+  font-size: 26px;
+  line-height: 1.3;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.textInput:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgb(18 156 152 / 15%);
+}
+
+.textInputError {
+  border-color: #c81818;
+}
+.textInputError:focus {
+  box-shadow: 0 0 0 3px rgb(200 24 24 / 15%);
+}
+
+.fieldFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-top: 7px;
+}
+
+.charCount {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-muted, #6b7280);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.fieldNote {
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--color-muted, #6b7280);
+  text-align: right;
+}
+
+/* ── Font grid ────────────────────────────────────────────────────────── */
+
+.fontGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(126px, 1fr));
+  gap: 9px;
+}
+
+/* Each card previews the customer's own text rather than "Aa", so choosing a
+   face is a decision about their name and not about a specimen. */
+.fontCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 14px 10px 10px;
+  border-radius: 12px;
+  border: 1.5px solid var(--field-border, #e2e6eb);
+  background: var(--background);
+  cursor: pointer;
+  min-width: 0;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.fontCard:hover {
+  border-color: var(--color-primary);
+}
+
+.fontCardActive {
+  border-color: var(--color-primary);
+  background: var(--color-surface-tint);
+}
+
+.fontSample {
+  font-size: 21px;
+  line-height: 1.25;
+  color: var(--color-secondary);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fontName {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-muted, #6b7280);
+}
+
+/* ── Thread swatches ──────────────────────────────────────────────────── */
+
+.swatchGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+  gap: 8px;
+}
+
+.swatch {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  padding: 3px;
+  border-radius: 11px;
+  border: 2px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.12s ease;
+}
+.swatch:hover {
+  transform: translateY(-1px);
+}
+
+.swatchActive {
+  border-color: var(--color-primary);
+}
+
+/* The inner ring keeps a white or cream spool visible against a white card —
+   without it the lightest half of the palette disappears. */
+.swatchChip {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 8px;
+  background: var(--swatch);
+  box-shadow: inset 0 0 0 1px rgb(16 24 40 / 14%);
+}
+
+/* The number is the order the machine will run the colours in, which is why
+   it is a sequence and not a tick. */
+.swatchOrder {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 17px;
+  height: 17px;
+  border-radius: 999px;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 0 2px var(--background);
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ── Size slider ──────────────────────────────────────────────────────── */
+
+.sliderRow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.slider {
+  flex: 1;
+  accent-color: var(--color-primary);
+  height: 22px;
+}
+
+.sliderValue {
+  min-width: 62px;
+  text-align: right;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--color-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.sliderScale {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 4px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--color-muted, #6b7280);
+}
+
+/* ── Review ───────────────────────────────────────────────────────────── */
+
+/* Deliberately the largest thing on the page. A misspelled name is the single
+   most expensive mistake in this flow — the item cannot be resold and cannot
+   be returned — so the last screen before payment shows it at a size that is
+   impossible to skim past. */
+.spellCheck {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 22px 16px;
+  border-radius: 14px;
+  background: var(--color-surface-tint);
+  margin-bottom: 16px;
+}
+
+.spellCheckLabel {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-muted, #6b7280);
+}
+
+.spellCheckText {
+  font-size: clamp(28px, 7vw, 44px);
+  line-height: 1.15;
+  text-align: center;
+  word-break: break-word;
+}
+
+.summary {
+  display: grid;
+  gap: 1px;
+  margin: 0 0 16px;
+  background: var(--field-border, #e2e6eb);
+  border: 1px solid var(--field-border, #e2e6eb);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.summary > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  padding: 10px 13px;
+  background: var(--background);
+}
+
+.summary dt {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-muted, #6b7280);
+  flex-shrink: 0;
+}
+
+.summary dd {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-secondary);
+  text-align: right;
+  min-width: 0;
+}
+
+.summaryThreads {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.summaryThread {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.summaryThreadChip {
+  width: 12px;
+  height: 12px;
+  border-radius: 4px;
+  box-shadow: inset 0 0 0 1px rgb(16 24 40 / 16%);
+}
+
+.consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 13px 14px;
+  border-radius: 12px;
+  border: 1.5px solid var(--field-border, #e2e6eb);
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-secondary);
+}
+.consent:hover {
+  border-color: var(--color-primary);
+}
+
+.consent input {
+  margin-top: 2px;
+  width: 17px;
+  height: 17px;
+  accent-color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.consentNote {
+  margin: 8px 2px 0;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--color-muted, #6b7280);
+}
+
+/* ── Errors ───────────────────────────────────────────────────────────── */
+
+.errorBox {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0 0 14px;
+  padding: 11px 13px;
+  border-radius: 11px;
+  background: #fdf0f0;
+  border: 1px solid #f3c9c9;
+  color: #9c1f1f;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.errorBox svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* ── Action bar ───────────────────────────────────────────────────────── */
+
+.actionBar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 20px calc(12px + env(safe-area-inset-bottom));
+  background: var(--background);
+  border-top: 1px solid var(--field-border, #e2e6eb);
+  box-shadow: 0 -2px 12px rgb(16 24 40 / 7%);
+}
+
+.priceBlock {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.priceLabel {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--color-muted, #6b7280);
+}
+
+.priceValue {
+  font-size: 21px;
+  font-weight: 800;
+  color: var(--color-secondary);
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+}
+
+.priceBreakdown {
+  font-size: 11px;
+  color: var(--color-muted, #6b7280);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.actions {
+  display: flex;
+  gap: 9px;
+  flex-shrink: 0;
+}
+
+.primaryBtn,
+.secondaryBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 12px 22px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1.5px solid transparent;
+  transition: opacity 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+.primaryBtn {
+  background: var(--color-primary);
+  color: #fff;
+}
+.primaryBtn:hover:not(:disabled) {
+  opacity: 0.9;
+}
+.primaryBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.secondaryBtn {
+  background: var(--background);
+  border-color: var(--field-border, #e2e6eb);
+  color: var(--color-secondary);
+}
+.secondaryBtn:hover {
+  border-color: var(--color-primary);
+}
+
+.spin {
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Everything here that animates is feedback on an action the customer just
+   took, so with reduced motion the states still change — only instantly. */
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    animation: none;
+  }
+  .fitFill,
+  .swatch,
+  .optionCard,
+  .fontCard,
+  .textInput,
+  .primaryBtn,
+  .secondaryBtn,
+  .stepDot {
+    transition: none;
+  }
+}
+
+@media (max-width: 560px) {
+  .topBar {
+    padding: 12px 16px 10px;
+    gap: 12px;
+  }
+  .backLink span {
+    display: none;
+  }
+  .layout {
+    padding: 0 16px;
+  }
+  .panel {
+    padding: 15px;
+  }
+  .actionBar {
+    padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+  }
+  .primaryBtn,
+  .secondaryBtn {
+    padding: 11px 16px;
+    font-size: 13px;
+  }
+  .previewCol {
+    padding: 8px 0 10px;
+  }
+}
+
+/* ── Design layer ─────────────────────────────────────────────────────────
+   An upright box over the traced area, moved and turned in the photograph's
+   own axes. Upright on purpose: skewed onto the traced corners, a quarter turn
+   comes out leaning and no side is ever parallel to the image.
+
+   touch-action: none is load-bearing — without it a drag on a phone scrolls
+   the page instead of moving the design, which is the single most common way
+   a canvas like this feels broken on mobile. */
+.designLayer {
+  position: absolute;
+  cursor: grab;
+  touch-action: none;
+  outline: none;
+  /* The design travels beyond the traced area, so nothing here may clip. */
+  overflow: visible;
+}
+
+.designLayerDragging {
+  cursor: grabbing;
+}
+
+/* The hoop boundary. Shown only while the design is picked up — these are
+   aiming guides, and once the aiming is done they are the only thing between
+   the customer and a clean look at their cap. Clicking the photo outside the
+   design puts it down and takes them away. */
+.fieldOutline {
+  fill: none;
+  stroke: rgb(18 156 152 / 55%);
+  stroke-dasharray: 3 2;
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+
+.designLayerSelected .fieldOutline,
+.designLayerDragging .fieldOutline {
+  opacity: 1;
+}
+
+/* Something actually wrong overrides the tidy view: a design that will not
+   stitch has to say so whether or not it happens to be selected. */
+.designLayerInvalid .fieldOutline {
+  stroke: rgb(200 24 24 / 80%);
+  opacity: 1;
+}
+
+/* The SVG stretches to its element: the viewBox is the hoop field in
+   millimetres and the element is that field on screen, so a 20mm name occupies
+   exactly its share of the panel. */
+.designLayer .previewSvg {
+  width: 100%;
+  height: 100%;
+}
+
+.dragHint {
+  position: absolute;
+  left: 50%;
+  bottom: 10px;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: rgb(16 24 40 / 72%);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.dragHintHidden {
+  opacity: 0;
+}
+
+/* ── Angle switcher ───────────────────────────────────────────────────── */
+
+.angleRow {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.angleRow::-webkit-scrollbar {
+  display: none;
+}
+
+.angleBtn {
+  flex: 1;
+  min-width: fit-content;
+  padding: 8px 13px;
+  border-radius: 10px;
+  border: 1px solid var(--field-border, #e2e6eb);
+  background: var(--background);
+  color: var(--color-muted, #6b7280);
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+.angleBtn:hover {
+  border-color: var(--color-primary);
+}
+
+.angleBtnActive {
+  border-color: var(--color-primary);
+  background: var(--color-surface-tint);
+  color: var(--color-primary);
+}
+
+/* ── Position readout ─────────────────────────────────────────────────── */
+
+.positionRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.positionText {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--color-muted, #6b7280);
+  font-variant-numeric: tabular-nums;
+}
+
+.recentreBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--field-border, #e2e6eb);
+  background: var(--background);
+  color: var(--color-secondary);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.recentreBtn:hover:not(:disabled) {
+  border-color: var(--color-primary);
+}
+.recentreBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fieldOutline,
+  .dragHint,
+  .angleBtn {
+    transition: none;
+  }
+}
+
+/* ── Orientation ──────────────────────────────────────────────────────────
+   The rotate handle is the fine control; these are the two angles anybody
+   actually asks for. Sits with Re-centre because all three answer "put it
+   somewhere sensible" rather than "design it". */
+.orientRow {
+  display: inline-flex;
+  gap: 3px;
+  padding: 3px;
+  border-radius: 9px;
+  background: var(--color-surface-tint);
+}
+
+.orientBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--color-muted, #6b7280);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.orientBtn:hover {
+  color: var(--color-secondary);
+}
+
+.orientBtnActive {
+  background: var(--background);
+  color: var(--color-primary);
+  box-shadow: 0 1px 2px rgb(16 24 40 / 8%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orientBtn {
+    transition: none;
+  }
+}
+
+/* ── Position cards (multi-select) ────────────────────────────────────────
+   A photo on each card, because "front panel" and "back strap" mean nothing
+   to someone who has not held the cap — the picture is the label. */
+.optionCardThumb {
+  width: 58px;
+  height: 58px;
+  border-radius: 10px;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: var(--color-surface-tint);
+}
+
+.optionCardBody {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  flex: 1;
+  text-align: left;
+}
+
+.optionCardRight {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 7px;
+  flex-shrink: 0;
+}
+
+.optionCardPrice {
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--color-secondary);
+  color: var(--background);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* A checkbox in all but name — these cards toggle, they do not choose one of
+   a set, and a radio-shaped affordance would say the opposite. */
+.optionCardCheck {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  border: 1.5px solid var(--field-border, #e2e6eb);
+  color: var(--color-muted, #6b7280);
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.optionCardCheckOn {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+}
+
+.multiNote {
+  margin: 12px 0 0;
+  padding: 9px 12px;
+  border-radius: 10px;
+  background: var(--color-surface-tint);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-muted, #6b7280);
+}
+
+/* ── Per-position tabs on the design step ─────────────────────────────── */
+
+.designTabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 14px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.designTabs::-webkit-scrollbar {
+  display: none;
+}
+
+.designTab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--field-border, #e2e6eb);
+  background: var(--background);
+  color: var(--color-muted, #6b7280);
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.designTab:hover {
+  border-color: var(--color-primary);
+}
+
+.designTabActive {
+  border-color: var(--color-primary);
+  background: var(--color-surface-tint);
+  color: var(--color-primary);
+}
+
+/* Filled once that position has usable text — the answer to "which one still
+   needs me?" without opening each tab. */
+.designTabDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--field-border, #e2e6eb);
+  box-shadow: inset 0 0 0 1px rgb(16 24 40 / 14%);
+}
+
+.designTabDotDone {
+  background: var(--color-primary);
+  box-shadow: none;
+}
+
+.angleBtnError {
+  border-color: #c81818;
+  color: #9c1f1f;
+}
+
+/* ── Review, one card per position ────────────────────────────────────── */
+
+.reviewCard {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 15px;
+  border-radius: 13px;
+  background: var(--color-surface-tint);
+  margin-bottom: 10px;
+}
+
+.reviewHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.reviewPlacement {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--color-muted, #6b7280);
+}
+
+.reviewPrice {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--color-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.reviewMeta {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--color-muted, #6b7280);
+}
+
+.reviewEdit {
+  align-self: flex-start;
+  padding: 5px 11px;
+  border-radius: 8px;
+  border: 1px solid var(--field-border, #e2e6eb);
+  background: var(--background);
+  color: var(--color-secondary);
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.reviewEdit:hover {
+  border-color: var(--color-primary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .optionCardCheck,
+  .designTab {
+    transition: none;
+  }
+}
+
+/* ── Thickness ────────────────────────────────────────────────────────────
+   Five steps rather than a slider: each is a distinct stitch density the
+   machine actually runs, and a continuous control would imply values between
+   them that do not exist. */
+.weightRow {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.weightBtn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 11px 6px 8px;
+  border-radius: 11px;
+  border: 1.5px solid var(--field-border, #e2e6eb);
+  background: var(--background);
+  cursor: pointer;
+  min-width: 0;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.weightBtn:hover {
+  border-color: var(--color-primary);
+}
+
+.weightBtnActive {
+  border-color: var(--color-primary);
+  background: var(--color-surface-tint);
+}
+
+/* The customer's own text, in their own face, at each weight — "Bold" as a
+   word says nothing about how a script will actually thicken. */
+.weightSample {
+  font-size: 17px;
+  line-height: 1.2;
+  color: var(--color-secondary);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.weightName {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-muted, #6b7280);
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+@media (max-width: 560px) {
+  /* Five columns at 320px leaves ~52px each, which truncates every label. */
+  .weightRow {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .weightBtn {
+    transition: none;
+  }
+}
+
+/* ── Rotate handle ────────────────────────────────────────────────────────
+   Positioned in the photograph's own pixels, not inside the warped layer — a
+   child of that layer inherits the perspective and a round handle would arrive
+   as a skewed ellipse. The margin centres it on its anchor point.
+
+   Always visible rather than revealed on hover, unlike the hoop outline: a
+   control nobody can see is a control nobody uses, and on a touch screen there
+   is no hover to reveal it with. */
+.rotateHandle {
+  position: absolute;
+  width: 30px;
+  height: 30px;
+  margin: -15px 0 0 -15px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: none;
+  background: var(--color-primary);
+  color: #fff;
+  cursor: grab;
+  touch-action: none;
+  box-shadow: 0 2px 6px rgb(16 24 40 / 35%);
+  transition: transform 0.12s ease, background 0.12s ease;
+  z-index: 2;
+}
+.rotateHandle:hover {
+  transform: scale(1.08);
+}
+.rotateHandle:active {
+  cursor: grabbing;
+}
+
+.rotateHandleActive {
+  transform: scale(1.15);
+  background: var(--color-secondary);
+  cursor: grabbing;
+}
+
+.rotateHandle:focus-visible {
+  outline: 2px solid var(--color-secondary);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rotateHandle {
+    transition: none;
+  }
+  .rotateHandle:hover,
+  .rotateHandleActive {
+    transform: none;
+  }
+}
+
+/* ── Next-step note ───────────────────────────────────────────────────────
+   Deliberately not the error style. This says what to do next, and dressing
+   that in red would teach the customer to ignore red — which is the one thing
+   the real errors need them not to do. Brand tint, brand icon, no alert role. */
+.noteBox {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin: 0 0 14px;
+  padding: 11px 13px;
+  border-radius: 11px;
+  background: var(--color-surface-tint);
+  border: 1px solid color-mix(in srgb, var(--color-primary) 22%, transparent);
+  color: var(--color-secondary);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.noteBox svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--color-primary);
+}
+
+.orientationRow {
+  display: flex;
+  justify-content: center;
+}

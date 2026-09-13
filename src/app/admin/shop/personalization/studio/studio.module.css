@@ -1,0 +1,232 @@
+/* ── Add form ─────────────────────────────────────────────────────────────
+   Dashed and tinted so it reads as a thing being built rather than a thing
+   that exists — it disappears the moment the position is created. */
+.addCard {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+  margin-bottom: 16px;
+  border-radius: 14px;
+  border: 1.5px dashed var(--color-primary);
+  background: var(--color-surface-tint);
+}
+
+/* ── Position cards ───────────────────────────────────────────────────────
+   One column, not a grid: an open card holds a photo and a tracing surface,
+   and two of those side by side would leave neither wide enough to drag a
+   corner accurately. */
+.placementList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.placementCard {
+  border: 1px solid var(--field-border, #e2e6eb);
+  border-radius: 14px;
+  background: var(--background);
+  overflow: hidden;
+}
+
+/* Switched off, not deleted — still legible, because an admin comes back to it. */
+.placementCardOff {
+  opacity: 0.62;
+}
+
+.placementHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 14px;
+}
+
+/* The photo is the label: "back strap" means little until you see which shot
+   it is, and a position with none is visibly unfinished from the list. */
+.placementIdent {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.placementThumb,
+.placementThumbEmpty {
+  width: 46px;
+  height: 46px;
+  border-radius: 10px;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: var(--color-surface-tint);
+}
+
+.placementThumbEmpty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-muted, #6b7280);
+  border: 1px dashed var(--field-border, #e2e6eb);
+}
+
+.placementName {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-secondary);
+}
+
+.placementSub {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+  margin-top: 3px;
+  font-size: 11.5px;
+  color: var(--color-muted, #6b7280);
+}
+
+.placementHeadRight {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.activeToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.activeToggle input {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--color-primary);
+}
+
+.placementBody {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 0 14px 16px;
+  border-top: 1px solid var(--field-border, #e2e6eb);
+  padding-top: 14px;
+}
+
+.numberGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+/* ── Tracing ──────────────────────────────────────────────────────────── */
+
+.traceActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.traceStatus {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-muted, #6b7280);
+}
+
+.traceButtons {
+  display: flex;
+  gap: 8px;
+}
+
+/* ── Buttons ──────────────────────────────────────────────────────────── */
+
+.primaryBtn,
+.ghostBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 15px;
+  border-radius: 9px;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.primaryBtn {
+  background: var(--color-primary);
+  color: #fff;
+}
+.primaryBtn:hover:not(:disabled) {
+  opacity: 0.9;
+}
+.primaryBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.ghostBtn {
+  background: var(--background);
+  border-color: var(--field-border, #e2e6eb);
+  color: var(--color-secondary);
+}
+.ghostBtn:hover:not(:disabled) {
+  border-color: var(--color-primary);
+}
+.ghostBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.iconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1px solid var(--field-border, #e2e6eb);
+  background: var(--background);
+  color: var(--color-muted, #6b7280);
+  cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.iconBtn:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+/* The chevron points down when there is more to see and up when there is not. */
+.iconBtnOpen {
+  transform: rotate(180deg);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.spin {
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    animation: none;
+  }
+  .iconBtn {
+    transition: none;
+  }
+}

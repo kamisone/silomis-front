@@ -599,3 +599,35 @@ a.summaryItemLink:focus-visible {
   padding-top: 14px;
   margin-top: 14px;
 }
+
+/* ── Personalised summary line ────────────────────────────────────────────
+   Set apart from the option line above it: an option is a property of the
+   product, this is content the customer wrote, and it is the one thing on
+   this screen that cannot be put right after payment. */
+.summaryItemPersonalization {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 3px 6px;
+  margin-top: 3px;
+}
+
+.summaryItemPersonalizationChip {
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+  box-shadow: inset 0 0 0 1px rgb(16 24 40 / 20%);
+  flex-shrink: 0;
+}
+
+.summaryItemPersonalizationText {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-primary);
+  word-break: break-word;
+}
+
+.summaryItemPersonalizationMeta {
+  font-size: 10.5px;
+  color: var(--color-muted, #6b7280);
+}

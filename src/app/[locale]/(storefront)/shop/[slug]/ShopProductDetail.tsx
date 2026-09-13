@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { PackageX } from "lucide-react";
+import { PackageX, Sparkles, ChevronRight } from "lucide-react";
 import AddToCartButton from "@/components/shop/AddToCartButton";
 import ProductVariantSelector, { type SelectableVariant } from "@/components/shop/ProductVariantSelector";
 import PerUnitVariantPicker, { groupUnits, variantLabel } from "@/components/shop/PerUnitVariantPicker";
@@ -120,6 +120,8 @@ export interface Product {
   description: string | null;
   brand: string | null;
   basePriceCents: number | null;
+  /** Non-null means this product can be embroidered — the editor's entry gate. */
+  personalizationTemplateId?: string | null;
   featuredImageUrl: string | null;
   galleryImageUrls: string[];
   media: ResolvedMediaItem[];
@@ -1119,6 +1121,27 @@ export default function ShopProductDetail({
                 </div>
               )}
             </div>
+
+            {/* Placed above the buy row rather than inside it: personalising is
+                a different decision from buying, and a second button sharing
+                that row would compete with the primary action instead of
+                leading into it. The chosen variant rides along in `v` so the
+                editor embroiders the cap they were actually looking at. */}
+            {product.personalizationTemplateId && (
+              <Link
+                href={`/${locale}/shop/${product.slug}/personalise${activeId ? `?v=${activeId}` : ""}`}
+                className={styles.personalizeCta}
+              >
+                <span className={styles.personalizeCtaIcon} aria-hidden="true">
+                  <Sparkles size={16} />
+                </span>
+                <span className={styles.personalizeCtaBody}>
+                  <span className={styles.personalizeCtaTitle}>{t.personalize.ctaTitle}</span>
+                  <span className={styles.personalizeCtaSub}>{t.personalize.ctaSub}</span>
+                </span>
+                <ChevronRight size={16} aria-hidden="true" className={styles.personalizeCtaChevron} />
+              </Link>
+            )}
 
             <div id="product-actions" ref={actionsRef} className={styles.addToCartRow} style={{ display: "flex", gap: "0.75rem", alignItems: "flex-start" }}>
               {perUnitActive ? (

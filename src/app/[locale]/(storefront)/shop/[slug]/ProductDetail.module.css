@@ -1238,3 +1238,72 @@
   min-width: 44px;
   text-align: right;
 }
+
+/* ── Personalise entry point ──────────────────────────────────────────────
+   A row, not a button: it has to read as an invitation with its own promise
+   ("make it yours") rather than as a second, competing way to buy. The tinted
+   ground and the chevron say "this opens something", which is exactly what it
+   does — the editor is a separate route. */
+.personalizeCta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin: 0 0 0.85rem;
+  padding: 13px 15px;
+  border-radius: 14px;
+  border: 1.5px solid var(--color-primary);
+  background: var(--color-surface-tint);
+  text-decoration: none;
+  transition: background 0.15s ease, transform 0.12s ease;
+}
+.personalizeCta:hover {
+  background: var(--background);
+  transform: translateY(-1px);
+}
+
+.personalizeCtaIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--color-primary);
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.personalizeCtaBody {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+
+.personalizeCtaTitle {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-secondary);
+}
+
+.personalizeCtaSub {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--color-muted, #6b7280);
+}
+
+.personalizeCtaChevron {
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .personalizeCta {
+    transition: none;
+  }
+  .personalizeCta:hover {
+    transform: none;
+  }
+}

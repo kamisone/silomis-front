@@ -1,0 +1,281 @@
+/* ── Add / edit ───────────────────────────────────────────────────────────
+   The swatch sits beside the fields at the size it appears in the editor,
+   because the whole task is matching a physical spool to a screen colour and
+   a 12px dot cannot be judged against one. */
+.addCard {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 16px;
+  margin-bottom: 16px;
+  border-radius: 14px;
+  border: 1.5px dashed var(--color-primary);
+  background: var(--color-surface-tint);
+}
+
+.addPreview {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.addChip {
+  display: block;
+  width: 64px;
+  height: 64px;
+  border-radius: 12px;
+  /* An inset ring, not a border: a white or cream thread has to stay visible
+     against a light card, and half the palette is pale. */
+  box-shadow: inset 0 0 0 1px rgb(16 24 40 / 22%);
+}
+
+/* The native picker covers the swatch, so clicking the colour opens the
+   colour — the obvious gesture rather than a separate button beside it. */
+.colorInput {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.addFields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+  flex: 1;
+  min-width: 260px;
+}
+
+.hexInput {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  text-transform: lowercase;
+}
+
+.addActions {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  flex-shrink: 0;
+}
+
+/* ── The wall ─────────────────────────────────────────────────────────────
+   A list rather than a grid of swatches: a code and a name are what identify a
+   spool, and they need a readable line each. The colour is the leading edge. */
+.wall {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 8px;
+}
+
+.spool {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--field-border, #e2e6eb);
+  background: var(--background);
+  min-width: 0;
+}
+
+/* Not offered, not deleted — dimmed but still readable, because an admin comes
+   back to it when the spool is restocked. */
+.spoolOff {
+  opacity: 0.55;
+}
+
+.chipBtn {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: none;
+  padding: 0;
+  flex-shrink: 0;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px rgb(16 24 40 / 22%);
+  transition: transform 0.12s ease;
+}
+.chipBtn:hover {
+  transform: scale(1.06);
+}
+
+.spoolMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+
+.spoolName {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The supplier code reads as a code, because it is copied onto an order form. */
+.spoolCode {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 11px;
+  color: var(--color-muted, #6b7280);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.spoolActions {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.activeToggle {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 4px;
+  cursor: pointer;
+}
+
+.activeToggle input {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+}
+
+/* ── Inline edit ──────────────────────────────────────────────────────── */
+
+.editRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.editFields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  flex: 1;
+  min-width: 180px;
+}
+
+.editRow .addChip {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+}
+
+/* ── Controls ─────────────────────────────────────────────────────────── */
+
+.searchWrap {
+  position: relative;
+  flex: 1;
+  min-width: 200px;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-muted, #6b7280);
+  pointer-events: none;
+}
+
+.searchWrap input {
+  padding-left: 34px;
+  width: 100%;
+}
+
+.primaryBtn,
+.ghostBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 15px;
+  border-radius: 9px;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.primaryBtn {
+  background: var(--color-primary);
+  color: #fff;
+}
+.primaryBtn:hover:not(:disabled) {
+  opacity: 0.9;
+}
+.primaryBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.ghostBtn {
+  background: var(--background);
+  border-color: var(--field-border, #e2e6eb);
+  color: var(--color-secondary);
+}
+.ghostBtn:hover {
+  border-color: var(--color-primary);
+}
+
+.iconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  border: 1px solid var(--field-border, #e2e6eb);
+  background: var(--background);
+  color: var(--color-muted, #6b7280);
+  cursor: pointer;
+}
+.iconBtn:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+.iconBtn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.spin {
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    animation: none;
+  }
+  .chipBtn {
+    transition: none;
+  }
+  .chipBtn:hover {
+    transform: none;
+  }
+}

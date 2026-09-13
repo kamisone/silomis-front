@@ -166,8 +166,36 @@ export default function CartDrawer({ locale }: { locale: Locale }) {
                         <p className={styles.itemOptions}>{item.optionsSnapshot.map((o) => `${o.attributeName}: ${o.displayValue ?? o.value}`).join(" · ")}</p>
                       )}
                       {item.skuSnapshot && <p className={styles.itemSku}>{item.skuSnapshot}</p>}
+                      {/* The embroidery is shown verbatim, in the thread it
+                          will be sewn in. This is the last place a customer
+                          sees the spelling before paying for something that
+                          cannot be returned, so it is not abbreviated. */}
+                      {item.personalizations?.map((d) => (
+                        <p key={d.placementKey} className={styles.itemPersonalization}>
+                          <span className={styles.itemPersonalizationChips} aria-hidden="true">
+                            {d.threadColors.map((th) => (
+                              <span key={th.code} className={styles.itemPersonalizationChip} style={{ background: th.hex }} />
+                            ))}
+                          </span>
+                          <span className={styles.itemPersonalizationText}>“{d.text}”</span>
+                          <span className={styles.itemPersonalizationMeta}>
+                            {d.placementLabel} · {d.fontName} · {d.heightMm}mm
+                          </span>
+                        </p>
+                      ))}
                       <p className={styles.itemUnitPrice}>
                         €{centsToEuros(item.unitPriceCents)} {t.shop.unitPrice}
+                        {item.personalizations?.length ? (
+                          <span className={styles.itemPersonalizationFee}>
+                            {" "}
+                            (
+                            {t.personalize.feeIncluded.replace(
+                              "{price}",
+                              `€${centsToEuros(item.personalizations.reduce((sum, d) => sum + d.priceCents, 0))}`,
+                            )}
+                            )
+                          </span>
+                        ) : null}
                       </p>
                     </div>
                     <button onClick={() => removeItem(item.id)} disabled={mutating} className={styles.removeBtn} aria-label={`${t.shop.removeItem} ${item.titleSnapshot}`}>

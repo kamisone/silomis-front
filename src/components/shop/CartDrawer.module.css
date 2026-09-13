@@ -479,3 +479,51 @@
     height: 64px;
   }
 }
+
+/* ── Personalised line ────────────────────────────────────────────────────
+   The embroidery gets its own tinted block rather than joining the option
+   line: an option is a property of the product, while this is content the
+   customer authored, and it is the one thing on the line they can still get
+   wrong. */
+.itemPersonalization {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 7px;
+  margin: 5px 0 0;
+  padding: 6px 9px;
+  border-radius: 9px;
+  background: var(--color-surface-tint);
+  border-left: 2px solid var(--color-primary);
+}
+
+.itemPersonalizationChips {
+  display: inline-flex;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.itemPersonalizationChip {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  box-shadow: inset 0 0 0 1px rgb(16 24 40 / 18%);
+}
+
+.itemPersonalizationText {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--color-secondary);
+  word-break: break-word;
+}
+
+.itemPersonalizationMeta {
+  flex-basis: 100%;
+  font-size: 10.5px;
+  color: var(--color-muted, #6b7280);
+}
+
+.itemPersonalizationFee {
+  color: var(--color-primary);
+  font-weight: 600;
+}

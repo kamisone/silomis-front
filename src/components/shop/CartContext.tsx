@@ -14,6 +14,33 @@ export interface CartItemOption {
   displayValue: string | null;
 }
 
+/** What the editor sends. Mirrors the backend's PersonalizationInputSchema. */
+export interface PersonalizationInput {
+  placementKey: string;
+  contentType: "text" | "monogram";
+  text: string;
+  fontKey: string;
+  heightMm: number;
+  threadColorIds: string[];
+  /** Where the hoop was moved to, in mm from the position's traced centre. */
+  offsetXMm?: number;
+  offsetYMm?: number;
+  /** Angle of the embroidery in the garment's plane. */
+  rotationDeg?: number;
+}
+
+/** What comes back on a line — already resolved and priced by the server. */
+export interface CartItemPersonalization {
+  placementKey: string;
+  placementLabel: string;
+  contentType: "text" | "monogram";
+  text: string;
+  fontName: string;
+  heightMm: number;
+  threadColors: { brand: string; code: string; name: string; hex: string }[];
+  priceCents: number;
+}
+
 export interface CartItem {
   id: string;
   variantId: string;
@@ -29,6 +56,9 @@ export interface CartItem {
   freeShipping?: boolean;
   optionsSnapshot: CartItemOption[] | null;
   compareAtPriceCentsSnapshot?: number | null;
+  /** Null on an ordinary line. Its price is already inside unitPriceCents. */
+  /** One per embroidered position. Their prices are already in unitPriceCents. */
+  personalizations?: CartItemPersonalization[] | null;
 }
 
 export interface Cart {
@@ -49,7 +79,12 @@ interface CartContextValue {
   cart: Cart | null;
   loading: boolean;
   mutating: boolean;
-  addItem: (variantId: string, quantity?: number, selectedOptionValueIds?: string[]) => Promise<CartMutationResult>;
+  addItem: (
+    variantId: string,
+    quantity?: number,
+    selectedOptionValueIds?: string[],
+    personalizations?: PersonalizationInput[],
+  ) => Promise<CartMutationResult>;
   updateItem: (itemId: string, quantity: number) => Promise<CartMutationResult>;
   removeItem: (itemId: string) => Promise<void>;
   token: string;
@@ -123,13 +158,18 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, [token, fetchCart]);
 
   const addItem = useCallback(
-    async (variantId: string, quantity = 1, selectedOptionValueIds?: string[]): Promise<CartMutationResult> => {
+    async (
+      variantId: string,
+      quantity = 1,
+      selectedOptionValueIds?: string[],
+      personalizations?: PersonalizationInput[],
+    ): Promise<CartMutationResult> => {
       setMutating(true);
       try {
         const res = await fetch(`/next-api/public/shop/cart/${token}/items?lang=${locale}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ variantId, quantity, selectedOptionValueIds }),
+          body: JSON.stringify({ variantId, quantity, selectedOptionValueIds, personalizations }),
         });
         if (res.ok) {
           const data: Cart = await res.json();
@@ -139,7 +179,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           // reflects what was just added (unit price × quantity added), not
           // the line's accumulated total. eventId is shared with the
           // server-side Conversions/Events API call for this same action (dedup).
-          const addedItem = data.items.find((i) => i.variantId === variantId);
+          // With personalisation a variant can occupy several lines, so the
+          // most recent one is the one just added — matching on variantId
+          // alone would report the wrong price to the ad platforms.
+          const addedItem = [...data.items].reverse().find((i) => i.variantId === variantId);
           pixelTrack(
             "AddToCart",
             {
