@@ -1500,3 +1500,209 @@
   display: flex;
   justify-content: center;
 }
+
+/* ── Tool row ─────────────────────────────────────────────────────────────
+   Tools act on whatever is open rather than describing it, so they sit above
+   the panels and not inside one. */
+.toolRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.toolBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 11px;
+  border-radius: 9px;
+  border: 1px solid var(--field-border, #e2e6eb);
+  background: var(--background);
+  color: var(--color-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.toolBtn:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+.toolBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.copyFrom {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  padding-left: 10px;
+  border-left: 1px solid var(--field-border, #e2e6eb);
+}
+
+.copyFromLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--color-muted, #6b7280);
+}
+
+/* ── Motifs ───────────────────────────────────────────────────────────────
+   Shown as solid silhouettes at the size they read at, because that is what a
+   shape looks like once it is stitched — fine line art disappears. */
+.motifGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(82px, 1fr));
+  gap: 8px;
+}
+
+.motifCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 12px 8px 8px;
+  border-radius: 12px;
+  border: 1.5px solid var(--field-border, #e2e6eb);
+  background: var(--background);
+  color: var(--color-secondary);
+  cursor: pointer;
+  min-width: 0;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.motifCard:hover {
+  border-color: var(--color-primary);
+}
+
+.motifCardActive {
+  border-color: var(--color-primary);
+  background: var(--color-surface-tint);
+  color: var(--color-primary);
+}
+
+.motifSvg {
+  width: 38px;
+  height: 38px;
+}
+
+.motifName {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-muted, #6b7280);
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+/* ── Kerning ──────────────────────────────────────────────────────────────
+   Folded away: most customers will never open it, and a row of sliders under
+   every letter would make the panel look like a mixing desk. */
+.kerning {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--field-border, #e2e6eb);
+}
+
+.kerningSummary {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--color-secondary);
+  cursor: pointer;
+}
+
+.kerningRow {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
+}
+
+.kerningGap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+}
+
+/* The pair itself, in the chosen face — you adjust a gap by looking at the two
+   letters either side of it, not at an index. */
+.kerningPair {
+  font-size: 17px;
+  line-height: 1;
+  color: var(--color-secondary);
+}
+
+.kerningSlider {
+  width: 54px;
+  accent-color: var(--color-primary);
+}
+
+/* ── Switch rows ──────────────────────────────────────────────────────── */
+
+.switchRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 11px 12px;
+  border-radius: 11px;
+  border: 1.5px solid var(--field-border, #e2e6eb);
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--color-secondary);
+  cursor: pointer;
+}
+.switchRow + .switchRow {
+  margin-top: 8px;
+}
+.switchRow:hover {
+  border-color: var(--color-primary);
+}
+
+/* Unavailable, not hidden: the option stays discoverable and says why. */
+.switchRowOff {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.switchRowOff:hover {
+  border-color: var(--field-border, #e2e6eb);
+}
+
+.switchRow input {
+  margin-top: 2px;
+  width: 17px;
+  height: 17px;
+  accent-color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.switchNote {
+  display: block;
+  margin-top: 3px;
+  font-size: 11.5px;
+  color: var(--color-muted, #6b7280);
+}
+
+/* The text field is a textarea now — it grows with its lines rather than
+   scrolling, because there are at most three and a scrollbar would hide one. */
+.textInput {
+  resize: none;
+  font-family: inherit;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .motifCard {
+    transition: none;
+  }
+}

@@ -17,7 +17,8 @@ export interface CartItemOption {
 /** What the editor sends. Mirrors the backend's PersonalizationInputSchema. */
 export interface PersonalizationInput {
   placementKey: string;
-  contentType: "text" | "monogram";
+  contentType: "text" | "monogram" | "motif";
+  /** Lines separated by "\n" — the server splits and normalises them. */
   text: string;
   fontKey: string;
   heightMm: number;
@@ -27,13 +28,25 @@ export interface PersonalizationInput {
   offsetYMm?: number;
   /** Angle of the embroidery in the garment's plane. */
   rotationDeg?: number;
+  /** Letter spacing, and per-gap nudges on top of it. */
+  trackingPct?: number;
+  kerning?: number[];
+  /** Degrees of arc the baseline is bent along. */
+  curveDeg?: number;
+  /** A second pass round every glyph, in the second thread. */
+  outline?: boolean;
+  /** Foam under the satin. */
+  puff?: boolean;
+  /** A pre-digitised shape instead of lettering. */
+  motifKey?: string;
+  motifSizeMm?: number;
 }
 
 /** What comes back on a line — already resolved and priced by the server. */
 export interface CartItemPersonalization {
   placementKey: string;
   placementLabel: string;
-  contentType: "text" | "monogram";
+  contentType: "text" | "monogram" | "motif";
   text: string;
   fontName: string;
   heightMm: number;

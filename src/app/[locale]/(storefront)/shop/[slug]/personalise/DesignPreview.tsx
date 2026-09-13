@@ -16,6 +16,15 @@ interface Props {
   heightMm: number;
   weightStep: number;
   thread: EditorThread;
+  /** The second spool, when the design is outlined. */
+  outlineThread: EditorThread | null;
+  /** Lines, already normalised. `text` is the same thing joined. */
+  lines: string[];
+  curveDeg: number;
+  trackingPct: number;
+  kerning: number[] | null;
+  /** The chosen shape, drawn instead of lettering. */
+  motif: { path: string; viewBox: string; sizeMm: number } | null;
   invalid: boolean;
   /** The area the admin traced on this photo, in % of the image box. */
   quadPct: Quad | null;
@@ -49,6 +58,12 @@ export default function DesignPreview({
   heightMm,
   weightStep,
   thread,
+  outlineThread,
+  lines,
+  curveDeg,
+  trackingPct,
+  kerning,
+  motif,
   invalid,
   quadPct,
   offset,
@@ -256,6 +271,15 @@ export default function DesignPreview({
   // the rendered letters at the millimetre height being quoted.
   const fontSizeMm = heightMm / 0.72;
 
+  /** What the straight version would have measured — the arc's chord. */
+  const estimatedChord = (() => {
+    const longest = (lines.length ? lines : [text]).reduce((a, b) => (b.length > a.length ? b : a), "");
+    const advances = [...longest].reduce((sum, ch) => sum + (ch === " " ? 0.5 : 1), 0);
+    const gaps = Math.max(0, longest.length - 1);
+    const kernSum = kerning ? kerning.reduce((sum, k) => sum + k, 0) : 0;
+    return advances * heightMm * font.avgCharWidthRatio + (gaps * trackingPct + kernSum) * heightMm;
+  })();
+
   /** The handle rides the design's top-right corner, turning with it. */
   const handleAt: Point | null = (() => {
     if (!area || !centre) return null;
@@ -268,13 +292,22 @@ export default function DesignPreview({
     };
   })();
 
+  // Kept in step with the production sheet's own layout — a preview that
+  // stacked or bent its lines differently would be showing a design the
+  // machine is not going to make.
+  const lead = fontSizeMm * 0.72 * 1.35;
+  const rows = lines.length ? lines : [text];
+  const firstY = fieldH / 2 - ((rows.length - 1) * lead) / 2;
+  const glyphFill = thread.hex;
+  const outlineHex = outlineThread?.hex;
+
   const artwork = (
     <svg
       className={styles.previewSvg}
       viewBox={`0 0 ${fieldW} ${fieldH}`}
       preserveAspectRatio="none"
       role="img"
-      aria-label={text}
+      aria-label={motif ? "" : text}
     >
       <rect
         className={styles.fieldOutline}
@@ -286,21 +319,68 @@ export default function DesignPreview({
         // 110mm panel; vector-effect would make it hairline on both.
         strokeWidth={Math.max(fieldW, fieldH) * 0.008}
       />
-      <text
-        x={fieldW / 2}
-        y={fieldH / 2}
-        fontFamily={font.webFamily}
-        fontSize={fontSizeMm}
-        fontWeight={weightForStep(weightStep).cssWeight}
-        fill={thread.hex}
-        stroke={thread.hex}
-        strokeWidth={fontSizeMm * 0.012}
-        textAnchor="middle"
-        dominantBaseline="central"
-        style={{ paintOrder: "stroke" }}
-      >
-        {text}
-      </text>
+
+      {motif ? (
+        (() => {
+          const [, , vw, vh] = motif.viewBox.split(/\s+/).map(Number);
+          const scale = motif.sizeMm / Math.max(vw || 100, vh || 100);
+          return (
+            <g
+              transform={`translate(${fieldW / 2 - ((vw || 100) * scale) / 2} ${fieldH / 2 - ((vh || 100) * scale) / 2}) scale(${scale})`}
+            >
+              <path d={motif.path} fill={glyphFill} />
+            </g>
+          );
+        })()
+      ) : (
+        rows.map((line, i) => {
+          const y = firstY + i * lead;
+          const common = {
+            fontFamily: font.webFamily,
+            fontSize: fontSizeMm,
+            fontWeight: weightForStep(weightStep).cssWeight,
+            fill: glyphFill,
+            // The outline is a genuine second colour, so it is a stroke in
+            // that thread rather than a thicker version of the fill.
+            stroke: outlineHex ?? glyphFill,
+            strokeWidth: outlineHex ? fontSizeMm * 0.06 : fontSizeMm * 0.012,
+            textAnchor: "middle" as const,
+            letterSpacing: trackingPct ? trackingPct * heightMm : undefined,
+            style: { paintOrder: "stroke" as const },
+          };
+
+          if (!curveDeg) {
+            return (
+              <text key={i} x={fieldW / 2} y={y} dominantBaseline="central" {...common}>
+                {line}
+              </text>
+            );
+          }
+
+          // The baseline rides a circular arc whose chord is the width the
+          // straight version would have had, so bending a word does not also
+          // resize it.
+          const chord = Math.max(1, estimatedChord);
+          const half = (Math.abs(curveDeg) * Math.PI) / 360;
+          const radius = chord / (2 * Math.sin(half));
+          const sweep = curveDeg > 0 ? 1 : 0;
+          const dy = curveDeg > 0 ? radius - radius * Math.cos(half) : -(radius - radius * Math.cos(half));
+          const id = `pv-arc-${i}`;
+          const d =
+            `M ${fieldW / 2 - chord / 2} ${y + dy} ` +
+            `A ${radius} ${radius} 0 0 ${sweep} ${fieldW / 2 + chord / 2} ${y + dy}`;
+          return (
+            <g key={i}>
+              <path id={id} d={d} fill="none" />
+              <text {...common}>
+                <textPath href={`#${id}`} startOffset="50%">
+                  {line}
+                </textPath>
+              </text>
+            </g>
+          );
+        })
+      )}
     </svg>
   );
 

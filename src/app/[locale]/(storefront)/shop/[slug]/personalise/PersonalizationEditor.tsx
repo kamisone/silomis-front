@@ -5,13 +5,16 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft, Check, Loader2, AlertTriangle, Ruler, Palette, Type, MapPin,
   ShoppingBag, RotateCcw, RotateCw, Plus, Bold, ArrowRight, PencilLine,
+  MoveHorizontal, Spline, Sparkles, Undo2, Redo2, Copy,
 } from "lucide-react";
 import DesignPreview from "./DesignPreview";
 import { useCart, type PersonalizationInput } from "@/components/shop/CartContext";
 import { getTranslations, type Locale } from "@/lib/i18n";
 import {
   evaluate, heightBounds, MONOGRAM_MAX_CHARS, DEFAULT_WEIGHT_STEP, WEIGHT_SCALE, weightForStep,
-  type ContentType, type EditorConfig, type EditorEvaluation, type EditorPlacement,
+  DEFAULT_OPTIONS, MAX_TEXT_LINES, TRACKING_MIN, TRACKING_MAX, KERNING_LIMIT, CURVE_LIMIT_DEG,
+  MOTIF_MIN_MM, MOTIF_MAX_MM,
+  type ContentKind, type DesignOptions, type EditorConfig, type EditorEvaluation, type EditorPlacement,
 } from "@/lib/shop/embroidery";
 import { isUsableQuad, type Point, type Quad } from "@/lib/shop/perspective";
 import styles from "./PersonalizationEditor.module.css";
@@ -43,7 +46,6 @@ function displayAngle(deg: number): number {
 
 /** Everything the customer chose for one position. */
 interface DesignState {
-  contentType: ContentType;
   raw: string;
   fontKey: string;
   threadIds: string[];
@@ -53,6 +55,8 @@ interface DesignState {
   offset: Point;
   /** Angle in the garment's plane; the rotate handle drives it. */
   rotationDeg: number;
+  /** Everything the design tools set — kept together so undo can snapshot it. */
+  options: DesignOptions;
 }
 
 function euros(cents: number): string {
@@ -80,6 +84,55 @@ export default function PersonalizationEditor({ locale, config, product, variant
 
   const [step, setStep] = useState<Step>("positions");
   const [designs, setDesigns] = useState<Record<string, DesignState>>({});
+
+  /**
+   * Undo history over the whole design map.
+   *
+   * Snapshots rather than inverse operations: a design is small, the edits are
+   * many and varied, and writing an undo for each control is where this kind
+   * of feature usually goes wrong. Capped so a long session cannot grow
+   * without bound.
+   */
+  const past = useRef<Record<string, DesignState>[]>([]);
+  const future = useRef<Record<string, DesignState>[]>([]);
+  const [historyTick, setHistoryTick] = useState(0);
+
+  /**
+   * The current designs, readable from callbacks and effects without making
+   * every one of them depend on the map — the quote effect already re-runs on
+   * its own key, and the tools act on whatever is current when they fire.
+   */
+  const designsRef = useRef<Record<string, DesignState>>({});
+
+  const commit = useCallback((next: Record<string, DesignState>) => {
+    setDesigns((prev) => {
+      past.current = [...past.current.slice(-49), prev];
+      future.current = [];
+      return next;
+    });
+    setHistoryTick((t) => t + 1);
+  }, []);
+
+  const undo = useCallback(() => {
+    setDesigns((prev) => {
+      const last = past.current.pop();
+      if (!last) return prev;
+      future.current = [prev, ...future.current.slice(0, 49)];
+      return last;
+    });
+    setHistoryTick((t) => t + 1);
+  }, []);
+
+  const redo = useCallback(() => {
+    setDesigns((prev) => {
+      const [next, ...rest] = future.current;
+      if (!next) return prev;
+      future.current = rest;
+      past.current = [...past.current.slice(-49), prev];
+      return next;
+    });
+    setHistoryTick((t) => t + 1);
+  }, []);
   const [activeKey, setActiveKey] = useState("");
   const [confirmed, setConfirmed] = useState(false);
 
@@ -88,6 +141,8 @@ export default function PersonalizationEditor({ locale, config, product, variant
   const [quoteError, setQuoteError] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState("");
+
+  designsRef.current = designs;
 
   const chosenKeys = useMemo(
     () => config.placements.filter((p) => designs[p.key]).map((p) => p.key),
@@ -98,7 +153,6 @@ export default function PersonalizationEditor({ locale, config, product, variant
     (placement: EditorPlacement): DesignState => {
       const font = config.fonts[0];
       return {
-        contentType: config.template.allowText ? "text" : "monogram",
         raw: "",
         fontKey: font?.key ?? "",
         threadIds: config.threads[0] ? [config.threads[0].id] : [],
@@ -109,6 +163,7 @@ export default function PersonalizationEditor({ locale, config, product, variant
         weightStep: DEFAULT_WEIGHT_STEP,
         offset: { x: 0, y: 0 },
         rotationDeg: 0,
+        options: { ...DEFAULT_OPTIONS, contentType: config.template.allowText ? "text" : "monogram" },
       };
     },
     [config.fonts, config.threads, config.template.allowText],
@@ -116,15 +171,17 @@ export default function PersonalizationEditor({ locale, config, product, variant
 
   const togglePosition = useCallback(
     (placement: EditorPlacement) => {
-      setDesigns((prev) => {
-        const next = { ...prev };
-        if (next[placement.key]) delete next[placement.key];
-        else next[placement.key] = defaultDesign(placement);
-        return next;
-      });
+      commit(
+        (() => {
+          const next = { ...designsRef.current };
+          if (next[placement.key]) delete next[placement.key];
+          else next[placement.key] = defaultDesign(placement);
+          return next;
+        })(),
+      );
       setActiveKey((prev) => (prev === placement.key ? "" : placement.key));
     },
-    [defaultDesign],
+    [defaultDesign, commit],
   );
 
   // Keep the open tab pointing at something that still exists.
@@ -142,7 +199,28 @@ export default function PersonalizationEditor({ locale, config, product, variant
   const patchActive = useCallback(
     (patch: Partial<DesignState>) => {
       if (!activeKey) return;
-      setDesigns((prev) => (prev[activeKey] ? { ...prev, [activeKey]: { ...prev[activeKey], ...patch } } : prev));
+      setDesigns((prev) => {
+        if (!prev[activeKey]) return prev;
+        past.current = [...past.current.slice(-49), prev];
+        future.current = [];
+        return { ...prev, [activeKey]: { ...prev[activeKey], ...patch } };
+      });
+      setHistoryTick((t) => t + 1);
+    },
+    [activeKey],
+  );
+
+  /** The design tools all live under `options`, so they get their own patcher. */
+  const patchOptions = useCallback(
+    (patch: Partial<DesignOptions>) => {
+      if (!activeKey) return;
+      setDesigns((prev) => {
+        if (!prev[activeKey]) return prev;
+        past.current = [...past.current.slice(-49), prev];
+        future.current = [];
+        return { ...prev, [activeKey]: { ...prev[activeKey], options: { ...prev[activeKey].options, ...patch } } };
+      });
+      setHistoryTick((t) => t + 1);
     },
     [activeKey],
   );
@@ -157,13 +235,17 @@ export default function PersonalizationEditor({ locale, config, product, variant
       const font = config.fonts.find((f) => f.key === d.fontKey) ?? config.fonts[0];
       out[placement.key] = evaluate({
         raw: d.raw,
-        contentType: d.contentType,
         font,
         placement,
         heightMm: d.heightMm,
         colorCount: new Set(d.threadIds).size,
         bands: config.priceBands,
         weightStep: d.weightStep,
+        options: d.options,
+        threadMultiplier: Math.max(
+          1,
+          ...d.threadIds.map((id) => config.threads.find((t) => t.id === id)?.priceMultiplier ?? 1),
+        ),
       });
     }
     return out;
@@ -180,14 +262,23 @@ export default function PersonalizationEditor({ locale, config, product, variant
   );
 
   const availableFonts = useMemo(
-    () => (activeDesign?.contentType === "monogram" ? config.fonts.filter((f) => f.supportsMonogram) : config.fonts),
-    [config.fonts, activeDesign?.contentType],
+    () => (activeDesign?.options.contentType === "monogram" ? config.fonts.filter((f) => f.supportsMonogram) : config.fonts),
+    [config.fonts, activeDesign?.options.contentType],
   );
 
   const bounds = useMemo(
     () => (activeFont && activePlacement ? heightBounds(activeFont, activePlacement) : { min: 8, max: 40 }),
     [activeFont, activePlacement],
   );
+
+  /** What this shop offers: words, initials, and shapes if any are published. */
+  const kinds = useMemo(() => {
+    const out: ContentKind[] = [];
+    if (config.template.allowText) out.push("text");
+    if (config.template.allowMonogram) out.push("monogram");
+    if (config.motifs.length) out.push("motif");
+    return out;
+  }, [config.template.allowText, config.template.allowMonogram, config.motifs.length]);
 
   // ── Keeping each position's choices internally consistent ────────────
 
@@ -203,6 +294,27 @@ export default function PersonalizationEditor({ locale, config, product, variant
     if (Object.keys(patch).length) patchActive(patch);
   }, [activeDesign, activePlacement, availableFonts, bounds.min, bounds.max, patchActive]);
 
+  /**
+   * Copies another position's design onto the open one.
+   *
+   * Everything except the placement travels — including where it sits and how
+   * it is turned, because "the same as the front" usually means the same in
+   * every respect. The consistency effects below then clamp anything the new
+   * position's field cannot take, which is why this can be a blunt copy.
+   */
+  const copyFrom = useCallback(
+    (sourceKey: string) => {
+      if (!activeKey) return;
+      const source = designsRef.current[sourceKey];
+      if (!source) return;
+      commit({
+        ...designsRef.current,
+        [activeKey]: { ...source, options: { ...source.options } },
+      });
+    },
+    [activeKey, commit],
+  );
+
   // ── Server quote for the whole set ───────────────────────────────────
 
   const payload: PersonalizationInput[] = useMemo(
@@ -211,7 +323,7 @@ export default function PersonalizationEditor({ locale, config, product, variant
         .filter((k) => !evaluations[k]?.error)
         .map((k) => ({
           placementKey: k,
-          contentType: designs[k].contentType,
+          contentType: designs[k].options.contentType,
           text: evaluations[k].text,
           fontKey: designs[k].fontKey,
           heightMm: designs[k].heightMm,
@@ -220,6 +332,13 @@ export default function PersonalizationEditor({ locale, config, product, variant
           offsetXMm: designs[k].offset.x,
           offsetYMm: designs[k].offset.y,
           rotationDeg: designs[k].rotationDeg,
+          trackingPct: designs[k].options.trackingPct,
+          kerning: designs[k].options.kerning ?? undefined,
+          curveDeg: designs[k].options.curveDeg,
+          outline: designs[k].options.outline,
+          puff: designs[k].options.puff,
+          motifKey: designs[k].options.motifKey ?? undefined,
+          motifSizeMm: designs[k].options.motifSizeMm,
         })),
     [chosenKeys, designs, evaluations],
   );
@@ -281,10 +400,7 @@ export default function PersonalizationEditor({ locale, config, product, variant
     // quoteKey stands in for every input the quote depends on.
   }, [quoteKey, product.id, locale, c]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Read current designs inside the quote effect without re-subscribing on
-  // every keystroke — quoteKey already re-runs it.
-  const designsRef = useRef(designs);
-  designsRef.current = designs;
+
 
   // Any edit invalidates a confirmation given for a different design.
   useEffect(() => setConfirmed(false), [quoteKey]);
@@ -317,6 +433,12 @@ export default function PersonalizationEditor({ locale, config, product, variant
   // Errors are only shown where they can be acted on. On the Positions step
   // there is no text field, so a complaint about the text is just noise.
   const blocking = step === "positions" ? null : (localError ?? quoteError);
+
+  // Read through the tick so the buttons re-render when the stacks change —
+  // a ref's contents are invisible to React on their own.
+  void historyTick;
+  const canUndo = past.current.length > 0;
+  const canRedo = future.current.length > 0;
 
   const stepIndex = STEPS.indexOf(step);
   const canLeavePositions = chosenKeys.length > 0;
@@ -368,6 +490,19 @@ export default function PersonalizationEditor({ locale, config, product, variant
                 heightMm={previewDesign?.heightMm ?? 16}
                 weightStep={previewDesign?.weightStep ?? DEFAULT_WEIGHT_STEP}
                 thread={activeThreads[0] ?? config.threads[0]}
+                outlineThread={previewDesign?.options.outline ? (activeThreads[1] ?? null) : null}
+                lines={activeEval?.lines ?? []}
+                curveDeg={previewDesign?.options.curveDeg ?? 0}
+                trackingPct={previewDesign?.options.trackingPct ?? 0}
+                kerning={previewDesign?.options.kerning ?? null}
+                motif={
+                  previewDesign?.options.contentType === "motif" && previewDesign.options.motifKey
+                    ? (() => {
+                        const m = config.motifs.find((x) => x.key === previewDesign.options.motifKey);
+                        return m ? { path: m.path, viewBox: m.viewBox, sizeMm: previewDesign.options.motifSizeMm } : null;
+                      })()
+                    : null
+                }
                 invalid={!!activeEval?.error}
                 quadPct={isUsableQuad(previewQuad) ? previewQuad : null}
                 offset={previewDesign?.offset ?? { x: 0, y: 0 }}
@@ -532,6 +667,48 @@ export default function PersonalizationEditor({ locale, config, product, variant
 
           {step === "design" && activePlacement && activeDesign && activeEval && (
             <>
+              {/* Tools, not settings: they act on whatever is open rather than
+                  describing it, so they sit above the panels and not inside
+                  one. */}
+              <div className={styles.toolRow}>
+                <button
+                  type="button"
+                  className={styles.toolBtn}
+                  onClick={undo}
+                  disabled={!canUndo}
+                  title={c.undo}
+                >
+                  <Undo2 size={14} aria-hidden="true" /> {c.undo}
+                </button>
+                <button
+                  type="button"
+                  className={styles.toolBtn}
+                  onClick={redo}
+                  disabled={!canRedo}
+                  title={c.redo}
+                >
+                  <Redo2 size={14} aria-hidden="true" /> {c.redo}
+                </button>
+
+                {/* Only worth offering when there is another position to copy
+                    from — and setting up the second one is exactly when
+                    redoing all of it by hand is most annoying. */}
+                {chosenKeys.length > 1 && (
+                  <div className={styles.copyFrom}>
+                    <span className={styles.copyFromLabel}>
+                      <Copy size={13} aria-hidden="true" /> {c.copyFrom}
+                    </span>
+                    {chosenKeys
+                      .filter((k) => k !== activeKey)
+                      .map((k) => (
+                        <button key={k} type="button" className={styles.toolBtn} onClick={() => copyFrom(k)}>
+                          {config.placements.find((p) => p.key === k)?.label ?? k}
+                        </button>
+                      ))}
+                  </div>
+                )}
+              </div>
+
               {chosenKeys.length > 1 && (
                 <div className={styles.designTabs} role="tablist" aria-label={c.positionsTitle}>
                   {chosenKeys.map((k) => {
@@ -559,48 +736,83 @@ export default function PersonalizationEditor({ locale, config, product, variant
                   <Type size={15} aria-hidden="true" /> {c.contentTitle}
                 </legend>
 
-                {config.template.allowText && config.template.allowMonogram && (
-                  <div className={styles.segmented} role="tablist" aria-label={c.contentTitle}>
-                    {(["text", "monogram"] as ContentType[]).map((ct) => (
-                      <button
-                        key={ct}
-                        type="button"
-                        role="tab"
-                        aria-selected={activeDesign.contentType === ct}
-                        className={`${styles.segment} ${activeDesign.contentType === ct ? styles.segmentActive : ""}`}
-                        onClick={() => patchActive({ contentType: ct })}
-                      >
-                        {c.contentTypes[ct]}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                <label className={styles.fieldLabel} htmlFor="personalize-text">
-                  {activeDesign.contentType === "monogram" ? c.monogramLabel : c.textLabel}
-                </label>
-                <input
-                  id="personalize-text"
-                  className={`${styles.textInput} ${activeEval.error && activeDesign.raw ? styles.textInputError : ""}`}
-                  value={activeDesign.raw}
-                  onChange={(e) => patchActive({ raw: e.target.value })}
-                  placeholder={activeDesign.contentType === "monogram" ? c.monogramPlaceholder : c.textPlaceholder}
-                  maxLength={activeDesign.contentType === "monogram" ? MONOGRAM_MAX_CHARS + 2 : activePlacement.maxChars + 4}
-                  autoComplete="off"
-                  autoCapitalize={activeFont.uppercaseOnly ? "characters" : "words"}
-                  spellCheck={false}
-                  style={{ fontFamily: activeFont.webFamily, fontWeight: weightForStep(activeDesign.weightStep).cssWeight }}
-                  aria-describedby="personalize-text-help"
-                />
-                <div className={styles.fieldFooter} id="personalize-text-help">
-                  <span className={styles.charCount}>
-                    {activeEval.text.length} /{" "}
-                    {activeDesign.contentType === "monogram" ? MONOGRAM_MAX_CHARS : activePlacement.maxChars}
-                  </span>
-                  <span className={styles.fieldNote}>
-                    {activeDesign.contentType === "monogram" ? c.monogramNote : c.textNote}
-                  </span>
+                <div className={styles.segmented} role="tablist" aria-label={c.contentTitle}>
+                  {kinds.map((ct) => (
+                    <button
+                      key={ct}
+                      type="button"
+                      role="tab"
+                      aria-selected={activeDesign.options.contentType === ct}
+                      className={`${styles.segment} ${activeDesign.options.contentType === ct ? styles.segmentActive : ""}`}
+                      onClick={() => patchOptions({ contentType: ct })}
+                    >
+                      {c.contentTypes[ct]}
+                    </button>
+                  ))}
                 </div>
+
+                {activeDesign.options.contentType === "motif" ? (
+                  <>
+                    <span className={styles.fieldLabel}>{c.motifTitle}</span>
+                    <div className={styles.motifGrid}>
+                      {config.motifs.map((m) => (
+                        <button
+                          key={m.key}
+                          type="button"
+                          className={`${styles.motifCard} ${activeDesign.options.motifKey === m.key ? styles.motifCardActive : ""}`}
+                          onClick={() => patchOptions({ motifKey: m.key })}
+                          aria-pressed={activeDesign.options.motifKey === m.key}
+                          title={m.name}
+                        >
+                          {/* The catalogue is admin-authored, so the path goes
+                              on a `d` attribute — never injected as markup. */}
+                          <svg viewBox={m.viewBox} className={styles.motifSvg} aria-hidden="true">
+                            <path d={m.path} fill="currentColor" />
+                          </svg>
+                          <span className={styles.motifName}>{m.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <label className={styles.fieldLabel} htmlFor="personalize-text">
+                      {activeDesign.options.contentType === "monogram" ? c.monogramLabel : c.textLabel}
+                    </label>
+                    {/* A textarea, because a design can be several lines. It
+                        grows with them rather than scrolling — there are at
+                        most three, and a scrollbar would hide one. */}
+                    <textarea
+                      id="personalize-text"
+                      className={`${styles.textInput} ${activeEval.error && activeDesign.raw ? styles.textInputError : ""}`}
+                      value={activeDesign.raw}
+                      onChange={(e) => patchActive({ raw: e.target.value })}
+                      placeholder={activeDesign.options.contentType === "monogram" ? c.monogramPlaceholder : c.textPlaceholder}
+                      rows={Math.min(MAX_TEXT_LINES, Math.max(1, activeEval.lines.length))}
+                      maxLength={
+                        activeDesign.options.contentType === "monogram"
+                          ? MONOGRAM_MAX_CHARS + 2
+                          : (activePlacement.maxChars + 4) * MAX_TEXT_LINES
+                      }
+                      autoComplete="off"
+                      autoCapitalize={activeFont.uppercaseOnly ? "characters" : "words"}
+                      spellCheck={false}
+                      style={{ fontFamily: activeFont.webFamily, fontWeight: weightForStep(activeDesign.weightStep).cssWeight }}
+                      aria-describedby="personalize-text-help"
+                    />
+                    <div className={styles.fieldFooter} id="personalize-text-help">
+                      <span className={styles.charCount}>
+                        {activeEval.lines.reduce((n, l) => Math.max(n, l.length), 0)} /{" "}
+                        {activeDesign.options.contentType === "monogram" ? MONOGRAM_MAX_CHARS : activePlacement.maxChars}
+                      </span>
+                      <span className={styles.fieldNote}>
+                        {activeDesign.options.contentType === "monogram"
+                          ? c.monogramNote
+                          : c.linesHint.replace("{n}", String(MAX_TEXT_LINES))}
+                      </span>
+                    </div>
+                  </>
+                )}
               </fieldset>
 
               <fieldset className={styles.panel}>
@@ -696,28 +908,185 @@ export default function PersonalizationEditor({ locale, config, product, variant
                 </div>
               </fieldset>
 
+              {activeDesign.options.contentType !== "motif" && (
+                <>
+                  <fieldset className={styles.panel}>
+                    <legend className={styles.panelTitle}>
+                      <MoveHorizontal size={15} aria-hidden="true" /> {c.spacingTitle}
+                    </legend>
+                    <div className={styles.sliderRow}>
+                      <input
+                        type="range"
+                        className={styles.slider}
+                        min={TRACKING_MIN * 100}
+                        max={TRACKING_MAX * 100}
+                        step={1}
+                        value={Math.round(activeDesign.options.trackingPct * 100)}
+                        onChange={(e) => patchOptions({ trackingPct: Number(e.target.value) / 100 })}
+                        aria-label={c.trackingLabel}
+                      />
+                      <output className={styles.sliderValue}>
+                        {activeDesign.options.trackingPct > 0 ? "+" : ""}
+                        {Math.round(activeDesign.options.trackingPct * 100)}%
+                      </output>
+                    </div>
+
+                    {/* Kerning is per gap, so it only appears once there are
+                        gaps to nudge — and it is folded away, because most
+                        customers will never need it. */}
+                    {activeEval.lines.length === 1 && activeEval.lines[0].length > 1 && (
+                      <details className={styles.kerning}>
+                        <summary className={styles.kerningSummary}>{c.kerningLabel}</summary>
+                        <p className={styles.panelHint}>{c.kerningHint}</p>
+                        <div className={styles.kerningRow}>
+                          {[...activeEval.lines[0]].slice(0, -1).map((ch, i) => (
+                            <label key={i} className={styles.kerningGap}>
+                              <span className={styles.kerningPair} style={{ fontFamily: activeFont.webFamily }}>
+                                {ch}
+                                {activeEval.lines[0][i + 1]}
+                              </span>
+                              <input
+                                type="range"
+                                className={styles.kerningSlider}
+                                min={-KERNING_LIMIT * 100}
+                                max={KERNING_LIMIT * 100}
+                                step={2}
+                                value={Math.round((activeDesign.options.kerning?.[i] ?? 0) * 100)}
+                                onChange={(e) => {
+                                  const gaps = activeEval.lines[0].length - 1;
+                                  const next = Array.from({ length: gaps }, (_, g) => activeDesign.options.kerning?.[g] ?? 0);
+                                  next[i] = Number(e.target.value) / 100;
+                                  patchOptions({ kerning: next });
+                                }}
+                                aria-label={`${ch}${activeEval.lines[0][i + 1]}`}
+                              />
+                            </label>
+                          ))}
+                        </div>
+                        <button type="button" className={styles.recentreBtn} onClick={() => patchOptions({ kerning: null })}>
+                          {c.kerningReset}
+                        </button>
+                      </details>
+                    )}
+                  </fieldset>
+
+                  {activeFont.supportsCurve && (
+                    <fieldset className={styles.panel}>
+                      <legend className={styles.panelTitle}>
+                        <Spline size={15} aria-hidden="true" /> {c.curveTitle}
+                      </legend>
+                      <p className={styles.panelHint}>{c.curveHint}</p>
+                      <div className={styles.sliderRow}>
+                        <input
+                          type="range"
+                          className={styles.slider}
+                          min={-CURVE_LIMIT_DEG}
+                          max={CURVE_LIMIT_DEG}
+                          step={5}
+                          value={activeDesign.options.curveDeg}
+                          onChange={(e) => patchOptions({ curveDeg: Number(e.target.value) })}
+                          aria-label={c.curveTitle}
+                        />
+                        <output className={styles.sliderValue}>
+                          {activeDesign.options.curveDeg === 0 ? c.curveStraight : `${activeDesign.options.curveDeg}°`}
+                        </output>
+                      </div>
+                    </fieldset>
+                  )}
+
+                  <fieldset className={styles.panel}>
+                    <legend className={styles.panelTitle}>
+                      <Sparkles size={15} aria-hidden="true" /> {c.finishTitle}
+                    </legend>
+
+                    <label className={`${styles.switchRow} ${activeDesign.threadIds.length < 2 ? styles.switchRowOff : ""}`}>
+                      <input
+                        type="checkbox"
+                        checked={activeDesign.options.outline}
+                        disabled={activeDesign.threadIds.length < 2}
+                        onChange={(e) => patchOptions({ outline: e.target.checked })}
+                      />
+                      <span>
+                        {c.outlineLabel}
+                        {activeDesign.threadIds.length < 2 && (
+                          <span className={styles.switchNote}>{c.outlineNeedsTwo}</span>
+                        )}
+                      </span>
+                    </label>
+
+                    {/* Puff is gated by the position AND the face: foam needs a
+                        flat frame and wide columns, and a fine script collapses
+                        over it. Shown disabled with the reason rather than
+                        hidden, so the option is discoverable. */}
+                    <label
+                      className={`${styles.switchRow} ${
+                        !activePlacement.allowPuff || !activeFont.supportsPuff ? styles.switchRowOff : ""
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={activeDesign.options.puff}
+                        disabled={!activePlacement.allowPuff || !activeFont.supportsPuff}
+                        onChange={(e) => patchOptions({ puff: e.target.checked })}
+                      />
+                      <span>
+                        {c.puffLabel}
+                        {(!activePlacement.allowPuff || !activeFont.supportsPuff) && (
+                          <span className={styles.switchNote}>{c.puffUnavailable}</span>
+                        )}
+                      </span>
+                    </label>
+                  </fieldset>
+                </>
+              )}
+
               <fieldset className={styles.panel}>
                 <legend className={styles.panelTitle}>
-                  <Ruler size={15} aria-hidden="true" /> {c.sizeTitle}
+                  <Ruler size={15} aria-hidden="true" />{" "}
+                  {activeDesign.options.contentType === "motif" ? c.motifSizeTitle : c.sizeTitle}
                 </legend>
                 <p className={styles.panelHint}>{c.sizeHint}</p>
-                <div className={styles.sliderRow}>
-                  <input
-                    type="range"
-                    className={styles.slider}
-                    min={bounds.min}
-                    max={bounds.max}
-                    step={1}
-                    value={activeDesign.heightMm}
-                    onChange={(e) => patchActive({ heightMm: Number(e.target.value) })}
-                    aria-label={c.sizeTitle}
-                  />
-                  <output className={styles.sliderValue}>{activeDesign.heightMm} mm</output>
-                </div>
-                <div className={styles.sliderScale} aria-hidden="true">
-                  <span>{bounds.min} mm</span>
-                  <span>{bounds.max} mm</span>
-                </div>
+                {activeDesign.options.contentType === "motif" ? (
+                  <>
+                    <div className={styles.sliderRow}>
+                      <input
+                        type="range"
+                        className={styles.slider}
+                        min={MOTIF_MIN_MM}
+                        max={Math.min(MOTIF_MAX_MM, activePlacement.fieldHeightMm)}
+                        step={1}
+                        value={activeDesign.options.motifSizeMm}
+                        onChange={(e) => patchOptions({ motifSizeMm: Number(e.target.value) })}
+                        aria-label={c.motifSizeTitle}
+                      />
+                      <output className={styles.sliderValue}>{activeDesign.options.motifSizeMm} mm</output>
+                    </div>
+                    <div className={styles.sliderScale} aria-hidden="true">
+                      <span>{MOTIF_MIN_MM} mm</span>
+                      <span>{Math.min(MOTIF_MAX_MM, activePlacement.fieldHeightMm)} mm</span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className={styles.sliderRow}>
+                      <input
+                        type="range"
+                        className={styles.slider}
+                        min={bounds.min}
+                        max={bounds.max}
+                        step={1}
+                        value={activeDesign.heightMm}
+                        onChange={(e) => patchActive({ heightMm: Number(e.target.value) })}
+                        aria-label={c.sizeTitle}
+                      />
+                      <output className={styles.sliderValue}>{activeDesign.heightMm} mm</output>
+                    </div>
+                    <div className={styles.sliderScale} aria-hidden="true">
+                      <span>{bounds.min} mm</span>
+                      <span>{bounds.max} mm</span>
+                    </div>
+                  </>
+                )}
               </fieldset>
             </>
           )}
@@ -894,6 +1263,12 @@ function errorCopyForCode(code: string, placement: EditorPlacement, c: Copy, nam
       return where(c.errors.monogramLength);
     case "tooWide":
       return where(c.errors.tooWide);
+    case "tooTall":
+      return where(c.errors.tooTall);
+    case "tooManyLines":
+      return where(c.errors.tooManyLines.replace("{n}", String(MAX_TEXT_LINES)));
+    case "outlineNeedsSecondColor":
+      return where(c.errors.outlineNeedsSecondColor);
     case "tooManyColors":
       return where(c.errors.tooManyColors.replace("{n}", String(placement.maxColors)));
     case "tooManyStitches":
@@ -923,6 +1298,19 @@ function errorCopy(code: string | undefined, c: Copy): string | null {
       return c.errors.tooManyColorsGeneric;
     case "PERSONALIZATION_TOO_MANY_STITCHES":
       return c.errors.tooManyStitches;
+    case "PERSONALIZATION_TOO_TALL":
+      return c.errors.tooTall;
+    case "PERSONALIZATION_TOO_MANY_LINES":
+      return c.errors.tooManyLines.replace("{n}", String(MAX_TEXT_LINES));
+    case "PERSONALIZATION_OUTLINE_NEEDS_SECOND_COLOR":
+      return c.errors.outlineNeedsSecondColor;
+    case "PERSONALIZATION_PUFF_UNAVAILABLE":
+      return c.puffUnavailable;
+    case "PERSONALIZATION_CURVE_UNAVAILABLE":
+      return c.errors.unavailable;
+    case "PERSONALIZATION_MOTIF_UNKNOWN":
+    case "PERSONALIZATION_MOTIF_SIZE":
+      return c.errors.unavailable;
     case "PERSONALIZATION_NOT_AVAILABLE":
     case "PERSONALIZATION_PLACEMENT_UNKNOWN":
     case "PERSONALIZATION_FONT_UNKNOWN":
