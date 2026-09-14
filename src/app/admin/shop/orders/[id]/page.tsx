@@ -401,7 +401,7 @@ export default function OrderDetailPage() {
                       <a key={d.id} href={`#job-${d.id}`} style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", fontSize: "0.8rem", color: "var(--color-primary)", textDecoration: "none" }}>
                         <Scissors size={12} aria-hidden="true" />
                         <span>
-                          {d.placementLabel}: <strong>{d.contentType === "motif" ? (d.motifName ?? "shape") : `“${d.text}”`}</strong>
+                          {d.placementLabel}: <strong>{d.contentType === "motif" ? (d.motifName ?? "shape") : `“${d.text.replace(/\n/g, " / ")}”`}</strong>
                         </span>
                         <span className={ui.badge}>{JOB_STATUS_LABEL[d.productionStatus]}</span>
                       </a>

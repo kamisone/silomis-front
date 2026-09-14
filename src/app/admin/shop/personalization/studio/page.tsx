@@ -306,7 +306,7 @@ function PlacementCard({
           <div>
             <strong className={styles.placementName}>{p.label.en ?? p.key}</strong>
             <span className={styles.placementSub}>
-              <code className={ui.codeChip}>{p.key}</code> €{eur(p.priceCents)} · starts at {p.fieldWidthMm}×{p.fieldHeightMm}mm
+              <code className={ui.codeChip}>{p.key}</code> €{eur(p.priceCents)} · panel {p.fieldWidthMm}×{p.fieldHeightMm}mm
               {p.isTraced ? " · traced" : p.imageUrl ? " · not traced" : " · no photo"}
             </span>
           </div>
@@ -365,16 +365,17 @@ function PlacementCard({
 
           {p.imageUrl ? (
             <>
-              {/* The customer sizes the embroidery area themselves. What the
-                  shop still has to say is how big the panel it traced really
-                  is — that is what puts their millimetres onto the photograph
-                  at scale, and it is also the size the area starts at. */}
+              {/* The customer places text boxes freely and the hoop is fitted
+                  round them. What the shop still has to say is how big the
+                  panel it traced really is — that is what puts millimetres
+                  onto the photograph at scale, and what bounds how far a box
+                  may travel over it. */}
               <div className={styles.calibration}>
                 <div className={styles.calibrationText}>
                   <strong>Real size of the traced area</strong>
                   <span>
-                    Measure the panel you trace below, in millimetres. Customers resize the embroidery area freely; this
-                    only sets the photo&apos;s scale and the size the area starts at.
+                    Measure the panel you trace below, in millimetres. This only sets the photo&apos;s scale — the hoop is
+                    fitted round whatever the customer places.
                   </span>
                 </div>
                 <div className={styles.calibrationFields}>

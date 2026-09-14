@@ -5,17 +5,16 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft, Check, Loader2, AlertTriangle, Ruler, Palette, Type, MapPin,
   ShoppingBag, RotateCcw, RotateCw, Plus, Bold, ArrowRight, PencilLine,
-  MoveHorizontal, Spline, Sparkles, Undo2, Redo2, Copy, Scaling, Minus, Maximize2,
+  MoveHorizontal, Spline, Sparkles, Undo2, Redo2, Copy, Minus, LayoutList, X,
 } from "lucide-react";
-import DesignPreview from "./DesignPreview";
+import DesignPreview, { type PreviewElement } from "./DesignPreview";
 import { useCart, type PersonalizationInput } from "@/components/shop/CartContext";
 import { getTranslations, type Locale } from "@/lib/i18n";
 import {
-  evaluate, heightBounds, MONOGRAM_MAX_CHARS, DEFAULT_WEIGHT_STEP, WEIGHT_SCALE, weightForStep,
+  evaluateDesign, heightBounds, MONOGRAM_MAX_CHARS, DEFAULT_WEIGHT_STEP, WEIGHT_SCALE, weightForStep,
   DEFAULT_OPTIONS, MAX_TEXT_LINES, TRACKING_MIN, TRACKING_MAX, KERNING_LIMIT, CURVE_LIMIT_DEG,
-  MOTIF_MIN_MM, MOTIF_MAX_MM, DEFAULT_FIELD_LIMITS, clampField,
-  type ContentKind, type DesignField, type DesignOptions, type EditorConfig, type EditorEvaluation, type EditorPlacement,
-  type FieldLimits,
+  MOTIF_MIN_MM, MOTIF_MAX_MM, DEFAULT_FIELD_LIMITS, MAX_ELEMENTS,
+  type ContentKind, type DesignOptions, type EditorConfig, type EditorEvaluation, type EditorPlacement,
 } from "@/lib/shop/embroidery";
 import { isUsableQuad, type Point, type Quad } from "@/lib/shop/perspective";
 import styles from "./PersonalizationEditor.module.css";
@@ -48,24 +47,40 @@ function displayAngle(deg: number): number {
   return Math.round(((deg % 360) + 360) % 360);
 }
 
-/** Everything the customer chose for one position. */
-interface DesignState {
+/** One box: its own words, face, size, spool, and place in the area. */
+interface ElementState {
+  id: string;
   raw: string;
   fontKey: string;
-  threadIds: string[];
+  /** The one spool this box is sewn in. */
+  threadId: string;
   heightMm: number;
-  /**
-   * The embroidery area — the hoop the design runs in — as the customer sized
-   * it. Starts at the position's field and is theirs from then on.
-   */
-  field: DesignField;
   /** 1 (light) to 5 (extra bold) — how heavily the satin column is laid down. */
   weightStep: number;
+  /** From the position's traced centre, in millimetres. */
   offset: Point;
-  /** Angle in the garment's plane; the rotate handle drives it. */
+  /** The box's own angle in the garment's plane; the rotate handle drives it. */
   rotationDeg: number;
   /** Everything the design tools set — kept together so undo can snapshot it. */
   options: DesignOptions;
+}
+
+/**
+ * Everything the customer chose for one position: the boxes, and which one
+ * the controls act on. There is no frame to size — the hoop is fitted round
+ * the boxes on the server.
+ */
+interface DesignState {
+  elements: ElementState[];
+  /** The box the controls act on. */
+  activeElementId: string;
+}
+
+let elementSeq = 0;
+/** Stable across renders and unique across positions — a React key and the preview's handle. */
+function nextElementId(): string {
+  elementSeq += 1;
+  return `b${Date.now().toString(36)}${elementSeq}`;
 }
 
 function euros(cents: number): string {
@@ -158,25 +173,39 @@ export default function PersonalizationEditor({ locale, config, product, variant
     [config.placements, designs],
   );
 
-  const defaultDesign = useCallback(
-    (placement: EditorPlacement): DesignState => {
+  /** A fresh box: first face, first spool, a flattering size for the panel. */
+  const newElement = useCallback(
+    (placement: EditorPlacement): ElementState => {
       const font = config.fonts[0];
+      // A third of the traced panel's height is a flattering default that
+      // still leaves room to move, rather than a fixed number that overflows
+      // a strap and looks lost on a front panel.
+      const heightMm = Math.min(font?.maxHeightMm ?? 40, Math.max(font?.minHeightMm ?? 8, Math.round(placement.fieldHeightMm * 0.34)));
       return {
+        id: nextElementId(),
         raw: "",
         fontKey: font?.key ?? "",
-        threadIds: config.threads[0] ? [config.threads[0].id] : [],
-        // Two thirds of the field's height is a flattering default that still
-        // leaves room to move, rather than a fixed number that overflows a
-        // small position and looks lost on a large one.
-        heightMm: Math.max(font?.minHeightMm ?? 8, Math.round(placement.fieldHeightMm * 0.34)),
-        field: { widthMm: placement.fieldWidthMm, heightMm: placement.fieldHeightMm },
+        threadId: config.threads[0]?.id ?? "",
+        heightMm,
         weightStep: DEFAULT_WEIGHT_STEP,
+        // Every new box starts at the traced centre — the one spot that is
+        // always on the photograph, whatever the position's shape. It is the
+        // open box, drawn on top and framed, so it can be picked up at once
+        // and dragged where it belongs.
         offset: { x: 0, y: 0 },
         rotationDeg: 0,
         options: { ...DEFAULT_OPTIONS, contentType: config.template.allowText ? "text" : "monogram" },
       };
     },
     [config.fonts, config.threads, config.template.allowText],
+  );
+
+  const defaultDesign = useCallback(
+    (placement: EditorPlacement): DesignState => {
+      const first = newElement(placement);
+      return { elements: [first], activeElementId: first.id };
+    },
+    [newElement],
   );
 
   const togglePosition = useCallback(
@@ -206,14 +235,19 @@ export default function PersonalizationEditor({ locale, config, product, variant
   );
   const activeDesign = activeKey ? designs[activeKey] : undefined;
 
-  const patchActive = useCallback(
-    (patch: Partial<DesignState>) => {
+  const activeElementId = activeDesign?.activeElementId ?? "";
+
+  /** Patches the open box of the open position. */
+  const patchElement = useCallback(
+    (patch: Partial<ElementState>, elementId?: string) => {
       if (!activeKey) return;
       setDesigns((prev) => {
-        if (!prev[activeKey]) return prev;
+        const d = prev[activeKey];
+        if (!d) return prev;
+        const id = elementId ?? d.activeElementId;
         past.current = [...past.current.slice(-49), prev];
         future.current = [];
-        return { ...prev, [activeKey]: { ...prev[activeKey], ...patch } };
+        return { ...prev, [activeKey]: { ...d, elements: d.elements.map((el) => (el.id === id ? { ...el, ...patch } : el)) } };
       });
       setHistoryTick((t) => t + 1);
     },
@@ -225,14 +259,54 @@ export default function PersonalizationEditor({ locale, config, product, variant
     (patch: Partial<DesignOptions>) => {
       if (!activeKey) return;
       setDesigns((prev) => {
-        if (!prev[activeKey]) return prev;
+        const d = prev[activeKey];
+        if (!d) return prev;
         past.current = [...past.current.slice(-49), prev];
         future.current = [];
-        return { ...prev, [activeKey]: { ...prev[activeKey], options: { ...prev[activeKey].options, ...patch } } };
+        return {
+          ...prev,
+          [activeKey]: {
+            ...d,
+            elements: d.elements.map((el) => (el.id === d.activeElementId ? { ...el, options: { ...el.options, ...patch } } : el)),
+          },
+        };
       });
       setHistoryTick((t) => t + 1);
     },
     [activeKey],
+  );
+
+  /** Which box the controls act on. Not an edit, so it is not in the undo history. */
+  const selectElement = useCallback(
+    (id: string) => {
+      if (!activeKey) return;
+      setDesigns((prev) => (prev[activeKey] && prev[activeKey].activeElementId !== id ? { ...prev, [activeKey]: { ...prev[activeKey], activeElementId: id } } : prev));
+    },
+    [activeKey],
+  );
+
+  const addElement = useCallback(() => {
+    if (!activeKey) return;
+    const d = designsRef.current[activeKey];
+    if (!d || d.elements.length >= MAX_ELEMENTS) return;
+    const placement = config.placements.find((p) => p.key === activeKey);
+    if (!placement) return;
+    const el = newElement(placement);
+    commit({ ...designsRef.current, [activeKey]: { ...d, elements: [...d.elements, el], activeElementId: el.id } });
+  }, [activeKey, newElement, commit, config.placements]);
+
+  /** Removes a box. The last one stays: an empty hoop is not a design. */
+  const removeElement = useCallback(
+    (id: string) => {
+      if (!activeKey) return;
+      const d = designsRef.current[activeKey];
+      if (!d || d.elements.length <= 1) return;
+      const idx = d.elements.findIndex((el) => el.id === id);
+      const elements = d.elements.filter((el) => el.id !== id);
+      const nextActive = d.activeElementId === id ? elements[Math.max(0, idx - 1)].id : d.activeElementId;
+      commit({ ...designsRef.current, [activeKey]: { ...d, elements, activeElementId: nextActive } });
+    },
+    [activeKey, commit],
   );
 
   // ── Evaluation, per position ─────────────────────────────────────────
@@ -242,65 +316,51 @@ export default function PersonalizationEditor({ locale, config, product, variant
     for (const placement of config.placements) {
       const d = designs[placement.key];
       if (!d) continue;
-      const font = config.fonts.find((f) => f.key === d.fontKey) ?? config.fonts[0];
-      out[placement.key] = evaluate({
-        raw: d.raw,
-        font,
+      out[placement.key] = evaluateDesign({
+        elements: d.elements.map((el) => ({
+          raw: el.raw,
+          font: config.fonts.find((f) => f.key === el.fontKey) ?? config.fonts[0],
+          heightMm: el.heightMm,
+          weightStep: el.weightStep,
+          options: el.options,
+          thread: config.threads.find((t) => t.id === el.threadId),
+          offset: el.offset,
+          rotationDeg: el.rotationDeg,
+        })),
         placement,
-        field: d.field,
-        heightMm: d.heightMm,
-        colorCount: new Set(d.threadIds).size,
+        limits: config.fieldLimits ?? DEFAULT_FIELD_LIMITS,
         bands: config.priceBands,
-        weightStep: d.weightStep,
-        options: d.options,
-        threadMultiplier: Math.max(
-          1,
-          ...d.threadIds.map((id) => config.threads.find((t) => t.id === id)?.priceMultiplier ?? 1),
-        ),
       });
     }
     return out;
-  }, [config.placements, config.fonts, config.priceBands, designs]);
+  }, [config.placements, config.fonts, config.threads, config.priceBands, config.fieldLimits, designs]);
+
+  const activeElement = useMemo(
+    () => activeDesign?.elements.find((el) => el.id === activeDesign.activeElementId) ?? activeDesign?.elements[0],
+    [activeDesign],
+  );
+  const activeElementIndex = activeDesign && activeElement ? activeDesign.elements.indexOf(activeElement) : -1;
 
   const activeFont = useMemo(
-    () => config.fonts.find((f) => f.key === activeDesign?.fontKey) ?? config.fonts[0],
-    [config.fonts, activeDesign?.fontKey],
+    () => config.fonts.find((f) => f.key === activeElement?.fontKey) ?? config.fonts[0],
+    [config.fonts, activeElement?.fontKey],
   );
   const activeEval = activeKey ? evaluations[activeKey] : undefined;
-  const activeThreads = useMemo(
-    () => (activeDesign?.threadIds ?? []).map((id) => config.threads.find((th) => th.id === id)).filter(Boolean) as EditorConfig["threads"],
-    [config.threads, activeDesign?.threadIds],
+  /** The open box, measured. */
+  const activeElementEval = activeEval && activeElementIndex >= 0 ? activeEval.elements[activeElementIndex] : undefined;
+  const activeThread = useMemo(
+    () => config.threads.find((th) => th.id === activeElement?.threadId) ?? config.threads[0],
+    [config.threads, activeElement?.threadId],
   );
 
   const availableFonts = useMemo(
-    () => (activeDesign?.options.contentType === "monogram" ? config.fonts.filter((f) => f.supportsMonogram) : config.fonts),
-    [config.fonts, activeDesign?.options.contentType],
+    () => (activeElement?.options.contentType === "monogram" ? config.fonts.filter((f) => f.supportsMonogram) : config.fonts),
+    [config.fonts, activeElement?.options.contentType],
   );
 
-  const fieldLimits: FieldLimits = config.fieldLimits ?? DEFAULT_FIELD_LIMITS;
+  const motifMax = MOTIF_MAX_MM;
 
-  /** A shape is square, so the smaller side of the area is its ceiling. */
-  const motifMax = activeDesign
-    ? Math.max(MOTIF_MIN_MM, Math.min(MOTIF_MAX_MM, Math.floor(Math.min(activeDesign.field.heightMm, activeDesign.field.widthMm))))
-    : MOTIF_MAX_MM;
-
-  const bounds = useMemo(
-    () => (activeFont && activeDesign ? heightBounds(activeFont, activeDesign.field) : { min: 8, max: 40 }),
-    [activeFont, activeDesign],
-  );
-
-  /**
-   * Resizes the open design's area. The offset comes with it because pulling
-   * one edge moves the centre by half the change — the preview works that out
-   * in the design's own axes, so it is handed back here rather than redone.
-   */
-  const setField = useCallback(
-    (field: DesignField, offset?: Point) => {
-      const next = clampField(field, fieldLimits);
-      patchActive(offset ? { field: next, offset } : { field: next });
-    },
-    [fieldLimits, patchActive],
-  );
+  const bounds = useMemo(() => (activeFont ? heightBounds(activeFont) : { min: 8, max: 40 }), [activeFont]);
 
   /** What this shop offers: words, initials, and shapes if any are published. */
   const kinds = useMemo(() => {
@@ -314,16 +374,14 @@ export default function PersonalizationEditor({ locale, config, product, variant
   // ── Keeping each position's choices internally consistent ────────────
 
   useEffect(() => {
-    if (!activeDesign || !activePlacement) return;
-    const patch: Partial<DesignState> = {};
-    if (!availableFonts.some((f) => f.key === activeDesign.fontKey)) patch.fontKey = availableFonts[0]?.key;
-    const clamped = Math.min(bounds.max, Math.max(bounds.min, activeDesign.heightMm));
-    if (clamped !== activeDesign.heightMm) patch.heightMm = clamped;
-    if (activeDesign.threadIds.length > activePlacement.maxColors) {
-      patch.threadIds = activeDesign.threadIds.slice(0, activePlacement.maxColors);
-    }
-    if (Object.keys(patch).length) patchActive(patch);
-  }, [activeDesign, activePlacement, availableFonts, bounds.min, bounds.max, patchActive]);
+    if (!activeDesign || !activeElement) return;
+    const patch: Partial<ElementState> = {};
+    if (!availableFonts.some((f) => f.key === activeElement.fontKey)) patch.fontKey = availableFonts[0]?.key;
+    const clamped = Math.min(bounds.max, Math.max(bounds.min, activeElement.heightMm));
+    if (clamped !== activeElement.heightMm) patch.heightMm = clamped;
+    if (!config.threads.some((t) => t.id === activeElement.threadId)) patch.threadId = config.threads[0]?.id ?? "";
+    if (Object.keys(patch).length) patchElement(patch);
+  }, [activeDesign, activeElement, availableFonts, bounds.min, bounds.max, config.threads, patchElement]);
 
   /**
    * Copies another position's design onto the open one.
@@ -338,9 +396,11 @@ export default function PersonalizationEditor({ locale, config, product, variant
       if (!activeKey) return;
       const source = designsRef.current[sourceKey];
       if (!source) return;
+      // Fresh ids: two positions must never share a box's handle.
+      const elements = source.elements.map((el) => ({ ...el, id: nextElementId(), options: { ...el.options } }));
       commit({
         ...designsRef.current,
-        [activeKey]: { ...source, options: { ...source.options } },
+        [activeKey]: { ...source, elements, activeElementId: elements[0].id },
       });
     },
     [activeKey, commit],
@@ -354,24 +414,23 @@ export default function PersonalizationEditor({ locale, config, product, variant
         .filter((k) => !evaluations[k]?.error)
         .map((k) => ({
           placementKey: k,
-          contentType: designs[k].options.contentType,
-          text: evaluations[k].text,
-          fontKey: designs[k].fontKey,
-          heightMm: designs[k].heightMm,
-          fieldWidthMm: designs[k].field.widthMm,
-          fieldHeightMm: designs[k].field.heightMm,
-          weight: designs[k].weightStep,
-          threadColorIds: designs[k].threadIds,
-          offsetXMm: designs[k].offset.x,
-          offsetYMm: designs[k].offset.y,
-          rotationDeg: designs[k].rotationDeg,
-          trackingPct: designs[k].options.trackingPct,
-          kerning: designs[k].options.kerning ?? undefined,
-          curveDeg: designs[k].options.curveDeg,
-          outline: designs[k].options.outline,
-          puff: designs[k].options.puff,
-          motifKey: designs[k].options.motifKey ?? undefined,
-          motifSizeMm: designs[k].options.motifSizeMm,
+          elements: designs[k].elements.map((el, i) => ({
+            contentType: el.options.contentType,
+            text: evaluations[k].elements[i]?.text ?? "",
+            fontKey: el.fontKey,
+            heightMm: el.heightMm,
+            threadColorId: el.threadId,
+            weight: el.weightStep,
+            offsetXMm: el.offset.x,
+            offsetYMm: el.offset.y,
+            rotationDeg: el.rotationDeg,
+            trackingPct: el.options.trackingPct,
+            kerning: el.options.kerning ?? undefined,
+            curveDeg: el.options.curveDeg,
+            puff: el.options.puff,
+            motifKey: el.options.motifKey ?? undefined,
+            motifSizeMm: el.options.motifSizeMm,
+          })),
         })),
     [chosenKeys, designs, evaluations],
   );
@@ -409,20 +468,6 @@ export default function PersonalizationEditor({ locale, config, product, variant
         setQuoteState("ok");
         setQuoteError(null);
 
-        // The server clamps a drag that ran past the hoop's edge. When its
-        // answer differs from ours, its answer wins — otherwise the preview
-        // keeps showing a position the cart will not store.
-        for (const d of body.designs ?? []) {
-          const local = designsRef.current[d.placementKey];
-          if (!local) continue;
-          if (Math.abs(d.offsetXMm - local.offset.x) > 0.15 || Math.abs(d.offsetYMm - local.offset.y) > 0.15) {
-            setDesigns((prev) =>
-              prev[d.placementKey]
-                ? { ...prev, [d.placementKey]: { ...prev[d.placementKey], offset: { x: d.offsetXMm, y: d.offsetYMm } } }
-                : prev,
-            );
-          }
-        }
       } catch {
         if (ticket !== latestQuote.current) return;
         setQuoteState("error");
@@ -461,6 +506,10 @@ export default function PersonalizationEditor({ locale, config, product, variant
         config.placements.find((p) => p.key === firstBroken)!,
         c,
         chosenKeys.length > 1,
+        // Which box, when the position has more than one to confuse it with.
+        designs[firstBroken].elements.length > 1 && evaluations[firstBroken].errorElement !== null
+          ? evaluations[firstBroken].errorElement! + 1
+          : null,
       )
     : null;
   // Errors are only shown where they can be acted on. On the Positions step
@@ -503,6 +552,34 @@ export default function PersonalizationEditor({ locale, config, product, variant
   const previewDesign = activeDesign;
   const previewQuad = (previewPlacement?.corners as Quad | undefined) ?? null;
 
+  /** Every box of the open position, measured, as the preview draws it. */
+  const previewElements: PreviewElement[] = useMemo(() => {
+    if (!previewDesign || !activeEval) return [];
+    return previewDesign.elements.map((el, i) => {
+      const ev = activeEval.elements[i];
+      const motif = el.options.contentType === "motif" && el.options.motifKey ? config.motifs.find((m) => m.key === el.options.motifKey) : null;
+      return {
+        id: el.id,
+        font: config.fonts.find((f) => f.key === el.fontKey) ?? config.fonts[0],
+        contentType: el.options.contentType,
+        text: ev?.text ?? "",
+        lines: ev?.lines ?? [],
+        heightMm: el.heightMm,
+        weightStep: el.weightStep,
+        thread: config.threads.find((t) => t.id === el.threadId) ?? config.threads[0],
+        curveDeg: el.options.curveDeg,
+        trackingPct: el.options.trackingPct,
+        kerning: el.options.kerning,
+        motif: motif ? { path: motif.path, viewBox: motif.viewBox, sizeMm: el.options.motifSizeMm } : null,
+        widthMm: ev?.widthMm ?? 0,
+        stackMm: ev?.stackMm ?? el.heightMm,
+        offset: el.offset,
+        rotationDeg: el.rotationDeg,
+        invalid: !!ev?.error && ev.error !== "empty",
+      };
+    });
+  }, [previewDesign, activeEval, config.fonts, config.threads, config.motifs]);
+
   return (
     <div className={styles.page}>
       <header className={styles.topBar}>
@@ -525,38 +602,15 @@ export default function PersonalizationEditor({ locale, config, product, variant
                 imageUrl={previewPlacement.imageUrl}
                 productTitle={product.title}
                 placement={previewPlacement}
-                field={previewDesign?.field ?? { widthMm: previewPlacement.fieldWidthMm, heightMm: previewPlacement.fieldHeightMm }}
-                fieldLimits={fieldLimits}
-                onFieldChange={(field, offset) => setField(field, offset)}
-                font={activeFont}
-                text={activeEval?.text || c.previewPlaceholder}
-                heightMm={previewDesign?.heightMm ?? 16}
-                weightStep={previewDesign?.weightStep ?? DEFAULT_WEIGHT_STEP}
-                thread={activeThreads[0] ?? config.threads[0]}
-                outlineThread={previewDesign?.options.outline ? (activeThreads[1] ?? null) : null}
-                lines={activeEval?.lines ?? []}
-                curveDeg={previewDesign?.options.curveDeg ?? 0}
-                trackingPct={previewDesign?.options.trackingPct ?? 0}
-                kerning={previewDesign?.options.kerning ?? null}
-                contentType={previewDesign?.options.contentType ?? "text"}
-                motif={
-                  previewDesign?.options.contentType === "motif" && previewDesign.options.motifKey
-                    ? (() => {
-                        const m = config.motifs.find((x) => x.key === previewDesign.options.motifKey);
-                        return m ? { path: m.path, viewBox: m.viewBox, sizeMm: previewDesign.options.motifSizeMm } : null;
-                      })()
-                    : null
-                }
-                invalid={!!activeEval?.error}
+                elements={previewElements}
+                activeElementId={activeElementId || null}
+                onSelectElement={selectElement}
+                onElementChange={(id, patch) => patchElement(patch, id)}
+                placeholder={c.previewPlaceholder}
                 quadPct={isUsableQuad(previewQuad) ? previewQuad : null}
-                offset={previewDesign?.offset ?? { x: 0, y: 0 }}
-                onOffsetChange={(offset) => patchActive({ offset })}
-                rotationDeg={previewDesign?.rotationDeg ?? 0}
-                onRotationChange={(rotationDeg) => patchActive({ rotationDeg })}
                 dragHint={c.dragHint}
                 moveLabel={c.moveLabel}
                 rotateLabel={c.rotateLabel}
-                resizeLabel={c.resizeLabel}
                 // Positions and Your design are for editing; Review is for
                 // confirming, so the handles come off there.
                 editable={step !== "review"}
@@ -583,17 +637,17 @@ export default function PersonalizationEditor({ locale, config, product, variant
               </div>
             )}
 
-            {activeEval && activePlacement && (
+            {activeEval && activePlacement && activeElementEval && (
               <>
                 <div className={styles.fitRow}>
                   <div className={styles.fitMeter} role="img" aria-label={c.fitLabel}>
                     <div
-                      className={`${styles.fitFill} ${activeEval.widthFill > 0.99 ? styles.fitFillOver : ""}`}
-                      style={{ width: `${Math.min(100, activeEval.widthFill * 100)}%` }}
+                      className={`${styles.fitFill} ${activeElementEval.error === "tooWide" ? styles.fitFillOver : activeElementEval.widthFill > 0.99 ? styles.fitFillWide : ""}`}
+                      style={{ width: `${Math.min(100, activeElementEval.widthFill * 100)}%` }}
                     />
                   </div>
                   <span className={styles.fitText}>
-                    {Math.round(activeEval.widthMm)} / {Math.round(activeDesign?.field.widthMm ?? activePlacement.fieldWidthMm)} mm
+                    {Math.round(activeElementEval.widthMm)} / {Math.round(activePlacement.fieldWidthMm)} mm
                   </span>
                 </div>
 
@@ -613,9 +667,9 @@ export default function PersonalizationEditor({ locale, config, product, variant
                   </span>
                 </div>
 
-                {isUsableQuad(previewQuad) && previewDesign && (
+                {isUsableQuad(previewQuad) && previewDesign && activeElement && (
                   <div className={styles.orientationRow}>
-                    {/* Quarter turns of the design. Labelled by angle rather
+                    {/* Quarter turns of the open box. Labelled by angle rather
                         than by a word: "across" and "down" only mean anything
                         relative to how the panel was photographed, while 90°
                         means the same thing on every product and needs no
@@ -626,9 +680,9 @@ export default function PersonalizationEditor({ locale, config, product, variant
                           key={deg}
                           type="button"
                           role="radio"
-                          aria-checked={displayAngle(previewDesign.rotationDeg) === deg}
-                          className={`${styles.orientBtn} ${displayAngle(previewDesign.rotationDeg) === deg ? styles.orientBtnActive : ""}`}
-                          onClick={() => patchActive({ rotationDeg: deg })}
+                          aria-checked={displayAngle(activeElement.rotationDeg) === deg}
+                          className={`${styles.orientBtn} ${displayAngle(activeElement.rotationDeg) === deg ? styles.orientBtnActive : ""}`}
+                          onClick={() => patchElement({ rotationDeg: deg })}
                           title={c.orientationTitle}
                         >
                           <RotateCw size={12} aria-hidden="true" style={{ transform: `rotate(${deg}deg)` }} />
@@ -639,24 +693,19 @@ export default function PersonalizationEditor({ locale, config, product, variant
                   </div>
                 )}
 
-                {isUsableQuad(previewQuad) && previewDesign && (
+                {isUsableQuad(previewQuad) && previewDesign && activeElement && (
                   <div className={styles.positionRow}>
                     <span className={styles.positionText}>
-                      {previewDesign.offset.x === 0 && previewDesign.offset.y === 0
+                      {activeElement.offset.x === 0 && activeElement.offset.y === 0
                         ? c.positionCentred
-                        : c.positionOffset
-                            .replace("{x}", previewDesign.offset.x.toFixed(1))
-                            .replace("{y}", previewDesign.offset.y.toFixed(1))}
-                      {previewDesign.rotationDeg !== 0 &&
-                        ` · ${c.positionRotated.replace("{deg}", String(displayAngle(previewDesign.rotationDeg)))}`}
+                        : c.positionOffset.replace("{x}", activeElement.offset.x.toFixed(1)).replace("{y}", activeElement.offset.y.toFixed(1))}
+                      {activeElement.rotationDeg !== 0 && ` · ${c.positionRotated.replace("{deg}", String(displayAngle(activeElement.rotationDeg)))}`}
                     </span>
                     <button
                       type="button"
                       className={styles.recentreBtn}
-                      onClick={() => patchActive({ offset: { x: 0, y: 0 }, rotationDeg: 0 })}
-                      disabled={
-                        previewDesign.offset.x === 0 && previewDesign.offset.y === 0 && previewDesign.rotationDeg === 0
-                      }
+                      onClick={() => patchElement({ offset: { x: 0, y: 0 }, rotationDeg: 0 })}
+                      disabled={activeElement.offset.x === 0 && activeElement.offset.y === 0 && activeElement.rotationDeg === 0}
                     >
                       <RotateCcw size={12} aria-hidden="true" /> {c.recentre}
                     </button>
@@ -708,12 +757,7 @@ export default function PersonalizationEditor({ locale, config, product, variant
                       <span className={styles.optionCardBody}>
                         <span className={styles.optionCardTitle}>{p.label}</span>
                         {p.hint && <span className={styles.optionCardHint}>{p.hint}</span>}
-                        <span className={styles.optionCardMeta}>
-                          {c.areaSize
-                            .replace("{w}", String(Math.round(designs[p.key]?.field.widthMm ?? p.fieldWidthMm)))
-                            .replace("{h}", String(Math.round(designs[p.key]?.field.heightMm ?? p.fieldHeightMm)))}{" "}
-                          · {c.upToChars.replace("{n}", String(p.maxChars))}
-                        </span>
+                        <span className={styles.optionCardMeta}>{c.upToChars.replace("{n}", String(p.maxChars))}</span>
                       </span>
                       <span className={styles.optionCardRight}>
                         {p.priceCents > 0 && <span className={styles.optionCardPrice}>+€{euros(p.priceCents)}</span>}
@@ -729,21 +773,7 @@ export default function PersonalizationEditor({ locale, config, product, variant
             </fieldset>
           )}
 
-          {/* The area is sized here as well as on the design step: how big
-              the embroidery is on the cap is a placement decision as much as
-              a lettering one, and the handles on the photo already invite it. */}
-          {step === "positions" && activePlacement && activeDesign && activeEval && (
-            <AreaPanel
-              c={c}
-              field={activeDesign.field}
-              limits={fieldLimits}
-              placement={activePlacement}
-              evaluation={activeEval}
-              onChange={(field) => setField(field)}
-            />
-          )}
-
-          {step === "design" && activePlacement && activeDesign && activeEval && (
+          {step === "design" && activePlacement && activeDesign && activeEval && activeElement && activeElementEval && (
             <>
               {/* Tools, not settings: they act on whatever is open rather than
                   describing it, so they sit above the panels and not inside
@@ -809,6 +839,58 @@ export default function PersonalizationEditor({ locale, config, product, variant
                 </div>
               )}
 
+              {/* The boxes on this position. Everything below acts on the
+                  open one; the preview highlights it. */}
+              <fieldset className={styles.panel}>
+                <legend className={styles.panelTitle}>
+                  <LayoutList size={15} aria-hidden="true" /> {c.boxesTitle}
+                </legend>
+                <p className={styles.panelHint}>{c.boxesHint}</p>
+                <div className={styles.boxList} role="tablist" aria-label={c.boxesTitle}>
+                  {activeDesign.elements.map((el, i) => {
+                    const ev = activeEval.elements[i];
+                    const thread = config.threads.find((t) => t.id === el.threadId) ?? config.threads[0];
+                    const font = config.fonts.find((f) => f.key === el.fontKey) ?? config.fonts[0];
+                    const selected = el.id === activeElementId;
+                    const subject =
+                      el.options.contentType === "motif"
+                        ? (config.motifs.find((m) => m.key === el.options.motifKey)?.name ?? c.contentTypes.motif)
+                        : ev?.text.replace(/\n/g, " / ") || c.boxEmpty;
+                    return (
+                      <div key={el.id} className={`${styles.boxRow} ${selected ? styles.boxRowActive : ""} ${ev?.error && ev.error !== "empty" ? styles.boxRowError : ""}`}>
+                        <button
+                          type="button"
+                          role="tab"
+                          aria-selected={selected}
+                          className={styles.boxRowMain}
+                          onClick={() => selectElement(el.id)}
+                          aria-label={c.boxLabel.replace("{n}", String(i + 1))}
+                        >
+                          <span className={styles.boxChip} style={{ background: thread?.hex }} aria-hidden="true" />
+                          <span className={styles.boxText} style={{ fontFamily: font?.webFamily, fontWeight: weightForStep(el.weightStep).cssWeight }}>
+                            {subject}
+                          </span>
+                          <span className={styles.boxMeta}>
+                            {el.options.contentType === "motif" ? `${el.options.motifSizeMm} mm` : `${font?.name} · ${el.heightMm} mm`}
+                          </span>
+                        </button>
+                        {activeDesign.elements.length > 1 && (
+                          <button type="button" className={styles.boxRemove} onClick={() => removeElement(el.id)} aria-label={c.removeBox} title={c.removeBox}>
+                            <X size={13} aria-hidden="true" />
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className={styles.boxActions}>
+                  <button type="button" className={styles.toolBtn} onClick={addElement} disabled={activeDesign.elements.length >= MAX_ELEMENTS}>
+                    <Plus size={13} aria-hidden="true" /> {c.addBox}
+                  </button>
+                  <span className={styles.areaLimits}>{c.boxesMax.replace("{n}", String(MAX_ELEMENTS))}</span>
+                </div>
+              </fieldset>
+
               <fieldset className={styles.panel}>
                 <legend className={styles.panelTitle}>
                   <Type size={15} aria-hidden="true" /> {c.contentTitle}
@@ -820,8 +902,8 @@ export default function PersonalizationEditor({ locale, config, product, variant
                       key={ct}
                       type="button"
                       role="tab"
-                      aria-selected={activeDesign.options.contentType === ct}
-                      className={`${styles.segment} ${activeDesign.options.contentType === ct ? styles.segmentActive : ""}`}
+                      aria-selected={activeElement.options.contentType === ct}
+                      className={`${styles.segment} ${activeElement.options.contentType === ct ? styles.segmentActive : ""}`}
                       onClick={() => patchOptions({ contentType: ct })}
                     >
                       {c.contentTypes[ct]}
@@ -829,7 +911,7 @@ export default function PersonalizationEditor({ locale, config, product, variant
                   ))}
                 </div>
 
-                {activeDesign.options.contentType === "motif" ? (
+                {activeElement.options.contentType === "motif" ? (
                   <>
                     <span className={styles.fieldLabel}>{c.motifTitle}</span>
                     <div className={styles.motifGrid}>
@@ -837,9 +919,9 @@ export default function PersonalizationEditor({ locale, config, product, variant
                         <button
                           key={m.key}
                           type="button"
-                          className={`${styles.motifCard} ${activeDesign.options.motifKey === m.key ? styles.motifCardActive : ""}`}
+                          className={`${styles.motifCard} ${activeElement.options.motifKey === m.key ? styles.motifCardActive : ""}`}
                           onClick={() => patchOptions({ motifKey: m.key })}
-                          aria-pressed={activeDesign.options.motifKey === m.key}
+                          aria-pressed={activeElement.options.motifKey === m.key}
                           title={m.name}
                         >
                           {/* The catalogue is admin-authored, so the path goes
@@ -855,36 +937,37 @@ export default function PersonalizationEditor({ locale, config, product, variant
                 ) : (
                   <>
                     <label className={styles.fieldLabel} htmlFor="personalize-text">
-                      {activeDesign.options.contentType === "monogram" ? c.monogramLabel : c.textLabel}
+                      {activeElement.options.contentType === "monogram" ? c.monogramLabel : c.textLabel}
                     </label>
                     {/* A textarea, because a design can be several lines. It
                         grows with them rather than scrolling — there are at
                         most three, and a scrollbar would hide one. */}
                     <textarea
+                      key={activeElement.id}
                       id="personalize-text"
-                      className={`${styles.textInput} ${activeEval.error && activeDesign.raw ? styles.textInputError : ""}`}
-                      value={activeDesign.raw}
-                      onChange={(e) => patchActive({ raw: e.target.value })}
-                      placeholder={activeDesign.options.contentType === "monogram" ? c.monogramPlaceholder : c.textPlaceholder}
-                      rows={Math.min(MAX_TEXT_LINES, Math.max(1, activeEval.lines.length))}
+                      className={`${styles.textInput} ${activeElementEval.error && activeElement.raw ? styles.textInputError : ""}`}
+                      value={activeElement.raw}
+                      onChange={(e) => patchElement({ raw: e.target.value })}
+                      placeholder={activeElement.options.contentType === "monogram" ? c.monogramPlaceholder : c.textPlaceholder}
+                      rows={Math.min(MAX_TEXT_LINES, Math.max(1, activeElementEval.lines.length))}
                       maxLength={
-                        activeDesign.options.contentType === "monogram"
+                        activeElement.options.contentType === "monogram"
                           ? MONOGRAM_MAX_CHARS + 2
                           : (activePlacement.maxChars + 4) * MAX_TEXT_LINES
                       }
                       autoComplete="off"
                       autoCapitalize={activeFont.uppercaseOnly ? "characters" : "words"}
                       spellCheck={false}
-                      style={{ fontFamily: activeFont.webFamily, fontWeight: weightForStep(activeDesign.weightStep).cssWeight }}
+                      style={{ fontFamily: activeFont.webFamily, fontWeight: weightForStep(activeElement.weightStep).cssWeight }}
                       aria-describedby="personalize-text-help"
                     />
                     <div className={styles.fieldFooter} id="personalize-text-help">
                       <span className={styles.charCount}>
-                        {activeEval.lines.reduce((n, l) => Math.max(n, l.length), 0)} /{" "}
-                        {activeDesign.options.contentType === "monogram" ? MONOGRAM_MAX_CHARS : activePlacement.maxChars}
+                        {activeElementEval.lines.reduce((n, l) => Math.max(n, l.length), 0)} /{" "}
+                        {activeElement.options.contentType === "monogram" ? MONOGRAM_MAX_CHARS : activePlacement.maxChars}
                       </span>
                       <span className={styles.fieldNote}>
-                        {activeDesign.options.contentType === "monogram"
+                        {activeElement.options.contentType === "monogram"
                           ? c.monogramNote
                           : c.linesHint.replace("{n}", String(MAX_TEXT_LINES))}
                       </span>
@@ -903,11 +986,11 @@ export default function PersonalizationEditor({ locale, config, product, variant
                       key={f.key}
                       type="button"
                       className={`${styles.fontCard} ${f.key === activeFont.key ? styles.fontCardActive : ""}`}
-                      onClick={() => patchActive({ fontKey: f.key })}
+                      onClick={() => patchElement({ fontKey: f.key })}
                       aria-pressed={f.key === activeFont.key}
                     >
                       <span className={styles.fontSample} style={{ fontFamily: f.webFamily }}>
-                        {activeEval.text.slice(0, 8) || c.fontSample}
+                        {activeElementEval.text.slice(0, 8) || c.fontSample}
                       </span>
                       <span className={styles.fontName}>{f.name}</span>
                     </button>
@@ -920,10 +1003,10 @@ export default function PersonalizationEditor({ locale, config, product, variant
               <fieldset className={styles.panel}>
                 <legend className={styles.panelTitle}>
                   <Ruler size={15} aria-hidden="true" />{" "}
-                  {activeDesign.options.contentType === "motif" ? c.motifSizeTitle : c.sizeTitle}
+                  {activeElement.options.contentType === "motif" ? c.motifSizeTitle : c.sizeTitle}
                 </legend>
                 <p className={styles.panelHint}>{c.sizeHint}</p>
-                {activeDesign.options.contentType === "motif" ? (
+                {activeElement.options.contentType === "motif" ? (
                   <>
                     <div className={styles.sliderRow}>
                       <input
@@ -932,14 +1015,14 @@ export default function PersonalizationEditor({ locale, config, product, variant
                         min={MOTIF_MIN_MM}
                         max={motifMax}
                         step={1}
-                        value={activeDesign.options.motifSizeMm}
+                        value={activeElement.options.motifSizeMm}
                         onChange={(e) => patchOptions({ motifSizeMm: Number(e.target.value) })}
                         aria-label={c.motifSizeTitle}
                       />
                       <Stepper
                         label={c.motifSizeTitle}
                         compact
-                        value={activeDesign.options.motifSizeMm}
+                        value={activeElement.options.motifSizeMm}
                         min={MOTIF_MIN_MM}
                         max={motifMax}
                         onChange={(motifSizeMm) => patchOptions({ motifSizeMm })}
@@ -959,17 +1042,17 @@ export default function PersonalizationEditor({ locale, config, product, variant
                         min={bounds.min}
                         max={bounds.max}
                         step={1}
-                        value={activeDesign.heightMm}
-                        onChange={(e) => patchActive({ heightMm: Number(e.target.value) })}
+                        value={activeElement.heightMm}
+                        onChange={(e) => patchElement({ heightMm: Number(e.target.value) })}
                         aria-label={c.sizeTitle}
                       />
                       <Stepper
                         label={c.sizeTitle}
                         compact
-                        value={activeDesign.heightMm}
+                        value={activeElement.heightMm}
                         min={bounds.min}
                         max={bounds.max}
-                        onChange={(heightMm) => patchActive({ heightMm })}
+                        onChange={(heightMm) => patchElement({ heightMm })}
                       />
                     </div>
                     <div className={styles.sliderScale} aria-hidden="true">
@@ -983,9 +1066,9 @@ export default function PersonalizationEditor({ locale, config, product, variant
                         <button
                           key={mm}
                           type="button"
-                          className={`${styles.sizePreset} ${activeDesign.heightMm === mm ? styles.sizePresetActive : ""}`}
-                          onClick={() => patchActive({ heightMm: mm })}
-                          aria-pressed={activeDesign.heightMm === mm}
+                          className={`${styles.sizePreset} ${activeElement.heightMm === mm ? styles.sizePresetActive : ""}`}
+                          onClick={() => patchElement({ heightMm: mm })}
+                          aria-pressed={activeElement.heightMm === mm}
                         >
                           {mm}
                         </button>
@@ -1006,9 +1089,9 @@ export default function PersonalizationEditor({ locale, config, product, variant
                       key={w.step}
                       type="button"
                       role="radio"
-                      aria-checked={activeDesign.weightStep === w.step}
-                      className={`${styles.weightBtn} ${activeDesign.weightStep === w.step ? styles.weightBtnActive : ""}`}
-                      onClick={() => patchActive({ weightStep: w.step })}
+                      aria-checked={activeElement.weightStep === w.step}
+                      className={`${styles.weightBtn} ${activeElement.weightStep === w.step ? styles.weightBtnActive : ""}`}
+                      onClick={() => patchElement({ weightStep: w.step })}
                     >
                       {/* Each step previews itself in the customer's own text
                           and their chosen face — an abstract "Bold" label says
@@ -1017,7 +1100,7 @@ export default function PersonalizationEditor({ locale, config, product, variant
                         className={styles.weightSample}
                         style={{ fontFamily: activeFont.webFamily, fontWeight: w.cssWeight }}
                       >
-                        {activeEval.text.slice(0, 5) || c.fontSample}
+                        {activeElementEval.text.slice(0, 5) || c.fontSample}
                       </span>
                       <span className={styles.weightName}>{c.weightLabels[w.step - 1]}</span>
                     </button>
@@ -1029,44 +1112,46 @@ export default function PersonalizationEditor({ locale, config, product, variant
                 <legend className={styles.panelTitle}>
                   <Palette size={15} aria-hidden="true" /> {c.threadTitle}
                 </legend>
-                <p className={styles.panelHint}>{c.threadHint.replace("{n}", String(activePlacement.maxColors))}</p>
-                <div className={styles.swatchGrid}>
+                {/* One spool per box. The hint names the chosen one, because a
+                    swatch alone does not say "Fuchsia, Madeira 1921". */}
+                <p className={styles.panelHint}>
+                  <span className={styles.threadChosen}>
+                    <span className={styles.boxChip} style={{ background: activeThread?.hex }} aria-hidden="true" />
+                    {activeThread?.name}
+                    <span className={styles.threadCode}>
+                      {activeThread?.brand} {activeThread?.code}
+                    </span>
+                  </span>
+                </p>
+                <div className={styles.swatchGrid} role="radiogroup" aria-label={c.threadTitle}>
                   {config.threads.map((th) => {
-                    const index = activeDesign.threadIds.indexOf(th.id);
+                    const chosen = activeElement.threadId === th.id;
                     return (
                       <button
                         key={th.id}
                         type="button"
-                        className={`${styles.swatch} ${index >= 0 ? styles.swatchActive : ""}`}
+                        role="radio"
+                        aria-checked={chosen}
+                        className={`${styles.swatch} ${chosen ? styles.swatchActive : ""}`}
                         style={{ ["--swatch" as string]: th.hex }}
-                        onClick={() => {
-                          const ids = activeDesign.threadIds;
-                          if (ids.includes(th.id)) {
-                            // Never leave a design with no colour at all.
-                            if (ids.length > 1) patchActive({ threadIds: ids.filter((id) => id !== th.id) });
-                            return;
-                          }
-                          // At the limit the newest pick replaces the last one
-                          // rather than being ignored — a dead tap reads as the
-                          // page being broken.
-                          patchActive({
-                            threadIds:
-                              ids.length >= activePlacement.maxColors ? [...ids.slice(0, -1), th.id] : [...ids, th.id],
-                          });
-                        }}
-                        aria-pressed={index >= 0}
+                        onClick={() => patchElement({ threadId: th.id })}
                         title={`${th.name} · ${th.brand} ${th.code}`}
                       >
                         <span className={styles.swatchChip} aria-hidden="true" />
-                        {index >= 0 && <span className={styles.swatchOrder}>{index + 1}</span>}
+                        {chosen && (
+                          <span className={styles.swatchOrder}>
+                            <Check size={10} aria-hidden="true" />
+                          </span>
+                        )}
                         <span className={styles.srOnly}>{th.name}</span>
                       </button>
                     );
                   })}
                 </div>
+                {activeDesign.elements.length === 1 && <p className={styles.fieldNote}>{c.threadOne}</p>}
               </fieldset>
 
-              {activeDesign.options.contentType !== "motif" && (
+              {activeElement.options.contentType !== "motif" && (
                 <>
                   <fieldset className={styles.panel}>
                     <legend className={styles.panelTitle}>
@@ -1079,29 +1164,29 @@ export default function PersonalizationEditor({ locale, config, product, variant
                         min={TRACKING_MIN * 100}
                         max={TRACKING_MAX * 100}
                         step={1}
-                        value={Math.round(activeDesign.options.trackingPct * 100)}
+                        value={Math.round(activeElement.options.trackingPct * 100)}
                         onChange={(e) => patchOptions({ trackingPct: Number(e.target.value) / 100 })}
                         aria-label={c.trackingLabel}
                       />
                       <output className={styles.sliderValue}>
-                        {activeDesign.options.trackingPct > 0 ? "+" : ""}
-                        {Math.round(activeDesign.options.trackingPct * 100)}%
+                        {activeElement.options.trackingPct > 0 ? "+" : ""}
+                        {Math.round(activeElement.options.trackingPct * 100)}%
                       </output>
                     </div>
 
                     {/* Kerning is per gap, so it only appears once there are
                         gaps to nudge — and it is folded away, because most
                         customers will never need it. */}
-                    {activeEval.lines.length === 1 && activeEval.lines[0].length > 1 && (
+                    {activeElementEval.lines.length === 1 && activeElementEval.lines[0].length > 1 && (
                       <details className={styles.kerning}>
                         <summary className={styles.kerningSummary}>{c.kerningLabel}</summary>
                         <p className={styles.panelHint}>{c.kerningHint}</p>
                         <div className={styles.kerningRow}>
-                          {[...activeEval.lines[0]].slice(0, -1).map((ch, i) => (
+                          {[...activeElementEval.lines[0]].slice(0, -1).map((ch, i) => (
                             <label key={i} className={styles.kerningGap}>
                               <span className={styles.kerningPair} style={{ fontFamily: activeFont.webFamily }}>
                                 {ch}
-                                {activeEval.lines[0][i + 1]}
+                                {activeElementEval.lines[0][i + 1]}
                               </span>
                               <input
                                 type="range"
@@ -1109,14 +1194,14 @@ export default function PersonalizationEditor({ locale, config, product, variant
                                 min={-KERNING_LIMIT * 100}
                                 max={KERNING_LIMIT * 100}
                                 step={2}
-                                value={Math.round((activeDesign.options.kerning?.[i] ?? 0) * 100)}
+                                value={Math.round((activeElement.options.kerning?.[i] ?? 0) * 100)}
                                 onChange={(e) => {
-                                  const gaps = activeEval.lines[0].length - 1;
-                                  const next = Array.from({ length: gaps }, (_, g) => activeDesign.options.kerning?.[g] ?? 0);
+                                  const gaps = activeElementEval.lines[0].length - 1;
+                                  const next = Array.from({ length: gaps }, (_, g) => activeElement.options.kerning?.[g] ?? 0);
                                   next[i] = Number(e.target.value) / 100;
                                   patchOptions({ kerning: next });
                                 }}
-                                aria-label={`${ch}${activeEval.lines[0][i + 1]}`}
+                                aria-label={`${ch}${activeElementEval.lines[0][i + 1]}`}
                               />
                             </label>
                           ))}
@@ -1141,12 +1226,12 @@ export default function PersonalizationEditor({ locale, config, product, variant
                           min={-CURVE_LIMIT_DEG}
                           max={CURVE_LIMIT_DEG}
                           step={5}
-                          value={activeDesign.options.curveDeg}
+                          value={activeElement.options.curveDeg}
                           onChange={(e) => patchOptions({ curveDeg: Number(e.target.value) })}
                           aria-label={c.curveTitle}
                         />
                         <output className={styles.sliderValue}>
-                          {activeDesign.options.curveDeg === 0 ? c.curveStraight : `${activeDesign.options.curveDeg}°`}
+                          {activeElement.options.curveDeg === 0 ? c.curveStraight : `${activeElement.options.curveDeg}°`}
                         </output>
                       </div>
                     </fieldset>
@@ -1156,21 +1241,6 @@ export default function PersonalizationEditor({ locale, config, product, variant
                     <legend className={styles.panelTitle}>
                       <Sparkles size={15} aria-hidden="true" /> {c.finishTitle}
                     </legend>
-
-                    <label className={`${styles.switchRow} ${activeDesign.threadIds.length < 2 ? styles.switchRowOff : ""}`}>
-                      <input
-                        type="checkbox"
-                        checked={activeDesign.options.outline}
-                        disabled={activeDesign.threadIds.length < 2}
-                        onChange={(e) => patchOptions({ outline: e.target.checked })}
-                      />
-                      <span>
-                        {c.outlineLabel}
-                        {activeDesign.threadIds.length < 2 && (
-                          <span className={styles.switchNote}>{c.outlineNeedsTwo}</span>
-                        )}
-                      </span>
-                    </label>
 
                     {/* Puff is gated by the position AND the face: foam needs a
                         flat frame and wide columns, and a fine script collapses
@@ -1183,7 +1253,7 @@ export default function PersonalizationEditor({ locale, config, product, variant
                     >
                       <input
                         type="checkbox"
-                        checked={activeDesign.options.puff}
+                        checked={activeElement.options.puff}
                         disabled={!activePlacement.allowPuff || !activeFont.supportsPuff}
                         onChange={(e) => patchOptions({ puff: e.target.checked })}
                       />
@@ -1197,15 +1267,6 @@ export default function PersonalizationEditor({ locale, config, product, variant
                   </fieldset>
                 </>
               )}
-
-              <AreaPanel
-                c={c}
-                field={activeDesign.field}
-                limits={fieldLimits}
-                placement={activePlacement}
-                evaluation={activeEval}
-                onChange={(field) => setField(field)}
-              />
 
             </>
           )}
@@ -1221,33 +1282,34 @@ export default function PersonalizationEditor({ locale, config, product, variant
                 const p = config.placements.find((pl) => pl.key === k)!;
                 const d = designs[k];
                 const e = evaluations[k];
-                const font = config.fonts.find((f) => f.key === d.fontKey) ?? config.fonts[0];
-                const threads = d.threadIds.map((id) => config.threads.find((th) => th.id === id)).filter(Boolean);
                 return (
                   <div key={k} className={styles.reviewCard}>
                     <div className={styles.reviewHead}>
                       <span className={styles.reviewPlacement}>{p.label}</span>
                       <span className={styles.reviewPrice}>€{euros(e.priceCents ?? 0)}</span>
                     </div>
-                    {/* Set large and in the chosen face: the whole point of this
-                        step is that a typo is visible, and a typo in 13px body
-                        copy is not. */}
-                    <strong
-                      className={styles.spellCheckText}
-                      style={{
-                        fontFamily: font.webFamily,
-                        fontWeight: weightForStep(d.weightStep).cssWeight,
-                        color: threads[0]?.hex,
-                      }}
-                    >
-                      {e.text}
-                    </strong>
-                    <p className={styles.reviewMeta}>
-                      {font.name} · {c.weightLabels[d.weightStep - 1]} · {d.heightMm} mm ·{" "}
-                      {threads.map((th) => th!.name).join(", ")} ·{" "}
-                      {c.areaSize.replace("{w}", String(Math.round(d.field.widthMm))).replace("{h}", String(Math.round(d.field.heightMm)))}
-                      {d.rotationDeg !== 0 && ` · ${displayAngle(d.rotationDeg)}°`}
-                    </p>
+                    {/* Every box, set large and in its own face and spool: the
+                        whole point of this step is that a typo is visible,
+                        and a typo in 13px body copy is not. */}
+                    {d.elements.map((el, i) => {
+                      const font = config.fonts.find((f) => f.key === el.fontKey) ?? config.fonts[0];
+                      const thread = config.threads.find((th) => th.id === el.threadId);
+                      const motif = el.options.contentType === "motif" ? config.motifs.find((m) => m.key === el.options.motifKey) : null;
+                      return (
+                        <div key={el.id} className={styles.reviewBox}>
+                          <strong
+                            className={styles.spellCheckText}
+                            style={{ fontFamily: motif ? undefined : font.webFamily, fontWeight: weightForStep(el.weightStep).cssWeight, color: thread?.hex }}
+                          >
+                            {motif ? motif.name : e.elements[i]?.text}
+                          </strong>
+                          <p className={styles.reviewMeta}>
+                            {motif ? `${el.options.motifSizeMm} mm` : `${font.name} · ${c.weightLabels[el.weightStep - 1]} · ${el.heightMm} mm`} · {thread?.name}
+                            {el.rotationDeg !== 0 && ` · ${displayAngle(el.rotationDeg)}°`}
+                          </p>
+                        </div>
+                      );
+                    })}
                     <button
                       type="button"
                       className={styles.reviewEdit}
@@ -1369,10 +1431,14 @@ export default function PersonalizationEditor({ locale, config, product, variant
 
 type Copy = ReturnType<typeof getTranslations>["personalize"];
 
-function errorCopyForCode(code: string, placement: EditorPlacement, c: Copy, namePosition: boolean): string {
+function errorCopyForCode(code: string, placement: EditorPlacement, c: Copy, namePosition: boolean, boxNumber: number | null = null): string {
   // Only worth naming the position when there is more than one to confuse it
-  // with — otherwise every message starts with a word that adds nothing.
-  const where = (msg: string) => (namePosition ? `${placement.label}: ${msg}` : msg);
+  // with — otherwise every message starts with a word that adds nothing. The
+  // same goes for the box.
+  const where = (msg: string) => {
+    const parts = [namePosition ? placement.label : null, boxNumber ? c.boxLabel.replace("{n}", String(boxNumber)) : null].filter(Boolean);
+    return parts.length ? `${parts.join(" · ")}: ${msg}` : msg;
+  };
   switch (code) {
     // No `empty` case: nothing written yet is handled as a nudge, not an error.
     case "tooLong":
@@ -1387,8 +1453,8 @@ function errorCopyForCode(code: string, placement: EditorPlacement, c: Copy, nam
       return where(c.errors.tooTall);
     case "tooManyLines":
       return where(c.errors.tooManyLines.replace("{n}", String(MAX_TEXT_LINES)));
-    case "outlineNeedsSecondColor":
-      return where(c.errors.outlineNeedsSecondColor);
+    case "tooManyBoxes":
+      return where(c.errTooManyBoxes.replace("{n}", String(MAX_ELEMENTS)));
     case "tooManyColors":
       return where(c.errors.tooManyColors.replace("{n}", String(placement.maxColors)));
     case "tooManyStitches":
@@ -1469,85 +1535,6 @@ function errorCopy(code: string | undefined, c: Copy, detail?: ErrorDetail, loca
     default:
       return null;
   }
-}
-
-/**
- * The embroidery area's size, as numbers.
- *
- * The handles on the photo are the natural way to size it; this is the exact
- * way, and the only way on a keyboard. "Fit to text" is the shortcut most
- * people want — wrap the area round what they wrote, with a margin the hoop
- * needs — and Reset is the way back to the position's own default.
- */
-function AreaPanel({
-  c,
-  field,
-  limits,
-  placement,
-  evaluation,
-  onChange,
-}: {
-  c: ReturnType<typeof getTranslations>["personalize"];
-  field: DesignField;
-  limits: FieldLimits;
-  placement: EditorPlacement;
-  evaluation: EditorEvaluation;
-  onChange: (field: DesignField) => void;
-}) {
-  const isDefault = field.widthMm === placement.fieldWidthMm && field.heightMm === placement.fieldHeightMm;
-  // A hoop wants clearance round the stitching: a tenth, and never under 4mm.
-  const fitted = clampField(
-    {
-      widthMm: Math.ceil(evaluation.widthMm * 1.1 + 4),
-      heightMm: Math.ceil(evaluation.stackMm * 1.1 + 4),
-    },
-    limits,
-  );
-  const canFit = evaluation.widthMm > 0 && (fitted.widthMm !== field.widthMm || fitted.heightMm !== field.heightMm);
-
-  return (
-    <fieldset className={styles.panel}>
-      <legend className={styles.panelTitle}>
-        <Scaling size={15} aria-hidden="true" /> {c.areaTitle}
-      </legend>
-      <p className={styles.panelHint}>{c.areaHint}</p>
-      <div className={styles.areaGrid}>
-        <Stepper
-          label={c.areaWidth}
-          value={field.widthMm}
-          min={limits.minMm}
-          max={limits.maxWidthMm}
-          onChange={(widthMm) => onChange({ ...field, widthMm })}
-        />
-        <Stepper
-          label={c.areaHeight}
-          value={field.heightMm}
-          min={limits.minMm}
-          max={limits.maxHeightMm}
-          onChange={(heightMm) => onChange({ ...field, heightMm })}
-        />
-      </div>
-      <div className={styles.areaActions}>
-        <button type="button" className={styles.toolBtn} onClick={() => onChange(fitted)} disabled={!canFit}>
-          <Maximize2 size={13} aria-hidden="true" /> {c.areaFit}
-        </button>
-        <button
-          type="button"
-          className={styles.toolBtn}
-          onClick={() => onChange({ widthMm: placement.fieldWidthMm, heightMm: placement.fieldHeightMm })}
-          disabled={isDefault}
-        >
-          <RotateCcw size={13} aria-hidden="true" /> {c.areaReset}
-        </button>
-        <span className={styles.areaLimits}>
-          {c.areaLimits
-            .replace(/\{min\}/g, String(limits.minMm))
-            .replace("{maxW}", String(limits.maxWidthMm))
-            .replace("{maxH}", String(limits.maxHeightMm))}
-        </span>
-      </div>
-    </fieldset>
-  );
 }
 
 /**

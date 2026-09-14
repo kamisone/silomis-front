@@ -55,25 +55,22 @@ export const TRACKING_MIN = -0.12;
 export const TRACKING_MAX = 0.5;
 export const KERNING_LIMIT = 0.4;
 export const CURVE_LIMIT_DEG = 160;
-export const OUTLINE_STITCH_FACTOR = 0.55;
 export const PUFF_STITCH_FACTOR = 1.35;
 export const CURVE_STITCH_FACTOR = 1.08;
 export const MOTIF_MIN_MM = 15;
 export const MOTIF_MAX_MM = 120;
+/** Lines cannot touch across rows; the sheet uses the same figure. */
+export const LINE_LEADING = 1.35;
 /**
- * Mirrors FIELD_MIN_MM / FIELD_MAX_*_MM — how large the customer may make the
- * embroidery area. The config carries the server's own figures; these are the
- * fallback while it loads.
+ * Mirrors FIELD_MIN_MM / FIELD_MAX_*_MM — the machine's largest frame. The
+ * config carries the server's own figures; these are the fallback while it
+ * loads.
  */
 export const FIELD_MIN_MM = 15;
 export const FIELD_MAX_WIDTH_MM = 300;
 export const FIELD_MAX_HEIGHT_MM = 200;
-
-/** The embroidery area the customer sized — the hoop the design runs in. */
-export interface DesignField {
-  widthMm: number;
-  heightMm: number;
-}
+/** Mirrors HOOP_MARGIN_MM — clearance a frame needs round the stitching, each side. */
+export const HOOP_MARGIN_MM = 4;
 
 export interface FieldLimits {
   minMm: number;
@@ -83,16 +80,46 @@ export interface FieldLimits {
 
 export const DEFAULT_FIELD_LIMITS: FieldLimits = { minMm: FIELD_MIN_MM, maxWidthMm: FIELD_MAX_WIDTH_MM, maxHeightMm: FIELD_MAX_HEIGHT_MM };
 
-/** Snaps an area to the machine's limits, to the millimetre — finer than that is below what a hoop can hold. */
-export function clampField(field: DesignField, limits: FieldLimits): DesignField {
-  const snap = (n: number) => Math.round(n);
+/**
+ * Mirrors hoopAround on the server: the smallest rectangle, square to the
+ * garment, that holds every box with its clearance — measured on each box's
+ * real footprint, turned as it is.
+ */
+export function hoopAround(
+  elements: { offset: { x: number; y: number }; rotationDeg: number; widthMm: number; stackMm: number; heightMm: number }[],
+): { widthMm: number; heightMm: number; cx: number; cy: number } {
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minY = Infinity;
+  let maxY = -Infinity;
+  for (const el of elements) {
+    const rad = (el.rotationDeg * Math.PI) / 180;
+    const cos = Math.cos(rad);
+    const sin = Math.sin(rad);
+    const bw = Math.max(el.widthMm, 1) / 2;
+    const bh = Math.max(el.stackMm, el.heightMm, 1) / 2;
+    for (const [x, y] of [
+      [-bw, -bh],
+      [bw, -bh],
+      [bw, bh],
+      [-bw, bh],
+    ]) {
+      const px = el.offset.x + x * cos - y * sin;
+      const py = el.offset.y + x * sin + y * cos;
+      minX = Math.min(minX, px);
+      maxX = Math.max(maxX, px);
+      minY = Math.min(minY, py);
+      maxY = Math.max(maxY, py);
+    }
+  }
+  if (!elements.length) return { widthMm: FIELD_MIN_MM, heightMm: FIELD_MIN_MM, cx: 0, cy: 0 };
   return {
-    widthMm: snap(Math.min(limits.maxWidthMm, Math.max(limits.minMm, field.widthMm))),
-    heightMm: snap(Math.min(limits.maxHeightMm, Math.max(limits.minMm, field.heightMm))),
+    widthMm: Math.max(FIELD_MIN_MM, maxX - minX + 2 * HOOP_MARGIN_MM),
+    heightMm: Math.max(FIELD_MIN_MM, maxY - minY + 2 * HOOP_MARGIN_MM),
+    cx: (minX + maxX) / 2,
+    cy: (minY + maxY) / 2,
   };
 }
-/** Lines cannot touch across rows; the sheet uses the same figure. */
-export const LINE_LEADING = 1.35;
 
 export type ContentKind = "text" | "monogram" | "motif";
 
@@ -130,9 +157,8 @@ export interface EditorPlacement {
   label: string;
   hint: string | null;
   /**
-   * The starting size of the embroidery area, and the real size of the traced
-   * panel — which is what puts millimetres onto the photograph at scale. The
-   * customer resizes the area from here; these never change under them.
+   * The real size of the traced panel — what puts millimetres onto the
+   * photograph at scale, and what bounds how far a box may travel over it.
    */
   fieldWidthMm: number;
   fieldHeightMm: number;
@@ -174,7 +200,7 @@ export interface EditorConfig {
   fonts: EditorFont[];
   threads: EditorThread[];
   motifs: EditorMotif[];
-  /** How large the customer may make the embroidery area. */
+  /** The machine's largest frame — what every box, and the hoop round them, must fit. */
   fieldLimits?: FieldLimits;
   priceBands: EditorPriceBand[];
 }
@@ -241,7 +267,6 @@ export function estimateStitches(args: {
   let glyphStitches = glyphs * perChar * heightFactor * typeFactor * weightFactor;
   if (args.options.curveDeg) glyphStitches *= CURVE_STITCH_FACTOR;
   if (args.options.puff) glyphStitches *= PUFF_STITCH_FACTOR;
-  if (args.options.outline) glyphStitches *= 1 + OUTLINE_STITCH_FACTOR;
 
   return Math.ceil(glyphStitches + colorStitches + STITCH_BASE_OVERHEAD);
 }
@@ -261,7 +286,6 @@ export interface DesignOptions {
   trackingPct: number;
   kerning: number[] | null;
   curveDeg: number;
-  outline: boolean;
   puff: boolean;
   motifKey: string | null;
   motifSizeMm: number;
@@ -272,7 +296,6 @@ export const DEFAULT_OPTIONS: DesignOptions = {
   trackingPct: 0,
   kerning: null,
   curveDeg: 0,
-  outline: false,
   puff: false,
   motifKey: null,
   motifSizeMm: 30,
@@ -346,48 +369,62 @@ export type ValidationCode =
   | "tooManyLines"
   | "tooManyColors"
   | "tooManyStitches"
-  | "outlineNeedsSecondColor";
+  | "tooManyBoxes";
 
-export interface EditorEvaluation {
+/** One box, measured. */
+export interface ElementEvaluation {
   text: string;
   lines: string[];
   stitches: number;
   widthMm: number;
+  /** Every line stacked, curve included — what has to fit the area's height. */
+  stackMm: number;
+  /** How full the area's width is, 0–1, for the fit meter. */
+  widthFill: number;
+  error: ValidationCode | null;
+}
+
+/** The position: every box, and the whole hoop priced as one run. */
+export interface EditorEvaluation {
+  elements: ElementEvaluation[];
+  /** Every box's words, in order — what the review step spells out. */
+  text: string;
+  stitches: number;
   /** null while the design is invalid — there is nothing to quote yet. */
   priceCents: number | null;
   band: EditorPriceBand | null;
   error: ValidationCode | null;
-  /** How full the area's width is, 0–1, for the fit meter. */
-  widthFill: number;
-  /** The stacked height of every line, curve included — what has to fit the area's height. */
-  stackMm: number;
+  /** Which box the error is on, or null for a position-level one. */
+  errorElement: number | null;
+  /** Distinct spools across the boxes — the machine's needles. */
+  threadCount: number;
+  /** The hoop fitted round the boxes, as the server will fit it. */
+  hoop: { widthMm: number; heightMm: number; cx: number; cy: number };
 }
 
 /** Mirrors STITCHABLE_TEXT / STITCHABLE_MONOGRAM on the server. */
 const STITCHABLE_TEXT = /^[A-Za-zÀ-ÖØ-öø-ÿŁłŃńŚśŹźŻżĄąĆćĘęÓó0-9 '&.\-]+$/u;
 const STITCHABLE_MONOGRAM = /^[A-Za-zÀ-ÖØ-öø-ÿŁłŃńŚśŹźŻżĄąĆćĘęÓó]+$/u;
 
+/** Mirrors MAX_ELEMENTS on the server. */
+export const MAX_ELEMENTS = 6;
+
 /**
- * One pass over a design: normalise, check, measure, price. Returns the first
- * problem rather than a list — the editor shows one thing to fix at a time,
- * and a wall of simultaneous complaints while someone is mid-word reads as the
- * form being broken.
+ * One pass over a box: normalise, check, measure. Returns the first problem
+ * rather than a list — the editor shows one thing to fix at a time, and a
+ * wall of simultaneous complaints while someone is mid-word reads as the form
+ * being broken.
  */
-export function evaluate(args: {
+export function evaluateElement(args: {
   raw: string;
   font: EditorFont;
   placement: EditorPlacement;
-  /** The area the customer sized; the position's own field is only its starting value. */
-  field: DesignField;
+  limits: FieldLimits;
   heightMm: number;
-  colorCount: number;
-  bands: EditorPriceBand[];
   weightStep?: number;
   options: DesignOptions;
-  /** Highest multiplier among the chosen threads — a slower cone costs more. */
-  threadMultiplier?: number;
-}): EditorEvaluation {
-  const { font, placement, field, heightMm, colorCount, bands, weightStep, options } = args;
+}): ElementEvaluation {
+  const { font, placement, limits, heightMm, weightStep, options } = args;
   const { contentType } = options;
 
   const lines = normalizeLines(args.raw, contentType, font.uppercaseOnly);
@@ -410,17 +447,10 @@ export function evaluate(args: {
           kerning: options.kerning,
         });
 
-  const stitches = estimateStitches({
-    lines,
-    heightMm,
-    font,
-    contentType,
-    colorCount,
-    weightStep,
-    options,
-  });
-  const band = resolveBand(stitches, bands);
-  const widthFill = field.widthMm > 0 ? Math.min(1, widthMm / field.widthMm) : 0;
+  // A box is one spool, so it carries no colour change of its own; those are
+  // counted once for the position, between one box's spool and the next.
+  const stitches = estimateStitches({ lines, heightMm, font, contentType, colorCount: 1, weightStep, options });
+  const widthFill = placement.fieldWidthMm > 0 ? Math.min(1, widthMm / placement.fieldWidthMm) : 0;
   const stackMm = stackHeightMm({
     lineCount: lines.length,
     heightMm,
@@ -430,8 +460,8 @@ export function evaluate(args: {
     motifSizeMm: options.motifSizeMm,
   });
 
-  const base = { text, lines, stitches, widthMm, band, widthFill, stackMm };
-  const invalid = (error: ValidationCode): EditorEvaluation => ({ ...base, priceCents: null, error });
+  const base = { text, lines, stitches, widthMm, stackMm, widthFill };
+  const invalid = (error: ValidationCode): ElementEvaluation => ({ ...base, error });
 
   if (contentType === "motif") {
     if (!options.motifKey) return invalid("empty");
@@ -450,20 +480,73 @@ export function evaluate(args: {
     }
   }
 
-  if (options.outline && colorCount < 2) return invalid("outlineNeedsSecondColor");
-  if (colorCount > placement.maxColors) return invalid("tooManyColors");
-  if (widthMm > field.widthMm) return invalid("tooWide");
-  if (stackMm > field.heightMm) return invalid("tooTall");
+  // A single box has to fit the machine's largest frame on its own; the
+  // whole position is checked again once every box is placed.
+  if (widthMm > limits.maxWidthMm) return invalid("tooWide");
+  if (stackMm > limits.maxHeightMm) return invalid("tooTall");
 
+  return { ...base, error: null };
+}
+
+/**
+ * The position as a whole: every box checked, then one hoop priced as one
+ * run — the stitches summed, a colour change per extra spool, the band on the
+ * total, the position's own price once. Mirrors PersonalizationService.resolve.
+ */
+export function evaluateDesign(args: {
+  elements: {
+    raw: string;
+    font: EditorFont;
+    heightMm: number;
+    weightStep?: number;
+    options: DesignOptions;
+    thread: EditorThread | undefined;
+    offset: { x: number; y: number };
+    rotationDeg: number;
+  }[];
+  placement: EditorPlacement;
+  limits: FieldLimits;
+  bands: EditorPriceBand[];
+}): EditorEvaluation {
+  const { placement, limits, bands } = args;
+  const elements = args.elements.map((el) =>
+    evaluateElement({ raw: el.raw, font: el.font, placement, limits, heightMm: el.heightMm, weightStep: el.weightStep, options: el.options }),
+  );
+  const hoop = hoopAround(
+    args.elements.map((el, i) => ({ offset: el.offset, rotationDeg: el.rotationDeg, widthMm: elements[i].widthMm, stackMm: elements[i].stackMm, heightMm: el.heightMm })),
+  );
+  const threads = new Map<string, EditorThread>();
+  for (const el of args.elements) if (el.thread) threads.set(el.thread.id, el.thread);
+  const threadCount = threads.size;
+
+  const stitches = elements.reduce((sum, el) => sum + el.stitches, 0) + Math.max(0, threadCount - 1) * STITCHES_PER_COLOR_CHANGE;
+  const band = resolveBand(stitches, bands);
+  const text = elements.map((el) => el.text).filter(Boolean).join("\n");
+  const base = { elements, text, stitches, band, threadCount, hoop };
+  const invalid = (error: ValidationCode, errorElement: number | null = null): EditorEvaluation => ({
+    ...base,
+    priceCents: null,
+    error,
+    errorElement,
+  });
+
+  if (!elements.length || elements.length > MAX_ELEMENTS) return invalid("tooManyBoxes");
+  const broken = elements.findIndex((el) => el.error);
+  if (broken >= 0) return invalid(elements[broken].error!, broken);
+  if (threadCount > placement.maxColors) return invalid("tooManyColors");
+  // Boxes far apart need a hoop the machine does not have, however small each is.
+  if (hoop.widthMm > limits.maxWidthMm) return invalid("tooWide");
+  if (hoop.heightMm > limits.maxHeightMm) return invalid("tooTall");
   if (!band) return invalid("tooManyStitches");
 
   // Band covers machine time, the position covers the hooping and the run, and
-  // a slow thread multiplies the first — mirrors PersonalizationService.resolve.
-  const priceCents = Math.round(band.priceCents * (args.threadMultiplier ?? 1)) + placement.priceCents;
-  return { ...base, priceCents, error: null };
+  // a slow thread multiplies the first — the dearest spool on the hoop decides.
+  const multiplier = Math.max(1, ...[...threads.values()].map((t) => t.priceMultiplier ?? 1));
+  const priceCents = Math.round(band.priceCents * multiplier) + placement.priceCents;
+  return { ...base, priceCents, error: null, errorElement: null };
 }
 
-/** Height bounds for a font in an area — the tighter of the two. */
-export function heightBounds(font: EditorFont, field: DesignField): { min: number; max: number } {
-  return { min: font.minHeightMm, max: Math.min(font.maxHeightMm, Math.floor(field.heightMm)) };
+/** Height bounds for a font. */
+export function heightBounds(font: EditorFont): { min: number; max: number } {
+  return { min: font.minHeightMm, max: font.maxHeightMm };
 }

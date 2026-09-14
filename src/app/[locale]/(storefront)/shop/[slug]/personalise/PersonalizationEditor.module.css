@@ -233,6 +233,12 @@
   background: #c81818;
 }
 
+/* Wider than the photographed panel: not refused, but worth a second look —
+   the lettering will run off the part of the item that was traced. */
+.fitFillWide {
+  background: #d97706;
+}
+
 .fitText {
   font-size: 11px;
   font-weight: 600;
@@ -967,47 +973,55 @@
    touch-action: none is load-bearing — without it a drag on a phone scrolls
    the page instead of moving the design, which is the single most common way
    a canvas like this feels broken on mobile. */
-.designLayer {
+/* ── The boxes ───────────────────────────────────────────────────────────
+   Each box is its own layer on the photo, drawn at its own millimetre size,
+   so a press lands on the words it looks like it lands on. */
+.boxStage {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.elementLayer {
+  pointer-events: auto;
   position: absolute;
   cursor: grab;
   touch-action: none;
   outline: none;
-  /* The design travels beyond the traced area, so nothing here may clip. */
-  overflow: visible;
+  border-radius: 3px;
+  box-shadow: 0 0 0 1px transparent;
+  transition: box-shadow 0.15s ease;
 }
 
-.designLayerDragging {
+.elementLayer:focus-visible {
+  box-shadow: 0 0 0 2px rgb(18 156 152 / 60%);
+}
+
+.elementLayerDragging {
   cursor: grabbing;
 }
 
-/* The hoop boundary. Shown only while the design is picked up — these are
-   aiming guides, and once the aiming is done they are the only thing between
-   the customer and a clean look at their cap. Clicking the photo outside the
-   design puts it down and takes them away. */
-.fieldOutline {
-  fill: none;
-  stroke: rgb(18 156 152 / 55%);
-  stroke-dasharray: 3 2;
-  opacity: 0;
-  transition: opacity 0.18s ease;
+/* The selected box shows a thin frame so its extent — the width the fit
+   meter measures — is visible, and its rotate handle. */
+.elementLayerSelected {
+  box-shadow: 0 0 0 1.5px rgb(18 156 152 / 85%);
 }
 
-.designLayerSelected .fieldOutline,
-.designLayerDragging .fieldOutline {
-  opacity: 1;
-}
-
-/* Something actually wrong overrides the tidy view: a design that will not
+/* Something actually wrong overrides the tidy view: a box that will not
    stitch has to say so whether or not it happens to be selected. */
-.designLayerInvalid .fieldOutline {
-  stroke: rgb(200 24 24 / 80%);
-  opacity: 1;
+.elementLayerInvalid {
+  box-shadow: 0 0 0 1.5px rgb(200 24 24 / 80%);
 }
 
-/* The SVG stretches to its element: the viewBox is the hoop field in
-   millimetres and the element is that field on screen, so a 20mm name occupies
-   exactly its share of the panel. */
-.designLayer .previewSvg {
+.elementSvg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: none;
+}
+
+/* On the flat fallback the boxes are drawn into one SVG. */
+.previewField .previewSvg {
   width: 100%;
   height: 100%;
 }
@@ -1707,96 +1721,14 @@
   }
 }
 
-/* ── Resizing the area ─────────────────────────────────────────────────────
-   Eight handles on the dotted box's own edges. They live inside the design
-   layer so they turn with it, and each pulls one side while the opposite side
-   stays put. Small squares rather than circles: the rotate handle is the one
-   round thing, so the two are never confused at a glance. */
-.resizeHandle {
-  position: absolute;
-  width: 12px;
-  height: 12px;
-  margin: -6px 0 0 -6px;
-  padding: 0;
-  border-radius: 3px;
-  border: 1.5px solid var(--color-primary);
-  background: #fff;
-  box-shadow: 0 1px 3px rgb(16 24 40 / 25%);
-  touch-action: none;
-  opacity: 0;
-  transition: opacity 0.18s ease, transform 0.12s ease;
+/* On a box: just outside its top-right corner, turning with it. */
+.rotateHandleCorner {
+  left: 100%;
+  top: 0;
+  margin: -26px 0 0 -4px;
 }
 
-/* A finger needs more than 12px; the hit area is padded invisibly. */
-.resizeHandle::before {
-  content: "";
-  position: absolute;
-  inset: -8px;
-}
-
-.designLayerSelected .resizeHandle {
-  opacity: 1;
-}
-
-.resizeHandle:hover,
-.resizeHandle:focus-visible {
-  transform: scale(1.25);
-  outline: none;
-}
-.resizeHandle:focus-visible {
-  box-shadow: 0 0 0 3px rgb(18 156 152 / 35%);
-}
-
-.designLayerResizing {
-  cursor: default;
-}
-
-.handleNW { left: 0; top: 0; cursor: nwse-resize; }
-.handleN { left: 50%; top: 0; cursor: ns-resize; }
-.handleNE { left: 100%; top: 0; cursor: nesw-resize; }
-.handleE { left: 100%; top: 50%; cursor: ew-resize; }
-.handleSE { left: 100%; top: 100%; cursor: nwse-resize; }
-.handleS { left: 50%; top: 100%; cursor: ns-resize; }
-.handleSW { left: 0; top: 100%; cursor: nesw-resize; }
-.handleW { left: 0; top: 50%; cursor: ew-resize; }
-
-/* The area's size in millimetres, pinned under its bottom edge while it is
-   being handled — the figure the customer is actually changing. */
-.sizeTag {
-  position: absolute;
-  left: 50%;
-  top: 100%;
-  /* Clear of the bottom handle, which sits astride the edge. */
-  transform: translate(-50%, 14px);
-  padding: 2px 7px;
-  border-radius: 6px;
-  background: var(--color-secondary);
-  color: #fff;
-  font-size: 10.5px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-  pointer-events: none;
-}
-
-.rotateHandleHidden {
-  opacity: 0;
-  pointer-events: none;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .resizeHandle {
-    transition: none;
-  }
-}
-
-/* ── Area panel ────────────────────────────────────────────────────────── */
-
-.areaGrid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
+/* ── Millimetre stepper ────────────────────────────────────────────────── */
 
 .stepper {
   display: flex;
@@ -1874,21 +1806,6 @@
   color: var(--color-muted, #6b7280);
 }
 
-.areaActions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-  margin-top: 12px;
-}
-
-.areaLimits {
-  margin-left: auto;
-  font-size: 11px;
-  color: var(--color-muted, #6b7280);
-  font-variant-numeric: tabular-nums;
-}
-
 /* A stepper beside a slider: fixed width, no label of its own. */
 .stepperCompact {
   flex: 0 0 auto;
@@ -1929,4 +1846,120 @@
 }
 .sizePresetActive::after {
   color: var(--color-primary);
+}
+
+/* ── Boxes ─────────────────────────────────────────────────────────────── */
+
+.boxList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.boxRow {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+}
+
+.boxRowMain {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--field-border, #e2e6eb);
+  background: var(--background);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.boxRowMain:hover {
+  border-color: var(--color-primary);
+}
+.boxRowActive .boxRowMain {
+  border-color: var(--color-primary);
+  background: var(--color-surface-tint);
+  box-shadow: inset 3px 0 0 var(--color-primary);
+}
+.boxRowError .boxRowMain {
+  border-color: rgb(200 24 24 / 60%);
+}
+
+.boxChip {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  box-shadow: inset 0 0 0 1px rgb(16 24 40 / 18%);
+  flex-shrink: 0;
+}
+
+.boxText {
+  font-size: 15px;
+  color: var(--color-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.boxMeta {
+  font-size: 11px;
+  color: var(--color-muted, #6b7280);
+  white-space: nowrap;
+}
+
+.boxRemove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  border-radius: 10px;
+  border: 1px solid var(--field-border, #e2e6eb);
+  background: var(--background);
+  color: var(--color-muted, #6b7280);
+  cursor: pointer;
+}
+.boxRemove:hover {
+  border-color: #dc2626;
+  color: #dc2626;
+}
+
+.areaLimits {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--color-muted, #6b7280);
+  font-variant-numeric: tabular-nums;
+}
+
+.boxActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+/* The chosen spool, named. */
+.threadChosen {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-weight: 700;
+  color: var(--color-secondary);
+}
+
+.threadCode {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-muted, #6b7280);
+}
+
+.reviewBox + .reviewBox {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--field-border, #e2e6eb);
 }

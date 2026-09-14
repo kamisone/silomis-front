@@ -76,6 +76,26 @@ export interface EmbroideryJob {
   stitchFileKey: string | null;
   digitizedAt: string | null;
   hasArtwork: boolean;
+  /** Every box in the hoop — what the operator sews, one by one. */
+  elements: EmbroideryJobElement[];
+}
+
+export interface EmbroideryJobElement {
+  contentType: "text" | "monogram" | "motif";
+  text: string;
+  lineCount: number;
+  fontName: string;
+  fontWeight: number;
+  heightMm: number;
+  curveDeg: number;
+  isPuff: boolean;
+  motifName: string | null;
+  motifSizeMm: number | null;
+  thread: ThreadColor;
+  offsetXMm: number;
+  offsetYMm: number;
+  rotationDeg: number;
+  stitchEstimate: number;
 }
 
 /** Orders the floor may actually work. Mirrors the backend's queue filter. */
@@ -146,22 +166,13 @@ export function EmbroideryJobCard({
 
   const action = NEXT_ACTION[job.productionStatus];
   const workable = WORKABLE_ORDER_STATUSES.has(job.orderStatus);
-  const isMotif = job.contentType === "motif";
-  const weightName = WEIGHT_NAME[job.fontWeight] ?? String(job.fontWeight);
 
-  const finish: string[] = [];
-  if (job.hasOutline) finish.push(job.outlineThread ? `Outline in ${job.outlineThread.brand} ${job.outlineThread.code}` : "Outline");
-  if (job.isPuff) finish.push("3D puff");
-  if (job.curveDeg) finish.push(`Curve ${job.curveDeg > 0 ? "+" : ""}${job.curveDeg}°`);
-  if (job.trackingPct) finish.push(`Tracking ${job.trackingPct > 0 ? "+" : ""}${Math.round(job.trackingPct * 100)}%`);
-
+  // The hoop itself: how far it was moved from the traced centre. A moved
+  // hoop is the one thing a centred hooping gets wrong.
   const moved = Math.abs(job.offsetXMm) >= 0.05 || Math.abs(job.offsetYMm) >= 0.05;
-  const placement = [
-    moved ? `moved ${job.offsetXMm > 0 ? "+" : ""}${job.offsetXMm.toFixed(1)} / ${job.offsetYMm > 0 ? "+" : ""}${job.offsetYMm.toFixed(1)} mm from centre` : "centred",
-    job.rotationDeg ? `turned ${job.rotationDeg}°` : null,
-  ]
-    .filter(Boolean)
-    .join(", ");
+  const placement = moved
+    ? `hooped ${job.offsetXMm > 0 ? "+" : ""}${job.offsetXMm.toFixed(1)} / ${job.offsetYMm > 0 ? "+" : ""}${job.offsetYMm.toFixed(1)} mm from centre`
+    : "hooped on the traced centre";
 
   const noteDirty = note.trim() !== (job.productionNote ?? "");
   const fileDirty = fileKey.trim() !== (job.stitchFileKey ?? "");
@@ -190,29 +201,50 @@ export function EmbroideryJobCard({
         </p>
       )}
 
-      {/* The whole reason the operator is on this screen. Set large and in a
-          face of ours rather than the customer's — the font is named below,
-          so nobody mistakes the preview for the stitch file. */}
-      <div className={styles.stitchText}>
-        <span className={styles.stitchTextLabel}>
-          {isMotif ? "Shape" : job.contentType === "monogram" ? "Monogram" : "Text"}
-          {showOrder && <> · {job.placementLabel}</>}
-        </span>
-        <strong className={`${styles.stitchTextValue} ${isMotif ? styles.stitchTextMotif : ""}`}>
-          {isMotif ? (job.motifName ?? job.motifKey ?? "—") : job.text}
-        </strong>
-        <span className={styles.threads}>
-          {job.threadColors.map((th, i) => (
-            <span key={`${th.code}-${i}`} className={styles.thread} title={th.name}>
-              <span className={styles.threadChip} style={{ background: th.hex }} aria-hidden="true" />
-              <span className={styles.threadCode}>
-                {th.brand} {th.code}
-              </span>
-              <span className={styles.threadName}>{th.name}</span>
-            </span>
-          ))}
-        </span>
-      </div>
+      {/* The whole reason the operator is on this screen: every box, its
+          words set large, its face, its size, its spool, and where it sits.
+          Set in a face of ours rather than the customer's — the font is
+          named beside it, so nobody mistakes the preview for the stitch file. */}
+      <ol className={styles.boxes}>
+        {(job.elements?.length ? job.elements : []).map((el, i) => {
+          const isMotifBox = el.contentType === "motif";
+          const finish = [
+            el.fontWeight !== 400 ? WEIGHT_NAME[el.fontWeight] ?? String(el.fontWeight) : null,
+            el.lineCount > 1 ? `${el.lineCount} lines` : null,
+            el.curveDeg ? `curve ${el.curveDeg > 0 ? "+" : ""}${el.curveDeg}°` : null,
+            el.isPuff ? "3D puff" : null,
+          ].filter(Boolean);
+          const placed = [
+            Math.abs(el.offsetXMm) >= 0.05 || Math.abs(el.offsetYMm) >= 0.05
+              ? `at ${el.offsetXMm > 0 ? "+" : ""}${el.offsetXMm.toFixed(1)} / ${el.offsetYMm > 0 ? "+" : ""}${el.offsetYMm.toFixed(1)} mm`
+              : "centred",
+            el.rotationDeg ? `${el.rotationDeg}°` : null,
+          ]
+            .filter(Boolean)
+            .join(" · ");
+          return (
+            <li key={i} className={styles.boxItem}>
+              <span className={styles.boxIndex}>{i + 1}</span>
+              <div className={styles.boxBody}>
+                <strong className={`${styles.stitchTextValue} ${isMotifBox ? styles.stitchTextMotif : ""}`}>{isMotifBox ? (el.motifName ?? "shape") : el.text}</strong>
+                <span className={styles.thread} title={el.thread.name}>
+                  <span className={styles.threadChip} style={{ background: el.thread.hex }} aria-hidden="true" />
+                  <span className={styles.threadCode}>
+                    {el.thread.brand} {el.thread.code}
+                  </span>
+                  <span className={styles.threadName}>{el.thread.name}</span>
+                </span>
+                <span className={styles.boxSpecs}>
+                  {isMotifBox ? mm(el.motifSizeMm ?? 0) : `${el.fontName} · ${mm(el.heightMm)}`}
+                  {finish.length > 0 && ` · ${finish.join(" · ")}`}
+                  {` · ${placed}`}
+                  {` · ≈ ${el.stitchEstimate.toLocaleString()} st.`}
+                </span>
+              </div>
+            </li>
+          );
+        })}
+      </ol>
 
       <dl className={styles.jobSpecs}>
         <div>
@@ -230,22 +262,10 @@ export function EmbroideryJobCard({
           </div>
         )}
         <div>
-          <dt>{isMotif ? "Size" : "Lettering"}</dt>
-          <dd>
-            {isMotif
-              ? mm(job.motifSizeMm ?? 0)
-              : `${job.fontName} · ${weightName} · ${mm(job.heightMm)}${job.lineCount > 1 ? ` · ${job.lineCount} lines` : ""}`}
+          <dt>Area</dt>
+          <dd className={moved ? styles.specWarn : undefined}>
+            {mm(job.fieldWidthMm)} × {mm(job.fieldHeightMm)} · {placement}
           </dd>
-        </div>
-        {finish.length > 0 && (
-          <div>
-            <dt>Finish</dt>
-            <dd>{finish.join(" · ")}</dd>
-          </div>
-        )}
-        <div>
-          <dt>Placement</dt>
-          <dd className={moved || job.rotationDeg ? styles.specWarn : undefined}>{placement}</dd>
         </div>
         <div>
           <dt>Stitches</dt>
@@ -409,7 +429,7 @@ export function ArtworkDialog({ job, onClose }: { job: EmbroideryJob; onClose: (
           <div>
             <h2 id={`artwork-${job.id}`}>Production artwork</h2>
             <p className={styles.artworkSub}>
-              {job.orderNumber} · {job.placementLabel} · {job.contentType === "motif" ? (job.motifName ?? "shape") : `“${job.text}”`}
+              {job.orderNumber} · {job.placementLabel} · {job.elements.length} {job.elements.length === 1 ? "box" : "boxes"}
             </p>
           </div>
           <div className={styles.artworkActions}>

@@ -15,31 +15,36 @@ export interface CartItemOption {
 }
 
 /** What the editor sends. Mirrors the backend's PersonalizationInputSchema. */
-export interface PersonalizationInput {
-  placementKey: string;
+/** One box inside a position's embroidery area. Mirrors ElementInputSchema. */
+export interface PersonalizationElementInput {
   contentType: "text" | "monogram" | "motif";
   /** Lines separated by "\n" — the server splits and normalises them. */
   text: string;
   fontKey: string;
   heightMm: number;
-  threadColorIds: string[];
-  /** Where the hoop was moved to, in mm from the position's traced centre. */
+  /** The one spool this box is sewn in. */
+  threadColorId: string;
+  weight?: number;
+  /** Where the box sits, in mm from the position's traced centre, and its own angle. */
   offsetXMm?: number;
   offsetYMm?: number;
-  /** Angle of the embroidery in the garment's plane. */
   rotationDeg?: number;
   /** Letter spacing, and per-gap nudges on top of it. */
   trackingPct?: number;
   kerning?: number[];
   /** Degrees of arc the baseline is bent along. */
   curveDeg?: number;
-  /** A second pass round every glyph, in the second thread. */
-  outline?: boolean;
   /** Foam under the satin. */
   puff?: boolean;
   /** A pre-digitised shape instead of lettering. */
   motifKey?: string;
   motifSizeMm?: number;
+}
+
+/** One position's design: its boxes. Mirrors PersonalizationInputSchema. */
+export interface PersonalizationInput {
+  placementKey: string;
+  elements: PersonalizationElementInput[];
 }
 
 /** What comes back on a line — already resolved and priced by the server. */
@@ -56,6 +61,19 @@ export interface CartItemPersonalization {
   isPuff?: boolean;
   threadColors: { brand: string; code: string; name: string; hex: string }[];
   priceCents: number;
+  /** Every box in the area, each in its own spool. */
+  elements?: CartDesignElement[];
+}
+
+export interface CartDesignElement {
+  contentType: "text" | "monogram" | "motif";
+  text: string;
+  fontName: string;
+  heightMm: number;
+  isPuff: boolean;
+  motifName: string | null;
+  motifSizeMm: number | null;
+  thread: { brand: string; code: string; name: string; hex: string };
 }
 
 export interface CartItem {

@@ -85,22 +85,50 @@
   border-bottom: 1px solid #fecaca;
 }
 
-/* The subject of the card. Tabular, generously spaced and unabbreviated —
-   an operator reads this and types it nowhere, so it has to be right at a
-   glance from arm's length. */
-.stitchText {
+/* The subject of the card: every box, one after another. Tabular,
+   generously spaced and unabbreviated — an operator reads this and types it
+   nowhere, so it has to be right at a glance from arm's length. */
+.boxes {
+  list-style: none;
+  margin: 0;
+  padding: 10px 14px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 16px 14px;
+  gap: 8px;
   background: var(--color-surface-tint);
 }
 
-.stitchTextLabel {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+.boxItem {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.boxIndex {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-top: 5px;
+  border-radius: 999px;
+  background: var(--color-secondary);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.boxBody {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.boxSpecs {
+  font-size: 11.5px;
+  font-weight: 600;
   color: var(--color-muted, #6b7280);
 }
 
