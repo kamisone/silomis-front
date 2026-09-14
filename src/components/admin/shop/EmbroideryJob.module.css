@@ -1,0 +1,426 @@
+/* ── Job card ─────────────────────────────────────────────────────────────
+   A card rather than a table row: a job has a dozen attributes of very
+   different weights, and the one that matters most — the text being sewn —
+   cannot be a 13px cell among eleven others without being misread. */
+
+.job {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--field-border, #e2e6eb);
+  border-radius: 14px;
+  background: var(--background);
+  overflow: hidden;
+}
+
+.jobHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--field-border, #e2e6eb);
+}
+
+.jobHeadMain {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.orderLink {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-primary);
+  text-decoration: none;
+}
+.orderLink:hover {
+  text-decoration: underline;
+}
+
+.positionTitle {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--color-secondary);
+}
+
+.jobDate {
+  font-size: 11.5px;
+  color: var(--color-muted, #6b7280);
+}
+
+.statusBadge {
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.status_pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+.status_digitizing {
+  background: #dbeafe;
+  color: #1e40af;
+}
+.status_ready {
+  background: #d1fae5;
+  color: #065f46;
+}
+.status_stitched {
+  background: #eef1f4;
+  color: #4b5563;
+}
+
+/* An order that is not paid must be impossible to mistake for work. */
+.holdNote {
+  margin: 0;
+  padding: 8px 14px;
+  background: #fef2f2;
+  color: #991b1b;
+  font-size: 12px;
+  border-bottom: 1px solid #fecaca;
+}
+
+/* The subject of the card. Tabular, generously spaced and unabbreviated —
+   an operator reads this and types it nowhere, so it has to be right at a
+   glance from arm's length. */
+.stitchText {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px 14px;
+  background: var(--color-surface-tint);
+}
+
+.stitchTextLabel {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-muted, #6b7280);
+}
+
+.stitchTextValue {
+  font-size: 26px;
+  line-height: 1.2;
+  font-weight: 700;
+  color: var(--color-secondary);
+  word-break: break-word;
+  white-space: pre-line;
+  /* Ambiguous glyph pairs are the whole risk here (I/l, 0/O), so the text is
+     set in a face that keeps them apart rather than in the UI sans. */
+  font-family: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, monospace;
+}
+
+.stitchTextMotif {
+  font-family: inherit;
+  font-size: 20px;
+}
+
+.threads {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 14px;
+  margin-top: 4px;
+}
+
+.thread {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.threadChip {
+  width: 13px;
+  height: 13px;
+  border-radius: 4px;
+  box-shadow: inset 0 0 0 1px rgb(16 24 40 / 18%);
+  flex-shrink: 0;
+}
+
+/* The supplier code is what gets loaded on the machine, so it reads as a code
+   and not as prose. */
+.threadCode {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.threadName {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--color-muted, #6b7280);
+}
+
+.jobSpecs {
+  display: grid;
+  gap: 1px;
+  margin: 0;
+  background: var(--field-border, #e2e6eb);
+}
+
+.jobSpecs > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 14px;
+  padding: 8px 14px;
+  background: var(--background);
+}
+
+.jobSpecs dt {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--color-muted, #6b7280);
+  flex-shrink: 0;
+}
+
+.jobSpecs dd {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-secondary);
+  text-align: right;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.specSub {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--color-muted, #6b7280);
+}
+
+/* A moved or turned design is the one thing a centred hooping gets wrong,
+   so it is coloured to be read before the hoop is loaded. */
+.specWarn {
+  color: #92400e;
+}
+
+/* ── Digitiser's fields ───────────────────────────────────────────────── */
+
+.jobFields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+  border-top: 1px solid var(--field-border, #e2e6eb);
+  background: var(--color-surface-tint);
+}
+
+.jobField {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.jobFieldLabel {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-muted, #6b7280);
+}
+
+.jobFieldRow {
+  display: flex;
+  gap: 6px;
+  align-items: stretch;
+}
+
+.jobFieldRow input {
+  flex: 1;
+  min-width: 0;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 12.5px;
+  padding: 0.45rem 0.6rem;
+}
+
+.jobFieldHint {
+  font-size: 11px;
+  color: var(--color-muted, #6b7280);
+}
+
+.noteArea {
+  min-height: 0;
+  font-size: 12.5px;
+  padding: 0.45rem 0.6rem;
+}
+
+/* ── Actions ──────────────────────────────────────────────────────────── */
+
+/* Two rows on purpose: the secondary controls above, the one thing the
+   operator does next as a full-width button below — the same place on every
+   card, whatever wrapped above it. */
+.jobActions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 11px 14px;
+  border-top: 1px solid var(--field-border, #e2e6eb);
+  margin-top: auto;
+}
+
+.jobActionsRow {
+  display: flex;
+  gap: 8px;
+}
+
+.statusSelect {
+  flex: 1;
+  min-width: 0;
+}
+
+.nextBtn {
+  width: 100%;
+}
+
+.primaryBtn,
+.secondaryBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 9px;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: opacity 0.15s ease, border-color 0.15s ease;
+  white-space: nowrap;
+}
+
+.primaryBtn {
+  background: var(--color-primary);
+  color: #fff;
+}
+.primaryBtn:hover:not(:disabled) {
+  opacity: 0.9;
+}
+.primaryBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.secondaryBtn {
+  background: var(--background);
+  border-color: var(--field-border, #e2e6eb);
+  color: var(--color-secondary);
+}
+.secondaryBtn:hover:not(:disabled) {
+  border-color: var(--color-primary);
+}
+.secondaryBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Artwork viewer ───────────────────────────────────────────────────── */
+
+.artworkOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 22px;
+  background: rgb(16 24 40 / 52%);
+}
+
+.artworkPanel {
+  width: min(820px, 100%);
+  max-height: 90vh;
+  overflow: auto;
+  background: var(--background);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 18px 48px rgb(16 24 40 / 26%);
+}
+
+.artworkHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.artworkHead h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-secondary);
+}
+
+.artworkSub {
+  margin: 3px 0 0;
+  font-size: 12.5px;
+  color: var(--color-muted, #6b7280);
+}
+
+.artworkActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* A grid ground, so a design with a white or cream thread is still visible
+   and the hoop rectangle reads as a boundary rather than as the edge of the
+   page. */
+.artworkStage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 26px;
+  border-radius: 12px;
+  background:
+    linear-gradient(45deg, #f4f6f8 25%, transparent 25%),
+    linear-gradient(-45deg, #f4f6f8 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #f4f6f8 75%),
+    linear-gradient(-45deg, transparent 75%, #f4f6f8 75%);
+  background-size: 16px 16px;
+  background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+  border: 1px solid var(--field-border, #e2e6eb);
+}
+
+.artworkStage svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.artworkNote {
+  margin: 12px 0 0;
+  font-size: 12px;
+  color: var(--color-muted, #6b7280);
+}
+
+.spin {
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    animation: none;
+  }
+  .job,
+  .primaryBtn,
+  .secondaryBtn {
+    transition: none;
+  }
+}

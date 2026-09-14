@@ -151,6 +151,26 @@ export default function PlacementTraceEditor({
   // lining the admin up against something a customer never sees.
   const area = quadPx && usable ? areaFromQuad(quadPx) : null;
 
+  /**
+   * Height from the field's proportions, matching the storefront exactly.
+   * Stretching millimetre artwork into a box of a different shape squashes the
+   * lettering, and the admin would be lining up against a distortion.
+   */
+  const sampleH = area ? area.width * (fieldHeightMm / fieldWidthMm) : 0;
+
+  /**
+   * How far the traced shape is from the field's own proportions.
+   *
+   * They describe the same rectangle, so a large difference means one of the
+   * two is wrong — usually the millimetres, typed once and never checked
+   * against the photo. Worth saying out loud: it does not break anything now
+   * that the sample follows the field, but it does mean the guides on the
+   * storefront will not sit where the tracing was drawn.
+   */
+  const aspectDrift =
+    area && area.height > 0 ? area.width / area.height / (fieldWidthMm / fieldHeightMm) : 1;
+  const aspectOff = Math.abs(Math.log(aspectDrift)) > 0.18;
+
   return (
     <div className={styles.editor}>
       <div
@@ -181,7 +201,7 @@ export default function PlacementTraceEditor({
               left: area.cx,
               top: area.cy,
               width: area.width,
-              height: area.height,
+              height: sampleH,
               transform: "translate(-50%, -50%)",
             }}
             aria-hidden="true"
@@ -227,6 +247,14 @@ export default function PlacementTraceEditor({
         sample shows. Arrow keys nudge a focused corner.
         {!usable && <strong className={styles.helpWarn}> This shape has collapsed — spread the corners apart.</strong>}
       </p>
+
+      {aspectOff && usable && (
+        <p className={styles.aspectWarn}>
+          This tracing is {aspectDrift > 1 ? "wider" : "taller"} than the {fieldWidthMm}×{fieldHeightMm}mm field it
+          stands for. The sample follows the millimetres, so it will not fill the shape you drew — check the field size
+          above, or redraw the corners to match it.
+        </p>
+      )}
     </div>
   );
 }

@@ -1706,3 +1706,227 @@
     transition: none;
   }
 }
+
+/* ── Resizing the area ─────────────────────────────────────────────────────
+   Eight handles on the dotted box's own edges. They live inside the design
+   layer so they turn with it, and each pulls one side while the opposite side
+   stays put. Small squares rather than circles: the rotate handle is the one
+   round thing, so the two are never confused at a glance. */
+.resizeHandle {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  margin: -6px 0 0 -6px;
+  padding: 0;
+  border-radius: 3px;
+  border: 1.5px solid var(--color-primary);
+  background: #fff;
+  box-shadow: 0 1px 3px rgb(16 24 40 / 25%);
+  touch-action: none;
+  opacity: 0;
+  transition: opacity 0.18s ease, transform 0.12s ease;
+}
+
+/* A finger needs more than 12px; the hit area is padded invisibly. */
+.resizeHandle::before {
+  content: "";
+  position: absolute;
+  inset: -8px;
+}
+
+.designLayerSelected .resizeHandle {
+  opacity: 1;
+}
+
+.resizeHandle:hover,
+.resizeHandle:focus-visible {
+  transform: scale(1.25);
+  outline: none;
+}
+.resizeHandle:focus-visible {
+  box-shadow: 0 0 0 3px rgb(18 156 152 / 35%);
+}
+
+.designLayerResizing {
+  cursor: default;
+}
+
+.handleNW { left: 0; top: 0; cursor: nwse-resize; }
+.handleN { left: 50%; top: 0; cursor: ns-resize; }
+.handleNE { left: 100%; top: 0; cursor: nesw-resize; }
+.handleE { left: 100%; top: 50%; cursor: ew-resize; }
+.handleSE { left: 100%; top: 100%; cursor: nwse-resize; }
+.handleS { left: 50%; top: 100%; cursor: ns-resize; }
+.handleSW { left: 0; top: 100%; cursor: nesw-resize; }
+.handleW { left: 0; top: 50%; cursor: ew-resize; }
+
+/* The area's size in millimetres, pinned under its bottom edge while it is
+   being handled — the figure the customer is actually changing. */
+.sizeTag {
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  /* Clear of the bottom handle, which sits astride the edge. */
+  transform: translate(-50%, 14px);
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: var(--color-secondary);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.rotateHandleHidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .resizeHandle {
+    transition: none;
+  }
+}
+
+/* ── Area panel ────────────────────────────────────────────────────────── */
+
+.areaGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.stepper {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.stepperLabel {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--color-muted, #6b7280);
+}
+
+.stepperRow {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--field-border, #e2e6eb);
+  border-radius: 10px;
+  background: var(--background);
+  overflow: hidden;
+}
+.stepperRow:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgb(18 156 152 / 15%);
+}
+
+.stepperBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  flex-shrink: 0;
+  border: none;
+  background: var(--color-surface-tint);
+  color: var(--color-secondary);
+  cursor: pointer;
+}
+.stepperBtn:hover:not(:disabled) {
+  color: var(--color-primary);
+}
+.stepperBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.stepperInput {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 8px 4px 8px 8px;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--color-secondary);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  outline: none;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+.stepperInput::-webkit-outer-spin-button,
+.stepperInput::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.stepperUnit {
+  align-self: center;
+  padding-right: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-muted, #6b7280);
+}
+
+.areaActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.areaLimits {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--color-muted, #6b7280);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A stepper beside a slider: fixed width, no label of its own. */
+.stepperCompact {
+  flex: 0 0 auto;
+  width: 138px;
+}
+
+.sizePresets {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.sizePreset {
+  min-width: 40px;
+  padding: 5px 9px;
+  border-radius: 8px;
+  border: 1px solid var(--field-border, #e2e6eb);
+  background: var(--background);
+  color: var(--color-secondary);
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.sizePreset::after {
+  content: " mm";
+  font-weight: 500;
+  color: var(--color-muted, #6b7280);
+}
+.sizePreset:hover {
+  border-color: var(--color-primary);
+}
+.sizePresetActive {
+  border-color: var(--color-primary);
+  background: var(--color-surface-tint);
+  color: var(--color-primary);
+}
+.sizePresetActive::after {
+  color: var(--color-primary);
+}

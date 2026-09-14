@@ -136,6 +136,40 @@
 
 /* ── Tracing ──────────────────────────────────────────────────────────── */
 
+/* The one number the shop still owns about size: the traced panel's real
+   dimensions. Set beside the tracing, because that is what it measures. */
+.calibration {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--color-surface-tint);
+  border: 1px solid var(--field-border, #e2e6eb);
+}
+
+.calibrationText {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1 1 260px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--color-muted, #6b7280);
+}
+.calibrationText strong {
+  font-size: 13px;
+  color: var(--color-secondary);
+}
+
+.calibrationFields {
+  display: grid;
+  grid-template-columns: repeat(2, 110px);
+  gap: 8px;
+}
+
 .traceActions {
   display: flex;
   align-items: center;

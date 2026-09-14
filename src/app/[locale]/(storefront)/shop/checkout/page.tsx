@@ -7,6 +7,7 @@ import { loadStripe } from "@stripe/stripe-js";
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import { useCart } from "@/components/shop/CartContext";
 import PriceBreakdown from "@/components/shop/PriceBreakdown";
+import EmbroideryLine from "@/components/shop/EmbroideryLine";
 import PromoCodeInput, { type ValidateCouponResult } from "@/components/shop/PromoCodeInput";
 import { getTranslations, type Locale } from "@/lib/i18n";
 import { useLocale } from "@/lib/i18n/useLocale";
@@ -1026,11 +1027,7 @@ export default function CheckoutPage() {
                         the spelling has to be visible here and not only in the
                         cart drawer the customer may never have opened. */}
                     {item.personalizations?.map((d) => (
-                      <span key={d.placementKey} className={styles.summaryItemPersonalization}>
-                        <span className={styles.summaryItemPersonalizationChip} style={{ background: d.threadColors[0]?.hex }} aria-hidden="true" />
-                        <span className={styles.summaryItemPersonalizationText}>“{d.text}”</span>
-                        <span className={styles.summaryItemPersonalizationMeta}>{d.placementLabel}</span>
-                      </span>
+                      <EmbroideryLine key={d.placementKey} design={d} locale={locale} compact />
                     ))}
                   </span>
                 </>

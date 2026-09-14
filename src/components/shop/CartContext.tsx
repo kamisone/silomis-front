@@ -48,8 +48,12 @@ export interface CartItemPersonalization {
   placementLabel: string;
   contentType: "text" | "monogram" | "motif";
   text: string;
+  motifName?: string | null;
+  motifSizeMm?: number | null;
   fontName: string;
   heightMm: number;
+  hasOutline?: boolean;
+  isPuff?: boolean;
   threadColors: { brand: string; code: string; name: string; hex: string }[];
   priceCents: number;
 }
@@ -228,8 +232,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           return { ok: true };
         }
         const body = await res.json().catch(() => ({}));
-        const { code, available } = parseApiError(body);
-        return { ok: false, code, available };
+        // Spread rather than picking two fields: a personalisation rejection
+        // carries counts and a suggestion the editor turns into a sentence.
+        return { ok: false, ...parseApiError(body) };
       } catch {
         return { ok: false };
       } finally {
@@ -271,8 +276,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         }
         setCart(prevCart);
         const body = await res.json().catch(() => ({}));
-        const { code, available } = parseApiError(body);
-        return { ok: false, code, available };
+        // Spread rather than picking two fields: a personalisation rejection
+        // carries counts and a suggestion the editor turns into a sentence.
+        return { ok: false, ...parseApiError(body) };
       } catch {
         setCart(prevCart);
         return { ok: false };

@@ -1,20 +1,33 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Copy, Check, Truck, Package, MapPin } from "lucide-react";
+import { Copy, Check, Truck, Package, MapPin, Scissors } from "lucide-react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
 import { useToast } from "@/components/toast/ToastContext";
 import Button from "@/components/admin/ui/Button";
+import { EmbroideryJobCard, STATUS_LABEL as JOB_STATUS_LABEL, type EmbroideryJob } from "@/components/admin/shop/EmbroideryJob";
 import ui from "@/components/admin/ui/admin-ui.module.css";
 
 interface OrderItem {
   id: string;
   titleSnapshot: string;
   skuSnapshot: string | null;
+  optionsSnapshot: Array<{ attributeName: string; value: string; displayValue: string | null }> | null;
   quantity: number;
   unitPriceCents: number;
   totalCents: number;
+  /** Embroidery fee already folded into unitPriceCents; kept apart for the breakdown. */
+  personalizationCents: number;
+  personalizations: Array<{
+    id: string;
+    placementLabel: string;
+    contentType: "text" | "monogram" | "motif";
+    text: string;
+    motifName: string | null;
+    productionStatus: "pending" | "digitizing" | "ready" | "stitched";
+  }>;
 }
 
 interface StatusHistoryEntry {
@@ -170,17 +183,53 @@ export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { toast } = useToast();
   const [order, setOrder] = useState<Order | null>(null);
+  const [jobs, setJobs] = useState<EmbroideryJob[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [transitioning, setTransitioning] = useState(false);
 
+  // Loading is only the first read; a reload after a status change keeps the
+  // page in place rather than blanking it.
   const load = useCallback(async () => {
-    setLoading(true);
-    setOrder(await api.get<Order>(`/next-api/admin/shop/orders/${id}`));
-    setLoading(false);
+    try {
+      const loaded = await api.get<Order>(`/next-api/admin/shop/orders/${id}`);
+      setOrder(loaded);
+      // The production view of the same designs — status, note, stitch file,
+      // artwork. Fetched only when the order actually carries embroidery.
+      if (loaded.items.some((i) => i.personalizations?.length)) {
+        const res = await api.get<{ items: EmbroideryJob[] }>(`/next-api/admin/shop/personalization/orders/${id}/jobs`);
+        setJobs(res.items);
+      } else {
+        setJobs([]);
+      }
+    } catch {
+      setLoadError("Could not load this order.");
+    } finally {
+      setLoading(false);
+    }
   }, [id]);
 
+  /** A saved job card replaces its row, and the item table's badge follows. */
+  const onJobChange = useCallback((job: EmbroideryJob) => {
+    setJobs((prev) => prev.map((j) => (j.id === job.id ? job : j)));
+    setOrder((prev) =>
+      prev
+        ? {
+            ...prev,
+            items: prev.items.map((i) => ({
+              ...i,
+              personalizations: i.personalizations?.map((d) => (d.id === job.id ? { ...d, productionStatus: job.productionStatus } : d)),
+            })),
+          }
+        : prev,
+    );
+  }, []);
+
   useEffect(() => {
-    load();
+    // Deferred a tick: the read is a network round-trip, not a synchronous
+    // state update, and the lint rule cannot tell the difference otherwise.
+    const t = setTimeout(load, 0);
+    return () => clearTimeout(t);
   }, [load]);
 
   async function handleTransition(toStatus: string) {
@@ -198,6 +247,9 @@ export default function OrderDetailPage() {
     }
   }
 
+  if (loadError) {
+    return <p className={ui.error}>{loadError}</p>;
+  }
   if (loading || !order) {
     return <div className={ui.emptyState}>Loading…</div>;
   }
@@ -334,10 +386,36 @@ export default function OrderDetailPage() {
           <tbody>
             {order.items.map((i) => (
               <tr key={i.id}>
-                <td>{i.titleSnapshot}</td>
+                <td>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "0.2rem" }}>
+                    <span>{i.titleSnapshot}</span>
+                    {i.optionsSnapshot && i.optionsSnapshot.length > 0 && (
+                      <span style={{ fontSize: "0.8rem", color: "var(--color-secondary)" }}>
+                        {i.optionsSnapshot.map((o) => `${o.attributeName}: ${o.displayValue ?? o.value}`).join(" · ")}
+                      </span>
+                    )}
+                    {/* One line per embroidered position: the words, and where
+                        the floor has got to with them. The full job cards sit
+                        below; this is the glance. */}
+                    {i.personalizations?.map((d) => (
+                      <a key={d.id} href={`#job-${d.id}`} style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", fontSize: "0.8rem", color: "var(--color-primary)", textDecoration: "none" }}>
+                        <Scissors size={12} aria-hidden="true" />
+                        <span>
+                          {d.placementLabel}: <strong>{d.contentType === "motif" ? (d.motifName ?? "shape") : `“${d.text}”`}</strong>
+                        </span>
+                        <span className={ui.badge}>{JOB_STATUS_LABEL[d.productionStatus]}</span>
+                      </a>
+                    ))}
+                  </div>
+                </td>
                 <td>{i.skuSnapshot ?? "—"}</td>
                 <td>{i.quantity}</td>
-                <td>{eur(i.unitPriceCents)}</td>
+                <td>
+                  {eur(i.unitPriceCents)}
+                  {i.personalizationCents > 0 && (
+                    <span style={{ display: "block", fontSize: "0.75rem", color: "var(--color-secondary)" }}>incl. {eur(i.personalizationCents)} embroidery</span>
+                  )}
+                </td>
                 <td>{eur(i.totalCents)}</td>
               </tr>
             ))}
@@ -364,6 +442,31 @@ export default function OrderDetailPage() {
           </div>
         </div>
       </div>
+
+      {jobs.length > 0 && (
+        <section aria-labelledby="embroidery-heading" style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
+            <div>
+              <h2 id="embroidery-heading" style={{ margin: 0, fontSize: "1.05rem", color: "var(--color-primary)", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <Scissors size={16} aria-hidden="true" /> Embroidery — {jobs.length} {jobs.length === 1 ? "job" : "jobs"}
+              </h2>
+              <p style={{ margin: "0.25rem 0 0", fontSize: "0.85rem", color: "var(--color-secondary)" }}>
+                Each position is hooped and run on its own. Everything below was frozen when the customer paid.
+              </p>
+            </div>
+            <Link href="/admin/shop/personalization" style={{ fontSize: "0.85rem", color: "var(--color-primary)" }}>
+              Open the production queue →
+            </Link>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: "14px", alignItems: "start" }}>
+            {jobs.map((job) => (
+              <div key={job.id} id={`job-${job.id}`}>
+                <EmbroideryJobCard job={job} onChange={onJobChange} showOrder={false} />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <div className={ui.card} style={{ padding: "1.5rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
         <strong style={{ color: "var(--color-primary)" }}>Status history</strong>

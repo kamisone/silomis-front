@@ -15,6 +15,11 @@
 const STITCHES_PER_COLOR_CHANGE = 120;
 /** Mirrors STITCH_BASE_OVERHEAD — underlay and travel, present in every job. */
 const STITCH_BASE_OVERHEAD = 80;
+/**
+ * Mirrors STITCH_HEIGHT_EXPONENT — a satin column widens with the letter rather
+ * than adding stitches, so the count grows well short of the square.
+ */
+const STITCH_HEIGHT_EXPONENT = 1.3;
 /** Mirrors MONOGRAM_STITCH_FACTOR — interlocked letters, drawn denser. */
 const MONOGRAM_STITCH_FACTOR = 1.45;
 /** Mirrors the monogram width allowance in estimateWidthMm. */
@@ -55,6 +60,37 @@ export const PUFF_STITCH_FACTOR = 1.35;
 export const CURVE_STITCH_FACTOR = 1.08;
 export const MOTIF_MIN_MM = 15;
 export const MOTIF_MAX_MM = 120;
+/**
+ * Mirrors FIELD_MIN_MM / FIELD_MAX_*_MM — how large the customer may make the
+ * embroidery area. The config carries the server's own figures; these are the
+ * fallback while it loads.
+ */
+export const FIELD_MIN_MM = 15;
+export const FIELD_MAX_WIDTH_MM = 300;
+export const FIELD_MAX_HEIGHT_MM = 200;
+
+/** The embroidery area the customer sized — the hoop the design runs in. */
+export interface DesignField {
+  widthMm: number;
+  heightMm: number;
+}
+
+export interface FieldLimits {
+  minMm: number;
+  maxWidthMm: number;
+  maxHeightMm: number;
+}
+
+export const DEFAULT_FIELD_LIMITS: FieldLimits = { minMm: FIELD_MIN_MM, maxWidthMm: FIELD_MAX_WIDTH_MM, maxHeightMm: FIELD_MAX_HEIGHT_MM };
+
+/** Snaps an area to the machine's limits, to the millimetre — finer than that is below what a hoop can hold. */
+export function clampField(field: DesignField, limits: FieldLimits): DesignField {
+  const snap = (n: number) => Math.round(n);
+  return {
+    widthMm: snap(Math.min(limits.maxWidthMm, Math.max(limits.minMm, field.widthMm))),
+    heightMm: snap(Math.min(limits.maxHeightMm, Math.max(limits.minMm, field.heightMm))),
+  };
+}
 /** Lines cannot touch across rows; the sheet uses the same figure. */
 export const LINE_LEADING = 1.35;
 
@@ -93,6 +129,11 @@ export interface EditorPlacement {
   /** Already resolved into the shopper's language by the API. */
   label: string;
   hint: string | null;
+  /**
+   * The starting size of the embroidery area, and the real size of the traced
+   * panel — which is what puts millimetres onto the photograph at scale. The
+   * customer resizes the area from here; these never change under them.
+   */
   fieldWidthMm: number;
   fieldHeightMm: number;
   maxColors: number;
@@ -133,6 +174,8 @@ export interface EditorConfig {
   fonts: EditorFont[];
   threads: EditorThread[];
   motifs: EditorMotif[];
+  /** How large the customer may make the embroidery area. */
+  fieldLimits?: FieldLimits;
   priceBands: EditorPriceBand[];
 }
 
@@ -190,7 +233,7 @@ export function estimateStitches(args: {
   }
 
   const glyphs = args.lines.join("").split("").filter((ch) => ch !== " ").length;
-  const heightFactor = (args.heightMm / 10) ** 2;
+  const heightFactor = (args.heightMm / 10) ** STITCH_HEIGHT_EXPONENT;
   const typeFactor = args.contentType === "monogram" ? MONOGRAM_STITCH_FACTOR : 1;
   const perChar = args.font.stitchesPerCharAt10mm ?? 140;
   const weightFactor = weightForStep(args.weightStep).stitchFactor;
@@ -244,6 +287,26 @@ export function normalizeLines(raw: string, contentType: ContentKind, uppercaseO
     .filter(Boolean);
 }
 
+/**
+ * What one line will measure once stitched, in millimetres.
+ *
+ * This is the number the validator judges by, and the number the preview is
+ * rendered at — see the note in DesignPreview. It is a model of the digitised
+ * embroidery face, not of whatever the browser happens to have installed.
+ */
+export function lineWidthMm(args: {
+  line: string;
+  heightMm: number;
+  font: EditorFont;
+  contentType: ContentKind;
+  weightStep?: number;
+  trackingPct: number;
+  kerning: number[] | null;
+}): number {
+  const base = estimateWidthMm(args.line, args.heightMm, args.font, args.contentType, args.weightStep);
+  return base + spacingWidthMm(args.line, args.heightMm, args.trackingPct, args.kerning);
+}
+
 /** Extra width the spacing controls add. Gaps, not glyphs — see the server. */
 export function spacingWidthMm(longestLine: string, heightMm: number, trackingPct: number, kerning: number[] | null): number {
   const gaps = Math.max(0, longestLine.length - 1);
@@ -294,8 +357,10 @@ export interface EditorEvaluation {
   priceCents: number | null;
   band: EditorPriceBand | null;
   error: ValidationCode | null;
-  /** How full the placement's width is, 0–1, for the fit meter. */
+  /** How full the area's width is, 0–1, for the fit meter. */
   widthFill: number;
+  /** The stacked height of every line, curve included — what has to fit the area's height. */
+  stackMm: number;
 }
 
 /** Mirrors STITCHABLE_TEXT / STITCHABLE_MONOGRAM on the server. */
@@ -312,6 +377,8 @@ export function evaluate(args: {
   raw: string;
   font: EditorFont;
   placement: EditorPlacement;
+  /** The area the customer sized; the position's own field is only its starting value. */
+  field: DesignField;
   heightMm: number;
   colorCount: number;
   bands: EditorPriceBand[];
@@ -320,18 +387,28 @@ export function evaluate(args: {
   /** Highest multiplier among the chosen threads — a slower cone costs more. */
   threadMultiplier?: number;
 }): EditorEvaluation {
-  const { font, placement, heightMm, colorCount, bands, weightStep, options } = args;
+  const { font, placement, field, heightMm, colorCount, bands, weightStep, options } = args;
   const { contentType } = options;
 
   const lines = normalizeLines(args.raw, contentType, font.uppercaseOnly);
   const text = lines.join("\n");
   const longest = lines.reduce((a, b) => (b.length > a.length ? b : a), "");
 
+  // The widest line is what has to fit; measuring the joined text and dividing
+  // by the line count was an average, and an average passes a design whose
+  // long line overruns because its short one does not.
   const widthMm =
     contentType === "motif"
       ? options.motifSizeMm
-      : estimateWidthMm(text.replace(/\n/g, ""), heightMm, font, contentType, weightStep) / Math.max(1, lines.length) +
-        spacingWidthMm(longest, heightMm, options.trackingPct, options.kerning);
+      : lineWidthMm({
+          line: longest,
+          heightMm,
+          font,
+          contentType,
+          weightStep,
+          trackingPct: options.trackingPct,
+          kerning: options.kerning,
+        });
 
   const stitches = estimateStitches({
     lines,
@@ -343,9 +420,17 @@ export function evaluate(args: {
     options,
   });
   const band = resolveBand(stitches, bands);
-  const widthFill = placement.fieldWidthMm > 0 ? Math.min(1, widthMm / placement.fieldWidthMm) : 0;
+  const widthFill = field.widthMm > 0 ? Math.min(1, widthMm / field.widthMm) : 0;
+  const stackMm = stackHeightMm({
+    lineCount: lines.length,
+    heightMm,
+    widthMm,
+    curveDeg: options.curveDeg,
+    contentType,
+    motifSizeMm: options.motifSizeMm,
+  });
 
-  const base = { text, lines, stitches, widthMm, band, widthFill };
+  const base = { text, lines, stitches, widthMm, band, widthFill, stackMm };
   const invalid = (error: ValidationCode): EditorEvaluation => ({ ...base, priceCents: null, error });
 
   if (contentType === "motif") {
@@ -367,17 +452,8 @@ export function evaluate(args: {
 
   if (options.outline && colorCount < 2) return invalid("outlineNeedsSecondColor");
   if (colorCount > placement.maxColors) return invalid("tooManyColors");
-  if (widthMm > placement.fieldWidthMm) return invalid("tooWide");
-
-  const stackMm = stackHeightMm({
-    lineCount: lines.length,
-    heightMm,
-    widthMm,
-    curveDeg: options.curveDeg,
-    contentType,
-    motifSizeMm: options.motifSizeMm,
-  });
-  if (stackMm > placement.fieldHeightMm) return invalid("tooTall");
+  if (widthMm > field.widthMm) return invalid("tooWide");
+  if (stackMm > field.heightMm) return invalid("tooTall");
 
   if (!band) return invalid("tooManyStitches");
 
@@ -387,7 +463,7 @@ export function evaluate(args: {
   return { ...base, priceCents, error: null };
 }
 
-/** Height bounds for a font in a placement — the tighter of the two. */
-export function heightBounds(font: EditorFont, placement: EditorPlacement): { min: number; max: number } {
-  return { min: font.minHeightMm, max: Math.min(font.maxHeightMm, placement.fieldHeightMm) };
+/** Height bounds for a font in an area — the tighter of the two. */
+export function heightBounds(font: EditorFont, field: DesignField): { min: number; max: number } {
+  return { min: font.minHeightMm, max: Math.min(font.maxHeightMm, Math.floor(field.heightMm)) };
 }

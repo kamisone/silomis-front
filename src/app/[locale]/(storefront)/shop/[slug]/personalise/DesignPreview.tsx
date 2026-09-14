@@ -4,13 +4,20 @@ import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Move, RotateCw } from "lucide-react";
 import { areaFromQuad, isUsableQuad, type Area, type Point, type Quad } from "@/lib/shop/perspective";
-import { MAX_TRAVEL_FACTOR, weightForStep, type EditorFont, type EditorPlacement, type EditorThread } from "@/lib/shop/embroidery";
+import {
+  MAX_TRAVEL_FACTOR, weightForStep, lineWidthMm, clampField,
+  type ContentKind, type DesignField, type EditorFont, type EditorPlacement, type EditorThread, type FieldLimits,
+} from "@/lib/shop/embroidery";
 import styles from "./PersonalizationEditor.module.css";
 
 interface Props {
   imageUrl: string | null;
   productTitle: string;
   placement: EditorPlacement;
+  /** The embroidery area the customer sized — the hoop the design runs in. */
+  field: DesignField;
+  fieldLimits: FieldLimits;
+  onFieldChange: (field: DesignField, offset: Point) => void;
   font: EditorFont;
   text: string;
   heightMm: number;
@@ -23,6 +30,9 @@ interface Props {
   curveDeg: number;
   trackingPct: number;
   kerning: number[] | null;
+  /** Needed to measure a line the same way the validator does. */
+  contentType: ContentKind;
+  weightStepForWidth?: number;
   /** The chosen shape, drawn instead of lettering. */
   motif: { path: string; viewBox: string; sizeMm: number } | null;
   invalid: boolean;
@@ -36,9 +46,25 @@ interface Props {
   /** Copy for the screen-reader instructions on the draggable design. */
   moveLabel: string;
   rotateLabel: string;
+  resizeLabel: string;
   /** False on the review step, where the design is being confirmed, not edited. */
   editable?: boolean;
 }
+
+/**
+ * The area's handles: which side each one pulls (-1/0/1 per axis), its CSS
+ * class, and a word for the screen reader.
+ */
+const RESIZE_HANDLES: { sx: number; sy: number; cls: string; label: string }[] = [
+  { sx: -1, sy: -1, cls: "handleNW", label: "top left" },
+  { sx: 0, sy: -1, cls: "handleN", label: "top" },
+  { sx: 1, sy: -1, cls: "handleNE", label: "top right" },
+  { sx: 1, sy: 0, cls: "handleE", label: "right" },
+  { sx: 1, sy: 1, cls: "handleSE", label: "bottom right" },
+  { sx: 0, sy: 1, cls: "handleS", label: "bottom" },
+  { sx: -1, sy: 1, cls: "handleSW", label: "bottom left" },
+  { sx: -1, sy: 0, cls: "handleW", label: "left" },
+];
 
 /**
  * The design, drawn onto the product photograph.
@@ -53,6 +79,9 @@ export default function DesignPreview({
   imageUrl,
   productTitle,
   placement,
+  field,
+  fieldLimits,
+  onFieldChange,
   font,
   text,
   heightMm,
@@ -63,6 +92,7 @@ export default function DesignPreview({
   curveDeg,
   trackingPct,
   kerning,
+  contentType,
   motif,
   invalid,
   quadPct,
@@ -73,6 +103,7 @@ export default function DesignPreview({
   dragHint,
   moveLabel,
   rotateLabel,
+  resizeLabel,
   editable = true,
 }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -80,6 +111,7 @@ export default function DesignPreview({
   const [box, setBox] = useState({ width: 0, height: 0 });
   const [dragging, setDragging] = useState(false);
   const [rotating, setRotating] = useState(false);
+  const [resizing, setResizing] = useState(false);
   /**
    * Whether the design is "picked up". Its guides — the dotted field and the
    * rotate handle — exist to aim with, and once the aiming is done they are the
@@ -89,6 +121,7 @@ export default function DesignPreview({
 
   const drag = useRef<{ startX: number; startY: number; startOffset: Point } | null>(null);
   const spin = useRef<{ startAngle: number; startRotation: number } | null>(null);
+  const stretch = useRef<{ startX: number; startY: number; startField: DesignField; startOffset: Point; sx: number; sy: number } | null>(null);
 
   // The tracing is stored in percentages so it survives every rendered size;
   // the layout needs pixels, so the box has to be measured rather than assumed.
@@ -120,24 +153,36 @@ export default function DesignPreview({
       ? areaFromQuad(quadPct!.map((p) => ({ x: (p.x / 100) * box.width, y: (p.y / 100) * box.height })) as Quad)
       : null;
 
-  const fieldW = placement.fieldWidthMm;
-  const fieldH = placement.fieldHeightMm;
+  /**
+   * Two sizes, two jobs. The position's field is the *traced* panel's real
+   * size — it converts the photograph's pixels to millimetres and never moves
+   * under the customer. The design's field is the area the customer sized,
+   * drawn at that scale: widen it and the dotted box grows on the cap by
+   * exactly that many millimetres.
+   */
+  const fieldW = field.widthMm;
+  const fieldH = field.heightMm;
   /** Screen pixels per millimetre — the one conversion the whole control needs. */
-  const pxPerMm = area ? area.width / fieldW : 0;
+  const pxPerMm = area ? area.width / placement.fieldWidthMm : 0;
+  const layerW = fieldW * pxPerMm;
+  const layerH = fieldH * pxPerMm;
+  /** Travel is bounded by the position, not by the area — see the server. */
+  const travelW = placement.fieldWidthMm;
+  const travelH = placement.fieldHeightMm;
 
   const clampOffset = useCallback(
     (next: Point): Point => {
       // The hoop travels with the lettering, so the bound is how far the hoop
       // may move — the same number the server applies, so the pointer never
       // shows a position add-to-cart would snap back from.
-      const maxX = fieldW * MAX_TRAVEL_FACTOR;
-      const maxY = fieldH * MAX_TRAVEL_FACTOR;
+      const maxX = travelW * MAX_TRAVEL_FACTOR;
+      const maxY = travelH * MAX_TRAVEL_FACTOR;
       return {
         x: Math.min(maxX, Math.max(-maxX, next.x)),
         y: Math.min(maxY, Math.max(-maxY, next.y)),
       };
     },
-    [fieldW, fieldH],
+    [travelW, travelH],
   );
 
   // ── Moving ───────────────────────────────────────────────────────────
@@ -190,6 +235,96 @@ export default function DesignPreview({
       onOffsetChange(clampOffset({ x: offset.x + d.x, y: offset.y + d.y }));
     },
     [offset, onOffsetChange, clampOffset],
+  );
+
+  // ── Resizing the area ────────────────────────────────────────────────
+
+  /**
+   * Grows or shrinks the area from one edge or corner, in the design's own
+   * axes, keeping the opposite edge where it was.
+   *
+   * A pointer delta on screen is first turned into the design's frame (the
+   * area may be rotated), then into millimetres. Only the pulled side moves,
+   * so the centre — which is what `offset` records — shifts by half the
+   * change, turned back into the photograph's axes. The result is the edge
+   * following the finger and the rest of the design staying put, which is the
+   * only behaviour that does not feel like the box is fighting back.
+   */
+  const applyResize = useCallback(
+    (start: NonNullable<typeof stretch.current>, dxPx: number, dyPx: number) => {
+      if (!pxPerMm) return;
+      const rad = (rotationDeg * Math.PI) / 180;
+      const cos = Math.cos(rad);
+      const sin = Math.sin(rad);
+      const lx = (dxPx * cos + dyPx * sin) / pxPerMm;
+      const ly = (-dxPx * sin + dyPx * cos) / pxPerMm;
+      const next = clampField(
+        { widthMm: start.startField.widthMm + start.sx * lx, heightMm: start.startField.heightMm + start.sy * ly },
+        fieldLimits,
+      );
+      const dW = next.widthMm - start.startField.widthMm;
+      const dH = next.heightMm - start.startField.heightMm;
+      const cx = (start.sx * dW) / 2;
+      const cy = (start.sy * dH) / 2;
+      onFieldChange(
+        next,
+        clampOffset({
+          x: start.startOffset.x + cx * cos - cy * sin,
+          y: start.startOffset.y + cx * sin + cy * cos,
+        }),
+      );
+    },
+    [pxPerMm, rotationDeg, fieldLimits, onFieldChange, clampOffset],
+  );
+
+  const onResizeDown = useCallback(
+    (sx: number, sy: number) => (e: React.PointerEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      (e.target as Element).setPointerCapture?.(e.pointerId);
+      stretch.current = { startX: e.clientX, startY: e.clientY, startField: field, startOffset: offset, sx, sy };
+      setResizing(true);
+      setSelected(true);
+    },
+    [field, offset],
+  );
+
+  const onResizeMove = useCallback(
+    (e: React.PointerEvent) => {
+      const start = stretch.current;
+      if (!start) return;
+      applyResize(start, e.clientX - start.startX, e.clientY - start.startY);
+    },
+    [applyResize],
+  );
+
+  const endResize = useCallback(() => {
+    stretch.current = null;
+    setResizing(false);
+  }, []);
+
+  /** Arrow keys on a handle pull that edge by a millimetre, shift for five. */
+  const onResizeKeyDown = useCallback(
+    (sx: number, sy: number) => (e: React.KeyboardEvent) => {
+      const step = e.shiftKey ? 5 : 1;
+      // Left/up shrink, right/down grow — whichever edge the handle is on.
+      const grow: Record<string, number> = { ArrowRight: step, ArrowDown: step, ArrowLeft: -step, ArrowUp: -step };
+      const d = grow[e.key];
+      if (d === undefined) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const horizontal = e.key === "ArrowLeft" || e.key === "ArrowRight";
+      if ((horizontal && !sx) || (!horizontal && !sy)) return;
+      const start = { startX: 0, startY: 0, startField: field, startOffset: offset, sx, sy };
+      // Expressed as a pointer delta along the design's own axes, so the same
+      // code path serves both and the two can never disagree.
+      const rad = (rotationDeg * Math.PI) / 180;
+      const mm = d * (horizontal ? sx : sy);
+      const lx = horizontal ? mm : 0;
+      const ly = horizontal ? 0 : mm;
+      applyResize(start, (lx * Math.cos(rad) - ly * Math.sin(rad)) * pxPerMm, (lx * Math.sin(rad) + ly * Math.cos(rad)) * pxPerMm);
+    },
+    [field, offset, rotationDeg, pxPerMm, applyResize],
   );
 
   // ── Turning ──────────────────────────────────────────────────────────
@@ -271,21 +406,27 @@ export default function DesignPreview({
   // the rendered letters at the millimetre height being quoted.
   const fontSizeMm = heightMm / 0.72;
 
-  /** What the straight version would have measured — the arc's chord. */
-  const estimatedChord = (() => {
-    const longest = (lines.length ? lines : [text]).reduce((a, b) => (b.length > a.length ? b : a), "");
-    const advances = [...longest].reduce((sum, ch) => sum + (ch === " " ? 0.5 : 1), 0);
-    const gaps = Math.max(0, longest.length - 1);
-    const kernSum = kerning ? kerning.reduce((sum, k) => sum + k, 0) : 0;
-    return advances * heightMm * font.avgCharWidthRatio + (gaps * trackingPct + kernSum) * heightMm;
-  })();
+  /** The arc's chord: what the straight version measures, by the same rule. */
+  const estimatedChord = lineWidthMm({
+    line: (lines.length ? lines : [text]).reduce((a, b) => (b.length > a.length ? b : a), ""),
+    heightMm,
+    font,
+    contentType,
+    weightStep,
+    trackingPct,
+    kerning,
+  });
 
-  /** The handle rides the design's top-right corner, turning with it. */
+  /**
+   * The handle rides just outside the design's top-right corner, turning with
+   * it. Outside rather than on the corner, because the corner itself is now a
+   * resize handle and the two must never sit under one finger.
+   */
   const handleAt: Point | null = (() => {
     if (!area || !centre) return null;
     const rad = (rotationDeg * Math.PI) / 180;
-    const x = area.width / 2;
-    const y = -area.height / 2;
+    const x = layerW / 2 + 24;
+    const y = -layerH / 2 - 24;
     return {
       x: centre.x + x * Math.cos(rad) - y * Math.sin(rad),
       y: centre.y + x * Math.sin(rad) + y * Math.cos(rad),
@@ -335,6 +476,29 @@ export default function DesignPreview({
       ) : (
         rows.map((line, i) => {
           const y = firstY + i * lead;
+          /**
+           * Every line is drawn at exactly the width the validator measures.
+           *
+           * Without this the preview shows the browser's own font metrics
+           * while the fit meter measures our model of the embroidery face, and
+           * the two disagree by a lot: "Lilli" measures 62mm and draws 40mm in
+           * Helvetica, so the guides said it overran while it visibly did not.
+           *
+           * Forcing the width is also the *more* faithful preview, not a
+           * fudge — `webFamily` is explicitly a visual stand-in, and the
+           * estimate is our model of the face that will actually be stitched.
+           * `spacingAndGlyphs` because a wider or narrower face differs in both.
+           */
+          const lineMm = lineWidthMm({
+            line,
+            heightMm,
+            font,
+            contentType,
+            weightStep,
+            trackingPct,
+            kerning,
+          });
+
           const common = {
             fontFamily: font.webFamily,
             fontSize: fontSizeMm,
@@ -345,13 +509,20 @@ export default function DesignPreview({
             stroke: outlineHex ?? glyphFill,
             strokeWidth: outlineHex ? fontSizeMm * 0.06 : fontSizeMm * 0.012,
             textAnchor: "middle" as const,
-            letterSpacing: trackingPct ? trackingPct * heightMm : undefined,
             style: { paintOrder: "stroke" as const },
           };
 
           if (!curveDeg) {
             return (
-              <text key={i} x={fieldW / 2} y={y} dominantBaseline="central" {...common}>
+              <text
+                key={i}
+                x={fieldW / 2}
+                y={y}
+                dominantBaseline="central"
+                textLength={lineMm > 0 ? lineMm : undefined}
+                lengthAdjust="spacingAndGlyphs"
+                {...common}
+              >
                 {line}
               </text>
             );
@@ -373,7 +544,9 @@ export default function DesignPreview({
             <g key={i}>
               <path id={id} d={d} fill="none" />
               <text {...common}>
-                <textPath href={`#${id}`} startOffset="50%">
+                {/* On a path the length belongs to the textPath, which is what
+                    actually lays the glyphs out along the arc. */}
+                <textPath href={`#${id}`} startOffset="50%" textLength={lineMm > 0 ? lineMm : undefined} lengthAdjust="spacingAndGlyphs">
                   {line}
                 </textPath>
               </text>
@@ -400,12 +573,12 @@ export default function DesignPreview({
             aria-label={moveLabel}
             tabIndex={0}
             onFocus={() => setSelected(true)}
-            className={`${styles.designLayer} ${dragging ? styles.designLayerDragging : ""} ${invalid ? styles.designLayerInvalid : ""} ${selected && editable ? styles.designLayerSelected : ""}`}
+            className={`${styles.designLayer} ${dragging ? styles.designLayerDragging : ""} ${invalid ? styles.designLayerInvalid : ""} ${selected && editable ? styles.designLayerSelected : ""} ${resizing ? styles.designLayerResizing : ""}`}
             style={{
               left: area.cx,
               top: area.cy,
-              width: area.width,
-              height: area.height,
+              width: layerW,
+              height: layerH,
               // Centre on the traced spot, move, then turn — all in the
               // photograph's own axes, so 90° is a true quarter turn and the
               // box's sides stay parallel to the image at every quarter.
@@ -422,6 +595,28 @@ export default function DesignPreview({
             onKeyDown={onKeyDown}
           >
             {artwork}
+            {/* Eight handles on the area's own edges, so they turn with it.
+                Each pulls one side; the opposite side stays where it is. */}
+            {editable &&
+              selected &&
+              RESIZE_HANDLES.map(({ sx, sy, cls, label }) => (
+                <button
+                  key={cls}
+                  type="button"
+                  className={`${styles.resizeHandle} ${styles[cls]}`}
+                  aria-label={`${resizeLabel} (${label})`}
+                  onPointerDown={onResizeDown(sx, sy)}
+                  onPointerMove={onResizeMove}
+                  onPointerUp={endResize}
+                  onPointerCancel={endResize}
+                  onKeyDown={onResizeKeyDown(sx, sy)}
+                />
+              ))}
+            {selected && editable && (
+              <span className={styles.sizeTag} aria-hidden="true">
+                {Math.round(fieldW)} × {Math.round(fieldH)} mm
+              </span>
+            )}
           </div>
         ) : awaitingMeasure ? null : (
           // No traced area for this position — fall back to the placement's
@@ -444,7 +639,7 @@ export default function DesignPreview({
         {area && editable && selected && handleAt && (
           <button
             type="button"
-            className={`${styles.rotateHandle} ${rotating ? styles.rotateHandleActive : ""}`}
+            className={`${styles.rotateHandle} ${rotating ? styles.rotateHandleActive : ""} ${resizing ? styles.rotateHandleHidden : ""}`}
             style={{ left: handleAt.x, top: handleAt.y }}
             onPointerDown={onRotateDown}
             onPointerMove={onRotateMove}

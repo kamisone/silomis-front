@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { getTranslations, toBcp47 } from "@/lib/i18n";
 import { useLocale } from "@/lib/i18n/useLocale";
+import EmbroideryLine, { type EmbroideryLineDesign } from "@/components/shop/EmbroideryLine";
 import styles from "../track.module.css";
 
 interface TrackingItem {
@@ -14,6 +15,7 @@ interface TrackingItem {
   unitPriceCents: number;
   totalCents: number;
   options: Array<{ attributeName: string; value: string }> | null;
+  personalizations?: EmbroideryLineDesign[];
 }
 
 interface ShippingInfo {
@@ -242,6 +244,9 @@ export default function OrderTrackDetailPage() {
               <div className={styles.itemInfo}>
                 <span className={styles.itemTitle}>{item.title}</span>
                 {item.options && item.options.length > 0 && <span className={styles.itemOptions}>{item.options.map((o) => `${o.attributeName}: ${o.value}`).join(" · ")}</span>}
+                {item.personalizations?.map((d) => (
+                  <EmbroideryLine key={d.placementKey} design={d} locale={locale} />
+                ))}
               </div>
               <span className={styles.itemQty}>×{item.quantity}</span>
               <span className={styles.itemPrice}>€{centsToEuros(item.totalCents)}</span>

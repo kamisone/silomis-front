@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { Scissors } from "lucide-react";
 import { api } from "@/lib/api";
 import ui from "@/components/admin/ui/admin-ui.module.css";
 
@@ -14,6 +15,8 @@ interface OrderListItem {
   totalCents: number;
   createdAt: string;
   items: Array<{ quantity: number }>;
+  /** Lines that carry an embroidery design — the ones the floor has to make. */
+  personalizedItemCount: number;
 }
 
 function eur(cents: number): string {
@@ -109,7 +112,18 @@ export default function OrdersListPage() {
                     {o.customerName ?? "—"}
                     <div style={{ fontSize: "0.78rem", color: "var(--color-secondary)" }}>{o.customerEmail}</div>
                   </td>
-                  <td>{o.items.reduce((n, i) => n + i.quantity, 0)}</td>
+                  <td>
+                    {o.items.reduce((n, i) => n + i.quantity, 0)}
+                    {o.personalizedItemCount > 0 && (
+                      <span
+                        className={ui.badge}
+                        style={{ marginLeft: "0.5rem", display: "inline-flex", alignItems: "center", gap: "0.3rem" }}
+                        title={`${o.personalizedItemCount} embroidered ${o.personalizedItemCount === 1 ? "line" : "lines"}`}
+                      >
+                        <Scissors size={11} aria-hidden="true" /> embroidery
+                      </span>
+                    )}
+                  </td>
                   <td>{eur(o.totalCents)}</td>
                   <td>
                     <span className={ui[STATUS_BADGE[o.status] ?? "badge"]}>{o.status.replace(/_/g, " ")}</span>

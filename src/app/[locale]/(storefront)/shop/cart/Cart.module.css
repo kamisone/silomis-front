@@ -146,6 +146,11 @@
   color: var(--cart-text-secondary);
   margin: 3px 0 0;
 }
+.itemPriceNote {
+  font-size: 11.5px;
+  color: var(--color-primary);
+  font-weight: 600;
+}
 .itemPrice {
   color: var(--cart-text-secondary);
   margin: 5px 0 0;

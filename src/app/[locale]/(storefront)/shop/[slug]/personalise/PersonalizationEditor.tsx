@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft, Check, Loader2, AlertTriangle, Ruler, Palette, Type, MapPin,
   ShoppingBag, RotateCcw, RotateCw, Plus, Bold, ArrowRight, PencilLine,
-  MoveHorizontal, Spline, Sparkles, Undo2, Redo2, Copy,
+  MoveHorizontal, Spline, Sparkles, Undo2, Redo2, Copy, Scaling, Minus, Maximize2,
 } from "lucide-react";
 import DesignPreview from "./DesignPreview";
 import { useCart, type PersonalizationInput } from "@/components/shop/CartContext";
@@ -13,8 +13,9 @@ import { getTranslations, type Locale } from "@/lib/i18n";
 import {
   evaluate, heightBounds, MONOGRAM_MAX_CHARS, DEFAULT_WEIGHT_STEP, WEIGHT_SCALE, weightForStep,
   DEFAULT_OPTIONS, MAX_TEXT_LINES, TRACKING_MIN, TRACKING_MAX, KERNING_LIMIT, CURVE_LIMIT_DEG,
-  MOTIF_MIN_MM, MOTIF_MAX_MM,
-  type ContentKind, type DesignOptions, type EditorConfig, type EditorEvaluation, type EditorPlacement,
+  MOTIF_MIN_MM, MOTIF_MAX_MM, DEFAULT_FIELD_LIMITS, clampField,
+  type ContentKind, type DesignField, type DesignOptions, type EditorConfig, type EditorEvaluation, type EditorPlacement,
+  type FieldLimits,
 } from "@/lib/shop/embroidery";
 import { isUsableQuad, type Point, type Quad } from "@/lib/shop/perspective";
 import styles from "./PersonalizationEditor.module.css";
@@ -28,6 +29,9 @@ interface Props {
 
 const STEPS = ["positions", "design", "review"] as const;
 type Step = (typeof STEPS)[number];
+
+/** Letter heights people ask for by name. Filtered to what the face and area allow. */
+const SIZE_PRESETS = [10, 15, 20, 25, 30, 40] as const;
 
 /** One-tap angles. Anything between them is the rotate handle's job. */
 const QUARTER_TURNS = [0, 90, 180, 270] as const;
@@ -50,6 +54,11 @@ interface DesignState {
   fontKey: string;
   threadIds: string[];
   heightMm: number;
+  /**
+   * The embroidery area — the hoop the design runs in — as the customer sized
+   * it. Starts at the position's field and is theirs from then on.
+   */
+  field: DesignField;
   /** 1 (light) to 5 (extra bold) — how heavily the satin column is laid down. */
   weightStep: number;
   offset: Point;
@@ -160,6 +169,7 @@ export default function PersonalizationEditor({ locale, config, product, variant
         // leaves room to move, rather than a fixed number that overflows a
         // small position and looks lost on a large one.
         heightMm: Math.max(font?.minHeightMm ?? 8, Math.round(placement.fieldHeightMm * 0.34)),
+        field: { widthMm: placement.fieldWidthMm, heightMm: placement.fieldHeightMm },
         weightStep: DEFAULT_WEIGHT_STEP,
         offset: { x: 0, y: 0 },
         rotationDeg: 0,
@@ -237,6 +247,7 @@ export default function PersonalizationEditor({ locale, config, product, variant
         raw: d.raw,
         font,
         placement,
+        field: d.field,
         heightMm: d.heightMm,
         colorCount: new Set(d.threadIds).size,
         bands: config.priceBands,
@@ -266,9 +277,29 @@ export default function PersonalizationEditor({ locale, config, product, variant
     [config.fonts, activeDesign?.options.contentType],
   );
 
+  const fieldLimits: FieldLimits = config.fieldLimits ?? DEFAULT_FIELD_LIMITS;
+
+  /** A shape is square, so the smaller side of the area is its ceiling. */
+  const motifMax = activeDesign
+    ? Math.max(MOTIF_MIN_MM, Math.min(MOTIF_MAX_MM, Math.floor(Math.min(activeDesign.field.heightMm, activeDesign.field.widthMm))))
+    : MOTIF_MAX_MM;
+
   const bounds = useMemo(
-    () => (activeFont && activePlacement ? heightBounds(activeFont, activePlacement) : { min: 8, max: 40 }),
-    [activeFont, activePlacement],
+    () => (activeFont && activeDesign ? heightBounds(activeFont, activeDesign.field) : { min: 8, max: 40 }),
+    [activeFont, activeDesign],
+  );
+
+  /**
+   * Resizes the open design's area. The offset comes with it because pulling
+   * one edge moves the centre by half the change — the preview works that out
+   * in the design's own axes, so it is handed back here rather than redone.
+   */
+  const setField = useCallback(
+    (field: DesignField, offset?: Point) => {
+      const next = clampField(field, fieldLimits);
+      patchActive(offset ? { field: next, offset } : { field: next });
+    },
+    [fieldLimits, patchActive],
   );
 
   /** What this shop offers: words, initials, and shapes if any are published. */
@@ -327,6 +358,8 @@ export default function PersonalizationEditor({ locale, config, product, variant
           text: evaluations[k].text,
           fontKey: designs[k].fontKey,
           heightMm: designs[k].heightMm,
+          fieldWidthMm: designs[k].field.widthMm,
+          fieldHeightMm: designs[k].field.heightMm,
           weight: designs[k].weightStep,
           threadColorIds: designs[k].threadIds,
           offsetXMm: designs[k].offset.x,
@@ -369,7 +402,7 @@ export default function PersonalizationEditor({ locale, config, product, variant
         if (!res.ok) {
           setQuote(null);
           setQuoteState("error");
-          setQuoteError(errorCopy(body?.code, c) ?? c.errors.generic);
+          setQuoteError(errorCopy(body?.code, c, body as ErrorDetail, locale) ?? c.errors.generic);
           return;
         }
         setQuote({ totalCents: body.totalCents });
@@ -440,6 +473,13 @@ export default function PersonalizationEditor({ locale, config, product, variant
   const canUndo = past.current.length > 0;
   const canRedo = future.current.length > 0;
 
+  /** The largest band is the ceiling — past it there is no price to charge. */
+  const stitchCeiling = useMemo(
+    () => config.priceBands.reduce((max, b) => Math.max(max, b.maxStitches), 0),
+    [config.priceBands],
+  );
+  const stitchFill = activeEval && stitchCeiling ? activeEval.stitches / stitchCeiling : 0;
+
   const stepIndex = STEPS.indexOf(step);
   const canLeavePositions = chosenKeys.length > 0;
   const canLeaveDesign = chosenKeys.length > 0 && !firstBroken && !incompleteKeys.length;
@@ -454,8 +494,8 @@ export default function PersonalizationEditor({ locale, config, product, variant
       openDrawer();
       return;
     }
-    setAddError(errorCopy(result.code, c) ?? c.errors.addFailed);
-  }, [addItem, variant.id, payload, openDrawer, c]);
+    setAddError(errorCopy(result.code, c, result as ErrorDetail, locale) ?? c.errors.addFailed);
+  }, [addItem, variant.id, payload, openDrawer, c, locale]);
 
   // The preview follows the open tab; with nothing chosen it shows the first
   // position's photo so the page is never a blank rectangle.
@@ -485,6 +525,9 @@ export default function PersonalizationEditor({ locale, config, product, variant
                 imageUrl={previewPlacement.imageUrl}
                 productTitle={product.title}
                 placement={previewPlacement}
+                field={previewDesign?.field ?? { widthMm: previewPlacement.fieldWidthMm, heightMm: previewPlacement.fieldHeightMm }}
+                fieldLimits={fieldLimits}
+                onFieldChange={(field, offset) => setField(field, offset)}
                 font={activeFont}
                 text={activeEval?.text || c.previewPlaceholder}
                 heightMm={previewDesign?.heightMm ?? 16}
@@ -495,6 +538,7 @@ export default function PersonalizationEditor({ locale, config, product, variant
                 curveDeg={previewDesign?.options.curveDeg ?? 0}
                 trackingPct={previewDesign?.options.trackingPct ?? 0}
                 kerning={previewDesign?.options.kerning ?? null}
+                contentType={previewDesign?.options.contentType ?? "text"}
                 motif={
                   previewDesign?.options.contentType === "motif" && previewDesign.options.motifKey
                     ? (() => {
@@ -512,6 +556,7 @@ export default function PersonalizationEditor({ locale, config, product, variant
                 dragHint={c.dragHint}
                 moveLabel={c.moveLabel}
                 rotateLabel={c.rotateLabel}
+                resizeLabel={c.resizeLabel}
                 // Positions and Your design are for editing; Review is for
                 // confirming, so the handles come off there.
                 editable={step !== "review"}
@@ -548,7 +593,23 @@ export default function PersonalizationEditor({ locale, config, product, variant
                     />
                   </div>
                   <span className={styles.fitText}>
-                    {Math.round(activeEval.widthMm)} / {activePlacement.fieldWidthMm} mm
+                    {Math.round(activeEval.widthMm)} / {Math.round(activeDesign?.field.widthMm ?? activePlacement.fieldWidthMm)} mm
+                  </span>
+                </div>
+
+                {/* The other limit, and the one that surprises people: a bold
+                    outlined name can take a fifth of the panel and still be
+                    three times the stitches. Without a meter the ceiling only
+                    ever announces itself as a rejection. */}
+                <div className={styles.fitRow}>
+                  <div className={styles.fitMeter} role="img" aria-label={c.budgetLabel}>
+                    <div
+                      className={`${styles.fitFill} ${stitchFill > 0.99 ? styles.fitFillOver : ""}`}
+                      style={{ width: `${Math.min(100, stitchFill * 100)}%` }}
+                    />
+                  </div>
+                  <span className={styles.fitText}>
+                    {activeEval.stitches.toLocaleString(locale)} / {stitchCeiling.toLocaleString(locale)}
                   </span>
                 </div>
 
@@ -648,7 +709,10 @@ export default function PersonalizationEditor({ locale, config, product, variant
                         <span className={styles.optionCardTitle}>{p.label}</span>
                         {p.hint && <span className={styles.optionCardHint}>{p.hint}</span>}
                         <span className={styles.optionCardMeta}>
-                          {p.fieldWidthMm} × {p.fieldHeightMm} mm · {c.upToChars.replace("{n}", String(p.maxChars))}
+                          {c.areaSize
+                            .replace("{w}", String(Math.round(designs[p.key]?.field.widthMm ?? p.fieldWidthMm)))
+                            .replace("{h}", String(Math.round(designs[p.key]?.field.heightMm ?? p.fieldHeightMm)))}{" "}
+                          · {c.upToChars.replace("{n}", String(p.maxChars))}
                         </span>
                       </span>
                       <span className={styles.optionCardRight}>
@@ -663,6 +727,20 @@ export default function PersonalizationEditor({ locale, config, product, variant
               </div>
               {chosenKeys.length > 1 && <p className={styles.multiNote}>{c.multiNote}</p>}
             </fieldset>
+          )}
+
+          {/* The area is sized here as well as on the design step: how big
+              the embroidery is on the cap is a placement decision as much as
+              a lettering one, and the handles on the photo already invite it. */}
+          {step === "positions" && activePlacement && activeDesign && activeEval && (
+            <AreaPanel
+              c={c}
+              field={activeDesign.field}
+              limits={fieldLimits}
+              placement={activePlacement}
+              evaluation={activeEval}
+              onChange={(field) => setField(field)}
+            />
           )}
 
           {step === "design" && activePlacement && activeDesign && activeEval && (
@@ -835,6 +913,86 @@ export default function PersonalizationEditor({ locale, config, product, variant
                     </button>
                   ))}
                 </div>
+              </fieldset>
+
+              {/* Size sits right under the face: pick the letters, then how
+                  big. A slider for feel, a typed field for "exactly 25". */}
+              <fieldset className={styles.panel}>
+                <legend className={styles.panelTitle}>
+                  <Ruler size={15} aria-hidden="true" />{" "}
+                  {activeDesign.options.contentType === "motif" ? c.motifSizeTitle : c.sizeTitle}
+                </legend>
+                <p className={styles.panelHint}>{c.sizeHint}</p>
+                {activeDesign.options.contentType === "motif" ? (
+                  <>
+                    <div className={styles.sliderRow}>
+                      <input
+                        type="range"
+                        className={styles.slider}
+                        min={MOTIF_MIN_MM}
+                        max={motifMax}
+                        step={1}
+                        value={activeDesign.options.motifSizeMm}
+                        onChange={(e) => patchOptions({ motifSizeMm: Number(e.target.value) })}
+                        aria-label={c.motifSizeTitle}
+                      />
+                      <Stepper
+                        label={c.motifSizeTitle}
+                        compact
+                        value={activeDesign.options.motifSizeMm}
+                        min={MOTIF_MIN_MM}
+                        max={motifMax}
+                        onChange={(motifSizeMm) => patchOptions({ motifSizeMm })}
+                      />
+                    </div>
+                    <div className={styles.sliderScale} aria-hidden="true">
+                      <span>{MOTIF_MIN_MM} mm</span>
+                      <span>{motifMax} mm</span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className={styles.sliderRow}>
+                      <input
+                        type="range"
+                        className={styles.slider}
+                        min={bounds.min}
+                        max={bounds.max}
+                        step={1}
+                        value={activeDesign.heightMm}
+                        onChange={(e) => patchActive({ heightMm: Number(e.target.value) })}
+                        aria-label={c.sizeTitle}
+                      />
+                      <Stepper
+                        label={c.sizeTitle}
+                        compact
+                        value={activeDesign.heightMm}
+                        min={bounds.min}
+                        max={bounds.max}
+                        onChange={(heightMm) => patchActive({ heightMm })}
+                      />
+                    </div>
+                    <div className={styles.sliderScale} aria-hidden="true">
+                      <span>{bounds.min} mm</span>
+                      <span>{bounds.max} mm</span>
+                    </div>
+                    {/* The sizes people actually ask for, one tap away. Only
+                        those the face and the area allow are offered. */}
+                    <div className={styles.sizePresets} role="group" aria-label={c.sizeTitle}>
+                      {SIZE_PRESETS.filter((mm) => mm >= bounds.min && mm <= bounds.max).map((mm) => (
+                        <button
+                          key={mm}
+                          type="button"
+                          className={`${styles.sizePreset} ${activeDesign.heightMm === mm ? styles.sizePresetActive : ""}`}
+                          onClick={() => patchActive({ heightMm: mm })}
+                          aria-pressed={activeDesign.heightMm === mm}
+                        >
+                          {mm}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
               </fieldset>
 
               <fieldset className={styles.panel}>
@@ -1040,54 +1198,15 @@ export default function PersonalizationEditor({ locale, config, product, variant
                 </>
               )}
 
-              <fieldset className={styles.panel}>
-                <legend className={styles.panelTitle}>
-                  <Ruler size={15} aria-hidden="true" />{" "}
-                  {activeDesign.options.contentType === "motif" ? c.motifSizeTitle : c.sizeTitle}
-                </legend>
-                <p className={styles.panelHint}>{c.sizeHint}</p>
-                {activeDesign.options.contentType === "motif" ? (
-                  <>
-                    <div className={styles.sliderRow}>
-                      <input
-                        type="range"
-                        className={styles.slider}
-                        min={MOTIF_MIN_MM}
-                        max={Math.min(MOTIF_MAX_MM, activePlacement.fieldHeightMm)}
-                        step={1}
-                        value={activeDesign.options.motifSizeMm}
-                        onChange={(e) => patchOptions({ motifSizeMm: Number(e.target.value) })}
-                        aria-label={c.motifSizeTitle}
-                      />
-                      <output className={styles.sliderValue}>{activeDesign.options.motifSizeMm} mm</output>
-                    </div>
-                    <div className={styles.sliderScale} aria-hidden="true">
-                      <span>{MOTIF_MIN_MM} mm</span>
-                      <span>{Math.min(MOTIF_MAX_MM, activePlacement.fieldHeightMm)} mm</span>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className={styles.sliderRow}>
-                      <input
-                        type="range"
-                        className={styles.slider}
-                        min={bounds.min}
-                        max={bounds.max}
-                        step={1}
-                        value={activeDesign.heightMm}
-                        onChange={(e) => patchActive({ heightMm: Number(e.target.value) })}
-                        aria-label={c.sizeTitle}
-                      />
-                      <output className={styles.sliderValue}>{activeDesign.heightMm} mm</output>
-                    </div>
-                    <div className={styles.sliderScale} aria-hidden="true">
-                      <span>{bounds.min} mm</span>
-                      <span>{bounds.max} mm</span>
-                    </div>
-                  </>
-                )}
-              </fieldset>
+              <AreaPanel
+                c={c}
+                field={activeDesign.field}
+                limits={fieldLimits}
+                placement={activePlacement}
+                evaluation={activeEval}
+                onChange={(field) => setField(field)}
+              />
+
             </>
           )}
 
@@ -1125,7 +1244,8 @@ export default function PersonalizationEditor({ locale, config, product, variant
                     </strong>
                     <p className={styles.reviewMeta}>
                       {font.name} · {c.weightLabels[d.weightStep - 1]} · {d.heightMm} mm ·{" "}
-                      {threads.map((th) => th!.name).join(", ")}
+                      {threads.map((th) => th!.name).join(", ")} ·{" "}
+                      {c.areaSize.replace("{w}", String(Math.round(d.field.widthMm))).replace("{h}", String(Math.round(d.field.heightMm)))}
                       {d.rotationDeg !== 0 && ` · ${displayAngle(d.rotationDeg)}°`}
                     </p>
                     <button
@@ -1273,12 +1393,21 @@ function errorCopyForCode(code: string, placement: EditorPlacement, c: Copy, nam
       return where(c.errors.tooManyColors.replace("{n}", String(placement.maxColors)));
     case "tooManyStitches":
       return where(c.errors.tooManyStitches);
+    // (the detailed version, with counts and a suggestion, comes from the
+    //  server's own reply — see errorCopy below)
     default:
       return where(c.errors.generic);
   }
 }
 
-function errorCopy(code: string | undefined, c: Copy): string | null {
+/** The server's reply for a rejected design, when it carried detail. */
+interface ErrorDetail {
+  stitchEstimate?: number;
+  maxStitches?: number;
+  relax?: "outline" | "puff" | "weight" | "curve" | null;
+}
+
+function errorCopy(code: string | undefined, c: Copy, detail?: ErrorDetail, locale?: string): string | null {
   switch (code) {
     case "PERSONALIZATION_TEXT_EMPTY":
       return c.errors.empty;
@@ -1296,8 +1425,27 @@ function errorCopy(code: string | undefined, c: Copy): string | null {
       return c.errors.tooWide;
     case "PERSONALIZATION_TOO_MANY_COLORS":
       return c.errors.tooManyColorsGeneric;
-    case "PERSONALIZATION_TOO_MANY_STITCHES":
-      return c.errors.tooManyStitches;
+    case "PERSONALIZATION_TOO_MANY_STITCHES": {
+      // Counts and a way out, rather than "too large": the ceiling is machine
+      // time, and the customer cannot see it without being told the numbers.
+      const base =
+        detail?.stitchEstimate && detail?.maxStitches
+          ? c.errors.tooManyStitches
+              .replace("{n}", detail.stitchEstimate.toLocaleString(locale))
+              .replace("{max}", detail.maxStitches.toLocaleString(locale))
+          : c.errors.tooManyStitches.replace("{n}", "—").replace("{max}", "—");
+      const hint =
+        detail?.relax === "outline"
+          ? c.relaxOutline
+          : detail?.relax === "puff"
+            ? c.relaxPuff
+            : detail?.relax === "weight"
+              ? c.relaxWeight
+              : detail?.relax === "curve"
+                ? c.relaxCurve
+                : null;
+      return hint ? `${base} ${hint}` : base;
+    }
     case "PERSONALIZATION_TOO_TALL":
       return c.errors.tooTall;
     case "PERSONALIZATION_TOO_MANY_LINES":
@@ -1321,4 +1469,146 @@ function errorCopy(code: string | undefined, c: Copy): string | null {
     default:
       return null;
   }
+}
+
+/**
+ * The embroidery area's size, as numbers.
+ *
+ * The handles on the photo are the natural way to size it; this is the exact
+ * way, and the only way on a keyboard. "Fit to text" is the shortcut most
+ * people want — wrap the area round what they wrote, with a margin the hoop
+ * needs — and Reset is the way back to the position's own default.
+ */
+function AreaPanel({
+  c,
+  field,
+  limits,
+  placement,
+  evaluation,
+  onChange,
+}: {
+  c: ReturnType<typeof getTranslations>["personalize"];
+  field: DesignField;
+  limits: FieldLimits;
+  placement: EditorPlacement;
+  evaluation: EditorEvaluation;
+  onChange: (field: DesignField) => void;
+}) {
+  const isDefault = field.widthMm === placement.fieldWidthMm && field.heightMm === placement.fieldHeightMm;
+  // A hoop wants clearance round the stitching: a tenth, and never under 4mm.
+  const fitted = clampField(
+    {
+      widthMm: Math.ceil(evaluation.widthMm * 1.1 + 4),
+      heightMm: Math.ceil(evaluation.stackMm * 1.1 + 4),
+    },
+    limits,
+  );
+  const canFit = evaluation.widthMm > 0 && (fitted.widthMm !== field.widthMm || fitted.heightMm !== field.heightMm);
+
+  return (
+    <fieldset className={styles.panel}>
+      <legend className={styles.panelTitle}>
+        <Scaling size={15} aria-hidden="true" /> {c.areaTitle}
+      </legend>
+      <p className={styles.panelHint}>{c.areaHint}</p>
+      <div className={styles.areaGrid}>
+        <Stepper
+          label={c.areaWidth}
+          value={field.widthMm}
+          min={limits.minMm}
+          max={limits.maxWidthMm}
+          onChange={(widthMm) => onChange({ ...field, widthMm })}
+        />
+        <Stepper
+          label={c.areaHeight}
+          value={field.heightMm}
+          min={limits.minMm}
+          max={limits.maxHeightMm}
+          onChange={(heightMm) => onChange({ ...field, heightMm })}
+        />
+      </div>
+      <div className={styles.areaActions}>
+        <button type="button" className={styles.toolBtn} onClick={() => onChange(fitted)} disabled={!canFit}>
+          <Maximize2 size={13} aria-hidden="true" /> {c.areaFit}
+        </button>
+        <button
+          type="button"
+          className={styles.toolBtn}
+          onClick={() => onChange({ widthMm: placement.fieldWidthMm, heightMm: placement.fieldHeightMm })}
+          disabled={isDefault}
+        >
+          <RotateCcw size={13} aria-hidden="true" /> {c.areaReset}
+        </button>
+        <span className={styles.areaLimits}>
+          {c.areaLimits
+            .replace(/\{min\}/g, String(limits.minMm))
+            .replace("{maxW}", String(limits.maxWidthMm))
+            .replace("{maxH}", String(limits.maxHeightMm))}
+        </span>
+      </div>
+    </fieldset>
+  );
+}
+
+/**
+ * A millimetre field with a button either side. Typing commits on blur or
+ * Enter so "1" of "120" never lands as a 1mm area; the buttons commit at once.
+ */
+function Stepper({
+  label,
+  value,
+  min,
+  max,
+  onChange,
+  compact = false,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  onChange: (value: number) => void;
+  /** No visible label — for sitting beside a slider that already has one. */
+  compact?: boolean;
+}) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const shown = draft ?? String(Math.round(value));
+  const commit = () => {
+    const n = Number(draft);
+    if (draft !== null && Number.isFinite(n)) onChange(Math.min(max, Math.max(min, n)));
+    setDraft(null);
+  };
+  const nudge = (d: number) => onChange(Math.min(max, Math.max(min, Math.round(value + d))));
+
+  return (
+    <label className={`${styles.stepper} ${compact ? styles.stepperCompact : ""}`}>
+      {!compact && <span className={styles.stepperLabel}>{label}</span>}
+      <span className={styles.stepperRow}>
+        <button type="button" className={styles.stepperBtn} onClick={() => nudge(-1)} disabled={value <= min} aria-label={`${label} −1`}>
+          <Minus size={13} aria-hidden="true" />
+        </button>
+        <input
+          className={styles.stepperInput}
+          type="number"
+          inputMode="decimal"
+          min={min}
+          max={max}
+          step={1}
+          value={shown}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              commit();
+            }
+          }}
+          aria-label={label}
+        />
+        <span className={styles.stepperUnit}>mm</span>
+        <button type="button" className={styles.stepperBtn} onClick={() => nudge(1)} disabled={value >= max} aria-label={`${label} +1`}>
+          <Plus size={13} aria-hidden="true" />
+        </button>
+      </span>
+    </label>
+  );
 }

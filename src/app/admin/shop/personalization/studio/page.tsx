@@ -8,6 +8,7 @@ import ProductPicker from "@/components/admin/shop/ProductPicker";
 import LocalizedTextField, { type LocalizedTextMap } from "@/components/admin/ui/LocalizedTextField";
 import PlacementTraceEditor from "@/components/admin/shop/PlacementTraceEditor";
 import { isUsableQuad, defaultQuad, type Quad } from "@/lib/shop/perspective";
+import PriceBandEditor from "@/components/admin/shop/PriceBandEditor";
 import ui from "@/components/admin/ui/admin-ui.module.css";
 import styles from "./studio.module.css";
 
@@ -137,20 +138,24 @@ export default function PlacementStudioPage() {
   return (
     <div className={ui.page}>
       <div className={ui.pageHeader}>
-        <div>
-          <h1 className={ui.pageTitle}>Embroidery positions</h1>
-          <p className={ui.pageHint}>
-            Pick a product, then set up where it can be embroidered — each position has its own name in every
-            language, its own price, the area the machine can reach, and the photo the customer places artwork on.
-          </p>
-        </div>
+        <h1 className={ui.pageTitle}>Embroidery positions</h1>
       </div>
+      <p className={ui.pageHint}>
+        Pick a product, then set up where it can be embroidered — each position has its own name in every language,
+        its own price, and a photo with the embroidery area traced on it. Customers size that area themselves.
+      </p>
 
       {error && (
         <p className={ui.error}>
           <AlertTriangle size={14} aria-hidden="true" /> {error}
         </p>
       )}
+
+      {/* Shop-wide, and deliberately above the product picker: the top band is
+          also the hard ceiling, and a shop that turns on outline and 3D puff
+          without raising it starts refusing designs that fit the panel with
+          room to spare. */}
+      <PriceBandEditor />
 
       {/* The product comes first: a position is a photograph of one product, so
           there is nothing meaningful to add or edit until one is chosen.
@@ -301,7 +306,7 @@ function PlacementCard({
           <div>
             <strong className={styles.placementName}>{p.label.en ?? p.key}</strong>
             <span className={styles.placementSub}>
-              <code className={ui.codeChip}>{p.key}</code> €{eur(p.priceCents)} · {p.fieldWidthMm}×{p.fieldHeightMm}mm
+              <code className={ui.codeChip}>{p.key}</code> €{eur(p.priceCents)} · starts at {p.fieldWidthMm}×{p.fieldHeightMm}mm
               {p.isTraced ? " · traced" : p.imageUrl ? " · not traced" : " · no photo"}
             </span>
           </div>
@@ -346,8 +351,6 @@ function PlacementCard({
 
           <div className={styles.numberGrid}>
             <NumberField label="Price (€)" value={p.priceCents / 100} step={0.5} onCommit={(v) => onPatch({ priceCents: Math.round(v * 100) })} />
-            <NumberField label="Field width (mm)" value={p.fieldWidthMm} onCommit={(v) => onPatch({ fieldWidthMm: v })} />
-            <NumberField label="Field height (mm)" value={p.fieldHeightMm} onCommit={(v) => onPatch({ fieldHeightMm: v })} />
             <NumberField label="Max colours" value={p.maxColors} onCommit={(v) => onPatch({ maxColors: Math.round(v) })} />
             <NumberField label="Max characters" value={p.maxChars} onCommit={(v) => onPatch({ maxChars: Math.round(v) })} />
           </div>
@@ -362,6 +365,23 @@ function PlacementCard({
 
           {p.imageUrl ? (
             <>
+              {/* The customer sizes the embroidery area themselves. What the
+                  shop still has to say is how big the panel it traced really
+                  is — that is what puts their millimetres onto the photograph
+                  at scale, and it is also the size the area starts at. */}
+              <div className={styles.calibration}>
+                <div className={styles.calibrationText}>
+                  <strong>Real size of the traced area</strong>
+                  <span>
+                    Measure the panel you trace below, in millimetres. Customers resize the embroidery area freely; this
+                    only sets the photo&apos;s scale and the size the area starts at.
+                  </span>
+                </div>
+                <div className={styles.calibrationFields}>
+                  <NumberField label="Width (mm)" value={p.fieldWidthMm} onCommit={(v) => onPatch({ fieldWidthMm: v })} />
+                  <NumberField label="Height (mm)" value={p.fieldHeightMm} onCommit={(v) => onPatch({ fieldHeightMm: v })} />
+                </div>
+              </div>
               <PlacementTraceEditor
                 imageUrl={p.imageUrl}
                 quad={quad}

@@ -18,6 +18,15 @@ export type StockErrorCode = (typeof STOCK_ERROR_CODE)[keyof typeof STOCK_ERROR_
 export interface StockApiError {
   code: StockErrorCode;
   available?: number;
+  /**
+   * Extra detail a personalisation rejection carries: what the design costs in
+   * stitches, what the ceiling is, and which single option would bring it back
+   * under. Optional because every other cart error has none — but dropping
+   * them here is what would turn a helpful message back into "too large".
+   */
+  stitchEstimate?: number;
+  maxStitches?: number;
+  relax?: "outline" | "puff" | "weight" | "curve" | null;
 }
 
 /** Result returned by CartContext.addItem / updateItem. */
@@ -25,6 +34,9 @@ export interface CartMutationResult {
   ok: boolean;
   code?: StockErrorCode;
   available?: number;
+  stitchEstimate?: number;
+  maxStitches?: number;
+  relax?: "outline" | "puff" | "weight" | "curve" | null;
 }
 
 /**
@@ -38,7 +50,11 @@ export function parseApiError(body: unknown): StockApiError {
   const payload = typeof b.message === "object" && b.message !== null ? (b.message as Record<string, unknown>) : b;
   const code = (typeof payload.code === "string" ? payload.code : STOCK_ERROR_CODE.UNKNOWN) as StockErrorCode;
   const available = typeof payload.available === "number" ? payload.available : undefined;
-  return { code, available };
+  const num = (key: string) => (typeof payload[key] === "number" ? (payload[key] as number) : undefined);
+  const relax = ["outline", "puff", "weight", "curve"].includes(payload.relax as string)
+    ? (payload.relax as "outline" | "puff" | "weight" | "curve")
+    : undefined;
+  return { code, available, stitchEstimate: num("stitchEstimate"), maxStitches: num("maxStitches"), relax };
 }
 
 /** Formats a cart error or stock error into a user-facing string. */

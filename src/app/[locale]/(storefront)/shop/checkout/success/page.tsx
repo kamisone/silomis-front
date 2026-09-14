@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useCart } from "@/components/shop/CartContext";
 import { getTranslations } from "@/lib/i18n";
+import EmbroideryLine, { type EmbroideryLineDesign } from "@/components/shop/EmbroideryLine";
 import { useLocale } from "@/lib/i18n/useLocale";
 import styles from "./Success.module.css";
 
@@ -15,6 +16,7 @@ interface TrackingItem {
   unitPriceCents: number;
   totalCents: number;
   options: Array<{ attributeName: string; value: string }> | null;
+  personalizations?: EmbroideryLineDesign[];
 }
 
 interface OrderTracking {
@@ -115,6 +117,12 @@ function SuccessContent() {
                 <div className={styles.itemInfo}>
                   <span className={styles.itemTitle}>{item.title}</span>
                   {item.options && item.options.length > 0 && <span className={styles.itemOptions}>{item.options.map((o) => `${o.attributeName}: ${o.value}`).join(" · ")}</span>}
+                  {item.personalizations?.map((d) => (
+                    <EmbroideryLine key={d.placementKey} design={d} locale={locale} />
+                  ))}
+                {item.personalizations?.map((d) => (
+                  <EmbroideryLine key={d.placementKey} design={d} locale={locale} />
+                ))}
                 </div>
                 <span className={styles.itemQty}>×{item.quantity}</span>
                 <span className={styles.itemPrice}>€{centsToEuros(item.totalCents)}</span>

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useCart } from "@/components/shop/CartContext";
 import PriceBreakdown from "@/components/shop/PriceBreakdown";
+import EmbroideryLine from "@/components/shop/EmbroideryLine";
 import { formatStockError } from "@/lib/shop/stockError";
 import { getTranslations } from "@/lib/i18n";
 import { useLocale } from "@/lib/i18n/useLocale";
@@ -149,7 +150,21 @@ export default function CartPage() {
                   {item.optionsSnapshot && item.optionsSnapshot.length > 0 && (
                     <p className={styles.itemOptions}>{item.optionsSnapshot.map((o) => `${o.attributeName}: ${o.displayValue ?? o.value}`).join(" · ")}</p>
                   )}
-                  <p className={styles.itemPrice}>€{centsToEuros(item.unitPriceCents)}</p>
+                  {/* The embroidery, verbatim. The basket is where a customer
+                      re-reads their spelling, and a personalised item cannot
+                      be returned once it is sewn. */}
+                  {item.personalizations?.map((d) => (
+                    <EmbroideryLine key={d.placementKey} design={d} locale={locale} />
+                  ))}
+                  <p className={styles.itemPrice}>
+                    €{centsToEuros(item.unitPriceCents)}
+                    {item.personalizations?.length ? (
+                      <span className={styles.itemPriceNote}>
+                        {" "}
+                        ({t.personalize.feeIncluded.replace("{price}", `€${centsToEuros(item.personalizations.reduce((sum, d) => sum + d.priceCents, 0))}`)})
+                      </span>
+                    ) : null}
+                  </p>
                 </div>
                 <div className={styles.itemQtyCol}>
                   <div className={styles.itemQty}>

@@ -127,3 +127,17 @@
     transition: none;
   }
 }
+
+/* The tracing and the millimetres describe the same rectangle, so a large
+   disagreement between them is worth saying out loud — it means the guides on
+   the storefront will not sit where the corners were drawn. */
+.aspectWarn {
+  margin: 0;
+  padding: 9px 11px;
+  border-radius: 10px;
+  background: #fff8e6;
+  border: 1px solid #f0dca8;
+  color: #7a5a12;
+  font-size: 12px;
+  line-height: 1.5;
+}

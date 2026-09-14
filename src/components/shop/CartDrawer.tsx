@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useCallback, useState, useRef } from "react";
 import { useCart } from "./CartContext";
+import EmbroideryLine from "@/components/shop/EmbroideryLine";
 import { formatStockError } from "@/lib/shop/stockError";
 import { getTranslations, type Locale } from "@/lib/i18n";
 import styles from "./CartDrawer.module.css";
@@ -171,17 +172,7 @@ export default function CartDrawer({ locale }: { locale: Locale }) {
                           sees the spelling before paying for something that
                           cannot be returned, so it is not abbreviated. */}
                       {item.personalizations?.map((d) => (
-                        <p key={d.placementKey} className={styles.itemPersonalization}>
-                          <span className={styles.itemPersonalizationChips} aria-hidden="true">
-                            {d.threadColors.map((th) => (
-                              <span key={th.code} className={styles.itemPersonalizationChip} style={{ background: th.hex }} />
-                            ))}
-                          </span>
-                          <span className={styles.itemPersonalizationText}>“{d.text}”</span>
-                          <span className={styles.itemPersonalizationMeta}>
-                            {d.placementLabel} · {d.fontName} · {d.heightMm}mm
-                          </span>
-                        </p>
+                        <EmbroideryLine key={d.placementKey} design={d} locale={locale} />
                       ))}
                       <p className={styles.itemUnitPrice}>
                         €{centsToEuros(item.unitPriceCents)} {t.shop.unitPrice}

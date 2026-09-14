@@ -67,12 +67,10 @@ export default function AdminsPage() {
   return (
     <div className={ui.page}>
       <div className={ui.pageHeader}>
-        <div>
-          <h1 className={ui.pageTitle}>Admins</h1>
-          <p className={ui.pageHint}>Everyone who can sign in to this dashboard. Open an admin to change their role, reset their password or set up two-factor.</p>
-        </div>
+        <h1 className={ui.pageTitle}>Admins</h1>
         <Button onClick={() => setForm({ ...EMPTY_FORM })}>New admin</Button>
       </div>
+      <p className={ui.pageHint}>Everyone who can sign in to this dashboard. Open an admin to change their role, reset their password or set up two-factor.</p>
 
       <div className={ui.card}>
         {loading ? (
