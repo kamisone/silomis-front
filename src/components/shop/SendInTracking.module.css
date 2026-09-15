@@ -1,0 +1,273 @@
+.card {
+  background: var(--background);
+  border: 1px solid var(--field-border, #e2e6eb);
+  border-radius: 14px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--field-border, #e2e6eb);
+  background: var(--color-surface);
+}
+
+.title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--color-secondary);
+}
+
+.status {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  background: #eef1f4;
+  color: #4b5563;
+  white-space: nowrap;
+}
+.status_awaiting_item { background: #fef3c7; color: #92400e; }
+.status_received,
+.status_in_production { background: #dbeafe; color: #1e40af; }
+.status_done,
+.status_returned,
+.status_delivered { background: #d1fae5; color: #065f46; }
+.status_problem { background: #fee2e2; color: #991b1b; }
+.status_cancelled { background: #eef1f4; color: #4b5563; }
+
+.hint {
+  margin: 0;
+  padding: 14px 20px 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--color-secondary);
+}
+
+.mockup {
+  display: block;
+  margin: 14px 20px 0;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--field-border, #e2e6eb);
+  max-width: 360px;
+}
+.mockup img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* Several sides sit in a row, each captioned with what the customer called it. */
+.sides {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 14px 20px 0;
+}
+.sides .mockup {
+  margin: 0;
+  max-width: 220px;
+}
+.side {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.sideCaption {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-muted, #6b7280);
+}
+
+/* Where to post it: the address set like a label, and the note to print. */
+.sendTo {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin: 14px 20px 0;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: var(--color-surface-tint, #f0fafa);
+  border-left: 3px solid var(--color-primary);
+}
+
+.sendToText {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  font-size: 14px;
+  color: var(--color-secondary);
+}
+
+.sendToLabel {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-primary);
+  margin-bottom: 4px;
+}
+
+.printBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--color-primary);
+  background: var(--background);
+  color: var(--color-primary);
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.printBtn:hover {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.note {
+  margin: 14px 20px 0;
+  font-size: 13px;
+  color: var(--color-secondary);
+}
+.note p {
+  margin: 4px 0 0;
+  white-space: pre-line;
+}
+
+.noteLabel {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-muted, #6b7280);
+}
+
+/* ── The round trip ────────────────────────────────────────────────────── */
+
+.rail {
+  list-style: none;
+  margin: 0;
+  padding: 18px 20px 6px;
+}
+
+.step {
+  position: relative;
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 12px;
+  padding-bottom: 16px;
+}
+.step::before {
+  content: "";
+  position: absolute;
+  left: 8px;
+  top: 18px;
+  bottom: 0;
+  width: 2px;
+  background: var(--field-border, #e2e6eb);
+}
+.step:last-child::before {
+  display: none;
+}
+.stepDone::before {
+  background: var(--color-primary);
+}
+
+.dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  border: 2px solid var(--field-border, #e2e6eb);
+  background: var(--background);
+  margin-top: 1px;
+}
+.stepDone .dot {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+}
+.stepActive .dot {
+  box-shadow: 0 0 0 4px rgb(18 156 152 / 18%);
+}
+
+.stepBody {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.stepLabel {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--color-muted, #6b7280);
+}
+.stepDone .stepLabel {
+  color: var(--color-secondary);
+  font-weight: 700;
+}
+
+.stepDate {
+  font-size: 11.5px;
+  color: var(--color-muted, #6b7280);
+}
+
+.stepNote {
+  margin: 4px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-secondary);
+  white-space: pre-line;
+}
+
+.photos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.photo {
+  display: block;
+  width: 132px;
+  height: 132px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--field-border, #e2e6eb);
+  background: var(--color-surface);
+}
+.photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.exit {
+  padding: 14px 20px 6px;
+}
+
+.returnTracking {
+  margin: 0 20px 16px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--field-border, #e2e6eb);
+  font-size: 13.5px;
+  color: var(--color-secondary);
+}
+.returnTracking a {
+  color: var(--color-primary);
+  font-weight: 700;
+}
+

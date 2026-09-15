@@ -57,6 +57,7 @@ import {
   Ticket,
   TrendingUp,
   Truck,
+  PackageCheck,
   Undo2,
   User,
   Users,
@@ -133,6 +134,9 @@ const NAV_GROUPS: NavGroup[] = [
           { href: "/admin/shop/media",              icon: Images,            label: "Media Library"           },
           { href: "/admin/shop/personalization/studio",  icon: Crosshair,    label: "Embroidery Positions"    },
           { href: "/admin/shop/personalization/threads", icon: Palette,      label: "Thread Colours"          },
+          // What customers may post in for embroidery, and the handling price
+          // of each — catalogue, because it is what the service sells.
+          { href: "/admin/shop/send-in/item-types",      icon: PackageCheck, label: "Send-in Item Types"      },
         ],
       },
       {
@@ -148,6 +152,9 @@ const NAV_GROUPS: NavGroup[] = [
           // has been bought, and the people working this queue are the same
           // ones fulfilling orders.
           { href: "/admin/shop/personalization",   icon: Scissors,     label: "Embroidery Queue"  },
+          // Items customers post in for embroidery: a parcel desk, not a
+          // production queue — it feeds the queue once the item is here.
+          { href: "/admin/shop/send-in",           icon: PackageCheck, label: "Send-in Items"     },
         ],
       },
       {

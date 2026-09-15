@@ -168,8 +168,10 @@ export interface EditorPlacement {
   priceCents: number;
   /** Whether a frame here can take the height of foam. */
   allowPuff: boolean;
-  /** The photograph this position is placed on. Every offered position has one. */
-  imageUrl: string;
+  /** The photograph this position is placed on. Null only for a send-in position, whose photo the customer brings. */
+  imageUrl: string | null;
+  /** The photo is the customer's — the editor is given it rather than shown one. */
+  usesCustomerPhoto?: boolean;
   /** The panel traced on that photo, or null while only the flat box exists. */
   corners: { x: number; y: number }[] | null;
   preview: { xPct: number; yPct: number; widthPct: number; heightPct: number; rotateDeg: number };
@@ -538,6 +540,12 @@ export function evaluateDesign(args: {
   if (hoop.widthMm > limits.maxWidthMm) return invalid("tooWide");
   if (hoop.heightMm > limits.maxHeightMm) return invalid("tooTall");
   if (!band) return invalid("tooManyStitches");
+
+  // A customer's own item is a flat fee per side — the position's price is the
+  // item type's, and the design never moves it. Mirrors the server, which
+  // still refuses a design past the largest band (checked above) but charges
+  // only the side.
+  if (placement.usesCustomerPhoto) return { ...base, priceCents: placement.priceCents, error: null, errorElement: null };
 
   // Band covers machine time, the position covers the hooping and the run, and
   // a slow thread multiplies the first — the dearest spool on the hoop decides.

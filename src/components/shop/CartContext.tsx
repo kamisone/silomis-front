@@ -41,10 +41,21 @@ export interface PersonalizationElementInput {
   motifSizeMm?: number;
 }
 
+/** The customer's own item, for a send-in design. Mirrors CustomerItemSchema. */
+export interface CustomerItemInput {
+  itemType: string;
+  /** The one photo of this side. */
+  photoKeys: string[];
+  corners: { x: number; y: number }[];
+  note?: string;
+}
+
 /** One position's design: its boxes. Mirrors PersonalizationInputSchema. */
 export interface PersonalizationInput {
   placementKey: string;
   elements: PersonalizationElementInput[];
+  /** Present only on a send-in design. */
+  customerItem?: CustomerItemInput;
 }
 
 /** What comes back on a line — already resolved and priced by the server. */

@@ -351,7 +351,9 @@ export default function DesignPreview({
     <div className={styles.previewStage}>
       <div className={styles.previewImageWrap} ref={wrapRef} onPointerDown={editable ? onStagePointerDown : undefined}>
         {imageUrl ? (
-          <Image src={imageUrl} alt={productTitle} fill sizes="(max-width: 900px) 100vw, 520px" className={styles.previewImage} priority />
+          // A signed URL (the customer's own photo) carries a query string the
+          // optimiser's allow-list refuses, and it expires anyway — served as is.
+          <Image src={imageUrl} alt={productTitle} fill sizes="(max-width: 900px) 100vw, 520px" className={styles.previewImage} priority unoptimized={imageUrl.includes("?")} />
         ) : (
           <div className={styles.previewImageFallback} aria-hidden="true" />
         )}

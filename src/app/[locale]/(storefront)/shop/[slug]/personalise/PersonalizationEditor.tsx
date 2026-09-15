@@ -5,10 +5,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft, Check, Loader2, AlertTriangle, Ruler, Palette, Type, MapPin,
   ShoppingBag, RotateCcw, RotateCw, Plus, Bold, ArrowRight, PencilLine,
-  MoveHorizontal, Spline, Sparkles, Undo2, Redo2, Copy, Minus, LayoutList, X,
+  MoveHorizontal, Spline, Sparkles, Undo2, Redo2, Copy, Minus, LayoutList, X, StickyNote,
 } from "lucide-react";
 import DesignPreview, { type PreviewElement } from "./DesignPreview";
-import { useCart, type PersonalizationInput } from "@/components/shop/CartContext";
+import { useCart, type CustomerItemInput, type PersonalizationInput } from "@/components/shop/CartContext";
 import { getTranslations, type Locale } from "@/lib/i18n";
 import {
   evaluateDesign, heightBounds, MONOGRAM_MAX_CHARS, DEFAULT_WEIGHT_STEP, WEIGHT_SCALE, weightForStep,
@@ -24,6 +24,25 @@ interface Props {
   config: EditorConfig;
   product: { id: string; slug: string; title: string; imageUrl: string | null; basePriceCents: number };
   variant: { id: string; label: string; priceCents: number };
+  /**
+   * A send-in design: the customer's own item, photographed side by side.
+   * One entry per position (a side each); every side is chosen for them and
+   * the Positions step is skipped — there is nothing to pick, and every side
+   * they photographed has to carry a design.
+   */
+  customerItems?: Record<string, CustomerItemInput>;
+  /** Where "back" leads — the product by default, the previous wizard step for a send-in. */
+  back?: { href?: string; label: string; onClick?: () => void };
+  /**
+   * Steps a wizard walked before handing over here (a send-in's "Your item"),
+   * shown as done on the rail so the whole journey reads as one.
+   */
+  precedingSteps?: { label: string; onClick: () => void }[];
+  /**
+   * A free-text field the host wants on the design step — a send-in's note
+   * to the shop. Rendered as the last panel, after the design itself.
+   */
+  noteField?: { title: string; hint: string; placeholder: string; value: string; onChange: (value: string) => void; maxLength?: number };
 }
 
 const STEPS = ["positions", "design", "review"] as const;
@@ -101,12 +120,15 @@ function euros(cents: number): string {
  * price, stitch count, fit — is computed locally so it moves with the typing,
  * then confirmed by a debounced server quote whose total is the binding one.
  */
-export default function PersonalizationEditor({ locale, config, product, variant }: Props) {
+export default function PersonalizationEditor({ locale, config, product, variant, customerItems, back, precedingSteps = [], noteField }: Props) {
   const t = getTranslations(locale);
   const c = t.personalize;
   const { addItem, openDrawer } = useCart();
 
-  const [step, setStep] = useState<Step>("positions");
+  // A send-in's positions are its photographed sides and they are already
+  // decided, so the editor opens on the design itself.
+  const locked = !!customerItems;
+  const [step, setStep] = useState<Step>(locked ? "design" : "positions");
   const [designs, setDesigns] = useState<Record<string, DesignState>>({});
 
   /**
@@ -228,6 +250,14 @@ export default function PersonalizationEditor({ locale, config, product, variant
     if (!chosenKeys.length) setActiveKey("");
     else if (!chosenKeys.includes(activeKey)) setActiveKey(chosenKeys[0]);
   }, [chosenKeys, activeKey]);
+
+  // A send-in design starts with every side chosen: each photographed side
+  // is charged and has to be designed.
+  useEffect(() => {
+    if (!locked || Object.keys(designsRef.current).length || !config.placements.length) return;
+    commit(Object.fromEntries(config.placements.map((p) => [p.key, defaultDesign(p)])));
+    setActiveKey(config.placements[0].key);
+  }, [locked, config.placements, defaultDesign, commit]);
 
   const activePlacement = useMemo(
     () => config.placements.find((p) => p.key === activeKey) ?? null,
@@ -414,6 +444,7 @@ export default function PersonalizationEditor({ locale, config, product, variant
         .filter((k) => !evaluations[k]?.error)
         .map((k) => ({
           placementKey: k,
+          ...(customerItems?.[k] ? { customerItem: customerItems[k] } : {}),
           elements: designs[k].elements.map((el, i) => ({
             contentType: el.options.contentType,
             text: evaluations[k].elements[i]?.text ?? "",
@@ -432,7 +463,7 @@ export default function PersonalizationEditor({ locale, config, product, variant
             motifSizeMm: el.options.motifSizeMm,
           })),
         })),
-    [chosenKeys, designs, evaluations],
+    [chosenKeys, designs, evaluations, customerItems],
   );
 
   const quoteKey = JSON.stringify(payload);
@@ -529,7 +560,9 @@ export default function PersonalizationEditor({ locale, config, product, variant
   );
   const stitchFill = activeEval && stitchCeiling ? activeEval.stitches / stitchCeiling : 0;
 
-  const stepIndex = STEPS.indexOf(step);
+  /** The steps this session walks: a send-in skips Positions. */
+  const steps = useMemo(() => STEPS.filter((s) => !(locked && s === "positions")), [locked]);
+  const stepIndex = steps.indexOf(step);
   const canLeavePositions = chosenKeys.length > 0;
   const canLeaveDesign = chosenKeys.length > 0 && !firstBroken && !incompleteKeys.length;
   const canAdd = !blocking && !incompleteKeys.length && quoteState === "ok" && confirmed && !adding;
@@ -583,10 +616,17 @@ export default function PersonalizationEditor({ locale, config, product, variant
   return (
     <div className={styles.page}>
       <header className={styles.topBar}>
-        <Link href={`/${locale}/shop/${product.slug}`} className={styles.backLink}>
-          <ArrowLeft size={16} aria-hidden="true" />
-          <span>{c.backToProduct}</span>
-        </Link>
+        {back?.onClick ? (
+          <button type="button" className={styles.backLink} onClick={back.onClick}>
+            <ArrowLeft size={16} aria-hidden="true" />
+            <span>{back.label}</span>
+          </button>
+        ) : (
+          <Link href={back?.href ?? `/${locale}/shop/${product.slug}`} className={styles.backLink}>
+            <ArrowLeft size={16} aria-hidden="true" />
+            <span>{back?.label ?? c.backToProduct}</span>
+          </Link>
+        )}
         <div className={styles.topTitle}>
           <span className={styles.eyebrow}>{c.eyebrow}</span>
           <h1 className={styles.title}>{product.title}</h1>
@@ -619,21 +659,53 @@ export default function PersonalizationEditor({ locale, config, product, variant
 
             {chosenKeys.length > 1 && (
               <div className={styles.angleRow} role="tablist" aria-label={c.angleLabel}>
+                {/* Sides of a send-in are walked with arrows too: on a phone
+                    three thumbnails and a photo do not all fit at once. */}
+                {locked && (
+                  <button
+                    type="button"
+                    className={styles.angleArrow}
+                    aria-label={t.sendIn.prevSide}
+                    disabled={chosenKeys.indexOf(activeKey) <= 0}
+                    onClick={() => setActiveKey(chosenKeys[chosenKeys.indexOf(activeKey) - 1])}
+                  >
+                    <ArrowLeft size={14} aria-hidden="true" />
+                  </button>
+                )}
                 {chosenKeys.map((k) => {
                   const p = config.placements.find((pl) => pl.key === k)!;
+                  const done = !evaluations[k]?.error;
                   return (
                     <button
                       key={k}
                       type="button"
                       role="tab"
                       aria-selected={k === activeKey}
-                      className={`${styles.angleBtn} ${k === activeKey ? styles.angleBtnActive : ""} ${evaluations[k]?.error ? styles.angleBtnError : ""}`}
+                      className={`${styles.angleBtn} ${locked ? styles.angleBtnSide : ""} ${k === activeKey ? styles.angleBtnActive : ""} ${evaluations[k]?.error ? styles.angleBtnError : ""}`}
                       onClick={() => setActiveKey(k)}
                     >
-                      {p.label}
+                      {locked && p.imageUrl && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={p.imageUrl} alt="" className={styles.angleThumb} />
+                      )}
+                      <span className={styles.angleLabel}>
+                        {p.label}
+                        {locked && done && <Check size={11} aria-hidden="true" className={styles.angleDone} />}
+                      </span>
                     </button>
                   );
                 })}
+                {locked && (
+                  <button
+                    type="button"
+                    className={styles.angleArrow}
+                    aria-label={t.sendIn.nextSide}
+                    disabled={chosenKeys.indexOf(activeKey) >= chosenKeys.length - 1}
+                    onClick={() => setActiveKey(chosenKeys[chosenKeys.indexOf(activeKey) + 1])}
+                  >
+                    <ArrowRight size={14} aria-hidden="true" />
+                  </button>
+                )}
               </div>
             )}
 
@@ -719,7 +791,17 @@ export default function PersonalizationEditor({ locale, config, product, variant
         {/* ── Controls ───────────────────────────────────────────────── */}
         <section className={styles.controlCol}>
           <ol className={styles.stepRail} aria-label={c.stepsLabel}>
-            {STEPS.map((s, i) => (
+            {precedingSteps.map((p, i) => (
+              <li key={`pre-${i}`} className={styles.stepRailItem}>
+                <button type="button" className={`${styles.stepDot} ${styles.stepDotDone}`} onClick={p.onClick}>
+                  <span className={styles.stepNum}>
+                    <Check size={13} aria-hidden="true" />
+                  </span>
+                  <span className={styles.stepName}>{p.label}</span>
+                </button>
+              </li>
+            ))}
+            {steps.map((s, i) => (
               <li key={s} className={styles.stepRailItem}>
                 <button
                   type="button"
@@ -728,7 +810,7 @@ export default function PersonalizationEditor({ locale, config, product, variant
                   disabled={i > stepIndex}
                   aria-current={i === stepIndex ? "step" : undefined}
                 >
-                  <span className={styles.stepNum}>{i < stepIndex ? <Check size={13} aria-hidden="true" /> : i + 1}</span>
+                  <span className={styles.stepNum}>{i < stepIndex ? <Check size={13} aria-hidden="true" /> : i + 1 + precedingSteps.length}</span>
                   <span className={styles.stepName}>{c.steps[s]}</span>
                 </button>
               </li>
@@ -753,7 +835,7 @@ export default function PersonalizationEditor({ locale, config, product, variant
                       aria-pressed={chosen}
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={p.imageUrl} alt="" className={styles.optionCardThumb} />
+                      <img src={p.imageUrl ?? undefined} alt="" className={styles.optionCardThumb} />
                       <span className={styles.optionCardBody}>
                         <span className={styles.optionCardTitle}>{p.label}</span>
                         {p.hint && <span className={styles.optionCardHint}>{p.hint}</span>}
@@ -1005,7 +1087,7 @@ export default function PersonalizationEditor({ locale, config, product, variant
                   <Ruler size={15} aria-hidden="true" />{" "}
                   {activeElement.options.contentType === "motif" ? c.motifSizeTitle : c.sizeTitle}
                 </legend>
-                <p className={styles.panelHint}>{c.sizeHint}</p>
+                <p className={styles.panelHint}>{customerItems ? c.sizeHintFlat : c.sizeHint}</p>
                 {activeElement.options.contentType === "motif" ? (
                   <>
                     <div className={styles.sliderRow}>
@@ -1268,6 +1350,22 @@ export default function PersonalizationEditor({ locale, config, product, variant
                 </>
               )}
 
+              {noteField && (
+                <fieldset className={styles.panel}>
+                  <legend className={styles.panelTitle}>
+                    <StickyNote size={15} aria-hidden="true" /> {noteField.title}
+                  </legend>
+                  <p className={styles.panelHint}>{noteField.hint}</p>
+                  <textarea
+                    className={styles.noteInput}
+                    rows={3}
+                    maxLength={noteField.maxLength ?? 500}
+                    value={noteField.value}
+                    placeholder={noteField.placeholder}
+                    onChange={(e) => noteField.onChange(e.target.value)}
+                  />
+                </fieldset>
+              )}
             </>
           )}
 
@@ -1343,7 +1441,9 @@ export default function PersonalizationEditor({ locale, config, product, variant
 
               <label className={styles.consent}>
                 <input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} />
-                <span>{c.consent}</span>
+                {/* A send-in is someone else's garment: the consent also covers
+                    ownership, condition and the wear it already has. */}
+                <span>{customerItems ? t.sendIn.consentItem : c.consent}</span>
               </label>
               <p className={styles.consentNote}>{c.consentNote}</p>
 
@@ -1390,17 +1490,19 @@ export default function PersonalizationEditor({ locale, config, product, variant
             {quoteState === "loading" && <Loader2 size={12} className={styles.spin} aria-hidden="true" />}
           </span>
           <span className={styles.priceValue}>€{euros(totalCents)}</span>
-          {embroideryCents > 0 && (
+          {/* On a customer's own item the whole figure is the sides' flat fees —
+              "includes €X embroidery" would just repeat the total. */}
+          {embroideryCents > 0 && (customerItems ? chosenKeys.length > 1 : true) && (
             <span className={styles.priceBreakdown}>
-              {c.includesEmbroidery.replace("{price}", `€${euros(embroideryCents)}`)}
-              {chosenKeys.length > 1 && ` · ${c.acrossPositions.replace("{n}", String(chosenKeys.length))}`}
+              {!customerItems && c.includesEmbroidery.replace("{price}", `€${euros(embroideryCents)}`)}
+              {chosenKeys.length > 1 && `${customerItems ? "" : " · "}${c.acrossPositions.replace("{n}", String(chosenKeys.length))}`}
             </span>
           )}
         </div>
 
         <div className={styles.actions}>
           {stepIndex > 0 && (
-            <button type="button" className={styles.secondaryBtn} onClick={() => setStep(STEPS[stepIndex - 1])}>
+            <button type="button" className={styles.secondaryBtn} onClick={() => setStep(steps[stepIndex - 1])}>
               {c.back}
             </button>
           )}
@@ -1408,7 +1510,7 @@ export default function PersonalizationEditor({ locale, config, product, variant
             <button
               type="button"
               className={styles.primaryBtn}
-              onClick={() => setStep(STEPS[stepIndex + 1])}
+              onClick={() => setStep(steps[stepIndex + 1])}
               disabled={step === "positions" ? !canLeavePositions : !canLeaveDesign}
             >
               {c.continue}

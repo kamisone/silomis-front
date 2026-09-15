@@ -8,6 +8,7 @@ import { api, ApiError } from "@/lib/api";
 import { useToast } from "@/components/toast/ToastContext";
 import Button from "@/components/admin/ui/Button";
 import { EmbroideryJobCard, STATUS_LABEL as JOB_STATUS_LABEL, type EmbroideryJob } from "@/components/admin/shop/EmbroideryJob";
+import { SendInJobPanel, type SendInJob } from "@/components/admin/shop/SendInJobPanel";
 import ui from "@/components/admin/ui/admin-ui.module.css";
 
 interface OrderItem {
@@ -184,6 +185,7 @@ export default function OrderDetailPage() {
   const { toast } = useToast();
   const [order, setOrder] = useState<Order | null>(null);
   const [jobs, setJobs] = useState<EmbroideryJob[]>([]);
+  const [sendIn, setSendIn] = useState<SendInJob | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [transitioning, setTransitioning] = useState(false);
@@ -197,10 +199,16 @@ export default function OrderDetailPage() {
       // The production view of the same designs — status, note, stitch file,
       // artwork. Fetched only when the order actually carries embroidery.
       if (loaded.items.some((i) => i.personalizations?.length)) {
-        const res = await api.get<{ items: EmbroideryJob[] }>(`/next-api/admin/shop/personalization/orders/${id}/jobs`);
+        const [res, job] = await Promise.all([
+          api.get<{ items: EmbroideryJob[] }>(`/next-api/admin/shop/personalization/orders/${id}/jobs`),
+          // Null unless this order is embroidery on the customer's own item.
+          api.get<SendInJob | null>(`/next-api/admin/shop/send-in/order/${id}`),
+        ]);
         setJobs(res.items);
+        setSendIn(job);
       } else {
         setJobs([]);
+        setSendIn(null);
       }
     } catch {
       setLoadError("Could not load this order.");
@@ -442,6 +450,15 @@ export default function OrderDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* The customer's own item, when this order is one: their photo and
+          note, and the round trip the desk moves it through. Above the
+          embroidery jobs, because nothing can be stitched before it arrives. */}
+      {sendIn && (
+        <section aria-label="Customer's own item">
+          <SendInJobPanel job={sendIn} onChange={setSendIn} showOrder={false} />
+        </section>
+      )}
 
       {jobs.length > 0 && (
         <section aria-labelledby="embroidery-heading" style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>

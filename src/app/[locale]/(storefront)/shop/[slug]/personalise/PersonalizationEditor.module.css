@@ -1086,6 +1086,50 @@
   color: var(--color-primary);
 }
 
+/* A side of a send-in: its photo as the tab, its name and a tick when it
+   carries a design. */
+.angleBtnSide {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px 5px 5px;
+}
+
+.angleThumb {
+  width: 34px;
+  height: 34px;
+  border-radius: 7px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.angleLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.angleDone {
+  color: var(--color-primary);
+}
+
+.angleArrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  border: 1px solid var(--field-border, #e2e6eb);
+  background: var(--background);
+  color: var(--color-secondary);
+  cursor: pointer;
+}
+.angleArrow:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
 /* ── Position readout ─────────────────────────────────────────────────── */
 
 .positionRow {
@@ -1962,4 +2006,24 @@
   margin-top: 8px;
   padding-top: 8px;
   border-top: 1px dashed var(--field-border, #e2e6eb);
+}
+
+/* A note to the shop: prose, not lettering — so the body size, not the
+   embroidery preview size the text field uses. */
+.noteInput {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--field-border, #e2e6eb);
+  background: var(--background);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-secondary);
+  resize: vertical;
+}
+.noteInput:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgb(18 156 152 / 15%);
 }

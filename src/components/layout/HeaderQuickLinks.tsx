@@ -24,7 +24,12 @@ export default function HeaderQuickLinks({ locale }: Props) {
 
   // No blog link: articles are not browsed as a section any more, they are
   // attached to a product and read from its page.
-  const links = [{ href: `/${locale}/contact`, label: t.nav.contactLabel }];
+  // "Your own item" is a service, not a category — it sits here with the
+  // other site-level destinations, first because it is the one that sells.
+  const links = [
+    { href: `/${locale}/embroider-my-item`, label: t.nav.sendInLabel },
+    { href: `/${locale}/contact`, label: t.nav.contactLabel },
+  ];
 
   return (
     <div className={styles.quickLinks}>

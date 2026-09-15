@@ -1,0 +1,683 @@
+/* Shared with the embroidery editor: the same shell (top bar, step rail,
+   panels, action bar), copied rather than imported so the two pages can
+   drift apart without one breaking the other. */
+
+.page {
+  min-height: 100vh;
+  background: var(--color-surface);
+  padding-bottom: 104px;
+}
+
+.topBar {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 18px 20px 14px;
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: var(--background);
+  border: 1px solid var(--field-border, #e2e6eb);
+  color: var(--color-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.backLink:hover {
+  background: var(--color-surface-tint);
+  border-color: var(--color-primary);
+}
+
+.topTitle {
+  min-width: 0;
+}
+
+.eyebrow {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--color-primary);
+}
+
+.title {
+  margin: 2px 0 0;
+  font-size: clamp(16px, 2.4vw, 22px);
+  font-weight: 700;
+  color: var(--color-secondary);
+  /* One line: the product name is context here, not the subject of the page,
+     and a three-line title pushes the editor itself below the fold. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stepRail {
+  display: flex;
+  gap: 6px;
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+  /* Four steps fit at 320px only by scrolling; the alternative is truncating
+     the labels into initials nobody can act on. */
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.stepRail::-webkit-scrollbar {
+  display: none;
+}
+
+.stepRailItem {
+  flex: 1;
+  min-width: fit-content;
+}
+
+.stepDot {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 11px;
+  border-radius: 10px;
+  border: 1px solid var(--field-border, #e2e6eb);
+  background: var(--background);
+  color: var(--color-muted, #6b7280);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.stepDot:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.stepDotActive {
+  border-color: var(--color-primary);
+  background: var(--color-surface-tint);
+  color: var(--color-primary);
+}
+
+.stepDotDone {
+  color: var(--color-secondary);
+}
+
+.stepNum {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 19px;
+  height: 19px;
+  border-radius: 999px;
+  background: currentColor;
+  color: var(--background);
+  font-size: 11px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.stepDotDone .stepNum {
+  background: var(--color-primary);
+}
+
+
+.panel {
+  background: var(--background);
+  border: 1px solid var(--field-border, #e2e6eb);
+  border-radius: 16px;
+  padding: 18px;
+  margin: 0 0 14px;
+  /* A fieldset carries the grouping for assistive tech; its default border
+     and padding are what we are replacing, not keeping. */
+  min-width: 0;
+}
+
+.panelTitle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-secondary);
+}
+
+.panelHint {
+  margin: 7px 0 14px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--color-muted, #6b7280);
+}
+
+.fieldLabel {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-secondary);
+  margin-bottom: 6px;
+}
+
+.fieldNote {
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--color-muted, #6b7280);
+  text-align: right;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.errorBox {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0 0 14px;
+  padding: 11px 13px;
+  border-radius: 11px;
+  background: #fdf0f0;
+  border: 1px solid #f3c9c9;
+  color: #9c1f1f;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.errorBox svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.actionBar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 20px calc(12px + env(safe-area-inset-bottom));
+  background: var(--background);
+  border-top: 1px solid var(--field-border, #e2e6eb);
+  box-shadow: 0 -2px 12px rgb(16 24 40 / 7%);
+}
+
+.priceBlock {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.priceLabel {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--color-muted, #6b7280);
+}
+
+.priceValue {
+  font-size: 21px;
+  font-weight: 800;
+  color: var(--color-secondary);
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+}
+
+.actions {
+  display: flex;
+  gap: 9px;
+  flex-shrink: 0;
+}
+
+.primaryBtn,
+.secondaryBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 12px 22px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1.5px solid transparent;
+  transition: opacity 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+.primaryBtn {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.primaryBtn:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.primaryBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.secondaryBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 12px 22px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1.5px solid transparent;
+  transition: opacity 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+
+.spin {
+  animation: spin 0.9s linear infinite;
+}
+
+.stepperRow {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--field-border, #e2e6eb);
+  border-radius: 10px;
+  background: var(--background);
+  overflow: hidden;
+}
+
+.stepperRow:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgb(18 156 152 / 15%);
+}
+
+.stepperInput {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 8px 4px 8px 8px;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--color-secondary);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  outline: none;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.stepperInput::-webkit-outer-spin-button,
+.stepperInput::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.stepperUnit {
+  align-self: center;
+  padding-right: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-muted, #6b7280);
+}
+.secondaryBtn:hover {
+  border-color: var(--color-primary);
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.layout {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 20px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 22px;
+}
+
+@media (min-width: 900px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 420px);
+    gap: 34px;
+    align-items: start;
+  }
+}
+
+.column {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.unavailable {
+  max-width: 640px;
+  margin: 80px auto;
+  padding: 0 20px;
+  text-align: center;
+  color: var(--color-secondary);
+}
+
+/* ── Item type ─────────────────────────────────────────────────────────── */
+
+.typeGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 9px;
+}
+
+.typeCard {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 12px 13px;
+  border-radius: 12px;
+  border: 1px solid var(--field-border, #e2e6eb);
+  background: var(--background);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.typeCard:hover {
+  border-color: var(--color-primary);
+}
+.typeCardActive {
+  border-color: var(--color-primary);
+  background: var(--color-surface-tint);
+  box-shadow: inset 0 0 0 1px var(--color-primary);
+}
+
+.typeImage {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: 8px;
+  margin-bottom: 4px;
+}
+
+.typeHint {
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--color-muted, #6b7280);
+}
+
+.typeLabel {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--color-secondary);
+}
+
+.typePrice {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.priceNote {
+  margin: 12px 0 0;
+  font-size: 12px;
+  color: var(--color-muted, #6b7280);
+}
+
+/* ── Photo ─────────────────────────────────────────────────────────────── */
+
+.dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 180px;
+  padding: 16px;
+  border-radius: 14px;
+  border: 2px dashed var(--field-border, #e2e6eb);
+  background: var(--color-surface-tint);
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+.dropzone:hover,
+.dropzone:focus-within {
+  border-color: var(--color-primary);
+}
+.dropzoneFilled {
+  border-style: solid;
+  background: var(--background);
+}
+/* Once a side is in, the dropzone is a short bar for the next one. */
+.dropzoneSmall {
+  flex-direction: row;
+  min-height: 0;
+  padding: 10px 14px;
+  margin-top: 12px;
+}
+.dropzoneSmall .dropzoneEmpty {
+  width: 36px;
+  height: 36px;
+}
+
+/* ── Sides ─────────────────────────────────────────────────────────────── */
+
+.sideList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sideCard {
+  position: relative;
+  display: grid;
+  grid-template-columns: 84px 1fr;
+  gap: 14px;
+  align-items: center;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid var(--field-border, #e2e6eb);
+  background: var(--background);
+}
+
+.sideThumb {
+  width: 84px;
+  height: 84px;
+  border-radius: 10px;
+  object-fit: cover;
+  background: var(--color-surface-tint);
+}
+
+.sideBody {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding-right: 28px;
+}
+
+.sideTitle {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-secondary);
+}
+
+.sidePrice {
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.sideRemove {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  border: 1px solid var(--field-border, #e2e6eb);
+  background: var(--background);
+  color: var(--color-muted, #6b7280);
+  cursor: pointer;
+}
+.sideRemove:hover {
+  color: #b42318;
+  border-color: #b42318;
+}
+
+@media (max-width: 480px) {
+  .sideCard {
+    grid-template-columns: 64px 1fr;
+  }
+  .sideThumb {
+    width: 64px;
+    height: 64px;
+  }
+}
+
+.dropzoneEmpty {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 999px;
+  background: var(--background);
+  color: var(--color-primary);
+}
+
+.dropzonePreview {
+  max-width: 100%;
+  max-height: 320px;
+  border-radius: 10px;
+  object-fit: contain;
+}
+
+.dropzoneLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--field-border, #e2e6eb);
+  background: var(--background);
+  font: inherit;
+  font-size: 14px;
+  color: var(--color-secondary);
+  resize: vertical;
+}
+.textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgb(18 156 152 / 15%);
+}
+
+/* ── How it works ───────────────────────────────────────────────────────── */
+
+.howCard {
+  padding: 18px;
+  border-radius: 16px;
+  background: var(--background);
+  border: 1px solid var(--field-border, #e2e6eb);
+}
+
+.howTitle {
+  margin: 0 0 12px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-secondary);
+}
+
+.howList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 13.5px;
+  color: var(--color-secondary);
+}
+
+.howList li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.howNum {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.howIntro {
+  margin: 14px 0 0;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--color-muted, #6b7280);
+}
+
+.stepName {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* The rail spans the page here, not a column, so it takes the layout's own
+   width and gutters. */
+.stepRail {
+  max-width: 1180px;
+  margin: 0 auto 18px;
+  padding: 0 20px;
+  box-sizing: border-box;
+}

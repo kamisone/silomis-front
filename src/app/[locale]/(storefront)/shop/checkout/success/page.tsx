@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { useCart } from "@/components/shop/CartContext";
 import { getTranslations } from "@/lib/i18n";
 import EmbroideryLine, { type EmbroideryLineDesign } from "@/components/shop/EmbroideryLine";
+import SendInTracking, { type SendInTrackingData } from "@/components/shop/SendInTracking";
 import { useLocale } from "@/lib/i18n/useLocale";
 import styles from "./Success.module.css";
 
@@ -29,6 +30,7 @@ interface OrderTracking {
   discountCents: number;
   createdAt: string;
   items: TrackingItem[];
+  sendIn?: SendInTrackingData | null;
 }
 
 function centsToEuros(c: number) {
@@ -108,6 +110,31 @@ function SuccessContent() {
         <p className={styles.subtitle}>
           {t.shop.orderPrefix} <strong>{order.orderNumber}</strong> {t.shop.orderConfirmedSuffix}
         </p>
+
+        {/* A send-in order is not finished at payment: the item still has to
+            be posted. Said here, first, with the address and the note to print. */}
+        {order.sendIn && (
+          <>
+            <div className={styles.sendInNext}>
+              <strong>{t.sendIn.successTitle}</strong>
+              <p>{t.sendIn.successBody}</p>
+            </div>
+            <SendInTracking
+              locale={locale}
+              orderNumber={order.orderNumber}
+              sendIn={order.sendIn}
+              designLines={order.items
+                .flatMap((i) => i.personalizations ?? [])
+                .flatMap((d) =>
+                  d.elements?.length
+                    ? d.elements.map((e) => `${e.text || e.motifName || ""} — ${e.contentType === "motif" ? `${e.motifSizeMm ?? ""} mm` : `${e.fontName} ${e.heightMm} mm`} · ${e.thread.name ?? ""}`)
+                    : [`${d.text} — ${d.fontName} ${d.heightMm} mm`],
+                )
+                .filter((l) => !l.startsWith(" —"))}
+              compact
+            />
+          </>
+        )}
 
         <div className={styles.infoCard}>
           <h3 className={styles.infoCardTitle}>{t.shop.checkoutOrderSummary}</h3>

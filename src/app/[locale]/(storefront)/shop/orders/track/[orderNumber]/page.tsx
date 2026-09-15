@@ -6,6 +6,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import { getTranslations, toBcp47 } from "@/lib/i18n";
 import { useLocale } from "@/lib/i18n/useLocale";
 import EmbroideryLine, { type EmbroideryLineDesign } from "@/components/shop/EmbroideryLine";
+import SendInTracking, { type SendInTrackingData } from "@/components/shop/SendInTracking";
 import styles from "../track.module.css";
 
 interface TrackingItem {
@@ -46,6 +47,8 @@ interface OrderTracking {
   items: TrackingItem[];
   shipping: ShippingInfo | null;
   timeline: TimelineEntry[];
+  /** Present when this order is embroidery on the customer's own item. */
+  sendIn?: SendInTrackingData | null;
 }
 
 const STATUS_ORDER = ["paid", "processing", "shipped", "delivered"] as const;
@@ -198,6 +201,25 @@ export default function OrderTrackDetailPage() {
             );
           })}
         </div>
+      )}
+
+      {/* The customer's own item, when this order is one: where it is, and
+          what the shop has shown them along the way. Above the shipping and
+          items, because it is the thing they came to check. */}
+      {order.sendIn && (
+        <SendInTracking
+          locale={locale}
+          orderNumber={order.orderNumber}
+          sendIn={order.sendIn}
+          designLines={order.items
+            .flatMap((i) => i.personalizations ?? [])
+            .flatMap((d) =>
+              d.elements?.length
+                ? d.elements.map((e) => `${e.text || e.motifName || ""} — ${e.contentType === "motif" ? `${e.motifSizeMm ?? ""} mm` : `${e.fontName} ${e.heightMm} mm`} · ${e.thread.name ?? ""}`)
+                : [`${d.text} — ${d.fontName} ${d.heightMm} mm`],
+            )
+            .filter((l) => !l.startsWith(" —"))}
+        />
       )}
 
       {/* Shipping info */}

@@ -1,0 +1,374 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--field-border, #e2e6eb);
+  border-radius: 14px;
+  background: var(--background);
+  overflow: hidden;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--field-border, #e2e6eb);
+}
+
+.headMain {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.orderLink {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-primary);
+  text-decoration: none;
+}
+.orderLink:hover {
+  text-decoration: underline;
+}
+
+.itemTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--color-secondary);
+}
+
+.meta {
+  font-size: 11.5px;
+  color: var(--color-muted, #6b7280);
+}
+
+.badge {
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  background: #eef1f4;
+  color: #4b5563;
+}
+.badge_awaiting_item { background: #fef3c7; color: #92400e; }
+.badge_received,
+.badge_in_production { background: #dbeafe; color: #1e40af; }
+.badge_done,
+.badge_returned,
+.badge_delivered { background: #d1fae5; color: #065f46; }
+.badge_problem { background: #fee2e2; color: #991b1b; }
+
+.body {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── The customer's side ───────────────────────────────────────────────── */
+
+.customer {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 14px;
+  padding: 14px;
+  background: var(--color-surface-tint);
+}
+
+/* One block per side the customer photographed. */
+.sides {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sideHead {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-muted, #6b7280);
+}
+.sideHead strong {
+  color: var(--color-secondary);
+}
+
+.sideText {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-secondary);
+  white-space: pre-line;
+}
+
+.customerPhotos {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* The picture the desk works from: the design where the customer put it. */
+.mockup {
+  position: relative;
+  display: block;
+  width: 240px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--field-border, #e2e6eb);
+  background: var(--background);
+}
+.mockup img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.mockupTag {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgb(16 24 40 / 72%);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
+.redraw {
+  width: 240px;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px dashed var(--field-border, #e2e6eb);
+  background: var(--background);
+  color: var(--color-primary);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.customerPhotos {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.photo {
+  display: block;
+  width: 120px;
+  height: 120px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--field-border, #e2e6eb);
+  background: var(--background);
+}
+.photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.customerText {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-muted, #6b7280);
+}
+
+.note {
+  margin: 0 0 8px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-secondary);
+  white-space: pre-line;
+}
+
+/* ── History ───────────────────────────────────────────────────────────── */
+
+.timeline {
+  list-style: none;
+  margin: 0;
+  padding: 12px 14px 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.event {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed var(--field-border, #e2e6eb);
+}
+
+.eventStatus {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--color-secondary);
+}
+
+.eventDate {
+  font-size: 11px;
+  color: var(--color-muted, #6b7280);
+}
+
+.eventNote {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--color-secondary);
+  white-space: pre-line;
+}
+
+.eventPhotos,
+.photoRow {
+  flex-basis: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.photoSmall {
+  position: relative;
+  display: block;
+  width: 64px;
+  height: 64px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--field-border, #e2e6eb);
+  background: var(--color-surface);
+}
+.photoSmall img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.photoRemove {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: none;
+  background: rgb(16 24 40 / 70%);
+  color: #fff;
+  cursor: pointer;
+}
+
+.addTile {
+  width: 64px;
+  height: 64px;
+}
+
+/* ── Form ──────────────────────────────────────────────────────────────── */
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px 14px;
+  border-top: 1px solid var(--field-border, #e2e6eb);
+}
+
+.formRow {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+.formRow .field {
+  flex: 1;
+  min-width: 160px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.required {
+  text-transform: none;
+  letter-spacing: 0;
+  color: #b45309;
+}
+
+.nextBtn,
+.saveBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 9px;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.nextBtn {
+  background: var(--background);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.saveBtn {
+  background: var(--color-primary);
+  color: #fff;
+}
+.saveBtn:disabled,
+.nextBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.formActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.warn {
+  font-size: 12px;
+  color: #b45309;
+}
+
+.spin {
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
