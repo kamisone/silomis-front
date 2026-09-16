@@ -4,6 +4,8 @@
   border-radius: 14px;
   overflow: hidden;
   margin-bottom: 16px;
+  /* The success page centres its card; a timeline reads left to right. */
+  text-align: left;
 }
 
 .head {

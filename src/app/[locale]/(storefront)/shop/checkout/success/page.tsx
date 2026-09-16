@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useCart } from "@/components/shop/CartContext";
 import { getTranslations } from "@/lib/i18n";
-import EmbroideryLine, { type EmbroideryLineDesign } from "@/components/shop/EmbroideryLine";
+import EmbroideryLine, { slipLines, type EmbroideryLineDesign } from "@/components/shop/EmbroideryLine";
 import SendInTracking, { type SendInTrackingData } from "@/components/shop/SendInTracking";
 import { useLocale } from "@/lib/i18n/useLocale";
 import styles from "./Success.module.css";
@@ -126,26 +126,24 @@ function SuccessContent() {
         </p>
 
         {/* A send-in order is not finished at payment: the item still has to
-            be posted. Said here, first, with the address and the note to print. */}
+            be posted. Said here, first, with the address and the note to
+            print. This page gets bookmarked and reopened, so once the parcel
+            is in the "post it to us" box is gone and the round trip shows
+            in full — the shop's photos included — as the tracking page does. */}
         {order.sendIn && (
           <>
-            <div className={styles.sendInNext}>
-              <strong>{t.sendIn.successTitle}</strong>
-              <p>{t.sendIn.successBody}</p>
-            </div>
+            {order.sendIn.status === "awaiting_item" && (
+              <div className={styles.sendInNext}>
+                <strong>{t.sendIn.successTitle}</strong>
+                <p>{t.sendIn.successBody}</p>
+              </div>
+            )}
             <SendInTracking
               locale={locale}
               orderNumber={order.orderNumber}
               sendIn={order.sendIn}
-              designLines={order.items
-                .flatMap((i) => i.personalizations ?? [])
-                .flatMap((d) =>
-                  d.elements?.length
-                    ? d.elements.map((e) => `${e.text || e.motifName || ""} — ${e.contentType === "motif" ? `${e.motifSizeMm ?? ""} mm` : `${e.fontName} ${e.heightMm} mm`} · ${e.thread.name ?? ""}`)
-                    : [`${d.text} — ${d.fontName} ${d.heightMm} mm`],
-                )
-                .filter((l) => !l.startsWith(" —"))}
-              compact
+              designLines={slipLines(order.items.flatMap((i) => i.personalizations ?? []))}
+              compact={order.sendIn.status === "awaiting_item"}
             />
           </>
         )}

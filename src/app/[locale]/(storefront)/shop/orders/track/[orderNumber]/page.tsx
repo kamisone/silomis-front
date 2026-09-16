@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { getTranslations, toBcp47 } from "@/lib/i18n";
 import { useLocale } from "@/lib/i18n/useLocale";
-import EmbroideryLine, { type EmbroideryLineDesign } from "@/components/shop/EmbroideryLine";
+import EmbroideryLine, { slipLines, type EmbroideryLineDesign } from "@/components/shop/EmbroideryLine";
 import SendInTracking, { type SendInTrackingData } from "@/components/shop/SendInTracking";
 import styles from "../track.module.css";
 
@@ -212,14 +212,7 @@ export default function OrderTrackDetailPage() {
           locale={locale}
           orderNumber={order.orderNumber}
           sendIn={order.sendIn}
-          designLines={order.items
-            .flatMap((i) => i.personalizations ?? [])
-            .flatMap((d) =>
-              d.elements?.length
-                ? d.elements.map((e) => `${e.text || e.motifName || ""} — ${e.contentType === "motif" ? `${e.motifSizeMm ?? ""} mm` : `${e.fontName} ${e.heightMm} mm`} · ${e.thread.name ?? ""}`)
-                : [`${d.text} — ${d.fontName} ${d.heightMm} mm`],
-            )
-            .filter((l) => !l.startsWith(" —"))}
+          designLines={slipLines(order.items.flatMap((i) => i.personalizations ?? []))}
         />
       )}
 

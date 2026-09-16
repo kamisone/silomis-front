@@ -95,3 +95,25 @@ export default function EmbroideryLine({ design, locale, compact = false }: { de
     </span>
   );
 }
+
+/**
+ * One line per box for the send-in note — the words (or the logo's file
+ * name), their size in millimetres and their spool — so the desk can hold a
+ * ruler against the item before anything is hooped.
+ */
+export function slipLines(designs: EmbroideryLineDesign[]): string[] {
+  return designs
+    .flatMap((d) =>
+      d.elements?.length
+        ? d.elements.map((e) => {
+            const artName = e.artwork?.name ?? e.artworkName ?? null;
+            const artW = e.artwork?.widthMm ?? e.artworkWidthMm ?? null;
+            const artH = e.artwork?.heightMm ?? e.artworkHeightMm ?? null;
+            if (e.contentType === "artwork") return `${artName ?? "logo"} — ${artW && artH ? `${Math.round(artW)} × ${Math.round(artH)} mm` : ""}`;
+            const size = e.contentType === "motif" ? `${e.motifSizeMm ?? ""} mm` : `${e.fontName} ${e.heightMm} mm`;
+            return `${e.text || e.motifName || ""} — ${size}${e.thread.name ? ` · ${e.thread.name}` : ""}`;
+          })
+        : [`${d.text} — ${d.fontName} ${d.heightMm} mm`],
+    )
+    .filter((l) => !l.startsWith(" —"));
+}
