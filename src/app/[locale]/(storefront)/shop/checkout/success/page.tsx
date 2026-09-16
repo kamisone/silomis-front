@@ -68,6 +68,9 @@ function SuccessContent() {
     }
     const qs = new URLSearchParams();
     if (token) qs.set("token", token);
+    // Product and position names come back in this language, whatever
+    // language the basket was in when the order was placed.
+    qs.set("lang", locale);
 
     // Stripe sends the customer back here before its webhook has necessarily
     // reached the shop. Settling from Stripe's own answer first means the
@@ -84,7 +87,7 @@ function SuccessContent() {
       .then((data) => setOrder(data))
       .catch(() => setError(true))
       .finally(() => setLoading(false));
-  }, [orderNumber, token, orderId]);
+  }, [orderNumber, token, orderId, locale]);
 
   if (loading) {
     return (
@@ -158,9 +161,6 @@ function SuccessContent() {
                   {item.personalizations?.map((d) => (
                     <EmbroideryLine key={d.placementKey} design={d} locale={locale} />
                   ))}
-                {item.personalizations?.map((d) => (
-                  <EmbroideryLine key={d.placementKey} design={d} locale={locale} />
-                ))}
                 </div>
                 <span className={styles.itemQty}>×{item.quantity}</span>
                 <span className={styles.itemPrice}>€{centsToEuros(item.totalCents)}</span>

@@ -115,13 +115,14 @@ export default function OrderTrackDetailPage() {
     const qs = new URLSearchParams();
     if (token) qs.set("token", token);
     if (email) qs.set("email", email);
+    qs.set("lang", locale);
 
     fetch(`/next-api/public/shop/orders/${encodeURIComponent(orderNumber)}/track?${qs.toString()}`)
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((data) => setOrder(data))
       .catch(() => setError(true))
       .finally(() => setLoading(false));
-  }, [orderNumber, token, email]);
+  }, [orderNumber, token, email, locale]);
 
   if (loading) {
     return (
