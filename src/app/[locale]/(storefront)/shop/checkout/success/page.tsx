@@ -48,6 +48,7 @@ function SuccessContent() {
 
   const orderNumber = searchParams.get("order");
   const token = searchParams.get("token");
+  const orderId = searchParams.get("id");
   const clearedRef = useRef(false);
 
   useEffect(() => {
@@ -68,12 +69,22 @@ function SuccessContent() {
     const qs = new URLSearchParams();
     if (token) qs.set("token", token);
 
-    fetch(`/next-api/public/shop/orders/${encodeURIComponent(orderNumber)}/track?${qs.toString()}`)
+    // Stripe sends the customer back here before its webhook has necessarily
+    // reached the shop. Settling from Stripe's own answer first means the
+    // page they land on says "paid", not "awaiting payment" — and that the
+    // confirmation email and the desk's alert go out now rather than never,
+    // should the webhook not be configured for this environment.
+    const reconcile = orderId
+      ? fetch(`/next-api/public/shop/payment/${encodeURIComponent(orderId)}/reconcile`, { method: "POST" }).catch(() => undefined)
+      : Promise.resolve(undefined);
+
+    reconcile
+      .then(() => fetch(`/next-api/public/shop/orders/${encodeURIComponent(orderNumber)}/track?${qs.toString()}`))
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((data) => setOrder(data))
       .catch(() => setError(true))
       .finally(() => setLoading(false));
-  }, [orderNumber, token]);
+  }, [orderNumber, token, orderId]);
 
   if (loading) {
     return (

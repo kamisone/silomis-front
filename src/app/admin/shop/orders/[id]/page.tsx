@@ -194,7 +194,17 @@ export default function OrderDetailPage() {
   // page in place rather than blanking it.
   const load = useCallback(async () => {
     try {
-      const loaded = await api.get<Order>(`/next-api/admin/shop/orders/${id}`);
+      let loaded = await api.get<Order>(`/next-api/admin/shop/orders/${id}`);
+      // An order still waiting on its payment is checked against Stripe as it
+      // is opened: if the money is there and the webhook never said so, the
+      // order is settled now — so what the desk reads is what Stripe holds.
+      if (loaded.status === "awaiting_payment" || loaded.status === "draft") {
+        const res = await api.post<{ status: string | null; reconciled: boolean }>(`/next-api/admin/shop/transactions/${id}/reconcile`, {}).catch(() => null);
+        if (res?.reconciled) {
+          toast.success("Stripe confirmed this payment — the order is now paid.");
+          loaded = await api.get<Order>(`/next-api/admin/shop/orders/${id}`);
+        }
+      }
       setOrder(loaded);
       // The production view of the same designs — status, note, stitch file,
       // artwork. Fetched only when the order actually carries embroidery.
@@ -215,7 +225,7 @@ export default function OrderDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, toast]);
 
   /** A saved job card replaces its row, and the item table's badge follows. */
   const onJobChange = useCallback((job: EmbroideryJob) => {
@@ -275,6 +285,26 @@ export default function OrderDetailPage() {
           </span>
         </div>
         <div className={ui.rowActions}>
+          {(order.status === "awaiting_payment" || order.status === "draft") && (
+            <Button
+              variant="secondary"
+              disabled={transitioning}
+              onClick={() => {
+                setTransitioning(true);
+                api
+                  .post<{ status: string | null; reconciled: boolean }>(`/next-api/admin/shop/transactions/${id}/reconcile`, {})
+                  .then((res) => {
+                    if (res.status === "paid") toast.success("Stripe confirmed the payment — the order is paid.");
+                    else toast.info("Stripe has no successful payment for this order yet.");
+                    return load();
+                  })
+                  .catch(() => toast.error("Could not check with Stripe."))
+                  .finally(() => setTransitioning(false));
+              }}
+            >
+              Check payment with Stripe
+            </Button>
+          )}
           {nextStatuses.map((s) => (
             <Button key={s} variant={s === "cancelled" || s === "refunded" ? "danger" : "secondary"} disabled={transitioning} onClick={() => handleTransition(s)}>
               {STATUS_LABEL[s] ?? s}
