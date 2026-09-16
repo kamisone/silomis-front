@@ -138,6 +138,10 @@ interface Product {
   isNew: boolean;
   isTestProduct: boolean;
   freeShipping: boolean;
+  /** Set when the product can be embroidered — the "Custom embroidery" switch. */
+  personalizationTemplateId?: string | null;
+  /** The send-in service product, which has no switch of its own here. */
+  isService?: boolean;
   freeShippingDaysMin: number | null;
   freeShippingDaysMax: number | null;
   freeShippingUpgradeMethods: Array<{ id: string }> | null;
@@ -197,6 +201,7 @@ export default function EditProductPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { toast } = useToast();
+  const [embroideryBusy, setEmbroideryBusy] = useState(false);
 
   const [product, setProduct] = useState<Product | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -1147,6 +1152,32 @@ export default function EditProductPage() {
                 hint="Draws a “New” badge on this product’s cards and on its page, translated per language. A switch rather than an automatic window on the date added — only you know when a product stops being the new thing."
                 checked={product.isNew}
                 onChange={(v) => set({ isNew: v })}
+              />
+              <div className={styles.divider} />
+              {/* Saved on the spot rather than with the form: it is its own
+                  endpoint (the template behind it is the shop's business, not
+                  the admin's), and a switch that waits for "Save changes"
+                  reads as broken. */}
+              <Switch
+                label="Custom embroidery"
+                hint={
+                  product.isService
+                    ? "This is the send-in service itself — switch the whole service on or off under Catalog › Send-in Item Types."
+                    : "Offer the embroidery editor on this product. Off hides the “Personalise” option from its page and stops new designs; orders already placed keep theirs."
+                }
+                checked={!!product.personalizationTemplateId}
+                disabled={!!product.isService || embroideryBusy}
+                onChange={(v) => {
+                  setEmbroideryBusy(true);
+                  api
+                    .patch<{ personalizationTemplateId: string | null }>(`/next-api/admin/shop/personalization/products/${product.id}/template`, { enabled: v })
+                    .then((res) => {
+                      set({ personalizationTemplateId: res.personalizationTemplateId });
+                      toast.success(v ? "Embroidery offered on this product." : "Embroidery switched off for this product.");
+                    })
+                    .catch(() => toast.error("Could not change the embroidery setting."))
+                    .finally(() => setEmbroideryBusy(false));
+                }}
               />
               <div className={styles.divider} />
               <Switch

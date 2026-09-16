@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { PackageX } from "lucide-react";
 import SendInWizard, { type SendInConfig } from "./SendInWizard";
 import type { EditorConfig } from "@/lib/shop/embroidery";
 import { isValidLocale, DEFAULT_LOCALE, getTranslations } from "@/lib/i18n";
@@ -60,9 +62,27 @@ export default async function SendInPage({ params }: PageProps) {
   const editorConfig = config ? await fetchEditorConfig(config.productId, safeLocale) : null;
 
   if (!config || !editorConfig) {
+    // The service is switched off (or not set up): a proper notice, not a
+    // blank page — the customer landed here from a link, and should leave
+    // knowing what the page is and where to go instead.
     return (
       <div className={styles.unavailable}>
-        <p>{t.sendIn.unavailable}</p>
+        <div className={styles.unavailableCard}>
+          <span className={styles.unavailableIcon} aria-hidden="true">
+            <PackageX size={28} />
+          </span>
+          <span className={styles.eyebrow}>{t.sendIn.eyebrow}</span>
+          <h1 className={styles.unavailableTitle}>{t.sendIn.unavailableTitle}</h1>
+          <p className={styles.unavailableBody}>{t.sendIn.unavailableBody}</p>
+          <div className={styles.unavailableActions}>
+            <Link href={`/${safeLocale}`} className={styles.unavailableCta}>
+              {t.sendIn.unavailableCta}
+            </Link>
+            <Link href={`/${safeLocale}/contact`} className={styles.unavailableLink}>
+              {t.sendIn.unavailableContact}
+            </Link>
+          </div>
+        </div>
       </div>
     );
   }

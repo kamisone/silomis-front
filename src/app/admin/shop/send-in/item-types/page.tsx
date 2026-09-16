@@ -59,9 +59,17 @@ export default function SendInItemTypesPage() {
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState<{ label: LocalizedTextMap; priceCents: number }>({ label: {}, priceCents: 990 });
 
+  const [enabled, setEnabled] = useState<boolean | null>(null);
+  const [switching, setSwitching] = useState(false);
+
   const load = useCallback(async () => {
     try {
-      setTypes(await api.get<ItemType[]>("/next-api/admin/shop/send-in/item-types"));
+      const [list, settings] = await Promise.all([
+        api.get<ItemType[]>("/next-api/admin/shop/send-in/item-types"),
+        api.get<{ enabled: boolean }>("/next-api/admin/shop/send-in/settings").catch(() => ({ enabled: true })),
+      ]);
+      setTypes(list);
+      setEnabled(settings.enabled);
     } catch {
       setError("Could not load the item types.");
     } finally {
@@ -164,6 +172,32 @@ export default function SendInItemTypesPage() {
         customer photographs and embroiders (up to three) and is the whole price of that side — embroidery, handling and
         return; what the customer designs on it never changes the figure.
       </p>
+
+      {/* The one switch over the whole service. Off takes the storefront page
+          down to a "not available right now" notice and refuses new designs
+          on a customer's own item; jobs already ordered carry on. */}
+      {enabled !== null && (
+        <div className={`${ui.card} ${styles.serviceCard} ${enabled ? "" : styles.serviceCardOff}`}>
+          <Switch
+            label={enabled ? "Service offered to customers" : "Service switched off"}
+            hint={
+              enabled
+                ? "Customers can design and order embroidery on their own items. Switch off to pause the service — the page shows a “not available right now” notice, nothing already ordered is affected."
+                : "The “Your own item” page shows a “not available right now” notice and no new send-in orders can be placed. Orders already in progress continue as normal."
+            }
+            checked={enabled}
+            disabled={switching}
+            onChange={(v) => {
+              setSwitching(true);
+              api
+                .patch<{ enabled: boolean }>("/next-api/admin/shop/send-in/settings", { enabled: v })
+                .then((res) => setEnabled(res.enabled))
+                .catch(() => setError("Could not change the service setting."))
+                .finally(() => setSwitching(false));
+            }}
+          />
+        </div>
+      )}
 
       {error && <p className={ui.error}>{error}</p>}
 
