@@ -1611,6 +1611,184 @@
   color: var(--color-muted, #6b7280);
 }
 
+/* ── The customer's own logo ─────────────────────────────────────────────
+   One file per box: a dropzone until it is in, then the file as a card with
+   its stitched size, and the digitising note that sets expectations. */
+.artwork {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.artworkDrop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 150px;
+  padding: 18px 16px;
+  border-radius: 14px;
+  border: 2px dashed var(--field-border, #e2e6eb);
+  background: var(--color-surface-tint);
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.artworkDrop:hover,
+.artworkDrop:focus-within,
+.artworkDropActive {
+  border-color: var(--color-primary);
+  background: var(--background);
+}
+.artworkDropBusy {
+  pointer-events: none;
+  opacity: 0.8;
+}
+
+.artworkDropIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 999px;
+  background: var(--background);
+  color: var(--color-primary);
+  box-shadow: 0 1px 2px rgb(16 24 40 / 6%);
+}
+
+.artworkDropLabel {
+  margin-top: 4px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.artworkDropNote {
+  font-size: 11.5px;
+  color: var(--color-muted, #6b7280);
+  max-width: 34ch;
+}
+
+.artworkCard {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: 14px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1.5px solid var(--color-primary);
+  background: var(--background);
+}
+
+/* A checkerboard behind the file, so a transparent PNG reads as transparent
+   and a white logo is still visible. */
+.artworkThumb {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 96px;
+  height: 96px;
+  border-radius: 10px;
+  border: 1px solid var(--field-border, #e2e6eb);
+  background-color: #fff;
+  background-image:
+    linear-gradient(45deg, #eef0f3 25%, transparent 25%),
+    linear-gradient(-45deg, #eef0f3 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #eef0f3 75%),
+    linear-gradient(-45deg, transparent 75%, #eef0f3 75%);
+  background-size: 12px 12px;
+  background-position: 0 0, 0 6px, 6px -6px, -6px 0;
+  overflow: hidden;
+}
+.artworkThumb img {
+  max-width: 84px;
+  max-height: 84px;
+  object-fit: contain;
+}
+
+.artworkBody {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.artworkName {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.artworkMeta {
+  font-size: 12px;
+  color: var(--color-muted, #6b7280);
+}
+
+.artworkActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.artworkDigitise {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--color-surface-tint);
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--color-secondary);
+}
+.artworkDigitise svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--color-primary);
+}
+
+.boxThumb {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  object-fit: contain;
+  background: #fff;
+  border: 1px solid var(--field-border, #e2e6eb);
+}
+
+.reviewArtwork {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  gap: 12px;
+  align-items: center;
+}
+.reviewArtworkImg {
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+  border-radius: 10px;
+  background: #fff;
+  border: 1px solid var(--field-border, #e2e6eb);
+}
+.reviewArtworkName {
+  display: block;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* ── Motifs ───────────────────────────────────────────────────────────────
    Shown as solid silhouettes at the size they read at, because that is what a
    shape looks like once it is stitched — fine line art disappears. */

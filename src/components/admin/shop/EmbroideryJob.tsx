@@ -81,7 +81,7 @@ export interface EmbroideryJob {
 }
 
 export interface EmbroideryJobElement {
-  contentType: "text" | "monogram" | "motif";
+  contentType: "text" | "monogram" | "motif" | "artwork";
   text: string;
   lineCount: number;
   fontName: string;
@@ -91,6 +91,8 @@ export interface EmbroideryJobElement {
   isPuff: boolean;
   motifName: string | null;
   motifSizeMm: number | null;
+  /** The customer's own logo on a send-in — digitised by hand from the original file. */
+  artwork?: { name: string; widthMm: number; heightMm: number } | null;
   thread: ThreadColor;
   offsetXMm: number;
   offsetYMm: number;
@@ -208,6 +210,7 @@ export function EmbroideryJobCard({
       <ol className={styles.boxes}>
         {(job.elements?.length ? job.elements : []).map((el, i) => {
           const isMotifBox = el.contentType === "motif";
+          const isArtworkBox = el.contentType === "artwork";
           const finish = [
             el.fontWeight !== 400 ? WEIGHT_NAME[el.fontWeight] ?? String(el.fontWeight) : null,
             el.lineCount > 1 ? `${el.lineCount} lines` : null,
@@ -226,16 +229,28 @@ export function EmbroideryJobCard({
             <li key={i} className={styles.boxItem}>
               <span className={styles.boxIndex}>{i + 1}</span>
               <div className={styles.boxBody}>
-                <strong className={`${styles.stitchTextValue} ${isMotifBox ? styles.stitchTextMotif : ""}`}>{isMotifBox ? (el.motifName ?? "shape") : el.text}</strong>
-                <span className={styles.thread} title={el.thread.name}>
-                  <span className={styles.threadChip} style={{ background: el.thread.hex }} aria-hidden="true" />
-                  <span className={styles.threadCode}>
-                    {el.thread.brand} {el.thread.code}
+                <strong className={`${styles.stitchTextValue} ${isMotifBox || isArtworkBox ? styles.stitchTextMotif : ""}`}>
+                  {isArtworkBox ? `Customer artwork — ${el.artwork?.name ?? "file"}` : isMotifBox ? (el.motifName ?? "shape") : el.text}
+                </strong>
+                {isArtworkBox ? (
+                  <span className={styles.thread}>
+                    <span className={styles.threadName}>Own colours — digitise from the original file (on the send-in panel)</span>
                   </span>
-                  <span className={styles.threadName}>{el.thread.name}</span>
-                </span>
+                ) : (
+                  <span className={styles.thread} title={el.thread.name}>
+                    <span className={styles.threadChip} style={{ background: el.thread.hex }} aria-hidden="true" />
+                    <span className={styles.threadCode}>
+                      {el.thread.brand} {el.thread.code}
+                    </span>
+                    <span className={styles.threadName}>{el.thread.name}</span>
+                  </span>
+                )}
                 <span className={styles.boxSpecs}>
-                  {isMotifBox ? mm(el.motifSizeMm ?? 0) : `${el.fontName} · ${mm(el.heightMm)}`}
+                  {isArtworkBox
+                    ? `${mm(el.artwork?.widthMm ?? 0)} × ${mm(el.artwork?.heightMm ?? 0)}`
+                    : isMotifBox
+                      ? mm(el.motifSizeMm ?? 0)
+                      : `${el.fontName} · ${mm(el.heightMm)}`}
                   {finish.length > 0 && ` · ${finish.join(" · ")}`}
                   {` · ${placed}`}
                   {` · ≈ ${el.stitchEstimate.toLocaleString()} st.`}

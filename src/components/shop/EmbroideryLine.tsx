@@ -6,7 +6,7 @@ import styles from "./EmbroideryLine.module.css";
 export interface EmbroideryLineDesign {
   placementKey: string;
   placementLabel: string;
-  contentType: "text" | "monogram" | "motif";
+  contentType: "text" | "monogram" | "motif" | "artwork";
   text: string;
   motifName?: string | null;
   motifSizeMm?: number | null;
@@ -17,13 +17,18 @@ export interface EmbroideryLineDesign {
   threadColors: Array<{ hex: string; name?: string; code?: string }>;
   /** Every box in the area, each in its own spool. Absent on a legacy design. */
   elements?: Array<{
-    contentType: "text" | "monogram" | "motif";
+    contentType: "text" | "monogram" | "motif" | "artwork";
     text: string;
     fontName: string;
     heightMm: number;
     isPuff?: boolean;
     motifName?: string | null;
     motifSizeMm?: number | null;
+    /** The customer's own logo, on a send-in. Either shape the server sends. */
+    artwork?: { name: string; widthMm: number; heightMm: number } | null;
+    artworkName?: string | null;
+    artworkWidthMm?: number | null;
+    artworkHeightMm?: number | null;
     thread: { hex: string; name?: string; code?: string };
   }>;
 }
@@ -60,13 +65,29 @@ export default function EmbroideryLine({ design, locale, compact = false }: { de
       <span className={styles.position}>{design.placementLabel}</span>
       {boxes.map((b, i) => {
         const isMotif = b.contentType === "motif";
-        const meta = [isMotif ? (b.motifSizeMm ? `${b.motifSizeMm}mm` : null) : `${b.fontName} · ${b.heightMm}mm`, b.thread.name ?? null, b.isPuff ? t.linePuff : null]
+        const isArtwork = b.contentType === "artwork";
+        const artName = b.artwork?.name ?? b.artworkName ?? null;
+        const artW = b.artwork?.widthMm ?? b.artworkWidthMm ?? null;
+        const artH = b.artwork?.heightMm ?? b.artworkHeightMm ?? null;
+        const meta = [
+          isArtwork
+            ? artW && artH
+              ? `${Math.round(artW)} × ${Math.round(artH)}mm`
+              : null
+            : isMotif
+              ? b.motifSizeMm
+                ? `${b.motifSizeMm}mm`
+                : null
+              : `${b.fontName} · ${b.heightMm}mm`,
+          isArtwork ? null : (b.thread.name ?? null),
+          b.isPuff ? t.linePuff : null,
+        ]
           .filter(Boolean)
           .join(" · ");
         return (
           <span key={i} className={styles.box}>
-            <span className={styles.chip} style={{ background: b.thread.hex }} title={b.thread.name} aria-hidden="true" />
-            <span className={styles.subject}>{isMotif ? (b.motifName ?? t.contentTypes.motif) : `“${b.text}”`}</span>
+            {!isArtwork && <span className={styles.chip} style={{ background: b.thread.hex }} title={b.thread.name} aria-hidden="true" />}
+            <span className={styles.subject}>{isArtwork ? (artName ?? t.contentTypes.artwork) : isMotif ? (b.motifName ?? t.contentTypes.motif) : `“${b.text}”`}</span>
             <span className={styles.meta}>{meta}</span>
           </span>
         );

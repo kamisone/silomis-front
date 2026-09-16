@@ -17,13 +17,14 @@ export interface CartItemOption {
 /** What the editor sends. Mirrors the backend's PersonalizationInputSchema. */
 /** One box inside a position's embroidery area. Mirrors ElementInputSchema. */
 export interface PersonalizationElementInput {
-  contentType: "text" | "monogram" | "motif";
+  contentType: "text" | "monogram" | "motif" | "artwork";
   /** Lines separated by "\n" — the server splits and normalises them. */
   text: string;
   fontKey: string;
   heightMm: number;
   /** The one spool this box is sewn in. */
-  threadColorId: string;
+  /** Absent on a logo, which carries its own colours. */
+  threadColorId?: string;
   weight?: number;
   /** Where the box sits, in mm from the position's traced centre, and its own angle. */
   offsetXMm?: number;
@@ -39,6 +40,9 @@ export interface PersonalizationElementInput {
   /** A pre-digitised shape instead of lettering. */
   motifKey?: string;
   motifSizeMm?: number;
+  /** The customer's own logo on a send-in: the upload's key and its stitched width. */
+  artworkKey?: string;
+  artworkSizeMm?: number;
 }
 
 /** The customer's own item, for a send-in design. Mirrors CustomerItemSchema. */
@@ -62,7 +66,7 @@ export interface PersonalizationInput {
 export interface CartItemPersonalization {
   placementKey: string;
   placementLabel: string;
-  contentType: "text" | "monogram" | "motif";
+  contentType: "text" | "monogram" | "motif" | "artwork";
   text: string;
   motifName?: string | null;
   motifSizeMm?: number | null;
@@ -77,13 +81,15 @@ export interface CartItemPersonalization {
 }
 
 export interface CartDesignElement {
-  contentType: "text" | "monogram" | "motif";
+  contentType: "text" | "monogram" | "motif" | "artwork";
   text: string;
   fontName: string;
   heightMm: number;
   isPuff: boolean;
   motifName: string | null;
   motifSizeMm: number | null;
+  /** The customer's own logo on a send-in: file name and stitched size. */
+  artwork?: { name: string; widthMm: number; heightMm: number } | null;
   thread: { brand: string; code: string; name: string; hex: string };
 }
 

@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft, Check, Loader2, AlertTriangle, Ruler, Palette, Type, MapPin,
   ShoppingBag, RotateCcw, RotateCw, Plus, Bold, ArrowRight, PencilLine,
-  MoveHorizontal, Spline, Sparkles, Undo2, Redo2, Copy, Minus, LayoutList, X, StickyNote,
+  MoveHorizontal, Spline, Sparkles, Undo2, Redo2, Copy, Minus, LayoutList, X, StickyNote, ImagePlus, Trash2, RefreshCw,
 } from "lucide-react";
 import DesignPreview, { type PreviewElement } from "./DesignPreview";
 import { useCart, type CustomerItemInput, type PersonalizationInput } from "@/components/shop/CartContext";
@@ -13,7 +13,7 @@ import { getTranslations, type Locale } from "@/lib/i18n";
 import {
   evaluateDesign, heightBounds, MONOGRAM_MAX_CHARS, DEFAULT_WEIGHT_STEP, WEIGHT_SCALE, weightForStep,
   DEFAULT_OPTIONS, MAX_TEXT_LINES, TRACKING_MIN, TRACKING_MAX, KERNING_LIMIT, CURVE_LIMIT_DEG,
-  MOTIF_MIN_MM, MOTIF_MAX_MM, DEFAULT_FIELD_LIMITS, MAX_ELEMENTS,
+  MOTIF_MIN_MM, MOTIF_MAX_MM, DEFAULT_FIELD_LIMITS, MAX_ELEMENTS, ARTWORK_MIN_MM, ARTWORK_MAX_MM, SEND_IN_MAX_STITCHES,
   type ContentKind, type DesignOptions, type EditorConfig, type EditorEvaluation, type EditorPlacement,
 } from "@/lib/shop/embroidery";
 import { isUsableQuad, type Point, type Quad } from "@/lib/shop/perspective";
@@ -392,14 +392,53 @@ export default function PersonalizationEditor({ locale, config, product, variant
 
   const bounds = useMemo(() => (activeFont ? heightBounds(activeFont) : { min: 8, max: 40 }), [activeFont]);
 
-  /** What this shop offers: words, initials, and shapes if any are published. */
+  /**
+   * What this shop offers: words, initials, and shapes if any are published.
+   * On the customer's own item the shapes give way to their own logo — that
+   * is the one place the shop digitises a file on demand.
+   */
   const kinds = useMemo(() => {
     const out: ContentKind[] = [];
     if (config.template.allowText) out.push("text");
     if (config.template.allowMonogram) out.push("monogram");
-    if (config.motifs.length) out.push("motif");
+    if (customerItems) out.push("artwork");
+    else if (config.motifs.length) out.push("motif");
     return out;
-  }, [config.template.allowText, config.template.allowMonogram, config.motifs.length]);
+  }, [config.template.allowText, config.template.allowMonogram, config.motifs.length, customerItems]);
+
+  // ── The customer's own logo ──────────────────────────────────────────
+  const [artworkBusy, setArtworkBusy] = useState(false);
+  const [artworkError, setArtworkError] = useState<string | null>(null);
+  const [artworkDrag, setArtworkDrag] = useState(false);
+  /** Uploads the file, then puts its rendering on the open box at a sensible width. */
+  const uploadArtwork = useCallback(
+    async (file: File | undefined) => {
+      if (!file) return;
+      setArtworkError(null);
+      setArtworkBusy(true);
+      try {
+        const body = new FormData();
+        body.append("artwork", file);
+        const res = await fetch("/next-api/public/shop/send-in/artwork", { method: "POST", body });
+        const data = (await res.json().catch(() => null)) as { key?: string; url?: string; name?: string; widthPx?: number; heightPx?: number; coverage?: number; message?: string } | null;
+        if (!res.ok || !data?.key || !data.url) throw new Error(data?.message || "upload");
+        const aspect = data.widthPx && data.heightPx ? data.heightPx / data.widthPx : 1;
+        patchOptions({
+          contentType: "artwork",
+          artworkKey: data.key,
+          artworkUrl: data.url,
+          artworkName: data.name ?? file.name,
+          artworkAspect: aspect,
+          artworkCoverage: data.coverage ?? 0.5,
+        });
+      } catch (err) {
+        setArtworkError(err instanceof Error && err.message !== "upload" ? err.message : c.artworkError);
+      } finally {
+        setArtworkBusy(false);
+      }
+    },
+    [patchOptions, c.artworkError],
+  );
 
   // ── Keeping each position's choices internally consistent ────────────
 
@@ -450,7 +489,8 @@ export default function PersonalizationEditor({ locale, config, product, variant
             text: evaluations[k].elements[i]?.text ?? "",
             fontKey: el.fontKey,
             heightMm: el.heightMm,
-            threadColorId: el.threadId,
+            // A logo carries its own colours — no spool to name.
+            threadColorId: el.options.contentType === "artwork" ? undefined : el.threadId,
             weight: el.weightStep,
             offsetXMm: el.offset.x,
             offsetYMm: el.offset.y,
@@ -461,6 +501,8 @@ export default function PersonalizationEditor({ locale, config, product, variant
             puff: el.options.puff,
             motifKey: el.options.motifKey ?? undefined,
             motifSizeMm: el.options.motifSizeMm,
+            artworkKey: el.options.artworkKey ?? undefined,
+            artworkSizeMm: el.options.artworkSizeMm,
           })),
         })),
     [chosenKeys, designs, evaluations, customerItems],
@@ -555,8 +597,8 @@ export default function PersonalizationEditor({ locale, config, product, variant
 
   /** The largest band is the ceiling — past it there is no price to charge. */
   const stitchCeiling = useMemo(
-    () => config.priceBands.reduce((max, b) => Math.max(max, b.maxStitches), 0),
-    [config.priceBands],
+    () => (customerItems ? SEND_IN_MAX_STITCHES : config.priceBands.reduce((max, b) => Math.max(max, b.maxStitches), 0)),
+    [config.priceBands, customerItems],
   );
   const stitchFill = activeEval && stitchCeiling ? activeEval.stitches / stitchCeiling : 0;
 
@@ -604,6 +646,10 @@ export default function PersonalizationEditor({ locale, config, product, variant
         trackingPct: el.options.trackingPct,
         kerning: el.options.kerning,
         motif: motif ? { path: motif.path, viewBox: motif.viewBox, sizeMm: el.options.motifSizeMm } : null,
+        artwork:
+          el.options.contentType === "artwork" && el.options.artworkUrl
+            ? { url: el.options.artworkUrl, widthMm: el.options.artworkSizeMm, heightMm: el.options.artworkSizeMm * (el.options.artworkAspect || 1) }
+            : null,
         widthMm: ev?.widthMm ?? 0,
         stackMm: ev?.stackMm ?? el.heightMm,
         offset: el.offset,
@@ -647,6 +693,7 @@ export default function PersonalizationEditor({ locale, config, product, variant
                 onSelectElement={selectElement}
                 onElementChange={(id, patch) => patchElement(patch, id)}
                 placeholder={c.previewPlaceholder}
+                logoPlaceholder={c.contentTypes.artwork}
                 quadPct={isUsableQuad(previewQuad) ? previewQuad : null}
                 dragHint={c.dragHint}
                 moveLabel={c.moveLabel}
@@ -934,8 +981,10 @@ export default function PersonalizationEditor({ locale, config, product, variant
                     const thread = config.threads.find((t) => t.id === el.threadId) ?? config.threads[0];
                     const font = config.fonts.find((f) => f.key === el.fontKey) ?? config.fonts[0];
                     const selected = el.id === activeElementId;
-                    const subject =
-                      el.options.contentType === "motif"
+                    const isArtwork = el.options.contentType === "artwork";
+                    const subject = isArtwork
+                      ? (el.options.artworkName ?? c.contentTypes.artwork)
+                      : el.options.contentType === "motif"
                         ? (config.motifs.find((m) => m.key === el.options.motifKey)?.name ?? c.contentTypes.motif)
                         : ev?.text.replace(/\n/g, " / ") || c.boxEmpty;
                     return (
@@ -948,12 +997,21 @@ export default function PersonalizationEditor({ locale, config, product, variant
                           onClick={() => selectElement(el.id)}
                           aria-label={c.boxLabel.replace("{n}", String(i + 1))}
                         >
-                          <span className={styles.boxChip} style={{ background: thread?.hex }} aria-hidden="true" />
-                          <span className={styles.boxText} style={{ fontFamily: font?.webFamily, fontWeight: weightForStep(el.weightStep).cssWeight }}>
+                          {isArtwork && el.options.artworkUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={el.options.artworkUrl} alt="" className={styles.boxThumb} />
+                          ) : (
+                            <span className={styles.boxChip} style={{ background: thread?.hex }} aria-hidden="true" />
+                          )}
+                          <span className={styles.boxText} style={isArtwork ? undefined : { fontFamily: font?.webFamily, fontWeight: weightForStep(el.weightStep).cssWeight }}>
                             {subject}
                           </span>
                           <span className={styles.boxMeta}>
-                            {el.options.contentType === "motif" ? `${el.options.motifSizeMm} mm` : `${font?.name} · ${el.heightMm} mm`}
+                            {isArtwork
+                              ? `${el.options.artworkSizeMm} mm`
+                              : el.options.contentType === "motif"
+                                ? `${el.options.motifSizeMm} mm`
+                                : `${font?.name} · ${el.heightMm} mm`}
                           </span>
                         </button>
                         {activeDesign.elements.length > 1 && (
@@ -993,7 +1051,85 @@ export default function PersonalizationEditor({ locale, config, product, variant
                   ))}
                 </div>
 
-                {activeElement.options.contentType === "motif" ? (
+                {activeElement.options.contentType === "artwork" ? (
+                  <div className={styles.artwork}>
+                    <p className={styles.panelHint}>{c.artworkHint}</p>
+                    {activeElement.options.artworkUrl ? (
+                      <div className={styles.artworkCard}>
+                        <span className={styles.artworkThumb}>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={activeElement.options.artworkUrl} alt="" />
+                        </span>
+                        <div className={styles.artworkBody}>
+                          <strong className={styles.artworkName}>{activeElement.options.artworkName}</strong>
+                          <span className={styles.artworkMeta}>
+                            {activeElement.options.artworkSizeMm} × {Math.round(activeElement.options.artworkSizeMm * (activeElement.options.artworkAspect || 1))} mm
+                          </span>
+                          <div className={styles.artworkActions}>
+                            <label className={styles.toolBtn}>
+                              <input
+                                type="file"
+                                accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                                className={styles.srOnly}
+                                disabled={artworkBusy}
+                                onChange={(e) => {
+                                  void uploadArtwork(e.target.files?.[0]);
+                                  e.target.value = "";
+                                }}
+                              />
+                              {artworkBusy ? <Loader2 size={13} className={styles.spin} aria-hidden="true" /> : <RefreshCw size={13} aria-hidden="true" />} {c.artworkReplace}
+                            </label>
+                            <button
+                              type="button"
+                              className={styles.toolBtn}
+                              onClick={() => patchOptions({ artworkKey: null, artworkUrl: null, artworkName: null, artworkAspect: 1, artworkCoverage: 0.5 })}
+                            >
+                              <Trash2 size={13} aria-hidden="true" /> {c.artworkRemove}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <label
+                        className={`${styles.artworkDrop} ${artworkDrag ? styles.artworkDropActive : ""} ${artworkBusy ? styles.artworkDropBusy : ""}`}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          setArtworkDrag(true);
+                        }}
+                        onDragLeave={() => setArtworkDrag(false)}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          setArtworkDrag(false);
+                          void uploadArtwork(e.dataTransfer.files?.[0]);
+                        }}
+                      >
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                          className={styles.srOnly}
+                          disabled={artworkBusy}
+                          onChange={(e) => {
+                            void uploadArtwork(e.target.files?.[0]);
+                            e.target.value = "";
+                          }}
+                        />
+                        <span className={styles.artworkDropIcon}>
+                          {artworkBusy ? <Loader2 size={22} className={styles.spin} aria-hidden="true" /> : <ImagePlus size={22} aria-hidden="true" />}
+                        </span>
+                        <span className={styles.artworkDropLabel}>{artworkBusy ? c.artworkUploading : c.artworkUpload}</span>
+                        <span className={styles.artworkDropNote}>{c.artworkFormats}</span>
+                      </label>
+                    )}
+                    {artworkError && (
+                      <p className={styles.errorBox} role="alert">
+                        {artworkError}
+                      </p>
+                    )}
+                    <p className={styles.artworkDigitise}>
+                      <Sparkles size={13} aria-hidden="true" /> {c.artworkDigitise}
+                    </p>
+                  </div>
+                ) : activeElement.options.contentType === "motif" ? (
                   <>
                     <span className={styles.fieldLabel}>{c.motifTitle}</span>
                     <div className={styles.motifGrid}>
@@ -1058,6 +1194,7 @@ export default function PersonalizationEditor({ locale, config, product, variant
                 )}
               </fieldset>
 
+              {activeElement.options.contentType !== "artwork" && (
               <fieldset className={styles.panel}>
                 <legend className={styles.panelTitle}>
                   <Type size={15} aria-hidden="true" /> {c.fontTitle}
@@ -1079,16 +1216,44 @@ export default function PersonalizationEditor({ locale, config, product, variant
                   ))}
                 </div>
               </fieldset>
+              )}
 
               {/* Size sits right under the face: pick the letters, then how
                   big. A slider for feel, a typed field for "exactly 25". */}
               <fieldset className={styles.panel}>
                 <legend className={styles.panelTitle}>
                   <Ruler size={15} aria-hidden="true" />{" "}
-                  {activeElement.options.contentType === "motif" ? c.motifSizeTitle : c.sizeTitle}
+                  {activeElement.options.contentType === "artwork" ? c.artworkSizeTitle : activeElement.options.contentType === "motif" ? c.motifSizeTitle : c.sizeTitle}
                 </legend>
-                <p className={styles.panelHint}>{customerItems ? c.sizeHintFlat : c.sizeHint}</p>
-                {activeElement.options.contentType === "motif" ? (
+                <p className={styles.panelHint}>{activeElement.options.contentType === "artwork" ? c.artworkSizeHint : customerItems ? c.sizeHintFlat : c.sizeHint}</p>
+                {activeElement.options.contentType === "artwork" ? (
+                  <>
+                    <div className={styles.sliderRow}>
+                      <input
+                        type="range"
+                        className={styles.slider}
+                        min={ARTWORK_MIN_MM}
+                        max={ARTWORK_MAX_MM}
+                        step={1}
+                        value={activeElement.options.artworkSizeMm}
+                        onChange={(e) => patchOptions({ artworkSizeMm: Number(e.target.value) })}
+                        aria-label={c.artworkSizeTitle}
+                      />
+                      <Stepper
+                        label={c.artworkSizeTitle}
+                        compact
+                        value={activeElement.options.artworkSizeMm}
+                        min={ARTWORK_MIN_MM}
+                        max={ARTWORK_MAX_MM}
+                        onChange={(artworkSizeMm) => patchOptions({ artworkSizeMm })}
+                      />
+                    </div>
+                    <div className={styles.sliderScale} aria-hidden="true">
+                      <span>{ARTWORK_MIN_MM} mm</span>
+                      <span>{ARTWORK_MAX_MM} mm</span>
+                    </div>
+                  </>
+                ) : activeElement.options.contentType === "motif" ? (
                   <>
                     <div className={styles.sliderRow}>
                       <input
@@ -1160,6 +1325,7 @@ export default function PersonalizationEditor({ locale, config, product, variant
                 )}
               </fieldset>
 
+              {activeElement.options.contentType !== "artwork" && (
               <fieldset className={styles.panel}>
                 <legend className={styles.panelTitle}>
                   <Bold size={15} aria-hidden="true" /> {c.weightTitle}
@@ -1189,7 +1355,9 @@ export default function PersonalizationEditor({ locale, config, product, variant
                   ))}
                 </div>
               </fieldset>
+              )}
 
+              {activeElement.options.contentType !== "artwork" && (
               <fieldset className={styles.panel}>
                 <legend className={styles.panelTitle}>
                   <Palette size={15} aria-hidden="true" /> {c.threadTitle}
@@ -1232,8 +1400,9 @@ export default function PersonalizationEditor({ locale, config, product, variant
                 </div>
                 {activeDesign.elements.length === 1 && <p className={styles.fieldNote}>{c.threadOne}</p>}
               </fieldset>
+              )}
 
-              {activeElement.options.contentType !== "motif" && (
+              {activeElement.options.contentType !== "motif" && activeElement.options.contentType !== "artwork" && (
                 <>
                   <fieldset className={styles.panel}>
                     <legend className={styles.panelTitle}>
@@ -1393,6 +1562,25 @@ export default function PersonalizationEditor({ locale, config, product, variant
                       const font = config.fonts.find((f) => f.key === el.fontKey) ?? config.fonts[0];
                       const thread = config.threads.find((th) => th.id === el.threadId);
                       const motif = el.options.contentType === "motif" ? config.motifs.find((m) => m.key === el.options.motifKey) : null;
+                      if (el.options.contentType === "artwork") {
+                        // Their own file, shown as it will be digitised — the
+                        // spelling check here is "is that the right logo".
+                        return (
+                          <div key={el.id} className={`${styles.reviewBox} ${styles.reviewArtwork}`}>
+                            {el.options.artworkUrl && (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={el.options.artworkUrl} alt="" className={styles.reviewArtworkImg} />
+                            )}
+                            <div>
+                              <strong className={styles.reviewArtworkName}>{el.options.artworkName}</strong>
+                              <p className={styles.reviewMeta}>
+                                {c.contentTypes.artwork} · {el.options.artworkSizeMm} × {Math.round(el.options.artworkSizeMm * (el.options.artworkAspect || 1))} mm
+                                {el.rotationDeg !== 0 && ` · ${displayAngle(el.rotationDeg)}°`}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      }
                       return (
                         <div key={el.id} className={styles.reviewBox}>
                           <strong

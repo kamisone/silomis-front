@@ -25,6 +25,8 @@ export interface PreviewElement {
   trackingPct: number;
   kerning: number[] | null;
   motif: { path: string; viewBox: string; sizeMm: number } | null;
+  /** The customer's own logo: its rendering, at the size it will be stitched. */
+  artwork: { url: string; widthMm: number; heightMm: number } | null;
   /** From the evaluator — the width the fit check measured. */
   widthMm: number;
   stackMm: number;
@@ -44,6 +46,8 @@ interface Props {
   onElementChange: (id: string, patch: { offset?: Point; rotationDeg?: number }) => void;
   /** What an empty box reads, drawn faintly until the customer writes. */
   placeholder: string;
+  /** What an empty logo box says — "Your logo" — while nothing is uploaded yet. */
+  logoPlaceholder?: string;
   /** The area the admin traced on this photo, in % of the image box. */
   quadPct: Quad | null;
   dragHint: string;
@@ -73,6 +77,7 @@ export default function DesignPreview({
   onSelectElement,
   onElementChange,
   placeholder,
+  logoPlaceholder = "Logo",
   quadPct,
   dragHint,
   moveLabel,
@@ -267,7 +272,8 @@ export default function DesignPreview({
   // ── Drawing a box ────────────────────────────────────────────────────
 
   const drawElement = (el: PreviewElement) => {
-    const empty = !el.text && !el.motif;
+    const empty = !el.text && !el.motif && !el.artwork;
+    const logoPending = el.contentType === "artwork" && !el.artwork;
     const rows = el.lines.length ? el.lines : [el.text || placeholder];
     // Cap height is not the em box — 0.72 is the usual ratio, and using it
     // keeps the rendered letters at the millimetre height being quoted.
@@ -280,14 +286,40 @@ export default function DesignPreview({
     // width that text would have, so the box is the right size to aim with.
     const widthMm = Math.max(
       1,
-      empty && !el.motif
+      logoPending
+        ? el.widthMm
+        : empty && !el.motif && !el.artwork
         ? lineWidthMm({ line: placeholder, heightMm: el.heightMm, font: el.font, contentType: el.contentType, weightStep: el.weightStep, trackingPct: el.trackingPct, kerning: null })
         : el.widthMm,
     );
-    const stackMm = Math.max(1, empty ? el.heightMm : el.stackMm);
+    const stackMm = Math.max(1, logoPending ? el.stackMm : empty ? el.heightMm : el.stackMm);
     const chord = Math.max(1, el.motif ? el.motif.sizeMm : el.widthMm || widthMm);
 
-    const body = el.motif
+    const body = logoPending
+      ? // Nothing uploaded yet: a dashed frame at the width the logo will be,
+        // so there is something to aim with before the file is in.
+        (
+          <g>
+            <rect x={-widthMm / 2} y={-stackMm / 2} width={widthMm} height={stackMm} rx={2} fill="rgb(255 255 255 / 55%)" stroke={fill} strokeWidth={0.6} strokeDasharray="2.5 1.5" />
+            <text x={0} y={0} fontFamily="system-ui, sans-serif" fontSize={Math.max(3, Math.min(8, stackMm / 3))} fontWeight={700} textAnchor="middle" dominantBaseline="central" fill={fill}>
+              {logoPlaceholder}
+            </text>
+          </g>
+        )
+      : el.artwork
+      ? // The file itself, centred on the box's origin at its stitched size —
+        // the same picture the server's mockup composites later.
+        (
+          <image
+            href={el.artwork.url}
+            x={-el.artwork.widthMm / 2}
+            y={-el.artwork.heightMm / 2}
+            width={el.artwork.widthMm}
+            height={el.artwork.heightMm}
+            preserveAspectRatio="xMidYMid meet"
+          />
+        )
+      : el.motif
       ? (() => {
           const [, , vw, vh] = el.motif.viewBox.split(/\s+/).map(Number);
           const scale = el.motif.sizeMm / Math.max(vw || 100, vh || 100);
@@ -367,7 +399,7 @@ export default function DesignPreview({
                 <div
                   key={el.id}
                   role="button"
-                  aria-label={`${moveLabel} — ${el.text || (el.motif ? "motif" : placeholder)}`}
+                  aria-label={`${moveLabel} — ${el.text || (el.artwork ? "logo" : el.motif ? "motif" : placeholder)}`}
                   aria-pressed={selected}
                   tabIndex={editable ? 0 : -1}
                   className={[

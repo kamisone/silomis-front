@@ -117,6 +117,49 @@
   gap: 6px;
 }
 
+/* The customer's own logo, with the file the digitiser works from. */
+.artwork {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  gap: 10px;
+  align-items: center;
+  padding: 8px;
+  border-radius: 10px;
+  border: 1px dashed var(--color-primary);
+  background: var(--background);
+  max-width: 380px;
+}
+.artworkThumb {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid var(--field-border, #e2e6eb);
+}
+.artworkBody {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  font-size: 12.5px;
+  color: var(--color-secondary);
+}
+.artworkBody strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.artworkMeta {
+  font-size: 11.5px;
+  color: var(--color-muted, #6b7280);
+}
+.artworkLink {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
 /* The picture the desk works from: the design where the customer put it. */
 .mockup {
   position: relative;

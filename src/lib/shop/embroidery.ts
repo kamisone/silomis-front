@@ -121,7 +121,14 @@ export function hoopAround(
   };
 }
 
-export type ContentKind = "text" | "monogram" | "motif";
+export type ContentKind = "text" | "monogram" | "motif" | "artwork";
+
+/** Mirrors SEND_IN_ARTWORK_* on the server: how wide a customer's logo may be stitched, and the fill density of the estimate. */
+export const ARTWORK_MIN_MM = 10;
+export const ARTWORK_MAX_MM = 200;
+export const ARTWORK_STITCHES_PER_MM2 = 6;
+/** Mirrors SEND_IN_MAX_STITCHES: a flat-priced side is capped by the machine, not by the last price band. */
+export const SEND_IN_MAX_STITCHES = 25_000;
 
 export interface EditorMotif {
   key: string;
@@ -251,6 +258,16 @@ export function estimateStitches(args: {
 }): number {
   const colorStitches = Math.max(0, args.colorCount - 1) * STITCHES_PER_COLOR_CHANGE;
 
+  if (args.contentType === "artwork") {
+    // Drawn area × fill density: the upload measured how much of the box is
+    // actually drawn on, and the server multiplies the same way. Nothing to
+    // count until a file is in.
+    if (!args.options.artworkKey) return STITCH_BASE_OVERHEAD;
+    const w = args.options.artworkSizeMm;
+    const h = w * (args.options.artworkAspect || 1);
+    return Math.ceil(w * h * (args.options.artworkCoverage || 0.5) * ARTWORK_STITCHES_PER_MM2 + STITCH_BASE_OVERHEAD);
+  }
+
   if (args.contentType === "motif") {
     // The catalogue's measured figure is not sent to the browser, so the local
     // estimate uses the seeded average. The debounced server quote replaces it
@@ -291,6 +308,16 @@ export interface DesignOptions {
   puff: boolean;
   motifKey: string | null;
   motifSizeMm: number;
+  /**
+   * The customer's own logo, on a send-in: the upload's key and signed URL,
+   * its file name, height ÷ width, drawn share, and how wide it is stitched.
+   */
+  artworkKey: string | null;
+  artworkUrl: string | null;
+  artworkName: string | null;
+  artworkAspect: number;
+  artworkCoverage: number;
+  artworkSizeMm: number;
 }
 
 export const DEFAULT_OPTIONS: DesignOptions = {
@@ -301,11 +328,17 @@ export const DEFAULT_OPTIONS: DesignOptions = {
   puff: false,
   motifKey: null,
   motifSizeMm: 30,
+  artworkKey: null,
+  artworkUrl: null,
+  artworkName: null,
+  artworkAspect: 1,
+  artworkCoverage: 0.5,
+  artworkSizeMm: 60,
 };
 
 /** Splits and normalises, exactly as the server does. Blank lines are dropped. */
 export function normalizeLines(raw: string, contentType: ContentKind, uppercaseOnly: boolean): string[] {
-  if (contentType === "motif") return [];
+  if (contentType === "motif" || contentType === "artwork") return [];
   return raw
     .split(/\r?\n/)
     .map((line) => normalizeText(line, contentType === "monogram" ? "monogram" : "text", uppercaseOnly))
@@ -351,8 +384,10 @@ export function stackHeightMm(args: {
   curveDeg: number;
   contentType: ContentKind;
   motifSizeMm: number;
+  artworkHeightMm?: number;
 }): number {
   if (args.contentType === "motif") return args.motifSizeMm;
+  if (args.contentType === "artwork") return args.artworkHeightMm ?? args.heightMm;
   const stack = Math.max(1, args.lineCount) * args.heightMm * (args.lineCount > 1 ? LINE_LEADING : 1);
   if (!args.curveDeg) return stack;
   const half = (Math.abs(args.curveDeg) * Math.PI) / 360;
@@ -437,7 +472,9 @@ export function evaluateElement(args: {
   // by the line count was an average, and an average passes a design whose
   // long line overruns because its short one does not.
   const widthMm =
-    contentType === "motif"
+    contentType === "artwork"
+      ? options.artworkSizeMm
+      : contentType === "motif"
       ? options.motifSizeMm
       : lineWidthMm({
           line: longest,
@@ -460,12 +497,15 @@ export function evaluateElement(args: {
     curveDeg: options.curveDeg,
     contentType,
     motifSizeMm: options.motifSizeMm,
+    artworkHeightMm: options.artworkSizeMm * (options.artworkAspect || 1),
   });
 
   const base = { text, lines, stitches, widthMm, stackMm, widthFill };
   const invalid = (error: ValidationCode): ElementEvaluation => ({ ...base, error });
 
-  if (contentType === "motif") {
+  if (contentType === "artwork") {
+    if (!options.artworkKey) return invalid("empty");
+  } else if (contentType === "motif") {
     if (!options.motifKey) return invalid("empty");
   } else {
     if (!lines.length) return invalid("empty");
@@ -522,7 +562,13 @@ export function evaluateDesign(args: {
   const threadCount = threads.size;
 
   const stitches = elements.reduce((sum, el) => sum + el.stitches, 0) + Math.max(0, threadCount - 1) * STITCHES_PER_COLOR_CHANGE;
-  const band = resolveBand(stitches, bands);
+  // A customer's own item is priced flat, so its ceiling is the machine's
+  // rather than the last band's — mirrors the server.
+  const band = placement.usesCustomerPhoto
+    ? stitches <= SEND_IN_MAX_STITCHES
+      ? { maxStitches: SEND_IN_MAX_STITCHES, priceCents: 0, label: "" }
+      : null
+    : resolveBand(stitches, bands);
   const text = elements.map((el) => el.text).filter(Boolean).join("\n");
   const base = { elements, text, stitches, band, threadCount, hoop };
   const invalid = (error: ValidationCode, errorElement: number | null = null): EditorEvaluation => ({

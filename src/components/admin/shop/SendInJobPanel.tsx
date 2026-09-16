@@ -57,6 +57,8 @@ export interface SendInJob {
     photoUrl: string;
     mockupUrl: string | null;
     design: { id: string; text: string; productionStatus: string; stitchEstimate: number } | null;
+    /** The customer's own logos on this side: the rendering, and the original file for the digitiser. */
+    artworks: { name: string; widthMm: number; heightMm: number; url: string | null; originalUrl: string | null }[];
   }[];
   status: SendInStatus;
   allowedNext: SendInStatus[];
@@ -177,7 +179,26 @@ export function SendInJobPanel({ job, onChange, showOrder = true }: { job: SendI
                     <img src={sd.photoUrl} alt="" />
                   </a>
                 </div>
-                {sd.design && <p className={styles.sideText}>{sd.design.text}</p>}
+                {sd.design?.text && <p className={styles.sideText}>{sd.design.text}</p>}
+                {sd.artworks?.map((a, j) => (
+                  <div key={j} className={styles.artwork}>
+                    {a.url && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={a.url} alt="" className={styles.artworkThumb} />
+                    )}
+                    <div className={styles.artworkBody}>
+                      <strong>{a.name}</strong>
+                      <span className={styles.artworkMeta}>
+                        Customer artwork · {Math.round(a.widthMm)} × {Math.round(a.heightMm)} mm · digitise by hand
+                      </span>
+                      {a.originalUrl && (
+                        <a href={a.originalUrl} target="_blank" rel="noopener noreferrer" className={styles.artworkLink}>
+                          Download the original file
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
             ))}
           </div>
