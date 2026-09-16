@@ -81,6 +81,21 @@ export interface FieldLimits {
 export const DEFAULT_FIELD_LIMITS: FieldLimits = { minMm: FIELD_MIN_MM, maxWidthMm: FIELD_MAX_WIDTH_MM, maxHeightMm: FIELD_MAX_HEIGHT_MM };
 
 /**
+ * How big a box may be on a position. A catalogue position is bounded by the
+ * largest hoop; the customer's own item by their photograph — the panel's
+ * real size scaled up by the share of the picture it covers, exactly as the
+ * server works it out. On their own item they decide.
+ */
+export function limitsFor(placement: { usesCustomerPhoto?: boolean; corners: { x: number; y: number }[] | null; fieldWidthMm: number; fieldHeightMm: number }, base: FieldLimits): FieldLimits {
+  if (!placement.usesCustomerPhoto || !placement.corners?.length) return base;
+  const xs = placement.corners.map((c) => c.x);
+  const ys = placement.corners.map((c) => c.y);
+  const wShare = Math.max(1, Math.max(...xs) - Math.min(...xs)) / 100;
+  const hShare = Math.max(1, Math.max(...ys) - Math.min(...ys)) / 100;
+  return { ...base, maxWidthMm: Math.round(placement.fieldWidthMm / wShare), maxHeightMm: Math.round(placement.fieldHeightMm / hShare) };
+}
+
+/**
  * Mirrors hoopAround on the server: the smallest rectangle, square to the
  * garment, that holds every box with its clearance — measured on each box's
  * real footprint, turned as it is.
@@ -123,18 +138,17 @@ export function hoopAround(
 
 export type ContentKind = "text" | "monogram" | "motif" | "artwork";
 
-/** Mirrors SEND_IN_ARTWORK_* on the server: how wide a customer's logo may be stitched, and the fill density of the estimate. */
+/** Mirrors SEND_IN_ARTWORK_* on the server: the smallest a customer's logo may be stitched (the largest is the photograph), and the fill density of the estimate. */
 export const ARTWORK_MIN_MM = 10;
-export const ARTWORK_MAX_MM = 200;
 export const ARTWORK_STITCHES_PER_MM2 = 6;
-/** Mirrors SEND_IN_MAX_STITCHES: a flat-priced side is capped by the machine, not by the last price band. */
-export const SEND_IN_MAX_STITCHES = 25_000;
 
 export interface EditorMotif {
   key: string;
   name: string;
   path: string;
   viewBox: string;
+  /** A full-colour design's shapes, each in its own colour; null for a one-spool silhouette. */
+  paths?: { d: string; fill: string }[] | null;
   category: string | null;
 }
 
@@ -147,6 +161,8 @@ export interface EditorFont {
   key: string;
   name: string;
   webFamily: string;
+  /** A stylesheet to load so the face is the same on every device; null for a system face. */
+  webFontCss?: string | null;
   minHeightMm: number;
   maxHeightMm: number;
   avgCharWidthRatio: number;
@@ -263,8 +279,7 @@ export function estimateStitches(args: {
     // actually drawn on, and the server multiplies the same way. Nothing to
     // count until a file is in.
     if (!args.options.artworkKey) return STITCH_BASE_OVERHEAD;
-    const w = args.options.artworkSizeMm;
-    const h = w * (args.options.artworkAspect || 1);
+    const { widthMm: w, heightMm: h } = pictureSizeMm(args.options);
     return Math.ceil(w * h * (args.options.artworkCoverage || 0.5) * ARTWORK_STITCHES_PER_MM2 + STITCH_BASE_OVERHEAD);
   }
 
@@ -273,11 +288,15 @@ export function estimateStitches(args: {
     // estimate uses the seeded average. The debounced server quote replaces it
     // within a moment, and the difference is never more than a band edge.
     const per30 = args.motifStitchesAt30mm ?? 2200;
-    const areaFactor = (args.options.motifSizeMm / 30) ** 2;
+    const { widthMm: mw, heightMm: mh } = pictureSizeMm(args.options);
+    const areaFactor = (mw * mh) / (30 * 30);
     return Math.ceil(per30 * areaFactor + colorStitches + STITCH_BASE_OVERHEAD);
   }
 
   const glyphs = args.lines.join("").split("").filter((ch) => ch !== " ").length;
+  // A border is a satin band the length of the outline — about three times a
+  // glyph's height per glyph — at 6 stitches per mm². Mirrors the server.
+  const borderStitches = args.options.borderMm ? Math.ceil(glyphs * args.heightMm * 3 * args.options.borderMm * 6) : 0;
   const heightFactor = (args.heightMm / 10) ** STITCH_HEIGHT_EXPONENT;
   const typeFactor = args.contentType === "monogram" ? MONOGRAM_STITCH_FACTOR : 1;
   const perChar = args.font.stitchesPerCharAt10mm ?? 140;
@@ -287,7 +306,7 @@ export function estimateStitches(args: {
   if (args.options.curveDeg) glyphStitches *= CURVE_STITCH_FACTOR;
   if (args.options.puff) glyphStitches *= PUFF_STITCH_FACTOR;
 
-  return Math.ceil(glyphStitches + colorStitches + STITCH_BASE_OVERHEAD);
+  return Math.ceil(glyphStitches + borderStitches + colorStitches + STITCH_BASE_OVERHEAD);
 }
 
 /** The first band the estimate fits in, or null when it is past the largest. */
@@ -306,8 +325,17 @@ export interface DesignOptions {
   kerning: number[] | null;
   curveDeg: number;
   puff: boolean;
+  /** A satin border round the letters, in millimetres — thickness past the heaviest weight. Send-in only. */
+  borderMm: number;
+  /** Line spacing as a multiple of the letter height. */
+  leading: number;
   motifKey: string | null;
+  /** The shape's width. */
   motifSizeMm: number;
+  /** The shape's height — null means the drawing's own proportion. */
+  motifHeightMm: number | null;
+  /** Height ÷ width of the chosen shape's drawing, kept so the proportion is known without the catalogue. */
+  motifAspect: number;
   /**
    * The customer's own logo, on a send-in: the upload's key and signed URL,
    * its file name, height ÷ width, drawn share, and how wide it is stitched.
@@ -318,6 +346,8 @@ export interface DesignOptions {
   artworkAspect: number;
   artworkCoverage: number;
   artworkSizeMm: number;
+  /** The logo's height — null means the file's own proportion. */
+  artworkHeightMm: number | null;
 }
 
 export const DEFAULT_OPTIONS: DesignOptions = {
@@ -326,15 +356,30 @@ export const DEFAULT_OPTIONS: DesignOptions = {
   kerning: null,
   curveDeg: 0,
   puff: false,
+  borderMm: 0,
+  leading: LINE_LEADING,
   motifKey: null,
   motifSizeMm: 30,
+  motifHeightMm: null,
+  motifAspect: 1,
   artworkKey: null,
   artworkUrl: null,
   artworkName: null,
   artworkAspect: 1,
   artworkCoverage: 0.5,
   artworkSizeMm: 60,
+  artworkHeightMm: null,
 };
+
+/** The box a shape or a logo occupies, width and height, from its options. */
+export function pictureSizeMm(options: DesignOptions): { widthMm: number; heightMm: number } {
+  if (options.contentType === "artwork") {
+    const widthMm = options.artworkSizeMm;
+    return { widthMm, heightMm: options.artworkHeightMm ?? widthMm * (options.artworkAspect || 1) };
+  }
+  const widthMm = options.motifSizeMm;
+  return { widthMm, heightMm: options.motifHeightMm ?? widthMm * (options.motifAspect || 1) };
+}
 
 /** Splits and normalises, exactly as the server does. Blank lines are dropped. */
 export function normalizeLines(raw: string, contentType: ContentKind, uppercaseOnly: boolean): string[] {
@@ -384,11 +429,13 @@ export function stackHeightMm(args: {
   curveDeg: number;
   contentType: ContentKind;
   motifSizeMm: number;
+  motifHeightMm?: number;
   artworkHeightMm?: number;
+  leading?: number;
 }): number {
-  if (args.contentType === "motif") return args.motifSizeMm;
+  if (args.contentType === "motif") return args.motifHeightMm ?? args.motifSizeMm;
   if (args.contentType === "artwork") return args.artworkHeightMm ?? args.heightMm;
-  const stack = Math.max(1, args.lineCount) * args.heightMm * (args.lineCount > 1 ? LINE_LEADING : 1);
+  const stack = Math.max(1, args.lineCount) * args.heightMm * (args.lineCount > 1 ? (args.leading ?? LINE_LEADING) : 1);
   if (!args.curveDeg) return stack;
   const half = (Math.abs(args.curveDeg) * Math.PI) / 360;
   if (half <= 0) return stack;
@@ -471,7 +518,7 @@ export function evaluateElement(args: {
   // The widest line is what has to fit; measuring the joined text and dividing
   // by the line count was an average, and an average passes a design whose
   // long line overruns because its short one does not.
-  const widthMm =
+  const widthMmRaw =
     contentType === "artwork"
       ? options.artworkSizeMm
       : contentType === "motif"
@@ -486,19 +533,28 @@ export function evaluateElement(args: {
           kerning: options.kerning,
         });
 
+  // The border grows the letters outward on every side.
+  const isLettering = contentType === "text" || contentType === "monogram";
+  const borderMm = isLettering && placement.usesCustomerPhoto ? Math.max(0, options.borderMm || 0) : 0;
+  const widthMm = widthMmRaw + 2 * borderMm;
+
   // A box is one spool, so it carries no colour change of its own; those are
   // counted once for the position, between one box's spool and the next.
-  const stitches = estimateStitches({ lines, heightMm, font, contentType, colorCount: 1, weightStep, options });
+  const stitches = estimateStitches({ lines, heightMm, font, contentType, colorCount: 1, weightStep, options: { ...options, borderMm } });
   const widthFill = placement.fieldWidthMm > 0 ? Math.min(1, widthMm / placement.fieldWidthMm) : 0;
-  const stackMm = stackHeightMm({
-    lineCount: lines.length,
-    heightMm,
-    widthMm,
-    curveDeg: options.curveDeg,
-    contentType,
-    motifSizeMm: options.motifSizeMm,
-    artworkHeightMm: options.artworkSizeMm * (options.artworkAspect || 1),
-  });
+  const stackMm =
+    stackHeightMm({
+      lineCount: lines.length,
+      heightMm,
+      widthMm: widthMmRaw,
+      curveDeg: options.curveDeg,
+      contentType,
+      motifSizeMm: options.motifSizeMm,
+      motifHeightMm: pictureSizeMm(options).heightMm,
+      artworkHeightMm: pictureSizeMm(options).heightMm,
+      leading: options.leading,
+    }) +
+    2 * borderMm;
 
   const base = { text, lines, stitches, widthMm, stackMm, widthFill };
   const invalid = (error: ValidationCode): ElementEvaluation => ({ ...base, error });
@@ -562,13 +618,9 @@ export function evaluateDesign(args: {
   const threadCount = threads.size;
 
   const stitches = elements.reduce((sum, el) => sum + el.stitches, 0) + Math.max(0, threadCount - 1) * STITCHES_PER_COLOR_CHANGE;
-  // A customer's own item is priced flat, so its ceiling is the machine's
-  // rather than the last band's — mirrors the server.
-  const band = placement.usesCustomerPhoto
-    ? stitches <= SEND_IN_MAX_STITCHES
-      ? { maxStitches: SEND_IN_MAX_STITCHES, priceCents: 0, label: "" }
-      : null
-    : resolveBand(stitches, bands);
+  // A customer's own item is priced flat and has no stitch ceiling — the
+  // customer puts on it what they like. Mirrors the server.
+  const band = placement.usesCustomerPhoto ? { maxStitches: Number.POSITIVE_INFINITY, priceCents: 0, label: "" } : resolveBand(stitches, bands);
   const text = elements.map((el) => el.text).filter(Boolean).join("\n");
   const base = { elements, text, stitches, band, threadCount, hoop };
   const invalid = (error: ValidationCode, errorElement: number | null = null): EditorEvaluation => ({
@@ -601,6 +653,7 @@ export function evaluateDesign(args: {
 }
 
 /** Height bounds for a font. */
-export function heightBounds(font: EditorFont): { min: number; max: number } {
-  return { min: font.minHeightMm, max: font.maxHeightMm };
+export function heightBounds(font: EditorFont, limits?: FieldLimits): { min: number; max: number } {
+  // On the customer's own item the face's ceiling gives way to the photo's.
+  return { min: font.minHeightMm, max: limits ? Math.max(font.maxHeightMm, limits.maxHeightMm) : font.maxHeightMm };
 }

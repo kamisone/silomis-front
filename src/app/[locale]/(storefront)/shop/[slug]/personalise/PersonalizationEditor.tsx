@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft, Check, Loader2, AlertTriangle, Ruler, Palette, Type, MapPin,
   ShoppingBag, RotateCcw, RotateCw, Plus, Bold, ArrowRight, PencilLine,
-  MoveHorizontal, Spline, Sparkles, Undo2, Redo2, Copy, Minus, LayoutList, X, StickyNote, ImagePlus, Trash2, RefreshCw,
+  MoveHorizontal, Spline, Sparkles, Undo2, Redo2, Copy, Minus, LayoutList, X, StickyNote, ImagePlus, Trash2, RefreshCw, Search, ChevronDown, Check as CheckIcon, MoveVertical,
 } from "lucide-react";
 import DesignPreview, { type PreviewElement } from "./DesignPreview";
 import { useCart, type CustomerItemInput, type PersonalizationInput } from "@/components/shop/CartContext";
@@ -13,7 +13,7 @@ import { getTranslations, type Locale } from "@/lib/i18n";
 import {
   evaluateDesign, heightBounds, MONOGRAM_MAX_CHARS, DEFAULT_WEIGHT_STEP, WEIGHT_SCALE, weightForStep,
   DEFAULT_OPTIONS, MAX_TEXT_LINES, TRACKING_MIN, TRACKING_MAX, KERNING_LIMIT, CURVE_LIMIT_DEG,
-  MOTIF_MIN_MM, MOTIF_MAX_MM, DEFAULT_FIELD_LIMITS, MAX_ELEMENTS, ARTWORK_MIN_MM, ARTWORK_MAX_MM, SEND_IN_MAX_STITCHES,
+  MOTIF_MIN_MM, MOTIF_MAX_MM, DEFAULT_FIELD_LIMITS, MAX_ELEMENTS, ARTWORK_MIN_MM, limitsFor, pictureSizeMm,
   type ContentKind, type DesignOptions, type EditorConfig, type EditorEvaluation, type EditorPlacement,
 } from "@/lib/shop/embroidery";
 import { isUsableQuad, type Point, type Quad } from "@/lib/shop/perspective";
@@ -49,7 +49,7 @@ const STEPS = ["positions", "design", "review"] as const;
 type Step = (typeof STEPS)[number];
 
 /** Letter heights people ask for by name. Filtered to what the face and area allow. */
-const SIZE_PRESETS = [10, 15, 20, 25, 30, 40] as const;
+const SIZE_PRESETS = [10, 15, 20, 25, 30, 40, 60, 80, 100, 150] as const;
 
 /** One-tap angles. Anything between them is the rotate handle's job. */
 const QUARTER_TURNS = [0, 90, 180, 270] as const;
@@ -358,7 +358,7 @@ export default function PersonalizationEditor({ locale, config, product, variant
           rotationDeg: el.rotationDeg,
         })),
         placement,
-        limits: config.fieldLimits ?? DEFAULT_FIELD_LIMITS,
+        limits: limitsFor(placement, config.fieldLimits ?? DEFAULT_FIELD_LIMITS),
         bands: config.priceBands,
       });
     }
@@ -388,9 +388,18 @@ export default function PersonalizationEditor({ locale, config, product, variant
     [config.fonts, activeElement?.options.contentType],
   );
 
-  const motifMax = MOTIF_MAX_MM;
+  /** A shape or a logo may grow to the photograph on the customer's own item; to the usual cap on a catalogue position. */
+  const activeLimits = useMemo(
+    () => (activePlacement ? limitsFor(activePlacement, config.fieldLimits ?? DEFAULT_FIELD_LIMITS) : (config.fieldLimits ?? DEFAULT_FIELD_LIMITS)),
+    [activePlacement, config.fieldLimits],
+  );
+  const motifMax = activePlacement?.usesCustomerPhoto ? Math.min(activeLimits.maxWidthMm, activeLimits.maxHeightMm) : MOTIF_MAX_MM;
+  const artworkMax = activeLimits.maxWidthMm;
 
-  const bounds = useMemo(() => (activeFont ? heightBounds(activeFont) : { min: 8, max: 40 }), [activeFont]);
+  const bounds = useMemo(
+    () => (activeFont ? heightBounds(activeFont, activePlacement?.usesCustomerPhoto ? activeLimits : undefined) : { min: 8, max: 40 }),
+    [activeFont, activePlacement?.usesCustomerPhoto, activeLimits],
+  );
 
   /**
    * What this shop offers: words, initials, and shapes if any are published.
@@ -401,10 +410,52 @@ export default function PersonalizationEditor({ locale, config, product, variant
     const out: ContentKind[] = [];
     if (config.template.allowText) out.push("text");
     if (config.template.allowMonogram) out.push("monogram");
+    if (config.motifs.length) out.push("motif");
     if (customerItems) out.push("artwork");
-    else if (config.motifs.length) out.push("motif");
     return out;
   }, [config.template.allowText, config.template.allowMonogram, config.motifs.length, customerItems]);
+
+  // ── Web fonts ────────────────────────────────────────────────────────
+  // Each face the shop offers is fetched once, here, on the page that needs
+  // it — so the preview shows the customer the face they will get on the
+  // phone they are holding, rather than whatever that phone falls back to.
+  useEffect(() => {
+    const hrefs = [...new Set(config.fonts.map((f) => f.webFontCss).filter((h): h is string => !!h))];
+    for (const href of hrefs) {
+      if (document.querySelector(`link[data-embroidery-font="${CSS.escape(href)}"]`)) continue;
+      const link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href = href;
+      link.dataset.embroideryFont = href;
+      document.head.appendChild(link);
+    }
+  }, [config.fonts]);
+
+  /** A full-colour design carries its own spools — no colour to pick, none to send. */
+  const ownColours = useCallback(
+    (opts: DesignOptions) => opts.contentType === "motif" && !!config.motifs.find((m) => m.key === opts.motifKey)?.paths?.length,
+    [config.motifs],
+  );
+
+  // ── The design library ───────────────────────────────────────────────
+  const [motifCategory, setMotifCategory] = useState<string>("all");
+  /** Categories in first-seen order, "all" first — only those with at least one design. */
+  const motifCategories = useMemo(() => {
+    const seen: string[] = [];
+    for (const m of config.motifs) {
+      const cat = m.category ?? "other";
+      if (!seen.includes(cat)) seen.push(cat);
+    }
+    return seen;
+  }, [config.motifs]);
+  const motifCategoryName = useCallback(
+    (cat: string) => (c.motifCategories as Record<string, string>)[cat] ?? cat.charAt(0).toUpperCase() + cat.slice(1),
+    [c.motifCategories],
+  );
+  const visibleMotifs = useMemo(
+    () => (motifCategory === "all" ? config.motifs : config.motifs.filter((m) => (m.category ?? "other") === motifCategory)),
+    [config.motifs, motifCategory],
+  );
 
   // ── The customer's own logo ──────────────────────────────────────────
   const [artworkBusy, setArtworkBusy] = useState(false);
@@ -429,6 +480,7 @@ export default function PersonalizationEditor({ locale, config, product, variant
           artworkUrl: data.url,
           artworkName: data.name ?? file.name,
           artworkAspect: aspect,
+          artworkHeightMm: null,
           artworkCoverage: data.coverage ?? 0.5,
         });
       } catch (err) {
@@ -490,7 +542,7 @@ export default function PersonalizationEditor({ locale, config, product, variant
             fontKey: el.fontKey,
             heightMm: el.heightMm,
             // A logo carries its own colours — no spool to name.
-            threadColorId: el.options.contentType === "artwork" ? undefined : el.threadId,
+            threadColorId: el.options.contentType === "artwork" || ownColours(el.options) ? undefined : el.threadId,
             weight: el.weightStep,
             offsetXMm: el.offset.x,
             offsetYMm: el.offset.y,
@@ -499,13 +551,17 @@ export default function PersonalizationEditor({ locale, config, product, variant
             kerning: el.options.kerning ?? undefined,
             curveDeg: el.options.curveDeg,
             puff: el.options.puff,
+            borderMm: el.options.borderMm || undefined,
+            leading: el.options.leading,
             motifKey: el.options.motifKey ?? undefined,
             motifSizeMm: el.options.motifSizeMm,
+            motifHeightMm: el.options.motifHeightMm ?? undefined,
             artworkKey: el.options.artworkKey ?? undefined,
             artworkSizeMm: el.options.artworkSizeMm,
+            artworkHeightMm: el.options.artworkHeightMm ?? undefined,
           })),
         })),
-    [chosenKeys, designs, evaluations, customerItems],
+    [chosenKeys, designs, evaluations, customerItems, ownColours],
   );
 
   const quoteKey = JSON.stringify(payload);
@@ -597,7 +653,7 @@ export default function PersonalizationEditor({ locale, config, product, variant
 
   /** The largest band is the ceiling — past it there is no price to charge. */
   const stitchCeiling = useMemo(
-    () => (customerItems ? SEND_IN_MAX_STITCHES : config.priceBands.reduce((max, b) => Math.max(max, b.maxStitches), 0)),
+    () => (customerItems ? 0 : config.priceBands.reduce((max, b) => Math.max(max, b.maxStitches), 0)),
     [config.priceBands, customerItems],
   );
   const stitchFill = activeEval && stitchCeiling ? activeEval.stitches / stitchCeiling : 0;
@@ -641,14 +697,16 @@ export default function PersonalizationEditor({ locale, config, product, variant
         lines: ev?.lines ?? [],
         heightMm: el.heightMm,
         weightStep: el.weightStep,
+        borderMm: customerItems && el.options.contentType !== "motif" && el.options.contentType !== "artwork" ? el.options.borderMm : 0,
+        leading: el.options.leading,
         thread: config.threads.find((t) => t.id === el.threadId) ?? config.threads[0],
         curveDeg: el.options.curveDeg,
         trackingPct: el.options.trackingPct,
         kerning: el.options.kerning,
-        motif: motif ? { path: motif.path, viewBox: motif.viewBox, sizeMm: el.options.motifSizeMm } : null,
+        motif: motif ? { path: motif.path, viewBox: motif.viewBox, sizeMm: el.options.motifSizeMm, heightMm: pictureSizeMm(el.options).heightMm, paths: motif.paths ?? null } : null,
         artwork:
           el.options.contentType === "artwork" && el.options.artworkUrl
-            ? { url: el.options.artworkUrl, widthMm: el.options.artworkSizeMm, heightMm: el.options.artworkSizeMm * (el.options.artworkAspect || 1) }
+            ? { url: el.options.artworkUrl, widthMm: el.options.artworkSizeMm, heightMm: pictureSizeMm(el.options).heightMm }
             : null,
         widthMm: ev?.widthMm ?? 0,
         stackMm: ev?.stackMm ?? el.heightMm,
@@ -691,7 +749,22 @@ export default function PersonalizationEditor({ locale, config, product, variant
                 elements={previewElements}
                 activeElementId={activeElementId || null}
                 onSelectElement={selectElement}
-                onElementChange={(id, patch) => patchElement(patch, id)}
+                onElementChange={(id, patch) => {
+                  if (patch.size) {
+                    // A pull on a handle sets the picture's own width and height.
+                    const target = activeDesign?.elements.find((x) => x.id === id);
+                    if (!target) return;
+                    const o = target.options;
+                    const next: Partial<DesignOptions> =
+                      o.contentType === "artwork"
+                        ? { artworkSizeMm: Math.round(patch.size.widthMm), artworkHeightMm: Math.round(patch.size.heightMm) }
+                        : { motifSizeMm: Math.round(patch.size.widthMm), motifHeightMm: Math.round(patch.size.heightMm) };
+                    patchElement({ options: { ...o, ...next } }, id);
+                    return;
+                  }
+                  patchElement(patch, id);
+                }}
+                resizeLabel={c.resizeLabel}
                 placeholder={c.previewPlaceholder}
                 logoPlaceholder={c.contentTypes.artwork}
                 quadPct={isUsableQuad(previewQuad) ? previewQuad : null}
@@ -760,20 +833,31 @@ export default function PersonalizationEditor({ locale, config, product, variant
               <>
                 <div className={styles.fitRow}>
                   <div className={styles.fitMeter} role="img" aria-label={c.fitLabel}>
-                    <div
-                      className={`${styles.fitFill} ${activeElementEval.error === "tooWide" ? styles.fitFillOver : activeElementEval.widthFill > 0.99 ? styles.fitFillWide : ""}`}
-                      style={{ width: `${Math.min(100, activeElementEval.widthFill * 100)}%` }}
-                    />
+                    {/* Against the position's field on a catalogue product; against the
+                        whole photograph on the customer's own item, where the field is
+                        only the scale and the box may grow to the picture. */}
+                    {(() => {
+                      const span = activePlacement.usesCustomerPhoto ? activeLimits.maxWidthMm : activePlacement.fieldWidthMm;
+                      const fill = span > 0 ? Math.min(1, activeElementEval.widthMm / span) : 0;
+                      return (
+                        <div
+                          className={`${styles.fitFill} ${activeElementEval.error === "tooWide" ? styles.fitFillOver : fill > 0.99 ? styles.fitFillWide : ""}`}
+                          style={{ width: `${fill * 100}%` }}
+                        />
+                      );
+                    })()}
                   </div>
                   <span className={styles.fitText}>
-                    {Math.round(activeElementEval.widthMm)} / {Math.round(activePlacement.fieldWidthMm)} mm
+                    {Math.round(activeElementEval.widthMm)} / {Math.round(activePlacement.usesCustomerPhoto ? activeLimits.maxWidthMm : activePlacement.fieldWidthMm)} mm
                   </span>
                 </div>
 
                 {/* The other limit, and the one that surprises people: a bold
                     outlined name can take a fifth of the panel and still be
                     three times the stitches. Without a meter the ceiling only
-                    ever announces itself as a rejection. */}
+                    ever announces itself as a rejection. A customer's own
+                    item has no such ceiling, so no meter either. */}
+                {stitchCeiling > 0 && (
                 <div className={styles.fitRow}>
                   <div className={styles.fitMeter} role="img" aria-label={c.budgetLabel}>
                     <div
@@ -785,6 +869,7 @@ export default function PersonalizationEditor({ locale, config, product, variant
                     {activeEval.stitches.toLocaleString(locale)} / {stitchCeiling.toLocaleString(locale)}
                   </span>
                 </div>
+                )}
 
                 {isUsableQuad(previewQuad) && previewDesign && activeElement && (
                   <div className={styles.orientationRow}>
@@ -1000,10 +1085,19 @@ export default function PersonalizationEditor({ locale, config, product, variant
                           {isArtwork && el.options.artworkUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img src={el.options.artworkUrl} alt="" className={styles.boxThumb} />
+                          ) : ownColours(el.options) ? (
+                            (() => {
+                              const m = config.motifs.find((x) => x.key === el.options.motifKey);
+                              return m ? (
+                                <svg viewBox={m.viewBox} className={styles.boxThumb} aria-hidden="true">
+                                  {m.paths!.map((sp, i) => <path key={i} d={sp.d} fill={sp.fill} />)}
+                                </svg>
+                              ) : null;
+                            })()
                           ) : (
                             <span className={styles.boxChip} style={{ background: thread?.hex }} aria-hidden="true" />
                           )}
-                          <span className={styles.boxText} style={isArtwork ? undefined : { fontFamily: font?.webFamily, fontWeight: weightForStep(el.weightStep).cssWeight }}>
+                          <span className={styles.boxText} style={isArtwork || el.options.contentType === "motif" ? undefined : { fontFamily: font?.webFamily, fontWeight: weightForStep(el.weightStep).cssWeight }}>
                             {subject}
                           </span>
                           <span className={styles.boxMeta}>
@@ -1132,20 +1226,40 @@ export default function PersonalizationEditor({ locale, config, product, variant
                 ) : activeElement.options.contentType === "motif" ? (
                   <>
                     <span className={styles.fieldLabel}>{c.motifTitle}</span>
+                    {motifCategories.length > 1 && (
+                      <div className={styles.motifCats} role="tablist" aria-label={c.motifTitle}>
+                        {["all", ...motifCategories].map((cat) => (
+                          <button
+                            key={cat}
+                            type="button"
+                            role="tab"
+                            aria-selected={motifCategory === cat}
+                            className={`${styles.motifCat} ${motifCategory === cat ? styles.motifCatActive : ""}`}
+                            onClick={() => setMotifCategory(cat)}
+                          >
+                            {cat === "all" ? c.motifCategoryAll : motifCategoryName(cat)}
+                            <span className={styles.motifCatCount}>{cat === "all" ? config.motifs.length : config.motifs.filter((m) => (m.category ?? "other") === cat).length}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                     <div className={styles.motifGrid}>
-                      {config.motifs.map((m) => (
+                      {visibleMotifs.map((m) => (
                         <button
                           key={m.key}
                           type="button"
                           className={`${styles.motifCard} ${activeElement.options.motifKey === m.key ? styles.motifCardActive : ""}`}
-                          onClick={() => patchOptions({ motifKey: m.key })}
+                          onClick={() => {
+                            const [, , vw, vh] = m.viewBox.split(/\s+/).map(Number);
+                            patchOptions({ motifKey: m.key, motifAspect: (vh || 100) / (vw || 100), motifHeightMm: null });
+                          }}
                           aria-pressed={activeElement.options.motifKey === m.key}
                           title={m.name}
                         >
                           {/* The catalogue is admin-authored, so the path goes
                               on a `d` attribute — never injected as markup. */}
                           <svg viewBox={m.viewBox} className={styles.motifSvg} aria-hidden="true">
-                            <path d={m.path} fill="currentColor" />
+                            {m.paths?.length ? m.paths.map((sp, i) => <path key={i} d={sp.d} fill={sp.fill} />) : <path d={m.path} fill="currentColor" />}
                           </svg>
                           <span className={styles.motifName}>{m.name}</span>
                         </button>
@@ -1194,27 +1308,20 @@ export default function PersonalizationEditor({ locale, config, product, variant
                 )}
               </fieldset>
 
-              {activeElement.options.contentType !== "artwork" && (
+              {activeElement.options.contentType !== "artwork" && activeElement.options.contentType !== "motif" && (
               <fieldset className={styles.panel}>
                 <legend className={styles.panelTitle}>
                   <Type size={15} aria-hidden="true" /> {c.fontTitle}
                 </legend>
-                <div className={styles.fontGrid}>
-                  {availableFonts.map((f) => (
-                    <button
-                      key={f.key}
-                      type="button"
-                      className={`${styles.fontCard} ${f.key === activeFont.key ? styles.fontCardActive : ""}`}
-                      onClick={() => patchElement({ fontKey: f.key })}
-                      aria-pressed={f.key === activeFont.key}
-                    >
-                      <span className={styles.fontSample} style={{ fontFamily: f.webFamily }}>
-                        {activeElementEval.text.slice(0, 8) || c.fontSample}
-                      </span>
-                      <span className={styles.fontName}>{f.name}</span>
-                    </button>
-                  ))}
-                </div>
+                <FontPicker
+                  fonts={availableFonts}
+                  value={activeFont.key}
+                  sample={activeElementEval.text.slice(0, 12) || c.fontSample}
+                  searchPlaceholder={c.fontSearch}
+                  emptyLabel={c.fontSearchEmpty}
+                  countLabel={c.fontCount.replace("{n}", String(availableFonts.length))}
+                  onChange={(fontKey) => patchElement({ fontKey })}
+                />
               </fieldset>
               )}
 
@@ -1225,61 +1332,65 @@ export default function PersonalizationEditor({ locale, config, product, variant
                   <Ruler size={15} aria-hidden="true" />{" "}
                   {activeElement.options.contentType === "artwork" ? c.artworkSizeTitle : activeElement.options.contentType === "motif" ? c.motifSizeTitle : c.sizeTitle}
                 </legend>
-                <p className={styles.panelHint}>{activeElement.options.contentType === "artwork" ? c.artworkSizeHint : customerItems ? c.sizeHintFlat : c.sizeHint}</p>
-                {activeElement.options.contentType === "artwork" ? (
-                  <>
-                    <div className={styles.sliderRow}>
-                      <input
-                        type="range"
-                        className={styles.slider}
-                        min={ARTWORK_MIN_MM}
-                        max={ARTWORK_MAX_MM}
-                        step={1}
-                        value={activeElement.options.artworkSizeMm}
-                        onChange={(e) => patchOptions({ artworkSizeMm: Number(e.target.value) })}
-                        aria-label={c.artworkSizeTitle}
-                      />
-                      <Stepper
-                        label={c.artworkSizeTitle}
-                        compact
-                        value={activeElement.options.artworkSizeMm}
-                        min={ARTWORK_MIN_MM}
-                        max={ARTWORK_MAX_MM}
-                        onChange={(artworkSizeMm) => patchOptions({ artworkSizeMm })}
-                      />
-                    </div>
-                    <div className={styles.sliderScale} aria-hidden="true">
-                      <span>{ARTWORK_MIN_MM} mm</span>
-                      <span>{ARTWORK_MAX_MM} mm</span>
-                    </div>
-                  </>
-                ) : activeElement.options.contentType === "motif" ? (
-                  <>
-                    <div className={styles.sliderRow}>
-                      <input
-                        type="range"
-                        className={styles.slider}
-                        min={MOTIF_MIN_MM}
-                        max={motifMax}
-                        step={1}
-                        value={activeElement.options.motifSizeMm}
-                        onChange={(e) => patchOptions({ motifSizeMm: Number(e.target.value) })}
-                        aria-label={c.motifSizeTitle}
-                      />
-                      <Stepper
-                        label={c.motifSizeTitle}
-                        compact
-                        value={activeElement.options.motifSizeMm}
-                        min={MOTIF_MIN_MM}
-                        max={motifMax}
-                        onChange={(motifSizeMm) => patchOptions({ motifSizeMm })}
-                      />
-                    </div>
-                    <div className={styles.sliderScale} aria-hidden="true">
-                      <span>{MOTIF_MIN_MM} mm</span>
-                      <span>{motifMax} mm</span>
-                    </div>
-                  </>
+                <p className={styles.panelHint}>
+                  {activeElement.options.contentType === "artwork" ? c.artworkSizeHint : activeElement.options.contentType === "motif" ? c.motifSizeHint : customerItems ? c.sizeHintFlat : c.sizeHint}
+                </p>
+                {activeElement.options.contentType === "artwork" || activeElement.options.contentType === "motif" ? (
+                  (() => {
+                    const isArt = activeElement.options.contentType === "artwork";
+                    const size = pictureSizeMm(activeElement.options);
+                    const aspect = isArt ? activeElement.options.artworkAspect || 1 : activeElement.options.motifAspect || 1;
+                    const minMm = isArt ? ARTWORK_MIN_MM : MOTIF_MIN_MM;
+                    const maxW = isArt ? artworkMax : motifMax;
+                    const maxH = activePlacement?.usesCustomerPhoto ? activeLimits.maxHeightMm : motifMax;
+                    const stretched = isArt ? activeElement.options.artworkHeightMm !== null : activeElement.options.motifHeightMm !== null;
+                    const setSize = (widthMm: number, heightMm: number | null) =>
+                      patchOptions(isArt ? { artworkSizeMm: widthMm, artworkHeightMm: heightMm } : { motifSizeMm: widthMm, motifHeightMm: heightMm });
+                    return (
+                      <div className={styles.sizeGrid}>
+                        <div>
+                          <span className={styles.fieldLabel}>{c.widthLabel}</span>
+                          <div className={styles.sliderRow}>
+                            <input
+                              type="range"
+                              className={styles.slider}
+                              min={minMm}
+                              max={maxW}
+                              step={1}
+                              value={Math.round(size.widthMm)}
+                              onChange={(e) => setSize(Number(e.target.value), stretched ? size.heightMm : null)}
+                              aria-label={c.widthLabel}
+                            />
+                            <Stepper label={c.widthLabel} compact value={Math.round(size.widthMm)} min={minMm} max={maxW} onChange={(w) => setSize(w, stretched ? size.heightMm : null)} />
+                          </div>
+                        </div>
+                        <div>
+                          <span className={styles.fieldLabel}>{c.heightLabel}</span>
+                          <div className={styles.sliderRow}>
+                            <input
+                              type="range"
+                              className={styles.slider}
+                              min={minMm}
+                              max={maxH}
+                              step={1}
+                              value={Math.round(size.heightMm)}
+                              onChange={(e) => setSize(size.widthMm, Number(e.target.value))}
+                              aria-label={c.heightLabel}
+                            />
+                            <Stepper label={c.heightLabel} compact value={Math.round(size.heightMm)} min={minMm} max={maxH} onChange={(h) => setSize(size.widthMm, h)} />
+                          </div>
+                        </div>
+                        <div className={styles.sizeFooter}>
+                          <span className={styles.fieldNote}>{c.resizeHint}</span>
+                          {stretched && (
+                            <button type="button" className={styles.recentreBtn} onClick={() => setSize(size.widthMm, null)} title={`${Math.round(size.widthMm)} × ${Math.round(size.widthMm * aspect)} mm`}>
+                              {c.keepProportions}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()
                 ) : (
                   <>
                     <div className={styles.sliderRow}>
@@ -1325,12 +1436,16 @@ export default function PersonalizationEditor({ locale, config, product, variant
                 )}
               </fieldset>
 
-              {activeElement.options.contentType !== "artwork" && (
+              {activeElement.options.contentType !== "artwork" && activeElement.options.contentType !== "motif" && (
               <fieldset className={styles.panel}>
                 <legend className={styles.panelTitle}>
                   <Bold size={15} aria-hidden="true" /> {c.weightTitle}
                 </legend>
-                <p className={styles.panelHint}>{c.weightHint}</p>
+                <p className={styles.panelHint}>{customerItems ? c.borderHint : c.weightHint}</p>
+                {/* Five faces' worth of weight on a catalogue product — priced by
+                    the band. On the customer's own item thickness is one thing:
+                    the satin border, as many millimetres as they like. */}
+                {!customerItems && (
                 <div className={styles.weightRow} role="radiogroup" aria-label={c.weightTitle}>
                   {WEIGHT_SCALE.map((w) => (
                     <button
@@ -1354,10 +1469,32 @@ export default function PersonalizationEditor({ locale, config, product, variant
                     </button>
                   ))}
                 </div>
+                )}
+                {customerItems && (
+                  <div>
+                    <div className={styles.sliderRow}>
+                      <input
+                        type="range"
+                        className={styles.slider}
+                        min={0}
+                        max={Math.max(10, Math.round(activeElement.heightMm))}
+                        step={0.5}
+                        value={activeElement.options.borderMm}
+                        onChange={(e) => patchOptions({ borderMm: Number(e.target.value) })}
+                        aria-label={c.weightTitle}
+                      />
+                      <Stepper label={c.weightTitle} compact value={activeElement.options.borderMm} min={0} max={activeLimits.maxHeightMm} step={0.5} onChange={(borderMm) => patchOptions({ borderMm })} />
+                    </div>
+                    <div className={styles.sliderScale} aria-hidden="true">
+                      <span>{c.borderNone}</span>
+                      <span>{Math.max(10, Math.round(activeElement.heightMm))} mm</span>
+                    </div>
+                  </div>
+                )}
               </fieldset>
               )}
 
-              {activeElement.options.contentType !== "artwork" && (
+              {activeElement.options.contentType !== "artwork" && !ownColours(activeElement.options) && (
               <fieldset className={styles.panel}>
                 <legend className={styles.panelTitle}>
                   <Palette size={15} aria-hidden="true" /> {c.threadTitle}
@@ -1463,6 +1600,29 @@ export default function PersonalizationEditor({ locale, config, product, variant
                       </details>
                     )}
                   </fieldset>
+
+                  {/* Leading only once there is a second line to space from the first. */}
+                  {activeElementEval.lines.length > 1 && (
+                    <fieldset className={styles.panel}>
+                      <legend className={styles.panelTitle}>
+                        <MoveVertical size={15} aria-hidden="true" /> {c.leadingTitle}
+                      </legend>
+                      <p className={styles.panelHint}>{c.leadingHint}</p>
+                      <div className={styles.sliderRow}>
+                        <input
+                          type="range"
+                          className={styles.slider}
+                          min={80}
+                          max={300}
+                          step={5}
+                          value={Math.round(activeElement.options.leading * 100)}
+                          onChange={(e) => patchOptions({ leading: Number(e.target.value) / 100 })}
+                          aria-label={c.leadingTitle}
+                        />
+                        <output className={styles.sliderValue}>{Math.round(activeElement.options.leading * 100)}%</output>
+                      </div>
+                    </fieldset>
+                  )}
 
                   {activeFont.supportsCurve && (
                     <fieldset className={styles.panel}>
@@ -1590,7 +1750,8 @@ export default function PersonalizationEditor({ locale, config, product, variant
                             {motif ? motif.name : e.elements[i]?.text}
                           </strong>
                           <p className={styles.reviewMeta}>
-                            {motif ? `${el.options.motifSizeMm} mm` : `${font.name} · ${c.weightLabels[el.weightStep - 1]} · ${el.heightMm} mm`} · {thread?.name}
+                            {motif ? `${el.options.motifSizeMm} mm` : `${font.name} · ${c.weightLabels[el.weightStep - 1]} · ${el.heightMm} mm`}
+                            {motif?.paths?.length ? ` · ${c.ownColours}` : ` · ${thread?.name ?? ""}`}
                             {el.rotationDeg !== 0 && ` · ${displayAngle(el.rotationDeg)}°`}
                           </p>
                         </div>
@@ -1831,6 +1992,146 @@ function errorCopy(code: string | undefined, c: Copy, detail?: ErrorDetail, loca
  * A millimetre field with a button either side. Typing commits on blur or
  * Enter so "1" of "120" never lands as a 1mm area; the buttons commit at once.
  */
+/**
+ * The face, as a searchable dropdown: the chosen face set large in the
+ * customer's own words, and a list that opens under it with every face drawn
+ * in itself. Eighteen faces as cards took the whole column; here they take
+ * one row until asked for.
+ */
+function FontPicker({
+  fonts,
+  value,
+  sample,
+  searchPlaceholder,
+  emptyLabel,
+  countLabel,
+  onChange,
+}: {
+  fonts: EditorConfig["fonts"];
+  value: string;
+  sample: string;
+  searchPlaceholder: string;
+  emptyLabel: string;
+  countLabel: string;
+  onChange: (key: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [cursor, setCursor] = useState(0);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
+
+  const current = fonts.find((f) => f.key === value) ?? fonts[0];
+  const shown = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return q ? fonts.filter((f) => f.name.toLowerCase().includes(q) || f.key.toLowerCase().includes(q)) : fonts;
+  }, [fonts, query]);
+
+  // Closes on a click anywhere else, or on Escape.
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: PointerEvent) => {
+      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("pointerdown", onDown);
+    document.addEventListener("keydown", onKey);
+    const t = setTimeout(() => inputRef.current?.focus(), 0);
+    return () => {
+      document.removeEventListener("pointerdown", onDown);
+      document.removeEventListener("keydown", onKey);
+      clearTimeout(t);
+    };
+  }, [open]);
+
+  // The highlighted row stays in view as the arrows move it.
+  useEffect(() => {
+    if (!open) return;
+    listRef.current?.querySelector<HTMLElement>(`[data-index="${cursor}"]`)?.scrollIntoView({ block: "nearest" });
+  }, [cursor, open]);
+
+  const choose = (key: string) => {
+    onChange(key);
+    setOpen(false);
+    setQuery("");
+  };
+  const toggle = () => {
+    setOpen((o) => !o);
+    setQuery("");
+    setCursor(Math.max(0, fonts.findIndex((f) => f.key === value)));
+  };
+
+  return (
+    <div className={styles.fontPicker} ref={rootRef}>
+      <button type="button" className={`${styles.fontPickerBtn} ${open ? styles.fontPickerBtnOpen : ""}`} onClick={toggle} aria-haspopup="listbox" aria-expanded={open}>
+        <span className={styles.fontPickerSample} style={{ fontFamily: current?.webFamily }}>
+          {sample}
+        </span>
+        <span className={styles.fontPickerMeta}>
+          <span className={styles.fontPickerName}>{current?.name}</span>
+          <span className={styles.fontPickerCount}>{countLabel}</span>
+        </span>
+        <ChevronDown size={16} className={styles.fontPickerChevron} aria-hidden="true" />
+      </button>
+
+      {open && (
+        <div className={styles.fontPickerMenu}>
+          <label className={styles.fontPickerSearch}>
+            <Search size={14} aria-hidden="true" />
+            <input
+              ref={inputRef}
+              type="search"
+              value={query}
+              placeholder={searchPlaceholder}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setCursor(0);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "ArrowDown") {
+                  e.preventDefault();
+                  setCursor((i) => Math.min(shown.length - 1, i + 1));
+                } else if (e.key === "ArrowUp") {
+                  e.preventDefault();
+                  setCursor((i) => Math.max(0, i - 1));
+                } else if (e.key === "Enter") {
+                  e.preventDefault();
+                  if (shown[cursor]) choose(shown[cursor].key);
+                }
+              }}
+              aria-label={searchPlaceholder}
+              autoComplete="off"
+            />
+          </label>
+          <ul className={styles.fontPickerList} role="listbox" ref={listRef}>
+            {shown.length === 0 && <li className={styles.fontPickerEmpty}>{emptyLabel}</li>}
+            {shown.map((f, i) => (
+              <li
+                key={f.key}
+                role="option"
+                aria-selected={f.key === value}
+                data-index={i}
+                className={`${styles.fontPickerRow} ${i === cursor ? styles.fontPickerRowCursor : ""} ${f.key === value ? styles.fontPickerRowActive : ""}`}
+                onMouseEnter={() => setCursor(i)}
+                onClick={() => choose(f.key)}
+              >
+                <span className={styles.fontPickerRowSample} style={{ fontFamily: f.webFamily }}>
+                  {sample}
+                </span>
+                <span className={styles.fontPickerRowName}>{f.name}</span>
+                {f.key === value && <CheckIcon size={15} className={styles.fontPickerRowCheck} aria-hidden="true" />}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Stepper({
   label,
   value,
@@ -1838,6 +2139,8 @@ function Stepper({
   max,
   onChange,
   compact = false,
+  step = 1,
+  unit = "mm",
 }: {
   label: string;
   value: number;
@@ -1846,15 +2149,18 @@ function Stepper({
   onChange: (value: number) => void;
   /** No visible label — for sitting beside a slider that already has one. */
   compact?: boolean;
+  /** How far the −/+ buttons move, and the input's step. */
+  step?: number;
+  unit?: string;
 }) {
   const [draft, setDraft] = useState<string | null>(null);
-  const shown = draft ?? String(Math.round(value));
+  const shown = draft ?? String(step < 1 ? Math.round(value / step) * step : Math.round(value));
   const commit = () => {
     const n = Number(draft);
     if (draft !== null && Number.isFinite(n)) onChange(Math.min(max, Math.max(min, n)));
     setDraft(null);
   };
-  const nudge = (d: number) => onChange(Math.min(max, Math.max(min, Math.round(value + d))));
+  const nudge = (d: number) => onChange(Math.min(max, Math.max(min, step < 1 ? Math.round((value + d * step) / step) * step : Math.round(value + d * step))));
 
   return (
     <label className={`${styles.stepper} ${compact ? styles.stepperCompact : ""}`}>
@@ -1869,7 +2175,7 @@ function Stepper({
           inputMode="decimal"
           min={min}
           max={max}
-          step={1}
+          step={step}
           value={shown}
           onChange={(e) => setDraft(e.target.value)}
           onBlur={commit}
@@ -1881,7 +2187,7 @@ function Stepper({
           }}
           aria-label={label}
         />
-        <span className={styles.stepperUnit}>mm</span>
+        <span className={styles.stepperUnit}>{unit}</span>
         <button type="button" className={styles.stepperBtn} onClick={() => nudge(1)} disabled={value >= max} aria-label={`${label} +1`}>
           <Plus size={13} aria-hidden="true" />
         </button>

@@ -1789,6 +1789,203 @@
   text-overflow: ellipsis;
 }
 
+/* ── Font picker ─────────────────────────────────────────────────────────
+   One row showing the chosen face in the customer's words; the list opens
+   beneath, searchable, each face drawn in itself. */
+.fontPicker {
+  position: relative;
+}
+
+.fontPickerBtn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 12px 10px 16px;
+  border-radius: 12px;
+  border: 1.5px solid var(--field-border, #e2e6eb);
+  background: var(--background);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.fontPickerBtn:hover,
+.fontPickerBtnOpen {
+  border-color: var(--color-primary);
+}
+.fontPickerBtnOpen {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 18%, transparent);
+}
+
+.fontPickerSample {
+  flex: 1;
+  min-width: 0;
+  font-size: 26px;
+  line-height: 1.1;
+  color: var(--color-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fontPickerMeta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex: none;
+}
+.fontPickerName {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-primary);
+}
+.fontPickerCount {
+  font-size: 11px;
+  color: var(--color-muted, #6b7280);
+}
+.fontPickerChevron {
+  flex: none;
+  color: var(--color-muted, #6b7280);
+  transition: transform 0.15s ease;
+}
+.fontPickerBtnOpen .fontPickerChevron {
+  transform: rotate(180deg);
+}
+
+.fontPickerMenu {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  border-radius: 14px;
+  border: 1px solid var(--field-border, #e2e6eb);
+  background: var(--background);
+  box-shadow: 0 16px 40px rgb(16 24 40 / 14%);
+  overflow: hidden;
+}
+
+.fontPickerSearch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--field-border, #e2e6eb);
+  color: var(--color-muted, #6b7280);
+}
+.fontPickerSearch input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 14px;
+  color: var(--color-secondary);
+  outline: none;
+}
+
+.fontPickerList {
+  max-height: 320px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+}
+
+.fontPickerRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.fontPickerRowCursor {
+  background: var(--color-surface-tint);
+}
+.fontPickerRowActive .fontPickerRowName {
+  color: var(--color-primary);
+}
+.fontPickerRowSample {
+  flex: 1;
+  min-width: 0;
+  font-size: 22px;
+  line-height: 1.15;
+  color: var(--color-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.fontPickerRowName {
+  flex: none;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-muted, #6b7280);
+}
+.fontPickerRowCheck {
+  flex: none;
+  color: var(--color-primary);
+}
+.fontPickerEmpty {
+  padding: 16px;
+  font-size: 13px;
+  color: var(--color-muted, #6b7280);
+  text-align: center;
+}
+
+/* ── Design library categories ───────────────────────────────────────── */
+.motifCats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.motifCat {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px 5px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--field-border, #e2e6eb);
+  background: var(--color-surface-tint);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-secondary);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+.motifCat:hover {
+  border-color: var(--color-primary);
+}
+.motifCatActive {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.motifCatCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: rgb(16 24 40 / 8%);
+  font-size: 10.5px;
+  font-weight: 700;
+}
+.motifCatActive .motifCatCount {
+  background: rgb(255 255 255 / 22%);
+}
+
 /* ── Motifs ───────────────────────────────────────────────────────────────
    Shown as solid silhouettes at the size they read at, because that is what a
    shape looks like once it is stitched — fine line art disappears. */
@@ -1948,6 +2145,53 @@
   left: 100%;
   top: 0;
   margin: -26px 0 0 -4px;
+}
+
+.sizeGrid {
+  display: grid;
+  gap: 12px;
+}
+.sizeFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* Stretch handles on a picture box: right edge → width, bottom edge →
+   height, corner → both, in proportion. Small squares, in the brand colour,
+   sitting on the box's own edges so they turn with it. */
+.resizeHandle {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  padding: 0;
+  border-radius: 4px;
+  border: 2px solid #fff;
+  background: var(--color-primary);
+  box-shadow: 0 1px 4px rgb(16 24 40 / 35%);
+  touch-action: none;
+  z-index: 2;
+}
+.resizeHandle:hover {
+  transform: scale(1.15);
+}
+.resizeHandleX {
+  left: 100%;
+  top: 50%;
+  cursor: ew-resize;
+}
+.resizeHandleY {
+  left: 50%;
+  top: 100%;
+  cursor: ns-resize;
+}
+.resizeHandleXY {
+  left: 100%;
+  top: 100%;
+  cursor: nwse-resize;
 }
 
 /* ── Millimetre stepper ────────────────────────────────────────────────── */

@@ -20,11 +20,15 @@ export interface PreviewElement {
   lines: string[];
   heightMm: number;
   weightStep: number;
+  /** A satin border round the letters, in millimetres. */
+  borderMm?: number;
+  /** Line spacing as a multiple of the letter height. */
+  leading?: number;
   thread: EditorThread;
   curveDeg: number;
   trackingPct: number;
   kerning: number[] | null;
-  motif: { path: string; viewBox: string; sizeMm: number } | null;
+  motif: { path: string; viewBox: string; sizeMm: number; heightMm: number; paths?: { d: string; fill: string }[] | null } | null;
   /** The customer's own logo: its rendering, at the size it will be stitched. */
   artwork: { url: string; widthMm: number; heightMm: number } | null;
   /** From the evaluator — the width the fit check measured. */
@@ -43,7 +47,7 @@ interface Props {
   elements: PreviewElement[];
   activeElementId: string | null;
   onSelectElement: (id: string) => void;
-  onElementChange: (id: string, patch: { offset?: Point; rotationDeg?: number }) => void;
+  onElementChange: (id: string, patch: { offset?: Point; rotationDeg?: number; size?: { widthMm: number; heightMm: number } }) => void;
   /** What an empty box reads, drawn faintly until the customer writes. */
   placeholder: string;
   /** What an empty logo box says — "Your logo" — while nothing is uploaded yet. */
@@ -54,6 +58,7 @@ interface Props {
   /** Copy for the screen-reader instructions on the draggable things. */
   moveLabel: string;
   rotateLabel: string;
+  resizeLabel?: string;
   /** False on the review step, where the design is being confirmed, not edited. */
   editable?: boolean;
 }
@@ -82,12 +87,13 @@ export default function DesignPreview({
   dragHint,
   moveLabel,
   rotateLabel,
+  resizeLabel = "Resize",
   editable = true,
 }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState({ width: 0, height: 0 });
-  const [gesture, setGesture] = useState<"none" | "element" | "rotate">("none");
+  const [gesture, setGesture] = useState<"none" | "element" | "rotate" | "resize">("none");
   const [draggingId, setDraggingId] = useState<string | null>(null);
   /**
    * Whether the guides are shown. They exist to aim with, and once the aiming
@@ -98,6 +104,7 @@ export default function DesignPreview({
 
   const elementDrag = useRef<{ id: string; startX: number; startY: number; start: Point } | null>(null);
   const spin = useRef<{ id: string; startAngle: number; startRotation: number } | null>(null);
+  const stretch = useRef<{ id: string; axis: "x" | "y" | "xy"; startX: number; startY: number; startW: number; startH: number; rotationDeg: number } | null>(null);
 
   // The tracing is stored in percentages so it survives every rendered size;
   // the layout needs pixels, so the box has to be measured rather than assumed.
@@ -199,6 +206,7 @@ export default function DesignPreview({
   const endGesture = useCallback(() => {
     elementDrag.current = null;
     spin.current = null;
+    stretch.current = null;
     setDraggingId(null);
     setGesture("none");
   }, []);
@@ -259,6 +267,51 @@ export default function DesignPreview({
     [onElementChange],
   );
 
+  // ── Stretching a shape ───────────────────────────────────────────────
+  // Three handles on a picture box: the right edge for width, the bottom
+  // edge for height, the corner for both together. The pointer's travel is
+  // turned into the box's own axes first, so a turned shape still grows the
+  // way its handle is pulled.
+
+  const onResizeDown = useCallback(
+    (el: PreviewElement, axis: "x" | "y" | "xy") => (e: React.PointerEvent) => {
+      if (!el.motif && !el.artwork) return;
+      e.preventDefault();
+      e.stopPropagation();
+      (e.target as Element).setPointerCapture?.(e.pointerId);
+      const w = el.motif ? el.motif.sizeMm : el.artwork!.widthMm;
+      const h = el.motif ? el.motif.heightMm : el.artwork!.heightMm;
+      stretch.current = { id: el.id, axis, startX: e.clientX, startY: e.clientY, startW: w, startH: h, rotationDeg: el.rotationDeg };
+      setGesture("resize");
+    },
+    [],
+  );
+
+  const onResizeMove = useCallback(
+    (e: React.PointerEvent) => {
+      const st = stretch.current;
+      if (!st || !pxPerMm) return;
+      const dx = (e.clientX - st.startX) / pxPerMm;
+      const dy = (e.clientY - st.startY) / pxPerMm;
+      const a = (st.rotationDeg * Math.PI) / 180;
+      // Along the box's own axes.
+      const along = dx * Math.cos(a) + dy * Math.sin(a);
+      const across = -dx * Math.sin(a) + dy * Math.cos(a);
+      let widthMm = st.startW;
+      let heightMm = st.startH;
+      if (st.axis === "x") widthMm = st.startW + 2 * along;
+      else if (st.axis === "y") heightMm = st.startH + 2 * across;
+      else {
+        // The corner keeps the proportion: the larger pull wins.
+        const k = Math.max((st.startW + 2 * along) / st.startW, (st.startH + 2 * across) / st.startH);
+        widthMm = st.startW * k;
+        heightMm = st.startH * k;
+      }
+      onElementChange(st.id, { size: { widthMm: Math.max(5, round1(widthMm)), heightMm: Math.max(5, round1(heightMm)) } });
+    },
+    [onElementChange, pxPerMm],
+  );
+
   /** A press on the bare photo puts the guides away. */
   const onStagePointerDown = useCallback((e: React.PointerEvent) => {
     const stage = stageRef.current;
@@ -278,7 +331,7 @@ export default function DesignPreview({
     // Cap height is not the em box — 0.72 is the usual ratio, and using it
     // keeps the rendered letters at the millimetre height being quoted.
     const fontSizeMm = el.heightMm / 0.72;
-    const lead = el.heightMm * LINE_LEADING;
+    const lead = el.heightMm * (el.leading ?? LINE_LEADING);
     const firstY = -((rows.length - 1) * lead) / 2;
     const fill = el.thread.hex;
 
@@ -322,10 +375,11 @@ export default function DesignPreview({
       : el.motif
       ? (() => {
           const [, , vw, vh] = el.motif.viewBox.split(/\s+/).map(Number);
-          const scale = el.motif.sizeMm / Math.max(vw || 100, vh || 100);
+          const sx = el.motif.sizeMm / (vw || 100);
+          const sy = el.motif.heightMm / (vh || 100);
           return (
-            <g transform={`translate(${-((vw || 100) * scale) / 2} ${-((vh || 100) * scale) / 2}) scale(${scale})`}>
-              <path d={el.motif.path} fill={fill} />
+            <g transform={`translate(${-((vw || 100) * sx) / 2} ${-((vh || 100) * sy) / 2}) scale(${sx} ${sy})`}>
+              {el.motif.paths?.length ? el.motif.paths.map((sp, i) => <path key={i} d={sp.d} fill={sp.fill} />) : <path d={el.motif.path} fill={fill} />}
             </g>
           );
         })()
@@ -341,8 +395,13 @@ export default function DesignPreview({
             fontSize: fontSizeMm,
             fontWeight: weightForStep(el.weightStep).cssWeight,
             fill,
+            // The hairline keeps thin faces from breaking up; a border set by
+            // the customer replaces it, painted under the fill so the letters
+            // grow outward by exactly those millimetres.
             stroke: fill,
-            strokeWidth: fontSizeMm * 0.012,
+            strokeWidth: el.borderMm ? 2 * el.borderMm : fontSizeMm * 0.012,
+            strokeLinejoin: "round" as const,
+            paintOrder: "stroke" as const,
             textAnchor: "middle" as const,
             opacity: empty ? 0.45 : 1,
           };
@@ -429,6 +488,13 @@ export default function DesignPreview({
                   <svg className={styles.elementSvg} viewBox={`${-widthMm / 2} ${-stackMm / 2} ${widthMm} ${stackMm}`} overflow="visible" role="img" aria-label={el.text}>
                     {body}
                   </svg>
+                  {selected && guides && (el.motif || el.artwork) && (
+                    <>
+                      <button type="button" className={`${styles.resizeHandle} ${styles.resizeHandleX}`} onPointerDown={onResizeDown(el, "x")} onPointerMove={onResizeMove} onPointerUp={endGesture} onPointerCancel={endGesture} aria-label={`${resizeLabel} ↔`} title={`${resizeLabel} ↔`} />
+                      <button type="button" className={`${styles.resizeHandle} ${styles.resizeHandleY}`} onPointerDown={onResizeDown(el, "y")} onPointerMove={onResizeMove} onPointerUp={endGesture} onPointerCancel={endGesture} aria-label={`${resizeLabel} ↕`} title={`${resizeLabel} ↕`} />
+                      <button type="button" className={`${styles.resizeHandle} ${styles.resizeHandleXY}`} onPointerDown={onResizeDown(el, "xy")} onPointerMove={onResizeMove} onPointerUp={endGesture} onPointerCancel={endGesture} aria-label={resizeLabel} title={resizeLabel} />
+                    </>
+                  )}
                   {selected && guides && (
                     <button
                       type="button"
