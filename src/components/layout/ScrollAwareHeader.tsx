@@ -5,7 +5,8 @@ import styles from "./ScrollAwareHeader.module.css";
 
 /**
  * The band at the top of the page where the header is shown whichever way the
- * last scroll was going.
+ * last scroll was going — and, further down, how far the page has to travel
+ * in one direction before the header hides (down) or comes back (up).
  *
  * A share of the page rather than a flat 80px: the reason the header could be
  * caught hidden at the very top was a bounce/fling arriving there faster than
@@ -41,14 +42,26 @@ export default function ScrollAwareHeader({ children }: { children: React.ReactN
     const currentY = () => Math.max(0, window.scrollY);
 
     lastY.current = currentY();
+    // Where the scroll last changed direction. The header only reacts once
+    // the page has travelled a whole zone from there — the same distance
+    // down to hide it as up to bring it back — so a wobble of the thumb, or
+    // a page that settles a few pixels after a fling, does not flicker it.
+    let anchorY = lastY.current;
+    let goingDown = false;
     const onScroll = () => {
       const y = currentY();
       setScrolled(y > 10);
+      const down = y > lastY.current;
+      if (y !== lastY.current && down !== goingDown) {
+        anchorY = lastY.current;
+        goingDown = down;
+      }
       if (y <= revealZone) {
         setHidden(false);
-      } else if (y > lastY.current) {
+        anchorY = y;
+      } else if (goingDown && y - anchorY >= revealZone) {
         setHidden(true);
-      } else {
+      } else if (!goingDown && anchorY - y >= revealZone) {
         setHidden(false);
       }
       lastY.current = y;
