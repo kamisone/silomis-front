@@ -1,0 +1,330 @@
+/* ── Page shell ──────────────────────────────────────────────────────────────
+   `flex: 1` rather than a min-height: <body> is the flex column that owns the
+   viewport, so this is what makes a short 404 push the footer to the bottom of
+   the screen instead of leaving it floating mid-page. */
+.page {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(2.5rem, 7vw, 5.5rem) 20px clamp(3rem, 8vw, 6rem);
+  background: linear-gradient(180deg, var(--color-surface-tint) 0%, var(--background) 62%);
+}
+
+/* ── Decorative backdrop ─────────────────────────────────────────────────────
+   The clipping lives here, on its own layer, and never on .page — the search
+   box below renders a wide absolutely-positioned results panel, and an
+   overflow rule on an ancestor of that panel would cut it off. */
+.backdrop {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.glowTeal,
+.glowPink {
+  position: absolute;
+  border-radius: 50%;
+}
+
+.glowTeal {
+  width: 620px;
+  height: 480px;
+  top: -220px;
+  left: -140px;
+  background: radial-gradient(circle, color-mix(in srgb, var(--color-primary) 13%, transparent) 0%, transparent 68%);
+}
+
+.glowPink {
+  width: 560px;
+  height: 440px;
+  bottom: -200px;
+  right: -120px;
+  background: radial-gradient(circle, color-mix(in srgb, var(--color-accent) 14%, transparent) 0%, transparent 68%);
+}
+
+/* A cross-stitch canvas rather than a plain dot grid: two dashed axes at the
+   same pitch read as woven fabric, which is the material the brand works on. */
+.weave {
+  position: absolute;
+  inset: 0;
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      color-mix(in srgb, var(--color-secondary) 6%, transparent) 0 6px,
+      transparent 6px 18px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--color-secondary) 6%, transparent) 0 6px,
+      transparent 6px 18px
+    );
+  background-size: 18px 18px;
+  /* Fades out well before the copy so the texture never fights the text. */
+  mask-image: radial-gradient(ellipse 75% 65% at 50% 38%, transparent 35%, #000 100%);
+  opacity: 0.4;
+}
+
+/* ── Content column ── */
+.inner {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 720px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.eyebrow {
+  display: inline-block;
+  margin: 0;
+  padding: 0.3rem 0.85rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-accent) 12%, var(--background));
+  border: 1px solid color-mix(in srgb, var(--color-accent) 26%, transparent);
+  color: var(--color-accent);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* ── The 4-hoop-4 lockup ── */
+.numeral {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.04em;
+  margin: 1.25rem 0 0;
+  font-size: clamp(4.25rem, 17vw, 8rem);
+  line-height: 1;
+}
+
+.digit {
+  font-weight: 900;
+  letter-spacing: -0.06em;
+  color: var(--color-secondary);
+  /* The digits are the quiet half of the lockup: the hoop between them carries
+     the colour, so they stay flat charcoal rather than competing with it. */
+}
+
+.hoop {
+  width: 0.78em;
+  height: 0.78em;
+  flex-shrink: 0;
+  /* Optical centring — the bracket sits above the ring, so the shape's visual
+     centre is lower than its bounding box's. */
+  margin-top: 0.05em;
+}
+
+.title {
+  margin: 1.1rem 0 0;
+  max-width: 100%;
+  font-size: clamp(1.5rem, 4.2vw, 2.25rem);
+  font-weight: 900;
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+  color: var(--foreground);
+}
+
+.body {
+  margin: 0.85rem 0 0;
+  /* `width: 100%` is what makes this a *min* of the two: a centred flex item
+     with only a max-width sizes to its own content, which on a 390px phone is
+     wider than the column and takes the whole page into horizontal overflow. */
+  width: 100%;
+  max-width: 52ch;
+  font-size: 1rem;
+  line-height: 1.7;
+  color: color-mix(in srgb, var(--foreground) 62%, var(--background));
+}
+
+/* ── Search ──
+   First, not last: on a shop the fastest recovery from a dead URL is almost
+   always a product search, not a walk back through the navigation. */
+.searchWrap {
+  width: 100%;
+  max-width: 460px;
+  margin: 2rem 0 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.searchLabel {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--foreground) 55%, var(--background));
+}
+
+/* ── Actions ── */
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+  width: 100%;
+  margin: 1.75rem 0 0;
+}
+
+.primaryBtn,
+.ghostBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.8rem 1.75rem;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: opacity 0.15s, transform 0.12s, background-color 0.15s, border-color 0.15s;
+}
+
+.primaryBtn {
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 100%);
+  color: #fff;
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--color-primary) 30%, transparent);
+}
+.primaryBtn:hover {
+  opacity: 0.92;
+  transform: translateY(-1px);
+}
+
+.ghostBtn {
+  background: var(--background);
+  color: var(--foreground);
+  border: 1px solid color-mix(in srgb, var(--foreground) 18%, transparent);
+}
+.ghostBtn:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.primaryBtn:focus-visible,
+.ghostBtn:focus-visible,
+.linkCard:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+}
+
+/* ── Popular destinations ── */
+.links {
+  width: 100%;
+  margin: 3rem 0 0;
+  padding-top: 2rem;
+  border-top: 1px solid color-mix(in srgb, var(--foreground) 11%, transparent);
+}
+
+.linksTitle {
+  margin: 0 0 1.1rem;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--foreground) 52%, var(--background));
+}
+
+.linkGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.linkCard {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  height: 100%;
+  padding: 0.85rem 0.9rem;
+  border-radius: 14px;
+  background: var(--background);
+  border: 1px solid color-mix(in srgb, var(--foreground) 11%, transparent);
+  text-align: left;
+  text-decoration: none;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.12s;
+}
+.linkCard:hover {
+  border-color: color-mix(in srgb, var(--color-primary) 45%, transparent);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--color-secondary) 9%, transparent);
+  transform: translateY(-2px);
+}
+
+.linkIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--color-primary) 10%, var(--background));
+  color: var(--color-primary);
+}
+
+.linkText {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.linkLabel {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--foreground);
+}
+
+.linkHint {
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: color-mix(in srgb, var(--foreground) 55%, var(--background));
+}
+
+.linkArrow {
+  flex-shrink: 0;
+  margin-left: auto;
+  color: color-mix(in srgb, var(--foreground) 32%, var(--background));
+  transition: color 0.15s, transform 0.15s;
+}
+.linkCard:hover .linkArrow {
+  color: var(--color-primary);
+  transform: translateX(2px);
+}
+
+@media (max-width: 640px) {
+  .linkGrid {
+    grid-template-columns: 1fr;
+  }
+  .searchWrap {
+    max-width: none;
+  }
+  .primaryBtn,
+  .ghostBtn {
+    flex: 1 1 auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .primaryBtn,
+  .ghostBtn,
+  .linkCard,
+  .linkArrow {
+    transition: none;
+  }
+  .primaryBtn:hover,
+  .linkCard:hover,
+  .linkCard:hover .linkArrow {
+    transform: none;
+  }
+}

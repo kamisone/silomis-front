@@ -1,0 +1,38 @@
+/* A single brand bar, not a copy of the commerce header: this page is reached
+   from outside the storefront tree, where there is no cart, no category nav
+   and no locale switcher to show. One link home is the whole job. */
+.bar {
+  display: flex;
+  justify-content: center;
+  padding: 1rem 20px;
+  background: var(--background);
+  border-bottom: 1px solid color-mix(in srgb, var(--foreground) 10%, transparent);
+}
+
+.logo {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  /* Optical, not metric — see CommerceHeader.module.css .logo. */
+  gap: 2px;
+  text-decoration: none;
+}
+
+.logoIcon {
+  /* 512x608 source; the box keeps that ratio so `contain` has nothing to
+     letterbox. */
+  height: 40px;
+  width: 34px;
+  object-fit: contain;
+}
+
+.logoWord {
+  font-family: var(--font-brand), "Segoe UI", system-ui, sans-serif;
+  font-weight: 400;
+  font-size: 26px;
+  /* The mark's baseline sits at 97.2% of its box, so the word needs nudging
+     down onto the line the S stands on — see CommerceHeader.module.css. */
+  line-height: 1;
+  margin-top: 2px;
+  color: var(--color-secondary);
+}

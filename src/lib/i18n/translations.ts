@@ -783,6 +783,23 @@ export const en = {
       generic: "Something is not right with this design. Please adjust it.",
     },
   },
+  notFound: {
+    eyebrow: "Error 404",
+    title: "We've lost the thread",
+    body: "The page you were looking for has moved, been taken down, or never existed. Nothing is broken on your side — pick up one of the threads below and carry on.",
+    searchLabel: "Search for something else",
+    primaryCta: "Back to home",
+    secondaryCta: "Browse collections",
+    linksTitle: "Popular destinations",
+    hints: {
+      newArrivals: "The latest pieces in store",
+      sale: "Everything on promotion right now",
+      collections: "Styles grouped by season and occasion",
+      embroidery: "Personalise an item you already own",
+      track: "Follow a delivery with your order number",
+      contact: "We'll help you find what you need",
+    },
+  },
 };
 
 export const fr: Translations = {
@@ -1541,6 +1558,23 @@ export const fr: Translations = {
       addFailed: "Impossible d'ajouter cet article au panier. Veuillez réessayer.",
       offline: "Serveur injoignable. Vérifiez votre connexion et réessayez.",
       generic: "Ce motif pose un problème. Veuillez l'ajuster.",
+    },
+  },
+  notFound: {
+    eyebrow: "Erreur 404",
+    title: "Nous avons perdu le fil",
+    body: "La page que vous cherchiez a été déplacée, retirée ou n'a jamais existé. Rien de cassé de votre côté — reprenez le fil avec l'une des pistes ci-dessous.",
+    searchLabel: "Chercher autre chose",
+    primaryCta: "Retour à l'accueil",
+    secondaryCta: "Voir les collections",
+    linksTitle: "Destinations populaires",
+    hints: {
+      newArrivals: "Les dernières pièces en boutique",
+      sale: "Tous les articles en promotion",
+      collections: "Des styles par saison et par occasion",
+      embroidery: "Personnalisez un article qui vous appartient",
+      track: "Suivez votre livraison avec votre numéro de commande",
+      contact: "Nous vous aidons à trouver ce qu'il vous faut",
     },
   },
 };
@@ -2303,6 +2337,23 @@ export const es: Translations = {
       generic: "Hay algo que no encaja en este diseño. Ajústalo, por favor.",
     },
   },
+  notFound: {
+    eyebrow: "Error 404",
+    title: "Hemos perdido el hilo",
+    body: "La página que buscabas se ha movido, se ha retirado o nunca existió. No es cosa tuya: retoma el hilo con una de estas opciones.",
+    searchLabel: "Buscar otra cosa",
+    primaryCta: "Volver al inicio",
+    secondaryCta: "Ver las colecciones",
+    linksTitle: "Destinos populares",
+    hints: {
+      newArrivals: "Las últimas piezas de la tienda",
+      sale: "Todo lo que está en promoción ahora",
+      collections: "Estilos agrupados por temporada y ocasión",
+      embroidery: "Personaliza una prenda que ya es tuya",
+      track: "Sigue tu envío con el número de pedido",
+      contact: "Te ayudamos a encontrar lo que buscas",
+    },
+  },
 };
 
 export const it: Translations = {
@@ -3061,6 +3112,23 @@ export const it: Translations = {
       addFailed: "Non siamo riusciti ad aggiungerlo al carrello. Riprova.",
       offline: "Non siamo riusciti a raggiungere il server. Controlla la connessione e riprova.",
       generic: "C'è qualcosa che non va in questo disegno. Modificalo.",
+    },
+  },
+  notFound: {
+    eyebrow: "Errore 404",
+    title: "Abbiamo perso il filo",
+    body: "La pagina che cercavi è stata spostata, rimossa o non è mai esistita. Non dipende da te: riprendi il filo da uno dei percorsi qui sotto.",
+    searchLabel: "Cerca qualcos'altro",
+    primaryCta: "Torna alla home",
+    secondaryCta: "Sfoglia le collezioni",
+    linksTitle: "Destinazioni popolari",
+    hints: {
+      newArrivals: "Gli ultimi pezzi in negozio",
+      sale: "Tutto ciò che è in promozione adesso",
+      collections: "Stili raccolti per stagione e occasione",
+      embroidery: "Personalizza un capo che hai già",
+      track: "Segui la consegna con il numero d'ordine",
+      contact: "Ti aiutiamo a trovare quello che cerchi",
     },
   },
 };
@@ -3823,6 +3891,23 @@ export const de: Translations = {
       generic: "An diesem Motiv stimmt etwas nicht. Bitte passe es an.",
     },
   },
+  notFound: {
+    eyebrow: "Fehler 404",
+    title: "Hier ist der Faden gerissen",
+    body: "Die gesuchte Seite wurde verschoben, entfernt oder hat nie existiert. An Ihnen liegt es nicht — nehmen Sie den Faden unten einfach wieder auf.",
+    searchLabel: "Etwas anderes suchen",
+    primaryCta: "Zurück zur Startseite",
+    secondaryCta: "Kollektionen ansehen",
+    linksTitle: "Beliebte Ziele",
+    hints: {
+      newArrivals: "Die neuesten Stücke im Shop",
+      sale: "Alles, was gerade reduziert ist",
+      collections: "Styles nach Saison und Anlass",
+      embroidery: "Veredeln Sie ein Teil, das Ihnen schon gehört",
+      track: "Verfolgen Sie Ihre Lieferung mit der Bestellnummer",
+      contact: "Wir helfen Ihnen, das Richtige zu finden",
+    },
+  },
 };
 
 export const nl: Translations = {
@@ -4583,6 +4668,23 @@ export const nl: Translations = {
       generic: "Er klopt iets niet aan dit ontwerp. Pas het aan.",
     },
   },
+  notFound: {
+    eyebrow: "Fout 404",
+    title: "We zijn de draad kwijt",
+    body: "De pagina die je zocht is verplaatst, verwijderd of heeft nooit bestaan. Het ligt niet aan jou — pak hieronder gewoon de draad weer op.",
+    searchLabel: "Zoek iets anders",
+    primaryCta: "Terug naar home",
+    secondaryCta: "Bekijk de collecties",
+    linksTitle: "Populaire bestemmingen",
+    hints: {
+      newArrivals: "De nieuwste stuks in de winkel",
+      sale: "Alles wat nu in de aanbieding is",
+      collections: "Stijlen per seizoen en gelegenheid",
+      embroidery: "Personaliseer een item dat je al hebt",
+      track: "Volg je levering met je bestelnummer",
+      contact: "We helpen je vinden wat je zoekt",
+    },
+  },
 };
 
 export const pl: Translations = {
@@ -5341,6 +5443,23 @@ export const pl: Translations = {
       addFailed: "Nie udało się dodać do koszyka. Spróbuj ponownie.",
       offline: "Nie udało się połączyć z serwerem. Sprawdź połączenie i spróbuj ponownie.",
       generic: "Coś jest nie tak z tym wzorem. Popraw go.",
+    },
+  },
+  notFound: {
+    eyebrow: "Błąd 404",
+    title: "Zgubiliśmy nitkę",
+    body: "Strona, której szukasz, została przeniesiona, usunięta albo nigdy nie istniała. To nie Twoja wina — złap nitkę ponownie w jednym z miejsc poniżej.",
+    searchLabel: "Poszukaj czegoś innego",
+    primaryCta: "Wróć na stronę główną",
+    secondaryCta: "Zobacz kolekcje",
+    linksTitle: "Popularne miejsca",
+    hints: {
+      newArrivals: "Najnowsze rzeczy w sklepie",
+      sale: "Wszystko, co jest teraz w promocji",
+      collections: "Style pogrupowane według sezonu i okazji",
+      embroidery: "Spersonalizuj rzecz, którą już masz",
+      track: "Śledź dostawę po numerze zamówienia",
+      contact: "Pomożemy Ci znaleźć to, czego szukasz",
     },
   },
 };

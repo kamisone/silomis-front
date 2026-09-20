@@ -100,7 +100,13 @@ export async function middleware(request: NextRequest) {
   }
 
   const locale = pathname.split("/")[1] as Locale;
-  const res = NextResponse.next();
+  // The locale has to travel as a *request* header, not a response one: server
+  // components read it through `headers()`, which only ever sees the request.
+  // The root layout needs it for <html lang>, and `not-found.tsx` needs it
+  // because a not-found boundary is handed no params at all.
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-locale", locale);
+  const res = NextResponse.next({ request: { headers: requestHeaders } });
   res.headers.set("x-locale", locale);
   return res;
 }
