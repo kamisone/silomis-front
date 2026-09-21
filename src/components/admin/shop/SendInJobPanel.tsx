@@ -1,11 +1,10 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { Check, Loader2, PackageCheck, X } from "lucide-react";
+import { Check, Loader2, PackageCheck } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { useToast } from "@/components/toast/ToastContext";
 import Select from "@/components/admin/ui/Select";
-import MediaPicker from "@/components/admin/ui/MediaPicker";
 import ui from "@/components/admin/ui/admin-ui.module.css";
 import styles from "./SendInJobPanel.module.css";
 
@@ -31,9 +30,6 @@ const NEXT: Partial<Record<SendInStatus, { next: SendInStatus; label: string }>>
   done: { next: "returned", label: "Mark sent back" },
   returned: { next: "delivered", label: "Mark delivered" },
 };
-
-/** Steps that must come with a photograph — the item as it arrived, and the finished piece. */
-const PHOTO_REQUIRED: SendInStatus[] = ["received", "done"];
 
 export interface SendInJob {
   id: string;
@@ -80,8 +76,6 @@ export function SendInJobPanel({ job, onChange, showOrder = true }: { job: SendI
   const { toast } = useToast();
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<SendInStatus>(job.status);
-  const [note, setNote] = useState("");
-  const [photos, setPhotos] = useState<{ key: string; url: string }[]>([]);
   const [carrier, setCarrier] = useState(job.returnCarrier ?? "");
   const [trackingNumber, setTrackingNumber] = useState(job.returnTrackingNumber ?? "");
   const [trackingUrl, setTrackingUrl] = useState(job.returnTrackingUrl ?? "");
@@ -100,32 +94,27 @@ export function SendInJobPanel({ job, onChange, showOrder = true }: { job: SendI
   }, [job.id, onChange, toast]);
 
   const changingStatus = status !== job.status;
-  const needsPhoto = changingStatus && PHOTO_REQUIRED.includes(status) && photos.length === 0;
   const needsTracking = changingStatus && status === "returned" && !trackingNumber.trim();
-  const dirty = changingStatus || note.trim() || photos.length || carrier !== (job.returnCarrier ?? "") || trackingNumber !== (job.returnTrackingNumber ?? "") || trackingUrl !== (job.returnTrackingUrl ?? "");
+  const dirty = changingStatus || carrier !== (job.returnCarrier ?? "") || trackingNumber !== (job.returnTrackingNumber ?? "") || trackingUrl !== (job.returnTrackingUrl ?? "");
 
   const save = useCallback(async () => {
     setBusy(true);
     try {
       const updated = await api.patch<SendInJob>(`/next-api/admin/shop/send-in/${job.id}`, {
         ...(changingStatus ? { status } : {}),
-        note: note.trim() || null,
-        photoKeys: photos.map((p) => p.key),
         returnCarrier: carrier.trim() || null,
         returnTrackingNumber: trackingNumber.trim() || null,
         returnTrackingUrl: trackingUrl.trim() || null,
       });
       onChange(updated);
       setStatus(updated.status);
-      setNote("");
-      setPhotos([]);
       toast.success(changingStatus ? `Marked "${SEND_IN_LABEL[updated.status]}" — the customer has been emailed` : "Saved");
     } catch (err) {
       toast.error(err instanceof ApiError ? String((err.body as { message?: string })?.message ?? "Could not update the job") : "Could not update the job");
     } finally {
       setBusy(false);
     }
-  }, [job.id, changingStatus, status, note, photos, carrier, trackingNumber, trackingUrl, onChange, toast]);
+  }, [job.id, changingStatus, status, carrier, trackingNumber, trackingUrl, onChange, toast]);
 
   const next = NEXT[job.status];
   const options = [job.status, ...job.allowedNext].map((s) => ({ value: s, label: SEND_IN_LABEL[s] }));
@@ -244,42 +233,12 @@ export function SendInJobPanel({ job, onChange, showOrder = true }: { job: SendI
               )}
             </div>
 
-            <label className={styles.field}>
-              <span className={styles.label}>Message to the customer</span>
-              <textarea
-                className={ui.textarea}
-                rows={2}
-                value={note}
-                placeholder={status === "problem" ? "What is wrong, and what you propose." : "Optional — shown on their tracking page and in the email."}
-                onChange={(e) => setNote(e.target.value)}
-              />
-            </label>
-
-            <div className={styles.field}>
-              <span className={styles.label}>
-                Photos for the customer
-                {PHOTO_REQUIRED.includes(status) && changingStatus && <span className={styles.required}> · required for “{SEND_IN_LABEL[status]}”</span>}
-              </span>
-              <div className={styles.photoRow}>
-                {photos.map((p) => (
-                  <span key={p.key} className={styles.photoSmall}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={p.url} alt="" />
-                    <button type="button" className={styles.photoRemove} onClick={() => setPhotos((prev) => prev.filter((x) => x.key !== p.key))} aria-label="Remove photo">
-                      <X size={11} aria-hidden="true" />
-                    </button>
-                  </span>
-                ))}
-                <MediaPicker
-                  value={null}
-                  mediaType="image"
-                  multi
-                  asAddTile
-                  className={styles.addTile}
-                  onSelectMulti={(assets) => setPhotos((prev) => [...prev, ...assets.filter((a) => !prev.some((p) => p.key === a.storageKey)).map((a) => ({ key: a.storageKey, url: a.url }))])}
-                />
-              </div>
-            </div>
+            {/* The message and the photographs that used to sit here are now
+                the order's conversation (the Messages tab on the order page,
+                and on the customer's tracking page). Two places to write to
+                one customer is one too many, and only one of them could be
+                replied to. Notes and photos captured before this change still
+                render in the history above and on their tracking page. */}
 
             {(status === "returned" || status === "done" || job.returnTrackingNumber) && (
               <div className={styles.formRow}>
@@ -299,9 +258,8 @@ export function SendInJobPanel({ job, onChange, showOrder = true }: { job: SendI
             )}
 
             <div className={styles.formActions}>
-              {needsPhoto && <span className={styles.warn}>Add a photo before marking it “{SEND_IN_LABEL[status]}”.</span>}
               {needsTracking && <span className={styles.warn}>Enter the tracking number first.</span>}
-              <button type="button" className={styles.saveBtn} onClick={() => void save()} disabled={busy || !dirty || needsPhoto || needsTracking}>
+              <button type="button" className={styles.saveBtn} onClick={() => void save()} disabled={busy || !dirty || needsTracking}>
                 {busy ? <Loader2 size={14} className={styles.spin} aria-hidden="true" /> : <Check size={14} aria-hidden="true" />}
                 {changingStatus ? `Mark “${SEND_IN_LABEL[status]}” & notify` : "Save"}
               </button>

@@ -7,6 +7,15 @@ import { WS_HOST, WS_PATH } from "@/lib/wsConfig";
 import ImageLightbox from "@/components/shop/ImageLightbox";
 import styles from "./AdminOrderConversation.module.css";
 
+/** Must match ATTACHMENT_MAX_FILES on the server, which refuses more. */
+const MAX_IMAGES = 4;
+
+/** A picked file and the blob URL its preview renders from. */
+interface PendingImage {
+  file: File;
+  url: string;
+}
+
 interface Attachment {
   key: string;
   url: string;
@@ -51,11 +60,12 @@ export default function AdminOrderConversation({
   const [draft, setDraft] = useState("");
   const [connected, setConnected] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [pending, setPending] = useState<File[]>([]);
+  const [pending, setPending] = useState<PendingImage[]>([]);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
   const [viewing, setViewing] = useState<{ images: Attachment[]; index: number } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const draftRef = useRef<HTMLTextAreaElement>(null);
   const socketRef = useRef<Socket | null>(null);
   const convIdRef = useRef<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -174,14 +184,15 @@ export default function AdminOrderConversation({
       try {
         const body = new FormData();
         if (content) body.append("content", content);
-        for (const file of pending) body.append("images", file);
+        for (const p of pending) body.append("images", p.file);
         const res = await fetch(`/next-api/support/admin/orders/${encodeURIComponent(orderId)}/attachments`, {
           method: "POST",
           body,
         });
         if (!res.ok) throw new Error("upload failed");
-        setPending([]);
+        clearPending();
         setDraft("");
+        if (draftRef.current) draftRef.current.style.height = "auto";
       } catch {
         setUploadError("That photo could not be sent. Try another file.");
       } finally {
@@ -192,20 +203,69 @@ export default function AdminOrderConversation({
 
     send(content);
     setDraft("");
+    if (draftRef.current) draftRef.current.style.height = "auto";
   }
 
-  function addFiles(files: FileList | null) {
-    if (!files?.length) return;
-    setUploadError("");
-    setPending((prev) => {
-      const next = [...prev, ...Array.from(files)];
-      if (next.length > 4) {
-        setUploadError("At most 4 photos at a time.");
-        return next.slice(0, 4);
-      }
-      return next;
-    });
+  /**
+   * Grows the box with the text, to a few lines, then scrolls. Scripted
+   * rather than `field-sizing: content`, which is not in Firefox or Safari
+   * yet — see the customer's composer, which does the same.
+   */
+  function autoGrow(el: HTMLTextAreaElement) {
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+  }
+
+  function onDraftKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    // Enter sends, Shift + Enter breaks the line. `isComposing` guards an IME:
+    // mid-composition, Enter is choosing a character, not sending.
+    if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+      e.preventDefault();
+      void submit(e);
+    }
+  }
+
+  /**
+   * Takes the files the picker returned.
+   *
+   * `chosen` is copied out **before** the input is cleared, and the previews
+   * are built here rather than in render. Both matter:
+   *
+   *  - Clearing `input.value` empties `input.files`, and a `FileList` is live.
+   *    The first version passed the list itself into a state updater, which
+   *    React runs after this function returns — by then the list the updater
+   *    read was empty, so choosing a photo did nothing at all.
+   *  - `URL.createObjectURL` in render mints a new blob on every pass and
+   *    leaks every previous one. One per file, revoked when it goes.
+   */
+  function addFiles(list: FileList | null) {
+    if (!list?.length) return;
+    const chosen = Array.from(list);
+    // Cleared so choosing the same file twice in a row still fires onChange.
     if (fileRef.current) fileRef.current.value = "";
+
+    const merged = [...pending, ...chosen.map((file) => ({ file, url: URL.createObjectURL(file) }))];
+    const kept = merged.slice(0, MAX_IMAGES);
+    for (const dropped of merged.slice(MAX_IMAGES)) URL.revokeObjectURL(dropped.url);
+
+    setUploadError(merged.length > MAX_IMAGES ? "At most 4 photos at a time." : "");
+    setPending(kept);
+  }
+
+  function removePending(index: number) {
+    setPending((prev) => {
+      const gone = prev[index];
+      if (gone) URL.revokeObjectURL(gone.url);
+      return prev.filter((_, i) => i !== index);
+    });
+  }
+
+  /** Frees the previews when the thread closes with images still queued. */
+  function clearPending() {
+    setPending((prev) => {
+      for (const p of prev) URL.revokeObjectURL(p.url);
+      return [];
+    });
   }
 
   return (
@@ -259,14 +319,14 @@ export default function AdminOrderConversation({
 
       {pending.length > 0 && (
         <div className={styles.pending}>
-          {pending.map((file, i) => (
-            <span key={`${file.name}-${i}`} className={styles.pendingItem}>
+          {pending.map((p, i) => (
+            <span key={p.url} className={styles.pendingItem}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={URL.createObjectURL(file)} alt="" className={styles.pendingImg} />
+              <img src={p.url} alt="" className={styles.pendingImg} />
               <button
                 type="button"
                 className={styles.pendingRemove}
-                onClick={() => setPending((p) => p.filter((_, j) => j !== i))}
+                onClick={() => removePending(i)}
                 aria-label="Remove"
               >
                 <X size={11} strokeWidth={2.5} aria-hidden="true" />
@@ -289,12 +349,19 @@ export default function AdminOrderConversation({
         <button type="button" className={styles.attachBtn} onClick={() => fileRef.current?.click()} title="Add a photo" aria-label="Add a photo">
           <ImagePlus size={16} aria-hidden="true" />
         </button>
-        <input
+        <textarea
+          ref={draftRef}
+          rows={1}
           className={styles.input}
           value={draft}
-          onChange={(e) => setDraft(e.target.value)}
+          onChange={(e) => {
+            setDraft(e.target.value);
+            autoGrow(e.target);
+          }}
+          onKeyDown={onDraftKeyDown}
           placeholder="Write to the customer…"
           aria-label="Write to the customer"
+          aria-describedby="admin-order-chat-hint"
           maxLength={2000}
         />
         <button
@@ -305,6 +372,10 @@ export default function AdminOrderConversation({
           <Send size={15} aria-hidden="true" /> {uploading ? "Sending…" : "Send"}
         </button>
       </form>
+
+      <p id="admin-order-chat-hint" className={styles.composerHint}>
+        Enter to send · Shift + Enter for a new line
+      </p>
 
       {viewing && (
         <ImageLightbox

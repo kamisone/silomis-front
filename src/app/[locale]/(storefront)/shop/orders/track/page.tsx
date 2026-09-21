@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { getTranslations } from "@/lib/i18n";
 import { useLocale } from "@/lib/i18n/useLocale";
+import { formatRetryAfter, isRateLimited, retryAfterSeconds } from "@/lib/shop/rateLimit";
 import styles from "./track.module.css";
 
 export default function OrderTrackLookupPage() {
@@ -38,7 +39,14 @@ export default function OrderTrackLookupPage() {
     if (res.ok) {
       router.push(`/${locale}/shop/orders/track/${encodeURIComponent(num)}`);
     } else {
-      setError(t.shop.trackOrderNotFound);
+      // A 429 means the lookup was refused for asking too often, not that the
+      // order is wrong — saying "not found" would send them to check details
+      // that are already correct.
+      setError(
+        isRateLimited(res)
+          ? `${t.shop.rateLimited} ${formatRetryAfter(retryAfterSeconds(res), t.shop)}`
+          : t.shop.trackOrderNotFound,
+      );
       setLoading(false);
     }
   }

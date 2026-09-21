@@ -25,8 +25,30 @@ export interface SendInTrackingData {
   returnAddress: { name: string; line1: string; zip: string; city: string; country: string };
 }
 
-/** The round trip, in the order it happens. Exits (problem, cancelled) sit outside the rail. */
-const RAIL = ["awaiting_item", "received", "in_production", "done", "returned", "delivered"] as const;
+/** Every state a job passes through, in order. Exits (problem, cancelled) sit outside it. */
+const LIFECYCLE = ["awaiting_item", "received", "in_production", "done", "returned", "delivered"] as const;
+
+/**
+ * The milestones the customer sees, and which lifecycle states each one stands
+ * for.
+ *
+ * `in_production` and `done` are the workshop's own steps. They matter to the
+ * desk, which still moves through them, but to someone waiting on their cap
+ * they are two extra rows between "you have it" and "it is coming back" —
+ * detail dressed as progress. Folding them into "Received" leaves four
+ * milestones that each answer a different question: has it arrived, is it on
+ * its way back, is it here.
+ *
+ * Nothing is lost by hiding them: a covered state's photographs and notes —
+ * the finished piece above all — still render under the milestone that covers
+ * it, in the order they happened.
+ */
+const RAIL = [
+  { key: "awaiting_item", covers: ["awaiting_item"] },
+  { key: "received", covers: ["received", "in_production", "done"] },
+  { key: "returned", covers: ["returned"] },
+  { key: "delivered", covers: ["delivered"] },
+] as const satisfies ReadonlyArray<{ key: string; covers: readonly (typeof LIFECYCLE)[number][] }>;
 
 interface Props {
   locale: Locale;
@@ -54,7 +76,10 @@ interface Props {
 export default function SendInTracking({ locale, orderNumber, sendIn, designLines, compact = false }: Props) {
   const t = getTranslations(locale).sendIn;
   const bcp47 = toBcp47(locale);
-  const railIdx = RAIL.indexOf(sendIn.status as (typeof RAIL)[number]);
+  // Progress is measured on the full lifecycle, not on the visible rail: a job
+  // in `in_production` has passed "Received" and must light it, even though
+  // the rail has no row of its own for where it actually is.
+  const lifeIdx = LIFECYCLE.indexOf(sendIn.status as (typeof LIFECYCLE)[number]);
   const exited = sendIn.status === "problem" || sendIn.status === "cancelled";
   const latestByStatus = new Map(sendIn.events.map((e) => [e.status, e]));
   const label = (s: string) => t.statuses[s as keyof typeof t.statuses] ?? s;
@@ -152,24 +177,37 @@ export default function SendInTracking({ locale, orderNumber, sendIn, designLine
 
       {!compact && !exited && (
         <ol className={styles.rail}>
-          {RAIL.map((s, i) => {
-            const done = railIdx >= i;
-            const ev = latestByStatus.get(s);
+          {RAIL.map(({ key, covers }) => {
+            const reached = lifeIdx >= LIFECYCLE.indexOf(covers[0]);
+            // The milestone the job is standing on — the last one whose span
+            // of lifecycle states contains where it actually is.
+            // Widened deliberately: `as const` narrows each entry's `covers` to
+            // its own literal tuple, so `includes` would only accept that
+            // entry's members and reject the status union.
+            const current = (covers as readonly string[]).includes(sendIn.status);
+            // Every event this milestone covers, oldest first, so the arrival
+            // photo is followed by the finished piece rather than replaced.
+            const events = covers.map((c) => latestByStatus.get(c)).filter((e) => !!e);
+            const entered = events[0];
             return (
-              <li key={s} className={`${styles.step} ${done ? styles.stepDone : ""} ${railIdx === i ? styles.stepActive : ""}`}>
+              <li key={key} className={`${styles.step} ${reached ? styles.stepDone : ""} ${current ? styles.stepActive : ""}`}>
                 <span className={styles.dot} aria-hidden="true" />
                 <div className={styles.stepBody}>
-                  <span className={styles.stepLabel}>{label(s)}</span>
-                  {ev && (
+                  <span className={styles.stepLabel}>{label(key)}</span>
+                  {entered && (
                     <span className={styles.stepDate}>
-                      {new Date(ev.at).toLocaleDateString(bcp47, { day: "numeric", month: "short" })} ·{" "}
-                      {new Date(ev.at).toLocaleTimeString(bcp47, { hour: "2-digit", minute: "2-digit" })}
+                      {new Date(entered.at).toLocaleDateString(bcp47, { day: "numeric", month: "short" })} ·{" "}
+                      {new Date(entered.at).toLocaleTimeString(bcp47, { hour: "2-digit", minute: "2-digit" })}
                     </span>
                   )}
-                  {ev?.note && <p className={styles.stepNote}>{ev.note}</p>}
-                  {ev && ev.photos.length > 0 && (
+                  {events.map((ev) => ev.note).filter(Boolean).map((note, i) => (
+                    <p key={i} className={styles.stepNote}>
+                      {note}
+                    </p>
+                  ))}
+                  {events.flatMap((e) => e.photos).length > 0 && (
                     <div className={styles.photos}>
-                      {ev.photos.map((p) => (
+                      {events.flatMap((e) => e.photos).map((p) => (
                         <a key={p.key} href={p.url} target="_blank" rel="noopener noreferrer" className={styles.photo}>
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src={p.url} alt="" loading="lazy" />

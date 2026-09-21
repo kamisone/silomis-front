@@ -1,0 +1,307 @@
+/* The order page's own layout.
+ *
+ * It replaces a stack of inline `style={{…}}` objects — every card repeating
+ * the same padding/flex/gap literals, and every label repeating the same
+ * colour. Those are not reusable, not themeable and not reviewable in a diff,
+ * which is what made the page hard to change. */
+
+/* ── Two columns ────────────────────────────────────────────────────────────
+   Left is the order: what was bought, what has to be made. Right is the
+   reference the desk copies from while doing it — who, where, how it ships.
+   Reference panels are short, so stacking them under a full-width items table
+   pushed the work itself off the screen. */
+/* `hidden` is only a user-agent `display: none`, and ANY author `display`
+   beats it — so this grid stayed on screen underneath the Messages tab until
+   the rule below was added. Kept rather than conditionally rendering the
+   pane: the send-in panel and the job cards hold half-typed production notes,
+   and unmounting would throw them away every time the desk glanced at a
+   message. */
+.grid[hidden] {
+  display: none;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 21rem;
+  gap: 16px;
+  align-items: start;
+}
+
+.main,
+.aside {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+/* The aside follows the page rather than the viewport: it is reference, not
+   navigation, and a panel pinned while the desk scrolls a long thread of
+   embroidery jobs would cover them. */
+@media (max-width: 1100px) {
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ── Panels ── */
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 1.25rem;
+}
+
+.panelTitle {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-secondary);
+}
+
+.panelNote {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--color-secondary);
+}
+
+/* ── Plain lines of text inside a panel (an address, a name) ── */
+.lines {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-size: 0.9rem;
+}
+
+.lineStrong {
+  font-weight: 600;
+}
+
+.lineMuted {
+  color: var(--color-secondary);
+  font-size: 0.85rem;
+}
+
+/* ── Totals ── */
+.totals {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 1rem 1.25rem;
+  border-top: 1px solid var(--color-surface);
+}
+
+.totalRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
+}
+
+.totalLabel {
+  color: var(--color-secondary);
+}
+
+.totalFinal {
+  padding-top: 0.35rem;
+  border-top: 1px solid var(--color-surface);
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+/* ── Items table cells ── */
+.itemCell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.itemOptions {
+  font-size: 0.8rem;
+  color: var(--color-secondary);
+}
+
+/* One line per embroidered position — a link down to its job card. */
+.itemJob {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  color: var(--color-primary);
+  text-decoration: none;
+}
+.itemJob:hover {
+  text-decoration: underline;
+}
+
+.itemSub {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--color-secondary);
+}
+
+/* ── Section heads (send-in, embroidery) ── */
+.sectionHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.sectionTitle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  font-size: 1.05rem;
+  color: var(--color-primary);
+}
+
+.sectionLink {
+  font-size: 0.85rem;
+  color: var(--color-primary);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.jobGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 14px;
+  align-items: start;
+}
+
+/* ── Status history ── */
+.history {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.historyRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: 0.85rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--color-surface);
+}
+.historyRow:last-child {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.historyStatus {
+  text-transform: capitalize;
+}
+
+.historyNote {
+  color: var(--color-secondary);
+}
+
+.historyDate {
+  flex-shrink: 0;
+  color: var(--color-secondary);
+  white-space: nowrap;
+  text-align: right;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+/* ── Pickup opening hours ── */
+.hours {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+  gap: 0.15rem 1rem;
+  margin-top: 0.3rem;
+}
+
+.hoursRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.78rem;
+}
+
+.hoursDay {
+  color: var(--color-secondary);
+}
+
+/* ── Header ── */
+.headerMeta {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.headerDate {
+  font-size: 0.85rem;
+  color: var(--color-secondary);
+}
+
+.tabBadge {
+  margin-left: 0.4rem;
+}
+
+/* ── Label/value rows ──────────────────────────────────────────────────────
+   A two-column pair that collapses to stacked lines when the value needs the
+   room — which it does in the narrow aside, where a fixed label column would
+   squeeze a service-point address into three words per line. */
+.row {
+  display: flex;
+  gap: 0.25rem 0.75rem;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+
+.rowLabel {
+  flex: 0 0 auto;
+  min-width: 6.5rem;
+  font-size: 0.78rem;
+  color: var(--color-secondary);
+}
+
+.rowValue {
+  flex: 1 1 8rem;
+  min-width: 0;
+  font-size: 0.875rem;
+  /* Carrier codes and service-point ids have no spaces to break on. */
+  overflow-wrap: anywhere;
+}
+
+/* ── Copyable value ── */
+.copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  max-width: 100%;
+  padding: 0.15rem 0.45rem;
+  border: 1px solid var(--color-surface);
+  border-radius: 6px;
+  background: var(--color-surface);
+  font: inherit;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.8rem;
+  color: var(--color-primary);
+  cursor: pointer;
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+.copy:hover {
+  border-color: var(--color-primary);
+}
+.copy:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}

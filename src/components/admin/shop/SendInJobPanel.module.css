@@ -283,8 +283,7 @@
   white-space: pre-line;
 }
 
-.eventPhotos,
-.photoRow {
+.eventPhotos {
   flex-basis: 100%;
   display: flex;
   flex-wrap: wrap;
@@ -307,27 +306,6 @@
   height: 100%;
   object-fit: cover;
   display: block;
-}
-
-.photoRemove {
-  position: absolute;
-  top: 2px;
-  right: 2px;
-  width: 18px;
-  height: 18px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 999px;
-  border: none;
-  background: rgb(16 24 40 / 70%);
-  color: #fff;
-  cursor: pointer;
-}
-
-.addTile {
-  width: 64px;
-  height: 64px;
 }
 
 /* ── Form ──────────────────────────────────────────────────────────────── */

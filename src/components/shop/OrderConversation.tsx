@@ -7,6 +7,15 @@ import ImageLightbox from "./ImageLightbox";
 import { getTranslations, toBcp47, type Locale } from "@/lib/i18n";
 import styles from "./OrderConversation.module.css";
 
+/** Must match ATTACHMENT_MAX_FILES on the server, which refuses more. */
+const MAX_IMAGES = 4;
+
+/** A picked file and the blob URL its preview renders from. */
+interface PendingImage {
+  file: File;
+  url: string;
+}
+
 /**
  * The customer's half of an order conversation, on the order's own tracking
  * page.
@@ -43,12 +52,13 @@ export default function OrderConversation({
   const { messages, status, sendMessage, retryMessage, markRead } = useSupportChat(active, undefined, transport);
 
   const [draft, setDraft] = useState("");
-  const [pending, setPending] = useState<File[]>([]);
+  const [pending, setPending] = useState<PendingImage[]>([]);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
   const [viewing, setViewing] = useState<{ images: MessageAttachment[]; index: number } | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const draftRef = useRef<HTMLTextAreaElement>(null);
 
   // Stick to the newest message, the way every chat does.
   useEffect(() => {
@@ -75,14 +85,15 @@ export default function OrderConversation({
       try {
         const body = new FormData();
         if (content) body.append("content", content);
-        for (const file of pending) body.append("images", file);
+        for (const p of pending) body.append("images", p.file);
         const res = await fetch(
           `/next-api/public/shop/orders/${encodeURIComponent(orderNumber)}/conversation/attachments`,
           { method: "POST", body },
         );
         if (!res.ok) throw new Error("upload failed");
-        setPending([]);
+        clearPending();
         setDraft("");
+        if (draftRef.current) autoGrow(draftRef.current);
       } catch {
         setUploadError(t.attachFailed);
       } finally {
@@ -93,21 +104,74 @@ export default function OrderConversation({
 
     sendMessage(content);
     setDraft("");
+    if (draftRef.current) draftRef.current.style.height = "auto";
   }
 
-  function addFiles(files: FileList | null) {
-    if (!files?.length) return;
-    setUploadError("");
-    setPending((prev) => {
-      const next = [...prev, ...Array.from(files)];
-      if (next.length > 4) {
-        setUploadError(t.attachTooMany);
-        return next.slice(0, 4);
-      }
-      return next;
-    });
+  /**
+   * Grows the box with the text, to a few lines, then scrolls.
+   *
+   * Done in script rather than with `field-sizing: content`, which does
+   * exactly this natively but is not in Firefox or Safari yet — and a
+   * composer that silently stays one line high in two of three browsers is
+   * the bug this is meant to fix.
+   */
+  function autoGrow(el: HTMLTextAreaElement) {
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+  }
+
+  function onDraftKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    // Enter sends, Shift + Enter breaks the line — the convention every chat
+    // shares, and the reason the box can be a textarea without costing the
+    // one-key send. A composing IME must be left alone: while a Japanese or
+    // Korean candidate list is open, Enter is choosing a character.
+    if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+      e.preventDefault();
+      void submit(e);
+    }
+  }
+
+  /**
+   * Takes the files the picker returned.
+   *
+   * `chosen` is copied out **before** the input is cleared, and the previews
+   * are built here rather than in render. Both matter:
+   *
+   *  - Clearing `input.value` empties `input.files`, and a `FileList` is live.
+   *    The first version passed the list itself into a state updater, which
+   *    React runs after this function returns — by then the list the updater
+   *    read was empty, so choosing a photo did nothing at all.
+   *  - `URL.createObjectURL` in render mints a new blob on every pass and
+   *    leaks every previous one. One per file, revoked when it goes.
+   */
+  function addFiles(list: FileList | null) {
+    if (!list?.length) return;
+    const chosen = Array.from(list);
     // Cleared so choosing the same file twice in a row still fires onChange.
     if (fileRef.current) fileRef.current.value = "";
+
+    const merged = [...pending, ...chosen.map((file) => ({ file, url: URL.createObjectURL(file) }))];
+    const kept = merged.slice(0, MAX_IMAGES);
+    for (const dropped of merged.slice(MAX_IMAGES)) URL.revokeObjectURL(dropped.url);
+
+    setUploadError(merged.length > MAX_IMAGES ? t.attachTooMany : "");
+    setPending(kept);
+  }
+
+  function removePending(index: number) {
+    setPending((prev) => {
+      const gone = prev[index];
+      if (gone) URL.revokeObjectURL(gone.url);
+      return prev.filter((_, i) => i !== index);
+    });
+  }
+
+  /** Frees the previews when the thread closes with images still queued. */
+  function clearPending() {
+    setPending((prev) => {
+      for (const p of prev) URL.revokeObjectURL(p.url);
+      return [];
+    });
   }
 
   const timeFmt = new Intl.DateTimeFormat(toBcp47(locale), { hour: "2-digit", minute: "2-digit", day: "numeric", month: "short" });
@@ -173,16 +237,16 @@ export default function OrderConversation({
 
       {pending.length > 0 && (
         <div className={styles.pending}>
-          {pending.map((file, i) => (
-            <span key={`${file.name}-${i}`} className={styles.pendingItem}>
+          {pending.map((p, i) => (
+            <span key={p.url} className={styles.pendingItem}>
               {/* Revoked on unmount by the browser when the blob URL's document
                   goes; short-lived enough that holding it is fine. */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={URL.createObjectURL(file)} alt="" className={styles.pendingImg} />
+              <img src={p.url} alt="" className={styles.pendingImg} />
               <button
                 type="button"
                 className={styles.pendingRemove}
-                onClick={() => setPending((p) => p.filter((_, j) => j !== i))}
+                onClick={() => removePending(i)}
                 aria-label={t.attachRemove}
               >
                 <X size={12} strokeWidth={2.5} aria-hidden="true" />
@@ -212,12 +276,19 @@ export default function OrderConversation({
         >
           <ImagePlus size={17} strokeWidth={1.9} aria-hidden="true" />
         </button>
-        <input
+        <textarea
+          ref={draftRef}
+          rows={1}
           className={styles.input}
           value={draft}
-          onChange={(e) => setDraft(e.target.value)}
+          onChange={(e) => {
+            setDraft(e.target.value);
+            autoGrow(e.target);
+          }}
+          onKeyDown={onDraftKeyDown}
           placeholder={t.placeholder}
           aria-label={t.placeholder}
+          aria-describedby="order-chat-hint"
           maxLength={2000}
         />
         <button
@@ -230,6 +301,10 @@ export default function OrderConversation({
           <span className={styles.sendLabel}>{uploading ? t.attachSending : t.send}</span>
         </button>
       </form>
+
+      <p id="order-chat-hint" className={styles.composerHint}>
+        {t.composerHint}
+      </p>
 
       {viewing && (
         <ImageLightbox

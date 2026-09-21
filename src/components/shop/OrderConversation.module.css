@@ -137,8 +137,18 @@
 .composer {
   display: flex;
   gap: 0.6rem;
-  padding: 0.9rem 1.25rem 1.1rem;
+  /* Bottom, not centre: as the box grows the button should stay on the last
+     line, where the eye is, rather than drifting up the middle of it. */
+  align-items: flex-end;
+  padding: 0.9rem 1.25rem 0.4rem;
   border-top: 1px solid color-mix(in srgb, var(--foreground) 10%, transparent);
+}
+
+.composerHint {
+  margin: 0;
+  padding: 0 1.25rem 0.9rem;
+  font-size: 0.72rem;
+  color: color-mix(in srgb, var(--foreground) 45%, var(--background));
 }
 
 .input {
@@ -148,8 +158,16 @@
   border: 1.5px solid color-mix(in srgb, var(--foreground) 16%, transparent);
   border-radius: 10px;
   background: var(--background);
+  /* A textarea does not inherit the page's font the way an input does. */
+  font: inherit;
   font-size: 0.9rem;
+  line-height: 1.45;
   color: var(--foreground);
+  /* The box grows with the text (see autoGrow); a drag handle on top of that
+     would fight it, and the corner grip overlaps the rounded border. */
+  resize: none;
+  /* Past the script's cap the text scrolls instead. */
+  overflow-y: auto;
 }
 .input:focus {
   outline: none;
@@ -233,7 +251,8 @@
   .sendLabel {
     display: none;
   }
-  .composer {
+  .composer,
+  .composerHint {
     padding-inline: 1rem;
   }
   .list,
@@ -285,6 +304,9 @@
   justify-content: center;
   flex-shrink: 0;
   width: 2.6rem;
+  /* Matches the composer's one-line height — without it the button would
+     stretch to whatever the textarea has grown to. */
+  height: 2.6rem;
   border: 1.5px solid color-mix(in srgb, var(--foreground) 16%, transparent);
   border-radius: 10px;
   background: var(--background);

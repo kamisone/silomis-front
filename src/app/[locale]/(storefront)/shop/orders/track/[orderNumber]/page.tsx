@@ -8,6 +8,7 @@ import { useLocale } from "@/lib/i18n/useLocale";
 import EmbroideryLine, { slipLines, type EmbroideryLineDesign } from "@/components/shop/EmbroideryLine";
 import SendInTracking, { type SendInTrackingData } from "@/components/shop/SendInTracking";
 import OrderConversation from "@/components/shop/OrderConversation";
+import { formatRetryAfter, isRateLimited, retryAfterSeconds } from "@/lib/shop/rateLimit";
 import styles from "../track.module.css";
 
 interface TrackingItem {
@@ -110,6 +111,12 @@ export default function OrderTrackDetailPage() {
   const searchParams = useSearchParams();
   const [order, setOrder] = useState<OrderTracking | null>(null);
   const [error, setError] = useState(false);
+  // Separate from `error`: a throttled visitor's order exists and their
+  // credential was right, so telling them it was not found sends them hunting
+  // for a mistake they did not make. Stored as the number of seconds, not as
+  // the sentence — the wording is the render's business, and keeping it out
+  // of the effect keeps the translations out of its dependencies.
+  const [throttledFor, setThrottledFor] = useState(0);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<"order" | "messages">("order");
   const [unreadMessages, setUnreadMessages] = useState(0);
@@ -144,11 +151,26 @@ export default function OrderTrackDetailPage() {
       // for a `Referer` header or a replay recording to carry away. After
       // this the grant cookie alone answers every reload.
       if (token || email) {
-        await fetch(`/next-api/public/shop/orders/${encodeURIComponent(orderNumber)}/session`, {
+        const exchange = await fetch(`/next-api/public/shop/orders/${encodeURIComponent(orderNumber)}/session`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(token ? { token } : { email }),
-        }).catch(() => undefined);
+        }).catch(() => null);
+
+        // The exchange's answer matters. It used to be discarded, so a
+        // throttled exchange fell through to a /track with no credential at
+        // all, and the customer was told their order did not exist — the 429
+        // was real but invisible, reported as the wrong failure entirely.
+        if (cancelled) return;
+        if (isRateLimited(exchange)) {
+          setThrottledFor(retryAfterSeconds(exchange!));
+          setLoading(false);
+          return;
+        }
+
+        // Spent either way: on success the cookie now carries it, and on
+        // failure leaving it in the URL only re-runs a request that just
+        // failed on every reload.
         window.history.replaceState(null, "", window.location.pathname);
       }
 
@@ -157,6 +179,11 @@ export default function OrderTrackDetailPage() {
       ).catch(() => null);
 
       if (cancelled) return;
+      if (isRateLimited(res)) {
+        setThrottledFor(retryAfterSeconds(res!));
+        setLoading(false);
+        return;
+      }
       if (!res?.ok) {
         setError(true);
         setLoading(false);
@@ -177,6 +204,21 @@ export default function OrderTrackDetailPage() {
       <div className={styles.page}>
         <div className={styles.card}>
           <p style={{ textAlign: "center", padding: 40 }}>{t.shop.loading}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (throttledFor > 0) {
+    return (
+      <div className={styles.page}>
+        <div className={styles.card}>
+          <p className={styles.error}>
+            {t.shop.rateLimited} {formatRetryAfter(throttledFor, t.shop)}
+          </p>
+          <Link href={`/${locale}/shop/orders/track`} className={styles.backLink}>
+            {t.shop.trackAnotherOrder}
+          </Link>
         </div>
       </div>
     );

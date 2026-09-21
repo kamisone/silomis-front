@@ -401,6 +401,9 @@ export const en = {
     homeFaqsTitle: "Frequently asked questions",
     homeTestimonialsTitle: "What our customers say",
     homePromoCta: "Shop the offer",
+    rateLimited: "Too many requests — please wait a moment and try again.",
+    retrySeconds: "Try again in {n} seconds.",
+    retryMinutes: "Try again in {n} minutes.",
   },
   footer: {
     rights: "All rights reserved",
@@ -822,6 +825,7 @@ export const en = {
     attachFailed: "That photo could not be sent. Try another file.",
     attachTooMany: "You can send at most 4 photos at a time.",
     attachViewer: "Photos in this conversation",
+    composerHint: "Enter to send · Shift + Enter for a new line",
   },
 };
 
@@ -1201,6 +1205,9 @@ export const fr: Translations = {
     homeFaqsTitle: "Questions fréquentes",
     homeTestimonialsTitle: "Ce que disent nos clients",
     homePromoCta: "Profiter de l'offre",
+    rateLimited: "Trop de requêtes — patientez un instant et réessayez.",
+    retrySeconds: "Réessayez dans {n} secondes.",
+    retryMinutes: "Réessayez dans {n} minutes.",
   },
   footer: {
     rights: "Tous droits réservés",
@@ -1622,6 +1629,7 @@ export const fr: Translations = {
     attachFailed: "Cette photo n'a pas pu être envoyée. Essayez un autre fichier.",
     attachTooMany: "Vous pouvez envoyer 4 photos à la fois au maximum.",
     attachViewer: "Photos de cette conversation",
+    composerHint: "Entrée pour envoyer · Maj + Entrée pour aller à la ligne",
   },
 };
 
@@ -2001,6 +2009,9 @@ export const es: Translations = {
     homeFaqsTitle: "Preguntas frecuentes",
     homeTestimonialsTitle: "Lo que dicen nuestros clientes",
     homePromoCta: "Aprovechar la oferta",
+    rateLimited: "Demasiadas peticiones: espera un momento y vuelve a intentarlo.",
+    retrySeconds: "Inténtalo de nuevo en {n} segundos.",
+    retryMinutes: "Inténtalo de nuevo en {n} minutos.",
   },
   footer: {
     rights: "Todos los derechos reservados",
@@ -2422,6 +2433,7 @@ export const es: Translations = {
     attachFailed: "No se pudo enviar esa foto. Prueba con otro archivo.",
     attachTooMany: "Puedes enviar como máximo 4 fotos a la vez.",
     attachViewer: "Fotos de esta conversación",
+    composerHint: "Intro para enviar · Mayús + Intro para saltar de línea",
   },
 };
 
@@ -2801,6 +2813,9 @@ export const it: Translations = {
     homeFaqsTitle: "Domande frequenti",
     homeTestimonialsTitle: "Cosa dicono i nostri clienti",
     homePromoCta: "Approfitta dell'offerta",
+    rateLimited: "Troppe richieste: attendi un momento e riprova.",
+    retrySeconds: "Riprova tra {n} secondi.",
+    retryMinutes: "Riprova tra {n} minuti.",
   },
   footer: {
     rights: "Tutti i diritti riservati",
@@ -3222,6 +3237,7 @@ export const it: Translations = {
     attachFailed: "Non è stato possibile inviare la foto. Prova con un altro file.",
     attachTooMany: "Puoi inviare al massimo 4 foto per volta.",
     attachViewer: "Foto di questa conversazione",
+    composerHint: "Invio per inviare · Maiusc + Invio per andare a capo",
   },
 };
 
@@ -3601,6 +3617,9 @@ export const de: Translations = {
     homeFaqsTitle: "Häufig gestellte Fragen",
     homeTestimonialsTitle: "Was unsere Kunden sagen",
     homePromoCta: "Angebot sichern",
+    rateLimited: "Zu viele Anfragen — warten Sie einen Moment und versuchen Sie es erneut.",
+    retrySeconds: "Versuchen Sie es in {n} Sekunden erneut.",
+    retryMinutes: "Versuchen Sie es in {n} Minuten erneut.",
   },
   footer: {
     rights: "Alle Rechte vorbehalten",
@@ -4022,6 +4041,7 @@ export const de: Translations = {
     attachFailed: "Dieses Foto konnte nicht gesendet werden. Versuchen Sie eine andere Datei.",
     attachTooMany: "Sie können höchstens 4 Fotos auf einmal senden.",
     attachViewer: "Fotos in dieser Unterhaltung",
+    composerHint: "Enter zum Senden · Umschalt + Enter für eine neue Zeile",
   },
 };
 
@@ -4401,6 +4421,9 @@ export const nl: Translations = {
     homeFaqsTitle: "Veelgestelde vragen",
     homeTestimonialsTitle: "Wat onze klanten zeggen",
     homePromoCta: "Profiteer van de actie",
+    rateLimited: "Te veel verzoeken — wacht even en probeer het opnieuw.",
+    retrySeconds: "Probeer het over {n} seconden opnieuw.",
+    retryMinutes: "Probeer het over {n} minuten opnieuw.",
   },
   footer: {
     rights: "Alle rechten voorbehouden",
@@ -4822,6 +4845,7 @@ export const nl: Translations = {
     attachFailed: "Deze foto kon niet worden verstuurd. Probeer een ander bestand.",
     attachTooMany: "Je kunt maximaal 4 foto's tegelijk versturen.",
     attachViewer: "Foto's in dit gesprek",
+    composerHint: "Enter om te versturen · Shift + Enter voor een nieuwe regel",
   },
 };
 
@@ -5201,6 +5225,9 @@ export const pl: Translations = {
     homeFaqsTitle: "Najczęściej zadawane pytania",
     homeTestimonialsTitle: "Co mówią nasi klienci",
     homePromoCta: "Skorzystaj z oferty",
+    rateLimited: "Zbyt wiele żądań — odczekaj chwilę i spróbuj ponownie.",
+    retrySeconds: "Spróbuj ponownie za {n} sekund.",
+    retryMinutes: "Spróbuj ponownie za {n} minut.",
   },
   footer: {
     rights: "Wszelkie prawa zastrzeżone",
@@ -5622,5 +5649,6 @@ export const pl: Translations = {
     attachFailed: "Nie udało się wysłać tego zdjęcia. Spróbuj z innym plikiem.",
     attachTooMany: "Możesz wysłać maksymalnie 4 zdjęcia naraz.",
     attachViewer: "Zdjęcia w tej rozmowie",
+    composerHint: "Enter wysyła · Shift + Enter przechodzi do nowej linii",
   },
 };

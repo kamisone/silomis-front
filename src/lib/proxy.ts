@@ -76,6 +76,38 @@ function forwardClientIdentity(req: NextRequest): Record<string, string> {
  * httpOnly cookie the browser's JS can never read, and gives every route a
  * single place to attach auth, forward query params, and normalize errors.
  */
+/**
+ * Response headers worth passing back to the browser.
+ *
+ * The proxy rebuilds the response rather than streaming it, so anything not
+ * listed here is dropped — which silently swallowed `Retry-After` on a 429 and
+ * left the page with a status code and no idea how long to wait. Kept to an
+ * allowlist: the backend's `Set-Cookie`, CORS and transport headers describe a
+ * hop the browser never made, and forwarding them wholesale would be a way to
+ * smuggle state out of this process.
+ */
+const FORWARDED_RESPONSE_HEADERS = [
+  "retry-after",
+  "x-ratelimit-limit",
+  "x-ratelimit-remaining",
+  "x-ratelimit-reset",
+];
+
+function forwardResponseHeaders(from: Response): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const name of FORWARDED_RESPONSE_HEADERS) {
+    const value = from.headers.get(name);
+    if (value) out[name] = value;
+  }
+  // `@nestjs/throttler` suffixes its headers with the bucket name
+  // (`Retry-After-default`), so the bare names above miss them.
+  from.headers.forEach((value, name) => {
+    const lower = name.toLowerCase();
+    if (FORWARDED_RESPONSE_HEADERS.some((h) => lower.startsWith(`${h}-`))) out[lower] = value;
+  });
+  return out;
+}
+
 export async function proxyRequest(req: NextRequest, method: Method, path: string, opts: ProxyOptions = {}): Promise<NextResponse> {
   const { auth = true, extraHeaders = {}, onSuccess, errorBody = { error: "backend_unreachable" }, passRedirect = false } = opts;
 
@@ -117,15 +149,17 @@ export async function proxyRequest(req: NextRequest, method: Method, path: strin
       if (location) return NextResponse.redirect(location, 302);
     }
 
+    const headers = forwardResponseHeaders(res);
+
     const resCt = res.headers.get("content-type") ?? "";
     if (res.status === 204 || !resCt.includes("application/json")) {
       if (res.ok && onSuccess) await onSuccess(undefined, reqBody);
-      return new NextResponse(null, { status: res.status });
+      return new NextResponse(null, { status: res.status, headers });
     }
 
     const data: unknown = await res.json();
     if (res.ok && onSuccess) await onSuccess(data, reqBody);
-    return NextResponse.json(data, { status: res.status });
+    return NextResponse.json(data, { status: res.status, headers });
   } catch {
     return NextResponse.json(errorBody, { status: 502 });
   }

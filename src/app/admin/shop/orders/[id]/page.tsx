@@ -11,6 +11,7 @@ import AdminOrderConversation from "@/components/admin/orders/AdminOrderConversa
 import { EmbroideryJobCard, STATUS_LABEL as JOB_STATUS_LABEL, type EmbroideryJob } from "@/components/admin/shop/EmbroideryJob";
 import { SendInJobPanel, type SendInJob } from "@/components/admin/shop/SendInJobPanel";
 import ui from "@/components/admin/ui/admin-ui.module.css";
+import s from "./OrderDetail.module.css";
 
 interface OrderItem {
   id: string;
@@ -121,20 +122,7 @@ function CopyValue({ value, label }: { value: string; label: string }) {
       }}
       title={`Copy ${label}`}
       aria-label={`Copy ${label}`}
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: "0.35rem",
-        padding: "0.15rem 0.45rem",
-        border: "1px solid var(--color-surface)",
-        borderRadius: 6,
-        background: "var(--color-surface)",
-        font: "inherit",
-        fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-        fontSize: "0.82rem",
-        color: "var(--color-primary)",
-        cursor: "pointer",
-      }}
+      className={s.copy}
     >
       {value}
       {copied ? <Check size={12} /> : <Copy size={12} />}
@@ -144,9 +132,9 @@ function CopyValue({ value, label }: { value: string; label: string }) {
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div style={{ display: "flex", gap: "0.75rem", alignItems: "baseline", flexWrap: "wrap" }}>
-      <span style={{ minWidth: 130, fontSize: "0.8rem", color: "var(--color-secondary)" }}>{label}</span>
-      <span style={{ fontSize: "0.9rem" }}>{children}</span>
+    <div className={s.row}>
+      <span className={s.rowLabel}>{label}</span>
+      <span className={s.rowValue}>{children}</span>
     </div>
   );
 }
@@ -303,9 +291,10 @@ export default function OrderDetailPage() {
       <div className={ui.pageHeader}>
         <div>
           <h1 className={ui.pageTitle}>{order.orderNumber}</h1>
-          <span className={ui.badge} style={{ marginTop: "0.35rem", display: "inline-block" }}>
-            {order.status.replace(/_/g, " ")}
-          </span>
+          <div className={s.headerMeta}>
+            <span className={ui.badge}>{order.status.replace(/_/g, " ")}</span>
+            <span className={s.headerDate}>Placed {new Date(order.createdAt).toLocaleString()}</span>
+          </div>
         </div>
         <div className={ui.rowActions}>
           {(order.status === "awaiting_payment" || order.status === "draft") && (
@@ -345,9 +334,7 @@ export default function OrderDetailPage() {
         <button type="button" role="tab" aria-selected={tab === "messages"} className={`${ui.tab} ${tab === "messages" ? ui.tabActive : ""}`} onClick={() => setTab("messages")}>
           Messages
           {unreadMessages > 0 && (
-            <span className={ui.badgeAlert} style={{ marginLeft: "0.4rem" }}>
-              {unreadMessages}
-            </span>
+            <span className={`${ui.badgeAlert} ${s.tabBadge}`}>{unreadMessages}</span>
           )}
         </button>
       </div>
@@ -365,223 +352,236 @@ export default function OrderDetailPage() {
         />
       )}
 
-      <div hidden={tab !== "order"} style={{ display: tab === "order" ? "contents" : "none" }}>
+      <div hidden={tab !== "order"} className={s.grid}>
+        {/* Left: what was bought and what has to be made. */}
+        <div className={s.main}>
+          <div className={ui.card}>
+            <table className={ui.table}>
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th>SKU</th>
+                  <th>Qty</th>
+                  <th>Unit price</th>
+                  <th>Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {order.items.map((i) => (
+                  <tr key={i.id}>
+                    <td>
+                      <div className={s.itemCell}>
+                        <span>{i.titleSnapshot}</span>
+                        {i.optionsSnapshot && i.optionsSnapshot.length > 0 && (
+                          <span className={s.itemOptions}>
+                            {i.optionsSnapshot.map((o) => `${o.attributeName}: ${o.displayValue ?? o.value}`).join(" · ")}
+                          </span>
+                        )}
+                        {/* One line per embroidered position: the words, and
+                            where the floor has got to with them. The full job
+                            cards sit below; this is the glance. */}
+                        {i.personalizations?.map((d) => (
+                          <a key={d.id} href={`#job-${d.id}`} className={s.itemJob}>
+                            <Scissors size={12} aria-hidden="true" />
+                            <span>
+                              {d.placementLabel}:{" "}
+                              <strong>{d.contentType === "motif" ? (d.motifName ?? "shape") : `“${d.text.replace(/\n/g, " / ")}”`}</strong>
+                            </span>
+                            <span className={ui.badge}>{JOB_STATUS_LABEL[d.productionStatus]}</span>
+                          </a>
+                        ))}
+                      </div>
+                    </td>
+                    <td>{i.skuSnapshot ?? "—"}</td>
+                    <td>{i.quantity}</td>
+                    <td>
+                      {eur(i.unitPriceCents)}
+                      {i.personalizationCents > 0 && <span className={s.itemSub}>incl. {eur(i.personalizationCents)} embroidery</span>}
+                    </td>
+                    <td>{eur(i.totalCents)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
 
-      <div className={ui.card} style={{ padding: "1.5rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-        <strong style={{ color: "var(--color-primary)" }}>Customer</strong>
-        <div>{order.customerName ?? "—"}</div>
-        <div style={{ color: "var(--color-secondary)", fontSize: "0.9rem" }}>{order.customerEmail}</div>
-        {order.customerPhone && <div style={{ color: "var(--color-secondary)", fontSize: "0.9rem" }}>{order.customerPhone}</div>}
-      </div>
+            <div className={s.totals}>
+              <div className={s.totalRow}>
+                <span className={s.totalLabel}>Subtotal</span>
+                <span>{eur(order.subtotalCents)}</span>
+              </div>
+              <div className={s.totalRow}>
+                <span className={s.totalLabel}>Shipping</span>
+                <span>{eur(order.shippingCents)}</span>
+              </div>
+              {order.discountCents > 0 && (
+                <div className={s.totalRow}>
+                  <span className={s.totalLabel}>Discount</span>
+                  <span>-{eur(order.discountCents)}</span>
+                </div>
+              )}
+              <div className={`${s.totalRow} ${s.totalFinal}`}>
+                <span>Total</span>
+                <span>{eur(order.totalCents)}</span>
+              </div>
+            </div>
+          </div>
 
-      <div className={ui.card} style={{ padding: "1.5rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-        <strong style={{ color: "var(--color-primary)" }}>Shipping address</strong>
-        <div>{addr.name}</div>
-        <div>{addr.line1}</div>
-        {addr.line2 && <div>{addr.line2}</div>}
-        <div>
-          {addr.zip} {addr.city}
-        </div>
-        <div>{addr.country}</div>
-      </div>
-
-      {/* Fulfilment — everything needed to book the label by hand, since
-          shipment creation is deliberately manual. */}
-      <div className={ui.card} style={{ padding: "1.5rem", display: "flex", flexDirection: "column", gap: "0.6rem" }}>
-        <strong style={{ color: "var(--color-primary)", display: "flex", alignItems: "center", gap: "0.45rem" }}>
-          <Truck size={16} aria-hidden="true" /> Shipping
-        </strong>
-
-        {order.shippingMethod ? (
-          <>
-            <Row label="Method">
-              {order.shippingMethod.name}
-              {order.shippingMethod.requiresPickupPoint && <span className={ui.badge} style={{ marginLeft: "0.4rem" }}>pickup point</span>}
-            </Row>
-            {order.shippingMethod.carrier && <Row label="Carrier">{order.shippingMethod.carrier}</Row>}
-            {order.shippingMethod.carrierCode && (
-              <Row label="Carrier code">
-                <CopyValue value={order.shippingMethod.carrierCode} label="carrier code" />
-              </Row>
-            )}
-            <Row label="Delivery estimate">
-              {order.shippingMethod.estimatedDaysMin}–{order.shippingMethod.estimatedDaysMax} business days
-            </Row>
-          </>
-        ) : (
-          <Row label="Method">
-            <span style={{ color: "var(--color-secondary)" }}>{order.shippingCents === 0 ? "Free shipping" : "No method recorded"}</span>
-          </Row>
-        )}
-        <Row label="Shipping paid">{order.shippingCents === 0 ? "Free" : eur(order.shippingCents)}</Row>
-        <Row label="Destination">
-          {addr.zip} {addr.city}, {addr.country}
-        </Row>
-      </div>
-
-      {order.pickupPointSnapshot && (
-        <div className={ui.card} style={{ padding: "1.5rem", display: "flex", flexDirection: "column", gap: "0.6rem" }}>
-          <strong style={{ color: "var(--color-primary)", display: "flex", alignItems: "center", gap: "0.45rem" }}>
-            {order.pickupPointSnapshot.type === "locker" ? <Package size={16} aria-hidden="true" /> : <MapPin size={16} aria-hidden="true" />}
-            Pickup point
-            <span className={ui.badge}>{order.pickupPointSnapshot.type === "locker" ? "locker" : "shop"}</span>
-          </strong>
-
-          <p style={{ margin: 0, fontSize: "0.8rem", color: "var(--color-secondary)" }}>
-            Ship to this service point. The reference below is what the carrier needs — copy it rather than retyping.
-          </p>
-
-          <Row label="Service point ID">
-            <CopyValue value={order.pickupPointSnapshot.id} label="service point ID" />
-          </Row>
-          <Row label="Name">{order.pickupPointSnapshot.name}</Row>
-          <Row label="Address">
-            {order.pickupPointSnapshot.address}
-            <br />
-            {order.pickupPointSnapshot.postcode} {order.pickupPointSnapshot.city}, {order.pickupPointSnapshot.country}
-          </Row>
-          {order.pickupPointSnapshot.carrierCode && <Row label="Network">{order.pickupPointSnapshot.carrierCode}</Row>}
-          {order.pickupPointSnapshot.latitude !== null && order.pickupPointSnapshot.longitude !== null && (
-            <Row label="Coordinates">
-              <CopyValue value={`${order.pickupPointSnapshot.latitude}, ${order.pickupPointSnapshot.longitude}`} label="coordinates" />
-            </Row>
+          {/* The customer's own item, when this order is one: their photo and
+              note, and the round trip the desk moves it through. Above the
+              embroidery jobs, because nothing can be stitched before it
+              arrives. */}
+          {sendIn && (
+            <section aria-label="Customer's own item">
+              <SendInJobPanel job={sendIn} onChange={setSendIn} showOrder={false} />
+            </section>
           )}
-          <Row label="Chosen at">{new Date(order.pickupPointSnapshot.selectedAt).toLocaleString()}</Row>
 
-          {order.pickupPointSnapshot.openingHours && order.pickupPointSnapshot.openingHours.length > 0 && (
-            <div style={{ marginTop: "0.35rem" }}>
-              <span style={{ fontSize: "0.8rem", color: "var(--color-secondary)" }}>Opening hours</span>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(9rem, 1fr))", gap: "0.15rem 1rem", marginTop: "0.3rem" }}>
-                {order.pickupPointSnapshot.openingHours.map((day) => (
-                  <div key={day.weekday} style={{ display: "flex", justifyContent: "space-between", fontSize: "0.78rem" }}>
-                    <span style={{ color: "var(--color-secondary)" }}>{WEEKDAYS[day.weekday - 1]}</span>
-                    <span>{day.slots.length ? day.slots.join(" · ") : "Closed"}</span>
+          {jobs.length > 0 && (
+            <section aria-labelledby="embroidery-heading" className={s.section}>
+              <div className={s.sectionHead}>
+                <div>
+                  <h2 id="embroidery-heading" className={s.sectionTitle}>
+                    <Scissors size={16} aria-hidden="true" /> Embroidery — {jobs.length} {jobs.length === 1 ? "job" : "jobs"}
+                  </h2>
+                  <p className={s.panelNote}>Each position is hooped and run on its own. Everything below was frozen when the customer paid.</p>
+                </div>
+                <Link href="/admin/shop/personalization" className={s.sectionLink}>
+                  Open the production queue →
+                </Link>
+              </div>
+              <div className={s.jobGrid}>
+                {jobs.map((job) => (
+                  <div key={job.id} id={`job-${job.id}`}>
+                    <EmbroideryJobCard job={job} onChange={onJobChange} showOrder={false} />
                   </div>
                 ))}
               </div>
-            </div>
+            </section>
           )}
         </div>
-      )}
 
-      <div className={ui.card}>
-        <table className={ui.table}>
-          <thead>
-            <tr>
-              <th>Item</th>
-              <th>SKU</th>
-              <th>Qty</th>
-              <th>Unit price</th>
-              <th>Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            {order.items.map((i) => (
-              <tr key={i.id}>
-                <td>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "0.2rem" }}>
-                    <span>{i.titleSnapshot}</span>
-                    {i.optionsSnapshot && i.optionsSnapshot.length > 0 && (
-                      <span style={{ fontSize: "0.8rem", color: "var(--color-secondary)" }}>
-                        {i.optionsSnapshot.map((o) => `${o.attributeName}: ${o.displayValue ?? o.value}`).join(" · ")}
-                      </span>
-                    )}
-                    {/* One line per embroidered position: the words, and where
-                        the floor has got to with them. The full job cards sit
-                        below; this is the glance. */}
-                    {i.personalizations?.map((d) => (
-                      <a key={d.id} href={`#job-${d.id}`} style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", fontSize: "0.8rem", color: "var(--color-primary)", textDecoration: "none" }}>
-                        <Scissors size={12} aria-hidden="true" />
-                        <span>
-                          {d.placementLabel}: <strong>{d.contentType === "motif" ? (d.motifName ?? "shape") : `“${d.text.replace(/\n/g, " / ")}”`}</strong>
-                        </span>
-                        <span className={ui.badge}>{JOB_STATUS_LABEL[d.productionStatus]}</span>
-                      </a>
+        {/* Right: the reference the desk copies from while working — who,
+            where, how it ships, and what has happened so far. */}
+        <div className={s.aside}>
+          <div className={`${ui.card} ${s.panel}`}>
+            <h2 className={s.panelTitle}>Customer</h2>
+            <div className={s.lines}>
+              <span className={s.lineStrong}>{order.customerName ?? "—"}</span>
+              <span className={s.lineMuted}>{order.customerEmail}</span>
+              {order.customerPhone && <span className={s.lineMuted}>{order.customerPhone}</span>}
+            </div>
+          </div>
+
+          <div className={`${ui.card} ${s.panel}`}>
+            <h2 className={s.panelTitle}>Shipping address</h2>
+            <div className={s.lines}>
+              <span className={s.lineStrong}>{addr.name}</span>
+              <span>{addr.line1}</span>
+              {addr.line2 && <span>{addr.line2}</span>}
+              <span>
+                {addr.zip} {addr.city}
+              </span>
+              <span>{addr.country}</span>
+            </div>
+          </div>
+
+          {/* Fulfilment — everything needed to book the label by hand, since
+              shipment creation is deliberately manual. */}
+          <div className={`${ui.card} ${s.panel}`}>
+            <h2 className={s.panelTitle}>
+              <Truck size={14} aria-hidden="true" /> Shipping
+            </h2>
+            {order.shippingMethod ? (
+              <>
+                <Row label="Method">
+                  {order.shippingMethod.name}
+                  {order.shippingMethod.requiresPickupPoint && <span className={ui.badge}>pickup point</span>}
+                </Row>
+                {order.shippingMethod.carrier && <Row label="Carrier">{order.shippingMethod.carrier}</Row>}
+                {order.shippingMethod.carrierCode && (
+                  <Row label="Carrier code">
+                    <CopyValue value={order.shippingMethod.carrierCode} label="carrier code" />
+                  </Row>
+                )}
+                <Row label="Estimate">
+                  {order.shippingMethod.estimatedDaysMin}–{order.shippingMethod.estimatedDaysMax} business days
+                </Row>
+              </>
+            ) : (
+              <Row label="Method">
+                <span className={s.lineMuted}>{order.shippingCents === 0 ? "Free shipping" : "No method recorded"}</span>
+              </Row>
+            )}
+            <Row label="Paid">{order.shippingCents === 0 ? "Free" : eur(order.shippingCents)}</Row>
+            <Row label="Destination">
+              {addr.zip} {addr.city}, {addr.country}
+            </Row>
+          </div>
+
+          {order.pickupPointSnapshot && (
+            <div className={`${ui.card} ${s.panel}`}>
+              <h2 className={s.panelTitle}>
+                {order.pickupPointSnapshot.type === "locker" ? <Package size={14} aria-hidden="true" /> : <MapPin size={14} aria-hidden="true" />}
+                Pickup point
+                <span className={ui.badge}>{order.pickupPointSnapshot.type === "locker" ? "locker" : "shop"}</span>
+              </h2>
+              <p className={s.panelNote}>Ship to this service point. The reference below is what the carrier needs — copy it rather than retyping.</p>
+
+              <Row label="Point ID">
+                <CopyValue value={order.pickupPointSnapshot.id} label="service point ID" />
+              </Row>
+              <Row label="Name">{order.pickupPointSnapshot.name}</Row>
+              <Row label="Address">
+                {order.pickupPointSnapshot.address}
+                <br />
+                {order.pickupPointSnapshot.postcode} {order.pickupPointSnapshot.city}, {order.pickupPointSnapshot.country}
+              </Row>
+              {order.pickupPointSnapshot.carrierCode && <Row label="Network">{order.pickupPointSnapshot.carrierCode}</Row>}
+              {order.pickupPointSnapshot.latitude !== null && order.pickupPointSnapshot.longitude !== null && (
+                <Row label="Coordinates">
+                  <CopyValue value={`${order.pickupPointSnapshot.latitude}, ${order.pickupPointSnapshot.longitude}`} label="coordinates" />
+                </Row>
+              )}
+              <Row label="Chosen at">{new Date(order.pickupPointSnapshot.selectedAt).toLocaleString()}</Row>
+
+              {order.pickupPointSnapshot.openingHours && order.pickupPointSnapshot.openingHours.length > 0 && (
+                <div>
+                  <span className={s.lineMuted}>Opening hours</span>
+                  <div className={s.hours}>
+                    {order.pickupPointSnapshot.openingHours.map((day) => (
+                      <div key={day.weekday} className={s.hoursRow}>
+                        <span className={s.hoursDay}>{WEEKDAYS[day.weekday - 1]}</span>
+                        <span>{day.slots.length ? day.slots.join(" · ") : "Closed"}</span>
+                      </div>
                     ))}
                   </div>
-                </td>
-                <td>{i.skuSnapshot ?? "—"}</td>
-                <td>{i.quantity}</td>
-                <td>
-                  {eur(i.unitPriceCents)}
-                  {i.personalizationCents > 0 && (
-                    <span style={{ display: "block", fontSize: "0.75rem", color: "var(--color-secondary)" }}>incl. {eur(i.personalizationCents)} embroidery</span>
-                  )}
-                </td>
-                <td>{eur(i.totalCents)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <div style={{ padding: "1rem 1.5rem", display: "flex", flexDirection: "column", gap: "0.3rem", borderTop: "1px solid var(--color-surface)" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.9rem" }}>
-            <span style={{ color: "var(--color-secondary)" }}>Subtotal</span>
-            <span>{eur(order.subtotalCents)}</span>
-          </div>
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.9rem" }}>
-            <span style={{ color: "var(--color-secondary)" }}>Shipping</span>
-            <span>{eur(order.shippingCents)}</span>
-          </div>
-          {order.discountCents > 0 && (
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.9rem" }}>
-              <span style={{ color: "var(--color-secondary)" }}>Discount</span>
-              <span>-{eur(order.discountCents)}</span>
+                </div>
+              )}
             </div>
           )}
-          <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 700 }}>
-            <span>Total</span>
-            <span>{eur(order.totalCents)}</span>
+
+          <div className={`${ui.card} ${s.panel}`}>
+            <h2 className={s.panelTitle}>Status history</h2>
+            <div className={s.history}>
+              {order.statusHistory.map((h) => (
+                <div key={h.id} className={s.historyRow}>
+                  <div>
+                    <strong className={s.historyStatus}>{h.toStatus.replace(/_/g, " ")}</strong>
+                    {h.note && <span className={s.historyNote}> — {h.note}</span>}
+                  </div>
+                  {/* Date and time both: this is the audit trail for a
+                      payment and a dispatch, and "which day" is rarely the
+                      question being asked of it. */}
+                  <span className={s.historyDate}>
+                    {new Date(h.createdAt).toLocaleDateString()}
+                    <br />
+                    {new Date(h.createdAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
-
-      {/* The customer's own item, when this order is one: their photo and
-          note, and the round trip the desk moves it through. Above the
-          embroidery jobs, because nothing can be stitched before it arrives. */}
-      {sendIn && (
-        <section aria-label="Customer's own item">
-          <SendInJobPanel job={sendIn} onChange={setSendIn} showOrder={false} />
-        </section>
-      )}
-
-      {jobs.length > 0 && (
-        <section aria-labelledby="embroidery-heading" style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
-            <div>
-              <h2 id="embroidery-heading" style={{ margin: 0, fontSize: "1.05rem", color: "var(--color-primary)", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <Scissors size={16} aria-hidden="true" /> Embroidery — {jobs.length} {jobs.length === 1 ? "job" : "jobs"}
-              </h2>
-              <p style={{ margin: "0.25rem 0 0", fontSize: "0.85rem", color: "var(--color-secondary)" }}>
-                Each position is hooped and run on its own. Everything below was frozen when the customer paid.
-              </p>
-            </div>
-            <Link href="/admin/shop/personalization" style={{ fontSize: "0.85rem", color: "var(--color-primary)" }}>
-              Open the production queue →
-            </Link>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: "14px", alignItems: "start" }}>
-            {jobs.map((job) => (
-              <div key={job.id} id={`job-${job.id}`}>
-                <EmbroideryJobCard job={job} onChange={onJobChange} showOrder={false} />
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      <div className={ui.card} style={{ padding: "1.5rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-        <strong style={{ color: "var(--color-primary)" }}>Status history</strong>
-        {order.statusHistory.map((h) => (
-          <div key={h.id} style={{ display: "flex", justifyContent: "space-between", fontSize: "0.85rem", borderBottom: "1px solid var(--color-surface)", paddingBottom: "0.5rem" }}>
-            <div>
-              <strong>{h.toStatus.replace(/_/g, " ")}</strong>
-              {h.note && <span style={{ color: "var(--color-secondary)" }}> — {h.note}</span>}
-            </div>
-            <span style={{ color: "var(--color-secondary)" }}>{new Date(h.createdAt).toLocaleString()}</span>
-          </div>
-        ))}
-      </div>
-
       </div>
     </div>
   );

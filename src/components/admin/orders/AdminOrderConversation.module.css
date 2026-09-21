@@ -116,8 +116,18 @@
 .composer {
   display: flex;
   gap: 0.5rem;
-  padding: 0.75rem 1rem;
+  /* Bottom, not centre: as the box grows the button stays on the last line,
+     where the eye is. */
+  align-items: flex-end;
+  padding: 0.75rem 1rem 0.35rem;
   border-top: 1px solid color-mix(in srgb, var(--foreground) 10%, transparent);
+}
+
+.composerHint {
+  margin: 0;
+  padding: 0 1rem 0.75rem;
+  font-size: 0.72rem;
+  color: var(--color-secondary);
 }
 
 .input {
@@ -127,8 +137,14 @@
   border: 1px solid var(--field-border, color-mix(in srgb, var(--foreground) 16%, transparent));
   border-radius: 8px;
   background: var(--background);
+  /* A textarea does not inherit the page's font the way an input does. */
+  font: inherit;
   font-size: 0.875rem;
+  line-height: 1.45;
   color: var(--foreground);
+  /* The box grows with the text (autoGrow); a drag handle would fight it. */
+  resize: none;
+  overflow-y: auto;
 }
 .input:focus {
   outline: none;
@@ -191,6 +207,8 @@
   justify-content: center;
   flex-shrink: 0;
   width: 2.4rem;
+  /* One line tall, so it does not stretch with the growing textarea. */
+  height: 2.4rem;
   border: 1px solid var(--field-border, color-mix(in srgb, var(--foreground) 16%, transparent));
   border-radius: 8px;
   background: var(--background);
