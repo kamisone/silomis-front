@@ -32,7 +32,8 @@ const EVENT_OPTIONS: { key: string; label: string; desc: string }[] = [
   { key: "order_shipped", label: "Order Shipped", desc: "When an order is marked as shipped" },
   { key: "order_delivered", label: "Order Delivered", desc: "When an order is marked as delivered" },
   { key: "low_stock", label: "Low Stock Alert", desc: "When product inventory runs low" },
-  { key: "support_message", label: "Support Message", desc: "When a customer writes in the support chat" },
+  { key: "support_message", label: "Support Message", desc: "When a visitor writes in the storefront support chat" },
+  { key: "order_message", label: "Order Message", desc: "When a customer writes on one of their orders" },
 ];
 
 const EVENT_LABELS: Record<string, string> = Object.fromEntries(EVENT_OPTIONS.map((e) => [e.key, e.label]));

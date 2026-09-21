@@ -74,7 +74,7 @@ interface NavItem {
   icon:  LucideIcon;
   label: string;
   /** Renders the live unread-conversation count next to the label. */
-  badge?: "support";
+  badge?: "support" | "orderMessages";
 }
 
 interface NavCategory {
@@ -143,7 +143,7 @@ const NAV_GROUPS: NavGroup[] = [
         label: "Orders",
         icon:  ShoppingBag,
         items: [
-          { href: "/admin/shop/orders",            icon: ShoppingBag,  label: "All Orders"        },
+          { href: "/admin/shop/orders",            icon: ShoppingBag,  label: "All Orders", badge: "orderMessages" },
           { href: "/admin/shop/orders/drafts",     icon: FileText,     label: "Draft Orders"      },
           { href: "/admin/shop/returns",           icon: Undo2,        label: "Returns & Refunds" },
           { href: "/admin/shop/order-status-refs", icon: GitBranch,    label: "Order Statuses"    },
@@ -359,6 +359,10 @@ export default function AdminSidebar({
   // pathname dependency refreshes it on the way out of /admin/support, where
   // opening a conversation has just marked it read.
   const [supportUnread, setSupportUnread] = useState(0);
+  // Orders carry their own conversations now, and the support inbox
+  // deliberately does not list them — so without this count there is nowhere
+  // in the panel that a waiting customer shows up.
+  const [orderUnread, setOrderUnread] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -367,6 +371,12 @@ export default function AdminSidebar({
         .then((r) => (r.ok ? r.json() : null))
         .then((data: { count?: number } | null) => {
           if (active && typeof data?.count === "number") setSupportUnread(data.count);
+        })
+        .catch(() => {});
+      fetch("/next-api/support/admin/orders/unread")
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data: { count?: number } | null) => {
+          if (active && typeof data?.count === "number") setOrderUnread(data.count);
         })
         .catch(() => {});
     };
@@ -414,6 +424,15 @@ export default function AdminSidebar({
             title={`${supportUnread} unanswered support message${supportUnread === 1 ? "" : "s"}`}
           >
             {supportUnread > 99 ? "99+" : supportUnread}
+          </span>
+        )}
+        {item.badge === "orderMessages" && orderUnread > 0 && (
+          // Orders, not messages: the number says how many orders to open.
+          <span
+            className={styles.navBadge}
+            title={`${orderUnread} order${orderUnread === 1 ? "" : "s"} with unread customer messages`}
+          >
+            {orderUnread > 99 ? "99+" : orderUnread}
           </span>
         )}
         {active && <span className={styles.navActiveBar} />}

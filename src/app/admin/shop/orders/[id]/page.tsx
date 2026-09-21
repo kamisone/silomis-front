@@ -7,6 +7,7 @@ import { useParams } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
 import { useToast } from "@/components/toast/ToastContext";
 import Button from "@/components/admin/ui/Button";
+import AdminOrderConversation from "@/components/admin/orders/AdminOrderConversation";
 import { EmbroideryJobCard, STATUS_LABEL as JOB_STATUS_LABEL, type EmbroideryJob } from "@/components/admin/shop/EmbroideryJob";
 import { SendInJobPanel, type SendInJob } from "@/components/admin/shop/SendInJobPanel";
 import ui from "@/components/admin/ui/admin-ui.module.css";
@@ -189,6 +190,8 @@ export default function OrderDetailPage() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [transitioning, setTransitioning] = useState(false);
+  const [tab, setTab] = useState<"order" | "messages">("order");
+  const [unreadMessages, setUnreadMessages] = useState(0);
 
   // Loading is only the first read; a reload after a status change keeps the
   // page in place rather than blanking it.
@@ -249,6 +252,26 @@ export default function OrderDetailPage() {
     const t = setTimeout(load, 0);
     return () => clearTimeout(t);
   }, [load]);
+
+  // The unread count has to be known before the Messages tab is opened — that
+  // is the whole point of a badge — so it is read here rather than inside the
+  // conversation component, which only mounts once the tab is chosen.
+  useEffect(() => {
+    if (!id) return;
+    let active = true;
+    const t = setTimeout(() => {
+      fetch(`/next-api/support/admin/orders/${encodeURIComponent(id)}/conversation`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d: { unreadAdminCount?: number } | null) => {
+          if (active) setUnreadMessages(d?.unreadAdminCount ?? 0);
+        })
+        .catch(() => {});
+    }, 0);
+    return () => {
+      active = false;
+      clearTimeout(t);
+    };
+  }, [id]);
 
   async function handleTransition(toStatus: string) {
     if (!order) return;
@@ -312,6 +335,37 @@ export default function OrderDetailPage() {
           ))}
         </div>
       </div>
+
+      {/* The customer's tracking page has the same two tabs. Keeping the pair
+          symmetrical means a reply written here lands where they are looking. */}
+      <div className={ui.tabs} role="tablist" aria-label={order.orderNumber}>
+        <button type="button" role="tab" aria-selected={tab === "order"} className={`${ui.tab} ${tab === "order" ? ui.tabActive : ""}`} onClick={() => setTab("order")}>
+          Order
+        </button>
+        <button type="button" role="tab" aria-selected={tab === "messages"} className={`${ui.tab} ${tab === "messages" ? ui.tabActive : ""}`} onClick={() => setTab("messages")}>
+          Messages
+          {unreadMessages > 0 && (
+            <span className={ui.badgeAlert} style={{ marginLeft: "0.4rem" }}>
+              {unreadMessages}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {/* Mounted only while open: this one holds a socket, and every order page
+          left in a background tab would otherwise keep one alive. */}
+      {tab === "messages" && (
+        <AdminOrderConversation
+          orderId={order.id}
+          orderNumber={order.orderNumber}
+          // Opening the tab reads the thread, so the count it reported is
+          // spent — the badge clears rather than sitting there contradicting
+          // the messages on screen.
+          onUnread={setUnreadMessages}
+        />
+      )}
+
+      <div hidden={tab !== "order"} style={{ display: tab === "order" ? "contents" : "none" }}>
 
       <div className={ui.card} style={{ padding: "1.5rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
         <strong style={{ color: "var(--color-primary)" }}>Customer</strong>
@@ -526,6 +580,8 @@ export default function OrderDetailPage() {
             <span style={{ color: "var(--color-secondary)" }}>{new Date(h.createdAt).toLocaleString()}</span>
           </div>
         ))}
+      </div>
+
       </div>
     </div>
   );

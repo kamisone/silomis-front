@@ -86,6 +86,15 @@
   text-transform: capitalize;
 }
 
+/* A waiting customer, not a status: the accent is the one colour on this
+   surface that means "someone is expecting something from you". */
+.badgeAlert {
+  composes: badge;
+  background: color-mix(in srgb, var(--color-accent) 14%, var(--background));
+  color: var(--color-accent);
+  text-transform: none;
+}
+
 .badgeActive {
   composes: badge;
   background: #dcfce7;
@@ -329,5 +338,65 @@
   }
   50% {
     opacity: 1;
+  }
+}
+
+/* ── Tabs ───────────────────────────────────────────────────────────────────
+   An underline rail, matching the storefront's. The admin surface is already
+   a stack of bordered cards, so boxed tabs around them would read as a frame
+   inside a frame. */
+.tabs {
+  display: flex;
+  gap: 0.25rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--foreground) 12%, transparent);
+}
+
+.tab {
+  position: relative;
+  padding: 0.6rem 1rem;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-secondary);
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.tab::after {
+  content: "";
+  position: absolute;
+  left: 0.5rem;
+  right: 0.5rem;
+  /* On the rail, so the active tab joins the line instead of floating above it. */
+  bottom: -1px;
+  height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: transparent;
+  transition: background-color 0.15s;
+}
+
+.tab:hover {
+  color: var(--foreground);
+}
+
+.tabActive {
+  color: var(--color-primary);
+}
+.tabActive::after {
+  background: var(--color-primary);
+}
+
+.tab:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+  border-radius: 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tab,
+  .tab::after {
+    transition: none;
   }
 }

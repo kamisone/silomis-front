@@ -24,9 +24,19 @@ export default function OrderTrackLookupPage() {
     setLoading(true);
     setError("");
 
-    const res = await fetch(`/next-api/public/shop/orders/${encodeURIComponent(num)}/track?email=${encodeURIComponent(em)}`);
+    // The address is exchanged for an httpOnly grant cookie and then dropped.
+    // It used to be pushed onto the next URL and re-sent on every navigation,
+    // which put a customer's email in browser history, in the `Referer` sent
+    // to every third party the page loads, and in this shop's own session
+    // replay recordings.
+    const res = await fetch(`/next-api/public/shop/orders/${encodeURIComponent(num)}/session`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: em }),
+    });
+
     if (res.ok) {
-      router.push(`/${locale}/shop/orders/track/${encodeURIComponent(num)}?email=${encodeURIComponent(em)}`);
+      router.push(`/${locale}/shop/orders/track/${encodeURIComponent(num)}`);
     } else {
       setError(t.shop.trackOrderNotFound);
       setLoading(false);

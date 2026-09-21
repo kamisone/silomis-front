@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Scissors } from "lucide-react";
+import { MessageSquare, Scissors } from "lucide-react";
 import { api } from "@/lib/api";
 import ui from "@/components/admin/ui/admin-ui.module.css";
 
@@ -41,6 +41,8 @@ export default function OrdersListPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
+  /** orderId → unread customer messages, for the rows on screen. */
+  const [unread, setUnread] = useState<Record<string, number>>({});
 
   async function load() {
     setLoading(true);
@@ -51,6 +53,19 @@ export default function OrdersListPage() {
       const data = await api.get<{ items: OrderListItem[]; total: number }>(`/next-api/admin/shop/orders?${params.toString()}`);
       setItems(data.items);
       setTotal(data.total);
+
+      // One query for the page rather than one per row, and deliberately not
+      // part of the orders payload: a conversation is not order data, and a
+      // slow or failed lookup must not cost the list itself.
+      const ids = data.items.map((o) => o.id).join(",");
+      if (ids) {
+        api
+          .get<{ byOrder: Record<string, number> }>(`/next-api/support/admin/orders/unread?ids=${encodeURIComponent(ids)}`)
+          .then((res) => setUnread(res.byOrder ?? {}))
+          .catch(() => setUnread({}));
+      } else {
+        setUnread({});
+      }
     } finally {
       setLoading(false);
     }
@@ -107,6 +122,18 @@ export default function OrdersListPage() {
                     <Link href={`/admin/shop/orders/${o.id}`} style={{ fontWeight: 600, color: "var(--color-primary)" }}>
                       {o.orderNumber}
                     </Link>
+                    {/* Beside the order number, not in a column of its own: it
+                        is the reason to open this row, so it belongs where the
+                        eye already is. */}
+                    {(unread[o.id] ?? 0) > 0 && (
+                      <span
+                        className={ui.badgeAlert}
+                        style={{ marginLeft: "0.5rem", display: "inline-flex", alignItems: "center", gap: "0.3rem" }}
+                        title={`${unread[o.id]} unread message${unread[o.id] === 1 ? "" : "s"} from the customer`}
+                      >
+                        <MessageSquare size={11} aria-hidden="true" /> {unread[o.id]}
+                      </span>
+                    )}
                   </td>
                   <td>
                     {o.customerName ?? "—"}

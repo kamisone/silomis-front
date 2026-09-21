@@ -1,0 +1,361 @@
+.panel {
+  background: var(--background);
+  border: 1px solid color-mix(in srgb, var(--foreground) 12%, transparent);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+/* ── Header ── */
+.head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1.1rem 1.25rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--foreground) 10%, transparent);
+  background: var(--color-surface-tint);
+}
+
+.headIcon {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--color-primary);
+}
+
+.title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--foreground);
+}
+
+.subtitle {
+  margin: 0.2rem 0 0;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: color-mix(in srgb, var(--foreground) 58%, var(--background));
+}
+
+/* Connection state, shown only when it is not "connected" — a permanent
+   "online" badge is noise, a "reconnecting" one is information. */
+.status {
+  margin-left: auto;
+  flex-shrink: 0;
+  align-self: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--foreground) 50%, var(--background));
+}
+
+/* ── Thread ──
+   A bounded, scrolling log rather than a growing page: the tracking page has
+   the order below it, and a long conversation should not push it out of
+   reach. */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 1.1rem 1.25rem;
+  max-height: 24rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.empty {
+  margin: 0.5rem 0;
+  text-align: center;
+  font-size: 0.875rem;
+  color: color-mix(in srgb, var(--foreground) 52%, var(--background));
+}
+
+.row {
+  display: flex;
+}
+.rowMine {
+  justify-content: flex-end;
+}
+
+.bubble {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  max-width: min(85%, 34rem);
+  padding: 0.6rem 0.8rem;
+  border-radius: 14px;
+  background: var(--color-surface-tint);
+  /* Asymmetric corner on the side the message came from — the usual cue that
+     tells the two speakers apart without reading the labels. */
+  border-bottom-left-radius: 4px;
+}
+
+.bubbleMine {
+  background: color-mix(in srgb, var(--color-primary) 12%, var(--background));
+  border-bottom-left-radius: 14px;
+  border-bottom-right-radius: 4px;
+}
+
+.author {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--foreground) 55%, var(--background));
+}
+
+.text {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--foreground);
+  /* Customer messages arrive as typed, including the long unbroken order
+     references and URLs people paste into them. */
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.meta {
+  font-size: 0.7rem;
+  color: color-mix(in srgb, var(--foreground) 48%, var(--background));
+}
+
+.retry {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 0.7rem;
+  color: var(--color-error);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+/* ── Composer ── */
+.composer {
+  display: flex;
+  gap: 0.6rem;
+  padding: 0.9rem 1.25rem 1.1rem;
+  border-top: 1px solid color-mix(in srgb, var(--foreground) 10%, transparent);
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.7rem 0.9rem;
+  border: 1.5px solid color-mix(in srgb, var(--foreground) 16%, transparent);
+  border-radius: 10px;
+  background: var(--background);
+  font-size: 0.9rem;
+  color: var(--foreground);
+}
+.input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.sendBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+  padding: 0.7rem 1.1rem;
+  border: none;
+  border-radius: 10px;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.sendBtn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.sendBtn:not(:disabled):hover {
+  opacity: 0.9;
+}
+
+/* ── Locked state ── */
+.locked {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.5rem;
+  padding: 2rem 1.5rem;
+}
+
+.lockIcon {
+  color: var(--color-primary);
+}
+
+.lockedBody {
+  margin: 0;
+  max-width: 44ch;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: color-mix(in srgb, var(--foreground) 60%, var(--background));
+}
+
+.lockedBtn {
+  margin-top: 0.4rem;
+  padding: 0.7rem 1.5rem;
+  border: none;
+  border-radius: 10px;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.lockedBtn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.lockedBtn:not(:disabled):hover {
+  opacity: 0.9;
+}
+
+.lockedSent {
+  margin: 0.4rem 0 0;
+  max-width: 44ch;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: var(--color-success);
+}
+
+@media (max-width: 560px) {
+  .sendLabel {
+    display: none;
+  }
+  .composer {
+    padding-inline: 1rem;
+  }
+  .list,
+  .head {
+    padding-inline: 1rem;
+  }
+}
+
+/* ── Images on a message ────────────────────────────────────────────────── */
+.thumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.15rem;
+}
+
+.thumb {
+  padding: 0;
+  border: none;
+  border-radius: 10px;
+  overflow: hidden;
+  background: none;
+  cursor: zoom-in;
+  line-height: 0;
+}
+.thumb:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.thumbImg {
+  /* Uniform tiles rather than the images' own shapes: a thread of portrait
+     and landscape photos at their natural ratios reads as a jumble, and the
+     lightbox is one click away for the real thing. */
+  width: 7rem;
+  height: 7rem;
+  object-fit: cover;
+  display: block;
+}
+
+/* ── Composer additions ─────────────────────────────────────────────────── */
+.fileInput {
+  display: none;
+}
+
+.attachBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 2.6rem;
+  border: 1.5px solid color-mix(in srgb, var(--foreground) 16%, transparent);
+  border-radius: 10px;
+  background: var(--background);
+  color: var(--color-primary);
+  cursor: pointer;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+.attachBtn:hover {
+  border-color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 8%, var(--background));
+}
+.attachBtn:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.pending {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem 0;
+}
+
+.pendingItem {
+  position: relative;
+  line-height: 0;
+}
+
+.pendingImg {
+  width: 3.5rem;
+  height: 3.5rem;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--foreground) 12%, transparent);
+}
+
+.pendingRemove {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.15rem;
+  height: 1.15rem;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--color-secondary);
+  color: #fff;
+  cursor: pointer;
+}
+
+.pendingHint {
+  font-size: 0.72rem;
+  color: color-mix(in srgb, var(--foreground) 52%, var(--background));
+}
+
+.uploadError {
+  margin: 0.5rem 1.25rem 0;
+  font-size: 0.8rem;
+  color: var(--color-error);
+}
+
+@media (max-width: 560px) {
+  .pending {
+    padding-inline: 1rem;
+  }
+  .thumbImg {
+    width: 5.5rem;
+    height: 5.5rem;
+  }
+}

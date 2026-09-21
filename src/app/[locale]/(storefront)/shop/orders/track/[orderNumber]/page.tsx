@@ -7,6 +7,7 @@ import { getTranslations, toBcp47 } from "@/lib/i18n";
 import { useLocale } from "@/lib/i18n/useLocale";
 import EmbroideryLine, { slipLines, type EmbroideryLineDesign } from "@/components/shop/EmbroideryLine";
 import SendInTracking, { type SendInTrackingData } from "@/components/shop/SendInTracking";
+import OrderConversation from "@/components/shop/OrderConversation";
 import styles from "../track.module.css";
 
 interface TrackingItem {
@@ -36,6 +37,9 @@ interface TimelineEntry {
 }
 
 interface OrderTracking {
+  /** What this visitor proved. `full` (an emailed link) opens the conversation;
+   *  `status` (order number + email) shows the order only. */
+  accessLevel: "status" | "full";
   orderNumber: string;
   status: string;
   customerName: string | null;
@@ -107,21 +111,65 @@ export default function OrderTrackDetailPage() {
   const [order, setOrder] = useState<OrderTracking | null>(null);
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<"order" | "messages">("order");
+  const [unreadMessages, setUnreadMessages] = useState(0);
 
+  // Read before the tab is opened — a badge nobody can see until they click
+  // the thing it is pointing at would be pointless. The endpoint answers 404
+  // for a visitor without a grant, which simply leaves the count at zero.
+  useEffect(() => {
+    let active = true;
+    fetch(`/next-api/public/shop/orders/${encodeURIComponent(orderNumber)}/conversation`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { unreadGuestCount?: number } | null) => {
+        if (active) setUnreadMessages(d?.unreadGuestCount ?? 0);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [orderNumber]);
+
+  // Only ever arrives from a link in an order email. `email` is still read
+  // because links sent before the grant cookie existed carry it.
   const token = searchParams.get("token");
   const email = searchParams.get("email");
 
   useEffect(() => {
-    const qs = new URLSearchParams();
-    if (token) qs.set("token", token);
-    if (email) qs.set("email", email);
-    qs.set("lang", locale);
+    let cancelled = false;
 
-    fetch(`/next-api/public/shop/orders/${encodeURIComponent(orderNumber)}/track?${qs.toString()}`)
-      .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then((data) => setOrder(data))
-      .catch(() => setError(true))
-      .finally(() => setLoading(false));
+    async function load() {
+      // A credential in the URL is spent once, for a cookie, and then wiped
+      // from the address bar with replaceState — no history entry, nothing
+      // for a `Referer` header or a replay recording to carry away. After
+      // this the grant cookie alone answers every reload.
+      if (token || email) {
+        await fetch(`/next-api/public/shop/orders/${encodeURIComponent(orderNumber)}/session`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(token ? { token } : { email }),
+        }).catch(() => undefined);
+        window.history.replaceState(null, "", window.location.pathname);
+      }
+
+      const res = await fetch(
+        `/next-api/public/shop/orders/${encodeURIComponent(orderNumber)}/track?lang=${locale}`,
+      ).catch(() => null);
+
+      if (cancelled) return;
+      if (!res?.ok) {
+        setError(true);
+        setLoading(false);
+        return;
+      }
+      setOrder((await res.json()) as OrderTracking);
+      setLoading(false);
+    }
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
   }, [orderNumber, token, email, locale]);
 
   if (loading) {
@@ -162,7 +210,7 @@ export default function OrderTrackDetailPage() {
   }
 
   return (
-    <div className={styles.page}>
+    <div className={`${styles.page} ${styles.pageWide}`}>
       <Link href={`/${locale}/shop/orders/track`} className={styles.backLink}>
         ← {t.shop.trackAnotherOrder}
       </Link>
@@ -177,6 +225,44 @@ export default function OrderTrackDetailPage() {
         </div>
         <span className={`${styles.statusBadge} ${styles[`status_${order.status}`] ?? ""}`}>{t.shop.orderStatusLabels[order.status as keyof typeof t.shop.orderStatusLabels] ?? order.status}</span>
       </div>
+
+      {/* Two views of the same order, not two pages: the URL, the grant cookie
+          and the loaded order are shared, so switching is instant and a
+          customer never has to find their way back. */}
+      <div className={styles.tabs} role="tablist" aria-label={order.orderNumber}>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === "order"}
+          className={`${styles.tab} ${tab === "order" ? styles.tabActive : ""}`}
+          onClick={() => setTab("order")}
+        >
+          {t.orderChat.tabOrder}
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === "messages"}
+          className={`${styles.tab} ${tab === "messages" ? styles.tabActive : ""}`}
+          onClick={() => {
+            setTab("messages");
+            // Opening the tab reads the thread, so the badge is spent.
+            setUnreadMessages(0);
+          }}
+        >
+          {t.orderChat.tabMessages}
+          {unreadMessages > 0 && <span className={styles.tabBadge}>{unreadMessages}</span>}
+        </button>
+      </div>
+
+      {/* Mounted but hidden rather than unmounted: the conversation keeps its
+          socket, its scroll position and any half-typed message while the
+          customer looks at the timeline and comes back. */}
+      <div hidden={tab !== "messages"}>
+        <OrderConversation orderNumber={order.orderNumber} locale={locale} active={tab === "messages"} />
+      </div>
+
+      <div hidden={tab !== "order"}>
 
       {/* Timeline — only meaningful once the order has been paid */}
       {currentIdx >= 0 && (
@@ -285,6 +371,7 @@ export default function OrderTrackDetailPage() {
             <span>€{centsToEuros(order.totalCents)}</span>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

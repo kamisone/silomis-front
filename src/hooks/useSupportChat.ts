@@ -8,12 +8,22 @@ import { WS_HOST, WS_PATH } from "@/lib/wsConfig";
 
 export type MessageStatus = "sending" | "sent" | "failed";
 
+/** An image on a message. URLs are signed and expire — never store one. */
+export interface MessageAttachment {
+  key: string;
+  url: string;
+  thumbUrl: string;
+  width: number;
+  height: number;
+}
+
 export interface SupportMessage {
   id: string;
   conversationId: string;
   senderType: "guest" | "admin" | "system";
   senderId: string | null;
   content: string;
+  attachments?: MessageAttachment[] | null;
   readAt: string | null;
   createdAt: string;
   _clientId?: string;
@@ -28,34 +38,70 @@ const ACTIVE_DEBOUNCE = 400;
 // Give up after this many consecutive server-initiated disconnects (auth failure loop guard).
 const MAX_SERVER_DISCONNECTS = 3;
 
+// ── Transport ─────────────────────────────────────────────────────────────────
+/**
+ * Which conversation this hook is driving.
+ *
+ * Everything below — the optimistic send, the clientId reconciliation, the
+ * reconnect and ticket-renewal dance, the read receipts — is identical for the
+ * storefront's floating widget and for an order's own thread. The only thing
+ * that differs is which endpoints hand out the history and the socket ticket,
+ * so that is all this describes. One transport for a stranger asking a
+ * pre-sales question, another for a named customer writing about their order.
+ */
+export interface SupportTransport {
+  /** POST: mints the short-lived socket ticket. */
+  ticketUrl: string;
+  /** GET: the thread so far. */
+  historyUrl: string;
+  /**
+   * POST: ensures the conversation's identifying cookie exists before a
+   * ticket is asked for. Order threads authenticate on the order grant the
+   * visitor already holds, so they have nothing to bootstrap and omit this.
+   */
+  bootstrapUrl?: string;
+}
+
+/** The floating storefront widget — the default, and what every existing caller gets. */
+export const GUEST_TRANSPORT: SupportTransport = {
+  ticketUrl: "/next-api/support/guest/ws-ticket",
+  historyUrl: "/next-api/support/guest/history",
+  bootstrapUrl: "/next-api/support/guest/bootstrap",
+};
+
+/** An order's own thread, reached from its tracking page. */
+export function orderTransport(orderNumber: string): SupportTransport {
+  const base = `/next-api/public/shop/orders/${encodeURIComponent(orderNumber)}/conversation`;
+  return { ticketUrl: `${base}/ws-ticket`, historyUrl: base };
+}
+
 // ── Module-level ws-ticket cache ──────────────────────────────────────────────
 // JWT TTL is 2 min — we cache for 90 s to leave a 30 s renewal buffer.
 // Module scope means one cache entry per page regardless of render count.
-const wsTicketCache = { value: "", expiresAt: 0 };
+//
+// Keyed by endpoint: a page can hold both an order thread and the floating
+// widget, and handing one the other's ticket would drop the visitor into the
+// wrong conversation.
+const wsTicketCache = new Map<string, { value: string; expiresAt: number }>();
 
-async function fetchWsTicket(forceRefresh = false): Promise<string> {
+async function fetchWsTicket(ticketUrl: string, forceRefresh = false): Promise<string> {
   const now = Date.now();
-  if (!forceRefresh && wsTicketCache.value && now < wsTicketCache.expiresAt) {
-    return wsTicketCache.value;
-  }
+  const cached = wsTicketCache.get(ticketUrl);
+  if (!forceRefresh && cached && now < cached.expiresAt) return cached.value;
   try {
-    const res = await fetch("/next-api/support/guest/ws-ticket", { method: "POST" });
+    const res = await fetch(ticketUrl, { method: "POST" });
     if (!res.ok) return "";
     const data = (await res.json()) as { ticket?: string };
     const ticket = data?.ticket ?? "";
-    if (ticket) {
-      wsTicketCache.value = ticket;
-      wsTicketCache.expiresAt = now + 90_000;
-    }
+    if (ticket) wsTicketCache.set(ticketUrl, { value: ticket, expiresAt: now + 90_000 });
     return ticket;
   } catch {
     return "";
   }
 }
 
-function invalidateTicketCache() {
-  wsTicketCache.value = "";
-  wsTicketCache.expiresAt = 0;
+function invalidateTicketCache(ticketUrl: string) {
+  wsTicketCache.delete(ticketUrl);
 }
 
 // ── Hook ───────────────────────────────────────────────────────────────────────
@@ -78,6 +124,7 @@ export function useSupportChat(
   // Lazily read at send time (not a plain value) so a stale closure inside
   // doSend's useCallback([]) can't ship a cart snapshot from first render.
   getCheckoutProducts?: () => Array<{ title: string; url: string }> | undefined,
+  transport: SupportTransport = GUEST_TRANSPORT,
 ): UseSupportChatReturn {
   const [messages, setMessages] = useState<SupportMessage[]>([]);
   const [status, setStatus] = useState<ConnectionStatus>("idle");
@@ -102,10 +149,14 @@ export function useSupportChat(
   // only produce one disconnect/connect cycle and one ws-ticket request.
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const getCheckoutProductsRef = useRef(getCheckoutProducts);
+  // A ref, not a dependency: the socket's `auth` callback outlives the render
+  // that created it and is invoked again on every automatic reconnect.
+  const transportRef = useRef(transport);
 
   isOpenRef.current = isOpen;
   messagesRef.current = messages;
   getCheckoutProductsRef.current = getCheckoutProducts;
+  transportRef.current = transport;
 
   // ── Passive seen ───────────────────────────────────────────────────────────
 
@@ -193,23 +244,23 @@ export function useSupportChat(
     if (socketRef.current) return;
     setStatus("connecting");
 
-    if (!bootstrappedRef.current) {
+    if (!bootstrappedRef.current && transportRef.current.bootstrapUrl) {
       try {
-        await fetch("/next-api/support/guest/bootstrap", {
+        await fetch(transportRef.current.bootstrapUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: "{}",
         });
         bootstrappedRef.current = true;
         // Bootstrap may have just set or refreshed the cookie — stale cached ticket is now wrong.
-        invalidateTicketCache();
+        invalidateTicketCache(transportRef.current.ticketUrl);
       } catch {
         /* non-fatal — socket will fail gracefully below */
       }
     }
 
     try {
-      const histRes = await fetch("/next-api/support/guest/history");
+      const histRes = await fetch(transportRef.current.historyUrl);
       if (histRes.ok) {
         const data = (await histRes.json()) as {
           messages: SupportMessage[];
@@ -233,12 +284,12 @@ export function useSupportChat(
     const socket = io(`${WS_HOST}/support`, {
       auth: (cb: (data: Record<string, unknown>) => void) => {
         const doAuth = async () => {
-          let ticket = await fetchWsTicket();
+          let ticket = await fetchWsTicket(transportRef.current.ticketUrl);
 
-          if (!ticket) {
+          if (!ticket && transportRef.current.bootstrapUrl) {
             // Cookie may be missing or expired — try re-bootstrapping to refresh it.
             try {
-              await fetch("/next-api/support/guest/bootstrap", {
+              await fetch(transportRef.current.bootstrapUrl, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: "{}",
@@ -248,7 +299,7 @@ export function useSupportChat(
               /* non-fatal */
             }
             // Force-refresh: bypass the (now-empty) cache.
-            ticket = await fetchWsTicket(true);
+            ticket = await fetchWsTicket(transportRef.current.ticketUrl, true);
           }
 
           cb({ guestTicket: ticket });
@@ -324,7 +375,7 @@ export function useSupportChat(
 
         // Invalidate the cached ticket so the next auth attempt fetches a fresh one —
         // the server may have rejected the previous ticket as expired or invalid.
-        invalidateTicketCache();
+        invalidateTicketCache(transportRef.current.ticketUrl);
         setTimeout(() => socket.connect(), 2_000);
       }
     });
@@ -445,7 +496,7 @@ export function useSupportChat(
     socketRef.current = null;
     bootstrappedRef.current = false;
     serverDisconnectCountRef.current = 0;
-    invalidateTicketCache();
+    invalidateTicketCache(transportRef.current.ticketUrl);
     setStatus("idle");
     connect();
   }, [connect]);
