@@ -6,11 +6,27 @@ import styles from "./CommerceFooter.module.css";
 import CookieSettingsButton from "@/components/consent/CookieSettingsButton";
 import { VisaIcon, MastercardIcon, AmexIcon } from "./PaymentIcons";
 import { InstagramIcon, FacebookIcon, TiktokIcon } from "./SocialIcons";
+import { SOCIAL_LINKS, type SocialKey } from "@/lib/social";
 import NewsletterForm from "./NewsletterForm";
 import LangSwitcher from "./LangSwitcher";
 
+/** One icon per entry in SOCIAL_LINKS — adding a network there fails the
+ *  build here until its icon exists, rather than rendering a blank link. */
+const SOCIAL_ICONS: Record<SocialKey, typeof InstagramIcon> = {
+  instagram: InstagramIcon,
+  facebook: FacebookIcon,
+  tiktok: TiktokIcon,
+};
+
 export default function CommerceFooter({ locale }: { locale: Locale }) {
   const t = getTranslations(locale);
+
+  // Translated, because the label is what a screen reader announces.
+  const SOCIAL_LABELS: Record<SocialKey, string> = {
+    instagram: t.footer.socialInstagram,
+    facebook: t.footer.socialFacebook,
+    tiktok: t.footer.socialTiktok,
+  };
   const year = new Date().getFullYear();
 
   return (
@@ -59,27 +75,23 @@ export default function CommerceFooter({ locale }: { locale: Locale }) {
               </a>
             </div>
             <div className={styles.socialRow}>
-              <a
-                href="https://www.instagram.com/"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label={t.footer.socialInstagram}
-                className={styles.socialLink}
-              >
-                <InstagramIcon className={styles.socialIcon} />
-              </a>
-              <a
-                href="https://www.facebook.com/"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label={t.footer.socialFacebook}
-                className={styles.socialLink}
-              >
-                <FacebookIcon className={styles.socialIcon} />
-              </a>
-              <a href="#" aria-label={t.footer.socialTiktok} className={styles.socialLink}>
-                <TiktokIcon className={styles.socialIcon} />
-              </a>
+              {SOCIAL_LINKS.map(({ key, url }) => {
+                const Icon = SOCIAL_ICONS[key];
+                return (
+                  <a
+                    key={key}
+                    href={url}
+                    target="_blank"
+                    // `noopener` is the one that matters: without it the opened
+                    // tab gets a handle on this one through `window.opener`.
+                    rel="noopener noreferrer"
+                    aria-label={SOCIAL_LABELS[key]}
+                    className={styles.socialLink}
+                  >
+                    <Icon className={styles.socialIcon} />
+                  </a>
+                );
+              })}
             </div>
           </div>
 
