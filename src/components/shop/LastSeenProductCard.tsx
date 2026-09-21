@@ -21,7 +21,8 @@ const MUTED_PATHS = ["/shop/checkout"];
  * Rendered once by the storefront layout rather than per page, so it survives
  * client-side navigation instead of animating in again on every route change.
  * It stays out of the way in four cases: nothing viewed yet, the shopper closed
- * it, they are already on that product's page, or they are in checkout.
+ * it, they are already on that product's page (or one of its sub-routes, such
+ * as the personalisation editor), or they are in checkout.
  */
 export default function LastSeenProductCard({ locale }: { locale: Locale }) {
   const t = getTranslations(locale);
@@ -63,6 +64,12 @@ export default function LastSeenProductCard({ locale }: { locale: Locale }) {
     // standing. Compared against the full path rather than a `/shop/` prefix,
     // because cart, checkout, search and wishlist live under /shop too.
     pathname !== href &&
+    // The product's own sub-routes count as being there too: the
+    // personalisation editor at /shop/<slug>/personalise *is* this product, so
+    // offering it back would be pointing at the thing the shopper is already
+    // working on. A trailing slash keeps the test exact — /shop/cap-pro does
+    // not start with /shop/cap/.
+    !pathname.startsWith(`${href}/`) &&
     !MUTED_PATHS.some((p) => pathname.startsWith(`/${locale}${p}`));
 
   useEffect(() => {
