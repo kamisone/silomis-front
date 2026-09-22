@@ -29,7 +29,8 @@ interface QueueResponse {
  * screen only adds the tabs, the search and the totals.
  */
 export default function PersonalizationQueuePage() {
-  const [status, setStatus] = useState<ProductionStatus | "all">("pending");
+  // The queue opens on what is outstanding, which is what it is for.
+  const [status, setStatus] = useState<ProductionStatus | "all">("waiting");
   const [search, setSearch] = useState("");
   const [data, setData] = useState<QueueResponse | null>(null);
   const [loading, setLoading] = useState(true);

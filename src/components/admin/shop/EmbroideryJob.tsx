@@ -8,23 +8,22 @@ import Select from "@/components/admin/ui/Select";
 import ui from "@/components/admin/ui/admin-ui.module.css";
 import styles from "./EmbroideryJob.module.css";
 
-/** The order the floor works a job, mirroring the backend's list. */
-export const PRODUCTION_STATUSES = ["pending", "digitizing", "ready", "stitched"] as const;
+/**
+ * Two states, mirroring the backend's list: a job is either still to do or it
+ * is finished. Waiting first, because that is the queue.
+ */
+export const PRODUCTION_STATUSES = ["waiting", "done"] as const;
 export type ProductionStatus = (typeof PRODUCTION_STATUSES)[number];
 
 export const STATUS_LABEL: Record<ProductionStatus, string> = {
-  pending: "To digitise",
-  digitizing: "Digitising",
-  ready: "Ready to stitch",
-  stitched: "Stitched",
+  waiting: "Waiting",
+  done: "Done",
 };
 
 /** What the operator does next, as a verb — the primary button on each card. */
 const NEXT_ACTION: Record<ProductionStatus, { next: ProductionStatus; label: string } | null> = {
-  pending: { next: "digitizing", label: "Start digitising" },
-  digitizing: { next: "ready", label: "Mark ready" },
-  ready: { next: "stitched", label: "Mark stitched" },
-  stitched: null,
+  waiting: { next: "done", label: "Mark done" },
+  done: null,
 };
 
 export interface ThreadColor {
@@ -296,8 +295,8 @@ export function EmbroideryJobCard({
       </dl>
 
       {/* The digitiser's two fields. Saved on their own rather than with the
-          status: a stitch file usually arrives before the job is marked ready,
-          and a note is worth writing at any stage. */}
+          status: a stitch file usually arrives well before the job is marked
+          done, and a note is worth writing at any point before it. */}
       <div className={styles.jobFields}>
         <label className={styles.jobField}>
           <span className={styles.jobFieldLabel}>Stitch file</span>

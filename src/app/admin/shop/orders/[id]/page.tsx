@@ -29,7 +29,7 @@ interface OrderItem {
     contentType: "text" | "monogram" | "motif";
     text: string;
     motifName: string | null;
-    productionStatus: "pending" | "digitizing" | "ready" | "stitched";
+    productionStatus: "waiting" | "done";
   }>;
 }
 

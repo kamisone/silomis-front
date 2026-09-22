@@ -58,19 +58,14 @@
   white-space: nowrap;
 }
 
-.status_pending {
+/* Amber for work outstanding, grey for work finished. Deliberately not green
+   for `done`: on this page green would compete with the paid/unpaid signal,
+   and a finished job is meant to recede. */
+.status_waiting {
   background: #fef3c7;
   color: #92400e;
 }
-.status_digitizing {
-  background: #dbeafe;
-  color: #1e40af;
-}
-.status_ready {
-  background: #d1fae5;
-  color: #065f46;
-}
-.status_stitched {
+.status_done {
   background: #eef1f4;
   color: #4b5563;
 }
