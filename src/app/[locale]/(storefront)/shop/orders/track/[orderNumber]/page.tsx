@@ -118,7 +118,12 @@ export default function OrderTrackDetailPage() {
   // of the effect keeps the translations out of its dependencies.
   const [throttledFor, setThrottledFor] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<"order" | "messages">("order");
+  // `#messages` is what the "we've replied" email links to, so that mail opens
+  // the conversation rather than the order summary. Read lazily in the
+  // initialiser: `location` does not exist during the server render.
+  const [tab, setTab] = useState<"order" | "messages">(() =>
+    typeof window !== "undefined" && window.location.hash === "#messages" ? "messages" : "order",
+  );
   const [unreadMessages, setUnreadMessages] = useState(0);
 
   // Read before the tab is opened — a badge nobody can see until they click
@@ -171,7 +176,9 @@ export default function OrderTrackDetailPage() {
         // Spent either way: on success the cookie now carries it, and on
         // failure leaving it in the URL only re-runs a request that just
         // failed on every reload.
-        window.history.replaceState(null, "", window.location.pathname);
+        // Keeps the hash: it is what chose the tab, and the email's link
+        // carries both. Only the credential in the query is being spent.
+        window.history.replaceState(null, "", `${window.location.pathname}${window.location.hash}`);
       }
 
       const res = await fetch(
