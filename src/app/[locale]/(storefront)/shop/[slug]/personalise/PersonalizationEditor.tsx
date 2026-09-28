@@ -13,7 +13,8 @@ import { getTranslations, type Locale } from "@/lib/i18n";
 import {
   evaluateDesign, heightBounds, MONOGRAM_MAX_CHARS, DEFAULT_WEIGHT_STEP, WEIGHT_SCALE, weightForStep,
   DEFAULT_OPTIONS, MAX_TEXT_LINES, TRACKING_MIN, TRACKING_MAX, KERNING_LIMIT, CURVE_LIMIT_DEG,
-  MOTIF_MIN_MM, MOTIF_MAX_MM, DEFAULT_FIELD_LIMITS, MAX_ELEMENTS, ARTWORK_MIN_MM, limitsFor, pictureSizeMm,
+  MOTIF_MIN_MM, MOTIF_MAX_MM, MAX_TEXT_CHARS, startingMotifWidthMm, DEFAULT_FIELD_LIMITS, MAX_ELEMENTS, ARTWORK_MIN_MM, limitsFor, pictureSizeMm,
+  LINE_LEADING, lineWidthMm, normalizeLines, DEFAULT_TEXT_HEIGHT_MM,
   type ContentKind, type DesignOptions, type EditorConfig, type EditorEvaluation, type EditorPlacement,
 } from "@/lib/shop/embroidery";
 import { isUsableQuad, type Point, type Quad } from "@/lib/shop/perspective";
@@ -199,10 +200,17 @@ export default function PersonalizationEditor({ locale, config, product, variant
   const newElement = useCallback(
     (placement: EditorPlacement): ElementState => {
       const font = config.fonts[0];
-      // A third of the traced panel's height is a flattering default that
-      // still leaves room to move, rather than a fixed number that overflows
-      // a strap and looks lost on a front panel.
-      const heightMm = Math.min(font?.maxHeightMm ?? 40, Math.max(font?.minHeightMm ?? 8, Math.round(placement.fieldHeightMm * 0.34)));
+      // The same starting height on every position of a catalogue product, so
+      // the placeholder is the same size whichever panel the customer is
+      // looking at. It used to be a third of the position's own panel height,
+      // which is no longer a number anybody maintains — one position opened at
+      // 17mm and its neighbour at 27mm purely because of stale rows.
+      //
+      // A send-in keeps the derived height: there the panel really is the
+      // customer's own item, measured from the photo they sent, and a jacket
+      // back is not a cap front.
+      const startMm = placement.usesCustomerPhoto ? Math.round(placement.fieldHeightMm * 0.34) : DEFAULT_TEXT_HEIGHT_MM;
+      const heightMm = Math.min(font?.maxHeightMm ?? 40, Math.max(font?.minHeightMm ?? 8, startMm));
       return {
         id: nextElementId(),
         raw: "",
@@ -431,29 +439,96 @@ export default function PersonalizationEditor({ locale, config, product, variant
     }
   }, [config.fonts]);
 
-  /** A full-colour design carries its own spools — no colour to pick, none to send. */
+  /**
+   * A full-colour design carries its own spools — no colour to pick, none to
+   * send. Keyed on the design's own flag, not on whether it has shapes: a
+   * one-colour design has shapes too and they are all sewn in the chosen
+   * thread. (`?? paths?.length` for a server that has not been redeployed yet,
+   * where the two questions were still one.)
+   */
   const ownColours = useCallback(
-    (opts: DesignOptions) => opts.contentType === "motif" && !!config.motifs.find((m) => m.key === opts.motifKey)?.paths?.length,
+    (opts: DesignOptions) => {
+      if (opts.contentType !== "motif") return false;
+      const m = config.motifs.find((x) => x.key === opts.motifKey);
+      return !!m && (m.ownColours ?? !!m.paths?.length);
+    },
     [config.motifs],
+  );
+
+  /**
+   * A pull on a lettering box's border.
+   *
+   * Lettering has no width or height of its own to set — both come out of the
+   * letters — so a handle cannot write them the way it writes a picture's. It
+   * writes the control that actually moves that side instead:
+   *
+   * - the corner scales the LETTER HEIGHT, and the width follows, because a
+   *   taller letter is a wider letter;
+   * - the side edge opens or closes the TRACKING, which is the one thing that
+   *   changes a line's width without changing the letters.
+   *
+   * Both are solved absolutely from the size the gesture reports rather than
+   * applied as a step, because the gesture measures from where the drag began
+   * and a per-move increment would compound as the box redraws under it.
+   */
+  const resizeLettering = useCallback(
+    (target: ElementState, size: { widthMm: number; heightMm: number; axis: "x" | "y" | "xy" }) => {
+      const font = config.fonts.find((f) => f.key === target.fontKey) ?? config.fonts[0];
+      if (!font) return;
+      const lines = normalizeLines(target.raw, target.options.contentType, font.uppercaseOnly);
+
+      if (size.axis === "x") {
+        // Width = the letters at this height + one tracking step per gap. One
+        // unknown, so it inverts directly. A single letter has no gaps and
+        // nothing to open, which is why the pull does nothing there.
+        const longest = lines.reduce((a, b) => (b.length > a.length ? b : a), "");
+        const gaps = longest.length - 1;
+        if (gaps < 1) return;
+        const h = target.heightMm;
+        const bare = lineWidthMm({ line: longest, heightMm: h, font, contentType: target.options.contentType, weightStep: target.weightStep, trackingPct: 0, kerning: null });
+        const kernSum = (target.options.kerning ?? []).reduce((sum, k) => sum + k, 0);
+        const tracking = (size.widthMm - bare - kernSum * h) / (gaps * h);
+        patchElement(
+          { options: { ...target.options, trackingPct: Math.round(Math.min(TRACKING_MAX, Math.max(TRACKING_MIN, tracking)) * 100) / 100 } },
+          target.id,
+        );
+        return;
+      }
+
+      // The stack is the lines at this height, spaced by the leading. An arched
+      // line also rises above that, which this ignores: the sagitta depends on
+      // the width, which depends on the height being solved for. The customer is
+      // dragging until it looks right, and the height field stays exact.
+      const lineCount = Math.max(1, lines.length);
+      const leading = lineCount > 1 ? (target.options.leading ?? LINE_LEADING) : 1;
+      const letterHeight = size.heightMm / (lineCount * leading);
+      const clamped = Math.round(Math.min(bounds.max, Math.max(bounds.min, letterHeight)) * 10) / 10;
+      if (clamped !== target.heightMm) patchElement({ heightMm: clamped }, target.id);
+    },
+    [config.fonts, bounds, patchElement],
   );
 
   // ── The design library ───────────────────────────────────────────────
   const [motifCategory, setMotifCategory] = useState<string>("all");
-  /** Categories in first-seen order, "all" first — only those with at least one design. */
+  /* The grid scrolls, so a category switch has to start at its first design
+     rather than wherever the previous category was left. */
+  const motifGridRef = useRef<HTMLDivElement>(null);
+  /**
+   * The tabs, in the shop's own order — admin data, arriving already named in
+   * this language. Only tabs that actually hold a design are shown: an empty
+   * one is a dead end, and the shop can have one mid-set-up without the
+   * customer seeing it.
+   */
   const motifCategories = useMemo(() => {
-    const seen: string[] = [];
-    for (const m of config.motifs) {
-      const cat = m.category ?? "other";
-      if (!seen.includes(cat)) seen.push(cat);
-    }
-    return seen;
-  }, [config.motifs]);
-  const motifCategoryName = useCallback(
-    (cat: string) => (c.motifCategories as Record<string, string>)[cat] ?? cat.charAt(0).toUpperCase() + cat.slice(1),
-    [c.motifCategories],
+    const stocked = new Set(config.motifs.map((m) => m.category).filter(Boolean) as string[]);
+    return (config.motifCategories ?? []).filter((cat) => stocked.has(cat.key));
+  }, [config.motifCategories, config.motifs]);
+  const motifCountFor = useCallback(
+    (key: string) => config.motifs.filter((m) => m.category === key).length,
+    [config.motifs],
   );
   const visibleMotifs = useMemo(
-    () => (motifCategory === "all" ? config.motifs : config.motifs.filter((m) => (m.category ?? "other") === motifCategory)),
+    () => (motifCategory === "all" ? config.motifs : config.motifs.filter((m) => m.category === motifCategory)),
     [config.motifs, motifCategory],
   );
 
@@ -590,7 +665,7 @@ export default function PersonalizationEditor({ locale, config, product, variant
         if (!res.ok) {
           setQuote(null);
           setQuoteState("error");
-          setQuoteError(errorCopy(body?.code, c, body as ErrorDetail, locale) ?? c.errors.generic);
+          setQuoteError(errorCopy(body?.code, c) ?? c.errors.generic);
           return;
         }
         setQuote({ totalCents: body.totalCents });
@@ -614,7 +689,25 @@ export default function PersonalizationEditor({ locale, config, product, variant
 
   // ── Totals ───────────────────────────────────────────────────────────
 
-  const localTotal = chosenKeys.reduce((sum, k) => sum + (evaluations[k]?.priceCents ?? 0), 0);
+  /**
+   * What the embroidery costs so far.
+   *
+   * An evaluation prices a position only once its design is valid, and on the
+   * Positions step nothing has been written yet — so every position evaluated
+   * to `null`, which this read as zero and the bar sat at the bare product
+   * price through the whole step. Ticking a card marked "+€10.00" moved the
+   * total by nothing.
+   *
+   * A position's own price is settled the moment it is chosen: it pays for the
+   * hooping and the run, and no design decision moves it. So a position with
+   * nothing in it yet still contributes that much, and the same fallback keeps
+   * the total steady while a design is mid-edit and briefly unpriceable rather
+   * than dropping it to zero under an error message.
+   */
+  const localTotal = chosenKeys.reduce((sum, k) => {
+    const priced = evaluations[k]?.priceCents;
+    return sum + (priced ?? config.placements.find((p) => p.key === k)?.priceCents ?? 0);
+  }, 0);
   const embroideryCents = quote?.totalCents ?? localTotal;
   const totalCents = variant.priceCents + embroideryCents;
 
@@ -651,13 +744,6 @@ export default function PersonalizationEditor({ locale, config, product, variant
   const canUndo = past.current.length > 0;
   const canRedo = future.current.length > 0;
 
-  /** The largest band is the ceiling — past it there is no price to charge. */
-  const stitchCeiling = useMemo(
-    () => (customerItems ? 0 : config.priceBands.reduce((max, b) => Math.max(max, b.maxStitches), 0)),
-    [config.priceBands, customerItems],
-  );
-  const stitchFill = activeEval && stitchCeiling ? activeEval.stitches / stitchCeiling : 0;
-
   /** The steps this session walks: a send-in skips Positions. */
   const steps = useMemo(() => STEPS.filter((s) => !(locked && s === "positions")), [locked]);
   const stepIndex = steps.indexOf(step);
@@ -674,13 +760,14 @@ export default function PersonalizationEditor({ locale, config, product, variant
       openDrawer();
       return;
     }
-    setAddError(errorCopy(result.code, c, result as ErrorDetail, locale) ?? c.errors.addFailed);
-  }, [addItem, variant.id, payload, openDrawer, c, locale]);
+    setAddError(errorCopy(result.code, c) ?? c.errors.addFailed);
+  }, [addItem, variant.id, payload, openDrawer, c]);
 
   // The preview follows the open tab; with nothing chosen it shows the first
   // position's photo so the page is never a blank rectangle.
   const previewPlacement = activePlacement ?? config.placements[0];
   const previewDesign = activeDesign;
+  /** Only a send-in has one: the panel the customer framed on their own photo. */
   const previewQuad = (previewPlacement?.corners as Quad | undefined) ?? null;
 
   /** Every box of the open position, measured, as the preview draws it. */
@@ -703,7 +790,16 @@ export default function PersonalizationEditor({ locale, config, product, variant
         curveDeg: el.options.curveDeg,
         trackingPct: el.options.trackingPct,
         kerning: el.options.kerning,
-        motif: motif ? { path: motif.path, viewBox: motif.viewBox, sizeMm: el.options.motifSizeMm, heightMm: pictureSizeMm(el.options).heightMm, paths: motif.paths ?? null } : null,
+        motif: motif
+          ? {
+              path: motif.path,
+              viewBox: motif.viewBox,
+              sizeMm: el.options.motifSizeMm,
+              heightMm: pictureSizeMm(el.options).heightMm,
+              paths: motif.paths ?? null,
+              ownColours: motif.ownColours ?? !!motif.paths?.length,
+            }
+          : null,
         artwork:
           el.options.contentType === "artwork" && el.options.artworkUrl
             ? { url: el.options.artworkUrl, widthMm: el.options.artworkSizeMm, heightMm: pictureSizeMm(el.options).heightMm }
@@ -751,29 +847,43 @@ export default function PersonalizationEditor({ locale, config, product, variant
                 onSelectElement={selectElement}
                 onElementChange={(id, patch) => {
                   if (patch.size) {
-                    // A pull on a handle sets the picture's own width and height.
                     const target = activeDesign?.elements.find((x) => x.id === id);
                     if (!target) return;
                     const o = target.options;
-                    const next: Partial<DesignOptions> =
-                      o.contentType === "artwork"
-                        ? { artworkSizeMm: Math.round(patch.size.widthMm), artworkHeightMm: Math.round(patch.size.heightMm) }
-                        : { motifSizeMm: Math.round(patch.size.widthMm), motifHeightMm: Math.round(patch.size.heightMm) };
-                    patchElement({ options: { ...o, ...next } }, id);
+                    // A picture has a width and a height of its own, so a pull
+                    // on a handle sets them directly.
+                    if (o.contentType === "artwork" || o.contentType === "motif") {
+                      const next: Partial<DesignOptions> =
+                        o.contentType === "artwork"
+                          ? { artworkSizeMm: Math.round(patch.size.widthMm), artworkHeightMm: Math.round(patch.size.heightMm) }
+                          : { motifSizeMm: Math.round(patch.size.widthMm), motifHeightMm: Math.round(patch.size.heightMm) };
+                      patchElement({ options: { ...o, ...next } }, id);
+                      return;
+                    }
+                    resizeLettering(target, patch.size);
                     return;
                   }
                   patchElement(patch, id);
                 }}
+                // A send-in's area is the four corners the CUSTOMER framed on
+                // the photo of their own item — the one tracing that survives,
+                // because nobody else can know where that panel is. Null on a
+                // catalogue position, whose area is stated on the row.
+                quadPct={isUsableQuad(previewQuad) ? previewQuad : null}
                 resizeLabel={c.resizeLabel}
                 placeholder={c.previewPlaceholder}
                 logoPlaceholder={c.contentTypes.artwork}
-                quadPct={isUsableQuad(previewQuad) ? previewQuad : null}
                 dragHint={c.dragHint}
                 moveLabel={c.moveLabel}
                 rotateLabel={c.rotateLabel}
-                // Positions and Your design are for editing; Review is for
-                // confirming, so the handles come off there.
-                editable={step !== "review"}
+                // Only Your design is for editing. On Positions the preview is
+                // there to answer "where does it go" — it shows the placeholder
+                // sitting on the panel and nothing else, because the customer
+                // has not been offered a field to write in yet and a box they
+                // can drag before they have typed anything invites them to
+                // arrange text that does not exist. Review is for confirming,
+                // so the handles come off there too.
+                editable={step === "design"}
               />
             )}
 
@@ -852,26 +962,7 @@ export default function PersonalizationEditor({ locale, config, product, variant
                   </span>
                 </div>
 
-                {/* The other limit, and the one that surprises people: a bold
-                    outlined name can take a fifth of the panel and still be
-                    three times the stitches. Without a meter the ceiling only
-                    ever announces itself as a rejection. A customer's own
-                    item has no such ceiling, so no meter either. */}
-                {stitchCeiling > 0 && (
-                <div className={styles.fitRow}>
-                  <div className={styles.fitMeter} role="img" aria-label={c.budgetLabel}>
-                    <div
-                      className={`${styles.fitFill} ${stitchFill > 0.99 ? styles.fitFillOver : ""}`}
-                      style={{ width: `${Math.min(100, stitchFill * 100)}%` }}
-                    />
-                  </div>
-                  <span className={styles.fitText}>
-                    {activeEval.stitches.toLocaleString(locale)} / {stitchCeiling.toLocaleString(locale)}
-                  </span>
-                </div>
-                )}
-
-                {isUsableQuad(previewQuad) && previewDesign && activeElement && (
+                {previewDesign && activeElement && (
                   <div className={styles.orientationRow}>
                     {/* Quarter turns of the open box. Labelled by angle rather
                         than by a word: "across" and "down" only mean anything
@@ -897,7 +988,7 @@ export default function PersonalizationEditor({ locale, config, product, variant
                   </div>
                 )}
 
-                {isUsableQuad(previewQuad) && previewDesign && activeElement && (
+                {previewDesign && activeElement && (
                   <div className={styles.positionRow}>
                     <span className={styles.positionText}>
                       {activeElement.offset.x === 0 && activeElement.offset.y === 0
@@ -971,7 +1062,6 @@ export default function PersonalizationEditor({ locale, config, product, variant
                       <span className={styles.optionCardBody}>
                         <span className={styles.optionCardTitle}>{p.label}</span>
                         {p.hint && <span className={styles.optionCardHint}>{p.hint}</span>}
-                        <span className={styles.optionCardMeta}>{c.upToChars.replace("{n}", String(p.maxChars))}</span>
                       </span>
                       <span className={styles.optionCardRight}>
                         {p.priceCents > 0 && <span className={styles.optionCardPrice}>+€{euros(p.priceCents)}</span>}
@@ -1090,7 +1180,7 @@ export default function PersonalizationEditor({ locale, config, product, variant
                               const m = config.motifs.find((x) => x.key === el.options.motifKey);
                               return m ? (
                                 <svg viewBox={m.viewBox} className={styles.boxThumb} aria-hidden="true">
-                                  {m.paths!.map((sp, i) => <path key={i} d={sp.d} fill={sp.fill} />)}
+                                  {(m.paths ?? []).map((sp, i) => <path key={i} d={sp.d} fill={sp.fill} transform={sp.transform} />)}
                                 </svg>
                               ) : null;
                             })()
@@ -1226,24 +1316,29 @@ export default function PersonalizationEditor({ locale, config, product, variant
                 ) : activeElement.options.contentType === "motif" ? (
                   <>
                     <span className={styles.fieldLabel}>{c.motifTitle}</span>
-                    {motifCategories.length > 1 && (
+                    {motifCategories.length > 0 && (
                       <div className={styles.motifCats} role="tablist" aria-label={c.motifTitle}>
-                        {["all", ...motifCategories].map((cat) => (
+                        {/* "All" is not a tab the shop owns — it is the absence
+                            of a filter, so its label stays ours. */}
+                        {[{ key: "all", name: c.motifCategoryAll }, ...motifCategories].map((cat) => (
                           <button
-                            key={cat}
+                            key={cat.key}
                             type="button"
                             role="tab"
-                            aria-selected={motifCategory === cat}
-                            className={`${styles.motifCat} ${motifCategory === cat ? styles.motifCatActive : ""}`}
-                            onClick={() => setMotifCategory(cat)}
+                            aria-selected={motifCategory === cat.key}
+                            className={`${styles.motifCat} ${motifCategory === cat.key ? styles.motifCatActive : ""}`}
+                            onClick={() => {
+                              setMotifCategory(cat.key);
+                              motifGridRef.current?.scrollTo({ top: 0 });
+                            }}
                           >
-                            {cat === "all" ? c.motifCategoryAll : motifCategoryName(cat)}
-                            <span className={styles.motifCatCount}>{cat === "all" ? config.motifs.length : config.motifs.filter((m) => (m.category ?? "other") === cat).length}</span>
+                            {cat.name}
+                            <span className={styles.motifCatCount}>{cat.key === "all" ? config.motifs.length : motifCountFor(cat.key)}</span>
                           </button>
                         ))}
                       </div>
                     )}
-                    <div className={styles.motifGrid}>
+                    <div className={styles.motifGrid} ref={motifGridRef}>
                       {visibleMotifs.map((m) => (
                         <button
                           key={m.key}
@@ -1251,7 +1346,14 @@ export default function PersonalizationEditor({ locale, config, product, variant
                           className={`${styles.motifCard} ${activeElement.options.motifKey === m.key ? styles.motifCardActive : ""}`}
                           onClick={() => {
                             const [, , vw, vh] = m.viewBox.split(/\s+/).map(Number);
-                            patchOptions({ motifKey: m.key, motifAspect: (vh || 100) / (vw || 100), motifHeightMm: null });
+                            const aspect = (vh || 100) / (vw || 100);
+                            // A design does not always fit at the usual 30mm:
+                            // a wide one is under the machine's 15mm minimum on
+                            // its short side long before its width runs out. It
+                            // opens at a width where both sides are stitchable,
+                            // so picking a shape never lands on an error.
+                            const widthMm = startingMotifWidthMm(aspect, activeLimits.maxHeightMm) ?? activeElement.options.motifSizeMm;
+                            patchOptions({ motifKey: m.key, motifAspect: aspect, motifSizeMm: widthMm, motifHeightMm: null });
                           }}
                           aria-pressed={activeElement.options.motifKey === m.key}
                           title={m.name}
@@ -1259,7 +1361,12 @@ export default function PersonalizationEditor({ locale, config, product, variant
                           {/* The catalogue is admin-authored, so the path goes
                               on a `d` attribute — never injected as markup. */}
                           <svg viewBox={m.viewBox} className={styles.motifSvg} aria-hidden="true">
-                            {m.paths?.length ? m.paths.map((sp, i) => <path key={i} d={sp.d} fill={sp.fill} />) : <path d={m.path} fill="currentColor" />}
+                            {/* Drawn the way it is sewn: its own fills when it
+                                keeps them, otherwise every shape in one colour,
+                                which is what a chosen spool does to it. */}
+                            {m.paths?.length
+                              ? m.paths.map((sp, i) => <path key={i} d={sp.d} fill={(m.ownColours ?? true) ? sp.fill : "currentColor"} transform={sp.transform} />)
+                              : <path d={m.path} fill="currentColor" />}
                           </svg>
                           <span className={styles.motifName}>{m.name}</span>
                         </button>
@@ -1282,11 +1389,7 @@ export default function PersonalizationEditor({ locale, config, product, variant
                       onChange={(e) => patchElement({ raw: e.target.value })}
                       placeholder={activeElement.options.contentType === "monogram" ? c.monogramPlaceholder : c.textPlaceholder}
                       rows={Math.min(MAX_TEXT_LINES, Math.max(1, activeElementEval.lines.length))}
-                      maxLength={
-                        activeElement.options.contentType === "monogram"
-                          ? MONOGRAM_MAX_CHARS + 2
-                          : (activePlacement.maxChars + 4) * MAX_TEXT_LINES
-                      }
+                      maxLength={activeElement.options.contentType === "monogram" ? MONOGRAM_MAX_CHARS + 2 : MAX_TEXT_CHARS}
                       autoComplete="off"
                       autoCapitalize={activeFont.uppercaseOnly ? "characters" : "words"}
                       spellCheck={false}
@@ -1295,8 +1398,9 @@ export default function PersonalizationEditor({ locale, config, product, variant
                     />
                     <div className={styles.fieldFooter} id="personalize-text-help">
                       <span className={styles.charCount}>
-                        {activeElementEval.lines.reduce((n, l) => Math.max(n, l.length), 0)} /{" "}
-                        {activeElement.options.contentType === "monogram" ? MONOGRAM_MAX_CHARS : activePlacement.maxChars}
+                        {activeElement.options.contentType === "monogram"
+                          ? `${activeElementEval.lines.reduce((n, l) => Math.max(n, l.length), 0)} / ${MONOGRAM_MAX_CHARS}`
+                          : activeElementEval.lines.reduce((n, l) => Math.max(n, l.length), 0)}
                       </span>
                       <span className={styles.fieldNote}>
                         {activeElement.options.contentType === "monogram"
@@ -1751,7 +1855,7 @@ export default function PersonalizationEditor({ locale, config, product, variant
                           </strong>
                           <p className={styles.reviewMeta}>
                             {motif ? `${el.options.motifSizeMm} mm` : `${font.name} · ${c.weightLabels[el.weightStep - 1]} · ${el.heightMm} mm`}
-                            {motif?.paths?.length ? ` · ${c.ownColours}` : ` · ${thread?.name ?? ""}`}
+                            {motif && (motif.ownColours ?? !!motif.paths?.length) ? ` · ${c.ownColours}` : ` · ${thread?.name ?? ""}`}
                             {el.rotationDeg !== 0 && ` · ${displayAngle(el.rotationDeg)}°`}
                           </p>
                         </div>
@@ -1892,8 +1996,6 @@ function errorCopyForCode(code: string, placement: EditorPlacement, c: Copy, nam
   };
   switch (code) {
     // No `empty` case: nothing written yet is handled as a nudge, not an error.
-    case "tooLong":
-      return where(c.errors.tooLong.replace("{n}", String(placement.maxChars)));
     case "unstitchable":
       return where(c.errors.unstitchable);
     case "monogramLength":
@@ -1906,30 +2008,17 @@ function errorCopyForCode(code: string, placement: EditorPlacement, c: Copy, nam
       return where(c.errors.tooManyLines.replace("{n}", String(MAX_TEXT_LINES)));
     case "tooManyBoxes":
       return where(c.errTooManyBoxes.replace("{n}", String(MAX_ELEMENTS)));
-    case "tooManyColors":
-      return where(c.errors.tooManyColors.replace("{n}", String(placement.maxColors)));
-    case "tooManyStitches":
-      return where(c.errors.tooManyStitches);
-    // (the detailed version, with counts and a suggestion, comes from the
-    //  server's own reply — see errorCopy below)
+    case "motifSize":
+      return where(c.errors.motifSize.replace("{min}", String(MOTIF_MIN_MM)).replace("{max}", String(MOTIF_MAX_MM)));
     default:
       return where(c.errors.generic);
   }
 }
 
-/** The server's reply for a rejected design, when it carried detail. */
-interface ErrorDetail {
-  stitchEstimate?: number;
-  maxStitches?: number;
-  relax?: "outline" | "puff" | "weight" | "curve" | null;
-}
-
-function errorCopy(code: string | undefined, c: Copy, detail?: ErrorDetail, locale?: string): string | null {
+function errorCopy(code: string | undefined, c: Copy): string | null {
   switch (code) {
     case "PERSONALIZATION_TEXT_EMPTY":
       return c.errors.empty;
-    case "PERSONALIZATION_TEXT_TOO_LONG":
-      return c.errors.tooLongGeneric;
     case "PERSONALIZATION_TEXT_UNSTITCHABLE":
       return c.errors.unstitchable;
     case "PERSONALIZATION_TEXT_BLOCKED":
@@ -1940,29 +2029,6 @@ function errorCopy(code: string | undefined, c: Copy, detail?: ErrorDetail, loca
       return c.errors.heightRange;
     case "PERSONALIZATION_TOO_WIDE":
       return c.errors.tooWide;
-    case "PERSONALIZATION_TOO_MANY_COLORS":
-      return c.errors.tooManyColorsGeneric;
-    case "PERSONALIZATION_TOO_MANY_STITCHES": {
-      // Counts and a way out, rather than "too large": the ceiling is machine
-      // time, and the customer cannot see it without being told the numbers.
-      const base =
-        detail?.stitchEstimate && detail?.maxStitches
-          ? c.errors.tooManyStitches
-              .replace("{n}", detail.stitchEstimate.toLocaleString(locale))
-              .replace("{max}", detail.maxStitches.toLocaleString(locale))
-          : c.errors.tooManyStitches.replace("{n}", "—").replace("{max}", "—");
-      const hint =
-        detail?.relax === "outline"
-          ? c.relaxOutline
-          : detail?.relax === "puff"
-            ? c.relaxPuff
-            : detail?.relax === "weight"
-              ? c.relaxWeight
-              : detail?.relax === "curve"
-                ? c.relaxCurve
-                : null;
-      return hint ? `${base} ${hint}` : base;
-    }
     case "PERSONALIZATION_TOO_TALL":
       return c.errors.tooTall;
     case "PERSONALIZATION_TOO_MANY_LINES":
@@ -1973,8 +2039,9 @@ function errorCopy(code: string | undefined, c: Copy, detail?: ErrorDetail, loca
       return c.puffUnavailable;
     case "PERSONALIZATION_CURVE_UNAVAILABLE":
       return c.errors.unavailable;
-    case "PERSONALIZATION_MOTIF_UNKNOWN":
     case "PERSONALIZATION_MOTIF_SIZE":
+      return c.errors.motifSize.replace("{min}", String(MOTIF_MIN_MM)).replace("{max}", String(MOTIF_MAX_MM));
+    case "PERSONALIZATION_MOTIF_UNKNOWN":
       return c.errors.unavailable;
     case "PERSONALIZATION_NOT_AVAILABLE":
     case "PERSONALIZATION_PLACEMENT_UNKNOWN":

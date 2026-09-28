@@ -57,8 +57,56 @@ export const KERNING_LIMIT = 0.4;
 export const CURVE_LIMIT_DEG = 160;
 export const PUFF_STITCH_FACTOR = 1.35;
 export const CURVE_STITCH_FACTOR = 1.08;
+/**
+ * A rail on the text field, not a limit on the design: it stops a pathological
+ * paste, and matches the DTO's own `z.string().max(200)`. What a position
+ * actually holds is decided by measuring the design and fitting a hoop round
+ * it — a character count could only ever disagree with that.
+ */
+export const MAX_TEXT_CHARS = 200;
+
+/**
+ * The letter height a new box starts at, in millimetres.
+ *
+ * It used to be a third of the position's own `fieldHeightMm`, which read well
+ * while that was a real measurement an admin kept current. It is not one any
+ * more — the panel is a constant and the tracing carries the meaning — so
+ * deriving from it only reproduced whatever number happened to be in the row,
+ * and two positions on the same cap opened their placeholder at wildly
+ * different sizes. One number, the same on every position.
+ */
+export const DEFAULT_TEXT_HEIGHT_MM = 17;
+
 export const MOTIF_MIN_MM = 15;
 export const MOTIF_MAX_MM = 120;
+
+/**
+ * The widths a design of this shape may be stitched at.
+ *
+ * BOTH sides have to land in range, and only the width is chosen — the height
+ * follows the drawing's proportion. So a wide design has a *higher* minimum
+ * width than a square one: at 5:1, 30mm wide is 6mm tall, under the 15mm the
+ * machine can hold. Mirrors the server's two checks in `resolveMotif`.
+ */
+export function motifWidthBounds(aspect: number, maxHeightMm = MOTIF_MAX_MM): { min: number; max: number } {
+  const a = aspect > 0 ? aspect : 1;
+  const heightCeiling = Math.max(MOTIF_MAX_MM, maxHeightMm);
+  return {
+    min: Math.max(MOTIF_MIN_MM, MOTIF_MIN_MM / a),
+    max: Math.min(MOTIF_MAX_MM, heightCeiling / a),
+  };
+}
+
+/**
+ * The width to start a design at: the usual 30mm, moved just inside the bounds
+ * when its proportion will not allow that. Returns null when no width works at
+ * all — a ratio past about 8:1, which the admin upload refuses.
+ */
+export function startingMotifWidthMm(aspect: number, maxHeightMm = MOTIF_MAX_MM): number | null {
+  const { min, max } = motifWidthBounds(aspect, maxHeightMm);
+  if (min > max) return null;
+  return Math.round(Math.min(Math.max(30, min), max));
+}
 /** Lines cannot touch across rows; the sheet uses the same figure. */
 export const LINE_LEADING = 1.35;
 /**
@@ -147,9 +195,27 @@ export interface EditorMotif {
   name: string;
   path: string;
   viewBox: string;
-  /** A full-colour design's shapes, each in its own colour; null for a one-spool silhouette. */
-  paths?: { d: string; fill: string }[] | null;
+  /**
+   * The design's shapes, in drawing order. `transform` is set when the uploaded
+   * artwork placed the shape with one — it goes straight onto the `<path>`, the
+   * same as the server's own rendering. Null for the older seeded designs,
+   * which are `path` and nothing else.
+   */
+  paths?: { d: string; fill: string; transform?: string }[] | null;
+  /**
+   * Sewn in the fills `paths` carries, rather than in a spool the customer
+   * picks. Not the same question as "does it have shapes": a one-colour design
+   * has shapes too, and they all get stitched in the chosen thread.
+   */
+  ownColours?: boolean;
+  /** The key of the tab it sits under, or null for one that only shows under "All". */
   category: string | null;
+}
+
+/** One tab in the design library, named by the server in the customer's language. */
+export interface EditorMotifCategory {
+  key: string;
+  name: string;
 }
 
 export const MONOGRAM_MIN_CHARS = 2;
@@ -185,8 +251,6 @@ export interface EditorPlacement {
    */
   fieldWidthMm: number;
   fieldHeightMm: number;
-  maxColors: number;
-  maxChars: number;
   /** What this position costs, before the stitch-count band. */
   priceCents: number;
   /** Whether a frame here can take the height of foam. */
@@ -197,7 +261,8 @@ export interface EditorPlacement {
   usesCustomerPhoto?: boolean;
   /** The panel traced on that photo, or null while only the flat box exists. */
   corners: { x: number; y: number }[] | null;
-  preview: { xPct: number; yPct: number; widthPct: number; heightPct: number; rotateDeg: number };
+  /** Where the embroidery area sits on this position's photo, as a share of it. */
+  preview: { xPct: number; yPct: number; widthPct: number; heightPct: number };
 }
 
 export interface EditorThread {
@@ -225,6 +290,11 @@ export interface EditorConfig {
   fonts: EditorFont[];
   threads: EditorThread[];
   motifs: EditorMotif[];
+  /**
+   * The library's tabs, in the shop's order. Admin data, so the labels arrive
+   * translated rather than being looked up against a compiled-in list.
+   */
+  motifCategories?: EditorMotifCategory[];
   /** The machine's largest frame — what every box, and the hoop round them, must fit. */
   fieldLimits?: FieldLimits;
   priceBands: EditorPriceBand[];
@@ -309,9 +379,17 @@ export function estimateStitches(args: {
   return Math.ceil(glyphStitches + borderStitches + colorStitches + STITCH_BASE_OVERHEAD);
 }
 
-/** The first band the estimate fits in, or null when it is past the largest. */
+/**
+ * The first band the estimate fits in.
+ *
+ * The top band is open-ended: a design past it is priced there rather than
+ * refused, because the customer decides how much goes on their item and no
+ * stitch count is turned away. Null only when the ladder is empty, which the
+ * server does not allow — a template always has at least one band.
+ */
 export function resolveBand(stitches: number, bands: EditorPriceBand[]): EditorPriceBand | null {
-  return [...bands].sort((a, b) => a.maxStitches - b.maxStitches).find((b) => stitches <= b.maxStitches) ?? null;
+  const ladder = [...bands].sort((a, b) => a.maxStitches - b.maxStitches);
+  return ladder.find((b) => stitches <= b.maxStitches) ?? ladder[ladder.length - 1] ?? null;
 }
 
 /**
@@ -445,14 +523,12 @@ export function stackHeightMm(args: {
 
 export type ValidationCode =
   | "empty"
-  | "tooLong"
   | "unstitchable"
   | "monogramLength"
   | "tooWide"
   | "tooTall"
   | "tooManyLines"
-  | "tooManyColors"
-  | "tooManyStitches"
+  | "motifSize"
   | "tooManyBoxes";
 
 /** One box, measured. */
@@ -563,6 +639,14 @@ export function evaluateElement(args: {
     if (!options.artworkKey) return invalid("empty");
   } else if (contentType === "motif") {
     if (!options.motifKey) return invalid("empty");
+    // Both sides of a shape have to be stitchable. Mirrored from the server so
+    // the customer gets told which way it will not fit, instead of the server's
+    // catch-all "that option is no longer available".
+    const picture = pictureSizeMm(options);
+    const ceiling = placement.usesCustomerPhoto ? Math.min(limits.maxWidthMm, limits.maxHeightMm) : MOTIF_MAX_MM;
+    const heightCeiling = Math.max(ceiling, limits.maxHeightMm);
+    if (picture.widthMm < MOTIF_MIN_MM || picture.widthMm > ceiling) return invalid("motifSize");
+    if (picture.heightMm < MOTIF_MIN_MM || picture.heightMm > heightCeiling) return invalid("motifSize");
   } else {
     if (!lines.length) return invalid("empty");
     if (lines.length > MAX_TEXT_LINES) return invalid("tooManyLines");
@@ -572,7 +656,6 @@ export function evaluateElement(args: {
         if (line.length < MONOGRAM_MIN_CHARS || line.length > MONOGRAM_MAX_CHARS) return invalid("monogramLength");
         if (!STITCHABLE_MONOGRAM.test(line)) return invalid("unstitchable");
       } else {
-        if (line.length > placement.maxChars) return invalid("tooLong");
         if (!STITCHABLE_TEXT.test(line)) return invalid("unstitchable");
       }
     }
@@ -618,8 +701,9 @@ export function evaluateDesign(args: {
   const threadCount = threads.size;
 
   const stitches = elements.reduce((sum, el) => sum + el.stitches, 0) + Math.max(0, threadCount - 1) * STITCHES_PER_COLOR_CHANGE;
-  // A customer's own item is priced flat and has no stitch ceiling — the
-  // customer puts on it what they like. Mirrors the server.
+  // A customer's own item is priced flat; a catalogue item is priced by band,
+  // and the top band is open-ended. Either way the stitch count stops nothing —
+  // the customer puts on it what they like. Mirrors the server.
   const band = placement.usesCustomerPhoto ? { maxStitches: Number.POSITIVE_INFINITY, priceCents: 0, label: "" } : resolveBand(stitches, bands);
   const text = elements.map((el) => el.text).filter(Boolean).join("\n");
   const base = { elements, text, stitches, band, threadCount, hoop };
@@ -633,22 +717,19 @@ export function evaluateDesign(args: {
   if (!elements.length || elements.length > MAX_ELEMENTS) return invalid("tooManyBoxes");
   const broken = elements.findIndex((el) => el.error);
   if (broken >= 0) return invalid(elements[broken].error!, broken);
-  if (threadCount > placement.maxColors) return invalid("tooManyColors");
   // Boxes far apart need a hoop the machine does not have, however small each is.
   if (hoop.widthMm > limits.maxWidthMm) return invalid("tooWide");
   if (hoop.heightMm > limits.maxHeightMm) return invalid("tooTall");
-  if (!band) return invalid("tooManyStitches");
 
   // A customer's own item is a flat fee per side — the position's price is the
   // item type's, and the design never moves it. Mirrors the server, which
-  // still refuses a design past the largest band (checked above) but charges
-  // only the side.
+  // charges only the side.
   if (placement.usesCustomerPhoto) return { ...base, priceCents: placement.priceCents, error: null, errorElement: null };
 
   // Band covers machine time, the position covers the hooping and the run, and
   // a slow thread multiplies the first — the dearest spool on the hoop decides.
   const multiplier = Math.max(1, ...[...threads.values()].map((t) => t.priceMultiplier ?? 1));
-  const priceCents = Math.round(band.priceCents * multiplier) + placement.priceCents;
+  const priceCents = Math.round((band?.priceCents ?? 0) * multiplier) + placement.priceCents;
   return { ...base, priceCents, error: null, errorElement: null };
 }
 

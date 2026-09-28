@@ -155,7 +155,6 @@ export default function SendInWizard({ locale, config, editorConfig }: Props) {
           hint: null,
           imageUrl: sd.url,
           corners: item.corners,
-          maxChars: type.maxChars,
           allowPuff: base.allowPuff && type.allowPuff,
           // Handling and return, charged per side — the server adds the same.
           priceCents: type.priceCents,

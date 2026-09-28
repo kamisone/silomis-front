@@ -1988,11 +1988,22 @@
 
 /* ── Motifs ───────────────────────────────────────────────────────────────
    Shown as solid silhouettes at the size they read at, because that is what a
-   shape looks like once it is stitched — fine line art disappears. */
+   shape looks like once it is stitched — fine line art disappears.
+
+   The library runs to dozens of designs, so the grid is a short scroller: it
+   keeps the panels below it (size, colour, position) within reach instead of
+   pushing them a screen away. The height cuts through a row on purpose — a
+   half-visible card is what tells you there is more to scroll. */
 .motifGrid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(82px, 1fr));
   gap: 8px;
+  max-height: 220px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* Room for the focus ring and the active border, which sit outside the card. */
+  padding: 2px;
+  scrollbar-gutter: stable;
 }
 
 .motifCard {

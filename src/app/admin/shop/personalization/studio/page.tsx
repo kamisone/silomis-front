@@ -1,13 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Check, Loader2, Plus, Trash2, AlertTriangle, ImageOff, ChevronDown, Crosshair } from "lucide-react";
+import { Plus, Trash2, AlertTriangle, ImageOff, ChevronDown, Crosshair } from "lucide-react";
 import { api } from "@/lib/api";
 import MediaPicker from "@/components/admin/ui/MediaPicker";
 import ProductPicker from "@/components/admin/shop/ProductPicker";
 import LocalizedTextField, { type LocalizedTextMap } from "@/components/admin/ui/LocalizedTextField";
-import PlacementTraceEditor from "@/components/admin/shop/PlacementTraceEditor";
-import { isUsableQuad, defaultQuad, type Quad } from "@/lib/shop/perspective";
 import PriceBandEditor from "@/components/admin/shop/PriceBandEditor";
 import ui from "@/components/admin/ui/admin-ui.module.css";
 import styles from "./studio.module.css";
@@ -21,14 +19,11 @@ interface Placement {
   hint: LocalizedTextMap | null;
   fieldWidthMm: number;
   fieldHeightMm: number;
-  maxColors: number;
-  maxChars: number;
   priceCents: number;
   isActive: boolean;
   sortOrder: number;
   mediaKey: string | null;
   imageUrl: string | null;
-  isTraced: boolean;
   corners: { x: number; y: number }[];
 }
 
@@ -281,16 +276,6 @@ function PlacementCard({
   onRemove: () => void;
   saving: boolean;
 }) {
-  const [draftQuad, setDraftQuad] = useState<Quad | null>(null);
-
-  // A saved tracing reopens where it was left; an untraced position starts from
-  // the default box so there is something to drag.
-  useEffect(() => setDraftQuad(null), [p.id, p.mediaKey]);
-
-  const savedQuad = p.isTraced ? (p.corners as Quad) : null;
-  const quad = draftQuad ?? savedQuad;
-  const dirty = draftQuad !== null && JSON.stringify(draftQuad) !== JSON.stringify(savedQuad);
-
   return (
     <article className={`${styles.placementCard} ${p.isActive ? "" : styles.placementCardOff}`}>
       <header className={styles.placementHead}>
@@ -306,8 +291,8 @@ function PlacementCard({
           <div>
             <strong className={styles.placementName}>{p.label.en ?? p.key}</strong>
             <span className={styles.placementSub}>
-              <code className={ui.codeChip}>{p.key}</code> €{eur(p.priceCents)} · panel {p.fieldWidthMm}×{p.fieldHeightMm}mm
-              {p.isTraced ? " · traced" : p.imageUrl ? " · not traced" : " · no photo"}
+              <code className={ui.codeChip}>{p.key}</code> €{eur(p.priceCents)}
+              {p.imageUrl ? "" : " · no photo — not offered"}
             </span>
           </div>
         </div>
@@ -351,8 +336,6 @@ function PlacementCard({
 
           <div className={styles.numberGrid}>
             <NumberField label="Price (€)" value={p.priceCents / 100} step={0.5} onCommit={(v) => onPatch({ priceCents: Math.round(v * 100) })} />
-            <NumberField label="Max colours" value={p.maxColors} onCommit={(v) => onPatch({ maxColors: Math.round(v) })} />
-            <NumberField label="Max characters" value={p.maxChars} onCommit={(v) => onPatch({ maxChars: Math.round(v) })} />
           </div>
 
           <MediaPicker
@@ -363,69 +346,7 @@ function PlacementCard({
             onChange={(key) => onPatch({ mediaKey: key })}
           />
 
-          {p.imageUrl ? (
-            <>
-              {/* The customer places text boxes freely and the hoop is fitted
-                  round them. What the shop still has to say is how big the
-                  panel it traced really is — that is what puts millimetres
-                  onto the photograph at scale, and what bounds how far a box
-                  may travel over it. */}
-              <div className={styles.calibration}>
-                <div className={styles.calibrationText}>
-                  <strong>Real size of the traced area</strong>
-                  <span>
-                    Measure the panel you trace below, in millimetres. This only sets the photo&apos;s scale — the hoop is
-                    fitted round whatever the customer places.
-                  </span>
-                </div>
-                <div className={styles.calibrationFields}>
-                  <NumberField label="Width (mm)" value={p.fieldWidthMm} onCommit={(v) => onPatch({ fieldWidthMm: v })} />
-                  <NumberField label="Height (mm)" value={p.fieldHeightMm} onCommit={(v) => onPatch({ fieldHeightMm: v })} />
-                </div>
-              </div>
-              <PlacementTraceEditor
-                imageUrl={p.imageUrl}
-                quad={quad}
-                onChange={setDraftQuad}
-                fieldWidthMm={p.fieldWidthMm}
-                fieldHeightMm={p.fieldHeightMm}
-                sampleText="Maria"
-                sampleFontFamily='"Snell Roundhand", "Brush Script MT", cursive'
-                disabled={saving}
-              />
-
-              <div className={styles.traceActions}>
-                <span className={styles.traceStatus}>
-                  {savedQuad
-                    ? "Traced — the storefront draws the embroidery in perspective"
-                    : "Not traced — the storefront falls back to a flat box"}
-                </span>
-                <div className={styles.traceButtons}>
-                  {dirty && (
-                    <button type="button" className={styles.ghostBtn} onClick={() => setDraftQuad(null)} disabled={saving}>
-                      Revert
-                    </button>
-                  )}
-                  {!savedQuad && !draftQuad && (
-                    <button type="button" className={styles.ghostBtn} onClick={() => setDraftQuad(defaultQuad())}>
-                      Start tracing
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    className={styles.primaryBtn}
-                    onClick={() => quad && onPatch({ corners: quad }).then(() => setDraftQuad(null))}
-                    disabled={saving || !quad || !isUsableQuad(quad) || (!dirty && !!savedQuad)}
-                  >
-                    {saving ? <Loader2 size={14} className={styles.spin} aria-hidden="true" /> : <Check size={14} aria-hidden="true" />}
-                    Save tracing
-                  </button>
-                </div>
-              </div>
-            </>
-          ) : (
-            <p className={ui.muted}>Choose a photo to trace the embroidery area on it.</p>
-          )}
+          {!p.imageUrl && <p className={ui.muted}>A position needs a photo before it can be offered.</p>}
         </div>
       )}
     </article>

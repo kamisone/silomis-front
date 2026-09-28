@@ -1,0 +1,529 @@
+/* ── Tabs ─────────────────────────────────────────────────────────────────
+   Folded away by default: a shop sets its tabs up once, then spends its time on
+   the designs. It stays above the grid rather than moving to its own screen,
+   because "which tab does this go under" is asked while looking at designs. */
+.panel {
+  border-radius: 14px;
+  border: 1px solid var(--field-border, #e2e6eb);
+  background: var(--background);
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+
+.panelHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+}
+
+.panelTitle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 3px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-secondary);
+}
+
+.panelHint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-muted, #6b7280);
+  max-width: 62ch;
+}
+
+.panelBody {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0 16px 16px;
+  border-top: 1px solid var(--field-border, #e2e6eb);
+  padding-top: 14px;
+}
+
+/* Closed, the panel still answers the only question it is asked at a glance:
+   what the tabs are, in what order, and how full each one is. */
+.chipRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 16px 14px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px 4px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--field-border, #e2e6eb);
+  background: var(--color-surface-tint);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-secondary);
+}
+
+.chipOff {
+  opacity: 0.5;
+}
+
+.chipCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: rgb(16 24 40 / 8%);
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
+.tabRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px;
+  border-radius: 11px;
+  border: 1px solid var(--field-border, #e2e6eb);
+  background: var(--color-surface-tint);
+  flex-wrap: wrap;
+}
+
+.tabRowOff {
+  opacity: 0.6;
+}
+
+.tabField {
+  flex: 1;
+  min-width: 260px;
+}
+
+.tabActions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  padding-top: 20px;
+}
+
+.tabCount {
+  font-size: 11px;
+  color: var(--color-muted, #6b7280);
+  margin-right: 4px;
+  white-space: nowrap;
+}
+
+.tabAdd {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  padding: 12px 10px;
+  border-radius: 11px;
+  border: 1.5px dashed var(--color-primary);
+  background: var(--color-surface-tint);
+  flex-wrap: wrap;
+}
+
+.tabAdd > *:first-child {
+  flex: 1;
+  min-width: 260px;
+}
+
+/* ── Uploading ────────────────────────────────────────────────────────────
+   The preview is the parsed shapes, not the file: they differ exactly when
+   something in the artwork cannot be stitched, which is when it matters. */
+.upload {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.uploadRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fileBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 14px;
+  border-radius: 9px;
+  border: 1px solid var(--field-border, #e2e6eb);
+  background: var(--background);
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--color-secondary);
+  cursor: pointer;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fileBtn:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.fileInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.parsed {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 12px;
+  border-radius: 11px;
+  border: 1px solid var(--field-border, #e2e6eb);
+  background: var(--background);
+}
+
+/* A chequerboard, so a white shape is visible and a missing one is obvious. */
+.parsedArt {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 88px;
+  height: 88px;
+  flex-shrink: 0;
+  border-radius: 9px;
+  background-color: #fff;
+  background-image:
+    linear-gradient(45deg, rgb(16 24 40 / 7%) 25%, transparent 25%, transparent 75%, rgb(16 24 40 / 7%) 75%),
+    linear-gradient(45deg, rgb(16 24 40 / 7%) 25%, transparent 25%, transparent 75%, rgb(16 24 40 / 7%) 75%);
+  background-size: 12px 12px;
+  background-position: 0 0, 6px 6px;
+  box-shadow: inset 0 0 0 1px rgb(16 24 40 / 12%);
+}
+
+.parsedMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--color-muted, #6b7280);
+  min-width: 0;
+}
+
+.parsedMeta strong {
+  font-size: 13px;
+  color: var(--color-secondary);
+}
+
+.parsedNote {
+  font-size: 11.5px;
+  font-style: italic;
+}
+
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 2px 0;
+}
+
+.swatch {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  box-shadow: inset 0 0 0 1px rgb(16 24 40 / 22%);
+}
+
+/* ── Add / edit ───────────────────────────────────────────────────────── */
+.addCard {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+  margin-bottom: 16px;
+  border-radius: 14px;
+  border: 1.5px dashed var(--color-primary);
+  background: var(--color-surface-tint);
+}
+
+.addFields {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.fieldRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+
+.addActions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.editCard {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+}
+
+.editHead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.editArt {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  background: var(--background);
+  box-shadow: inset 0 0 0 1px rgb(16 24 40 / 12%);
+}
+
+.editHeadMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.editHeadMeta strong {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 12px;
+  color: var(--color-secondary);
+}
+
+/* ── The library ──────────────────────────────────────────────────────────
+   A grid of shapes, because a design is recognised by looking at it — the name
+   is the confirmation, not the identifier. */
+.grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 8px;
+}
+
+.card {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 9px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--field-border, #e2e6eb);
+  background: var(--background);
+  min-width: 0;
+}
+
+/* Hidden from customers, not deleted — dimmed but readable, because an admin
+   comes back to it when the design is back in season. */
+.cardOff {
+  opacity: 0.55;
+}
+
+/* An open editor takes the full row: it holds seven language tabs and a file
+   picker, none of which fit a 230px column. */
+.cardEditing {
+  grid-column: 1 / -1;
+  align-items: stretch;
+  border-color: var(--color-primary);
+  background: var(--color-surface-tint);
+  padding: 14px;
+}
+
+.artBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  flex-shrink: 0;
+  padding: 4px;
+  border-radius: 10px;
+  border: none;
+  background: var(--color-surface-tint);
+  color: var(--color-secondary);
+  cursor: pointer;
+  transition: transform 0.12s ease, background 0.12s ease;
+}
+.artBtn:hover {
+  transform: scale(1.05);
+  background: var(--background);
+  box-shadow: inset 0 0 0 1px var(--color-primary);
+}
+
+.art {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.cardMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+
+.cardName {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cardSub {
+  font-size: 11px;
+  color: var(--color-muted, #6b7280);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cardActions {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.activeToggle {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 3px;
+  cursor: pointer;
+}
+
+.activeToggle input {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+}
+
+/* ── Controls ─────────────────────────────────────────────────────────── */
+.searchWrap {
+  position: relative;
+  flex: 1;
+  min-width: 180px;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-muted, #6b7280);
+  pointer-events: none;
+}
+
+.searchWrap input {
+  padding-left: 34px;
+  width: 100%;
+}
+
+.filterSelect {
+  min-width: 180px;
+}
+
+.primaryBtn,
+.ghostBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 15px;
+  border-radius: 9px;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.primaryBtn {
+  background: var(--color-primary);
+  color: #fff;
+}
+.primaryBtn:hover:not(:disabled) {
+  opacity: 0.9;
+}
+.primaryBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.ghostBtn {
+  background: var(--background);
+  border-color: var(--field-border, #e2e6eb);
+  color: var(--color-secondary);
+}
+.ghostBtn:hover {
+  border-color: var(--color-primary);
+}
+
+.iconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  border: 1px solid var(--field-border, #e2e6eb);
+  background: var(--background);
+  color: var(--color-muted, #6b7280);
+  cursor: pointer;
+}
+.iconBtn:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+.iconBtn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.spin {
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    animation: none;
+  }
+  .artBtn {
+    transition: none;
+  }
+  .artBtn:hover {
+    transform: none;
+  }
+}

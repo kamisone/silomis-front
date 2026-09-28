@@ -22,13 +22,12 @@ interface Template {
 /**
  * What embroidery costs, by stitch count.
  *
- * Two things make this worth its own panel rather than a row in a settings
- * page. Stitches are the honest unit — machine time, not letters — so the
- * ladder is what actually prices the feature. And the largest band doubles as
- * a hard ceiling: a design past it has no price, so it is refused. That second
- * job is invisible until a shop turns on options that multiply stitch counts,
- * at which point designs that fit the panel with room to spare start coming
- * back as "too many stitches".
+ * Stitches are the honest unit — machine time, not letters — so this ladder is
+ * what actually prices the feature. Nothing here refuses a design: the largest
+ * band is open-ended, and anything past it is charged there. A shop that does
+ * not want a very heavy job sold at the Large price adds a band above it,
+ * which is the only lever, and it is deliberate rather than a rejection the
+ * customer runs into.
  */
 export default function PriceBandEditor() {
   const [template, setTemplate] = useState<Template | null>(null);
@@ -87,8 +86,8 @@ export default function PriceBandEditor() {
             <TrendingUp size={15} aria-hidden="true" /> Embroidery pricing
           </h2>
           <p className={styles.sub}>
-            Priced by stitch count, because that is machine time. Anything above{" "}
-            <strong>{ceiling.toLocaleString()} stitches</strong> is refused — there is no price for it.
+            Priced by stitch count, because that is machine time. The top band is open-ended: anything above{" "}
+            <strong>{ceiling.toLocaleString()} stitches</strong> is charged at that band.
           </p>
         </div>
         <button type="button" className={styles.ghostBtn} onClick={() => setOpen((v) => !v)}>
@@ -175,8 +174,9 @@ export default function PriceBandEditor() {
 
           <p className={styles.note}>
             Thickness, outline, 3D puff and curve all multiply the stitch count — extra bold with an outline is about
-            two and a half times the plain design. If customers are being refused on designs that clearly fit, this
-            ceiling is why.
+            two and a half times the plain design. A design that turns those on can sit well inside the panel and
+            still land in the top band, so add a band above it if that machine time is worth more than the Large
+            price.
           </p>
         </>
       )}

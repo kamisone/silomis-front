@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Move, RotateCw } from "lucide-react";
-import { areaFromQuad, isUsableQuad, type Area, type Point, type Quad } from "@/lib/shop/perspective";
+import { areaFromBox, areaFromQuad, isUsableQuad, type Area, type Point, type Quad } from "@/lib/shop/perspective";
 import {
   MAX_TRAVEL_FACTOR, LINE_LEADING, weightForStep, lineWidthMm,
   type ContentKind, type EditorFont, type EditorPlacement, type EditorThread,
@@ -28,7 +28,16 @@ export interface PreviewElement {
   curveDeg: number;
   trackingPct: number;
   kerning: number[] | null;
-  motif: { path: string; viewBox: string; sizeMm: number; heightMm: number; paths?: { d: string; fill: string }[] | null } | null;
+  motif: {
+    path: string;
+    viewBox: string;
+    sizeMm: number;
+    heightMm: number;
+    /** Every shape of the design, in drawing order. */
+    paths?: { d: string; fill: string; transform?: string }[] | null;
+    /** Sewn in those shapes' own fills, rather than in the box's thread. */
+    ownColours?: boolean;
+  } | null;
   /** The customer's own logo: its rendering, at the size it will be stitched. */
   artwork: { url: string; widthMm: number; heightMm: number } | null;
   /** From the evaluator — the width the fit check measured. */
@@ -47,7 +56,20 @@ interface Props {
   elements: PreviewElement[];
   activeElementId: string | null;
   onSelectElement: (id: string) => void;
-  onElementChange: (id: string, patch: { offset?: Point; rotationDeg?: number; size?: { widthMm: number; heightMm: number } }) => void;
+  onElementChange: (
+    id: string,
+    patch: {
+      offset?: Point;
+      rotationDeg?: number;
+      /**
+       * The box's new size in its own axes, and which handle asked for it. A
+       * picture takes both numbers directly; lettering has no width of its own
+       * to set — its width follows the letters — so the editor reads the axis
+       * and turns the pull into the control that actually moves that side.
+       */
+      size?: { widthMm: number; heightMm: number; axis: "x" | "y" | "xy" };
+    },
+  ) => void;
   /** What an empty box reads, drawn faintly until the customer writes. */
   placeholder: string;
   /** What an empty logo box says — "Your logo" — while nothing is uploaded yet. */
@@ -124,19 +146,25 @@ export default function DesignPreview({
   // the next one looking uneditable.
   useEffect(() => setShowGuides(true), [placement.key, activeElementId]);
 
-  const traced = isUsableQuad(quadPct);
   const measured = box.width > 0 && box.height > 0;
-  // A traced area whose box has not been measured yet renders neither layer.
-  // Showing the flat fallback for one frame and then swapping is a visible jump
-  // on every load, and the wait is one paint.
-  const awaitingMeasure = traced && !measured;
 
-  const area: Area | null =
-    traced && measured
-      ? areaFromQuad(quadPct!.map((p) => ({ x: (p.x / 100) * box.width, y: (p.y / 100) * box.height })) as Quad)
-      : null;
+  /**
+   * The embroidery area on this photograph.
+   *
+   * One shape, two sources: a customer's own item arrives as the four corners
+   * they framed on their own photo, and everything else states its area as a
+   * share of the position's photo. Both reduce to a centre and a size, which is
+   * all anything below uses — so there is no second, non-interactive rendering
+   * path any more. The admin's four-corner tracing was removed; it never
+   * carried more than this box.
+   */
+  const area: Area | null = !measured
+    ? null
+    : isUsableQuad(quadPct)
+      ? areaFromQuad(quadPct.map((p) => ({ x: (p.x / 100) * box.width, y: (p.y / 100) * box.height })) as Quad)
+      : areaFromBox(placement.preview, box.width, box.height);
 
-  /** Screen pixels per millimetre — the traced panel's real size is the scale. */
+  /** Screen pixels per millimetre — the panel's stated size is the scale. */
   const pxPerMm = area ? area.width / placement.fieldWidthMm : 0;
 
   /**
@@ -273,14 +301,18 @@ export default function DesignPreview({
   // turned into the box's own axes first, so a turned shape still grows the
   // way its handle is pulled.
 
+  /**
+   * `drawnW`/`drawnH` are the box as the preview just measured it, which is the
+   * only size lettering has: a picture carries its own width and height, a line
+   * of text is however wide the letters came out.
+   */
   const onResizeDown = useCallback(
-    (el: PreviewElement, axis: "x" | "y" | "xy") => (e: React.PointerEvent) => {
-      if (!el.motif && !el.artwork) return;
+    (el: PreviewElement, axis: "x" | "y" | "xy", drawnW: number, drawnH: number) => (e: React.PointerEvent) => {
       e.preventDefault();
       e.stopPropagation();
       (e.target as Element).setPointerCapture?.(e.pointerId);
-      const w = el.motif ? el.motif.sizeMm : el.artwork!.widthMm;
-      const h = el.motif ? el.motif.heightMm : el.artwork!.heightMm;
+      const w = el.motif ? el.motif.sizeMm : el.artwork ? el.artwork.widthMm : drawnW;
+      const h = el.motif ? el.motif.heightMm : el.artwork ? el.artwork.heightMm : drawnH;
       stretch.current = { id: el.id, axis, startX: e.clientX, startY: e.clientY, startW: w, startH: h, rotationDeg: el.rotationDeg };
       setGesture("resize");
     },
@@ -307,7 +339,7 @@ export default function DesignPreview({
         widthMm = st.startW * k;
         heightMm = st.startH * k;
       }
-      onElementChange(st.id, { size: { widthMm: Math.max(5, round1(widthMm)), heightMm: Math.max(5, round1(heightMm)) } });
+      onElementChange(st.id, { size: { widthMm: Math.max(5, round1(widthMm)), heightMm: Math.max(5, round1(heightMm)), axis: st.axis } });
     },
     [onElementChange, pxPerMm],
   );
@@ -379,7 +411,12 @@ export default function DesignPreview({
           const sy = el.motif.heightMm / (vh || 100);
           return (
             <g transform={`translate(${-((vw || 100) * sx) / 2} ${-((vh || 100) * sy) / 2}) scale(${sx} ${sy})`}>
-              {el.motif.paths?.length ? el.motif.paths.map((sp, i) => <path key={i} d={sp.d} fill={sp.fill} />) : <path d={el.motif.path} fill={fill} />}
+              {/* The shapes are the drawing; the thread only decides what
+                  fills them. A one-spool design draws all of them in `fill`,
+                  because that is what the machine will lay. */}
+              {el.motif.paths?.length
+                ? el.motif.paths.map((sp, i) => <path key={i} d={sp.d} fill={el.motif!.ownColours ? sp.fill : fill} transform={sp.transform} />)
+                : <path d={el.motif.path} fill={fill} />}
             </g>
           );
         })()
@@ -436,8 +473,6 @@ export default function DesignPreview({
     return { widthMm, stackMm, body };
   };
 
-  const active = elements.find((el) => el.id === activeElementId) ?? null;
-
   return (
     <div className={styles.previewStage}>
       <div className={styles.previewImageWrap} ref={wrapRef} onPointerDown={editable ? onStagePointerDown : undefined}>
@@ -488,11 +523,16 @@ export default function DesignPreview({
                   <svg className={styles.elementSvg} viewBox={`${-widthMm / 2} ${-stackMm / 2} ${widthMm} ${stackMm}`} overflow="visible" role="img" aria-label={el.text}>
                     {body}
                   </svg>
-                  {selected && guides && (el.motif || el.artwork) && (
+                  {selected && guides && (
                     <>
-                      <button type="button" className={`${styles.resizeHandle} ${styles.resizeHandleX}`} onPointerDown={onResizeDown(el, "x")} onPointerMove={onResizeMove} onPointerUp={endGesture} onPointerCancel={endGesture} aria-label={`${resizeLabel} ↔`} title={`${resizeLabel} ↔`} />
-                      <button type="button" className={`${styles.resizeHandle} ${styles.resizeHandleY}`} onPointerDown={onResizeDown(el, "y")} onPointerMove={onResizeMove} onPointerUp={endGesture} onPointerCancel={endGesture} aria-label={`${resizeLabel} ↕`} title={`${resizeLabel} ↕`} />
-                      <button type="button" className={`${styles.resizeHandle} ${styles.resizeHandleXY}`} onPointerDown={onResizeDown(el, "xy")} onPointerMove={onResizeMove} onPointerUp={endGesture} onPointerCancel={endGesture} aria-label={resizeLabel} title={resizeLabel} />
+                      <button type="button" className={`${styles.resizeHandle} ${styles.resizeHandleX}`} onPointerDown={onResizeDown(el, "x", widthMm, stackMm)} onPointerMove={onResizeMove} onPointerUp={endGesture} onPointerCancel={endGesture} aria-label={`${resizeLabel} ↔`} title={`${resizeLabel} ↔`} />
+                      {/* A picture's height is its own. Lettering's is the
+                          letters', so a bottom edge would only repeat the
+                          corner — taller letters are wider letters. */}
+                      {(el.motif || el.artwork) && (
+                        <button type="button" className={`${styles.resizeHandle} ${styles.resizeHandleY}`} onPointerDown={onResizeDown(el, "y", widthMm, stackMm)} onPointerMove={onResizeMove} onPointerUp={endGesture} onPointerCancel={endGesture} aria-label={`${resizeLabel} ↕`} title={`${resizeLabel} ↕`} />
+                      )}
+                      <button type="button" className={`${styles.resizeHandle} ${styles.resizeHandleXY}`} onPointerDown={onResizeDown(el, "xy", widthMm, stackMm)} onPointerMove={onResizeMove} onPointerUp={endGesture} onPointerCancel={endGesture} aria-label={resizeLabel} title={resizeLabel} />
                     </>
                   )}
                   {selected && guides && (
@@ -514,33 +554,12 @@ export default function DesignPreview({
               );
             })}
           </div>
-        ) : awaitingMeasure ? null : (
-          // No traced area for this position — fall back to the placement's
-          // flat box. Less precise, but it still shows the right size in the
-          // right region, which is the part that must never be wrong.
-          <div
-            className={`${styles.previewField} ${active?.invalid ? styles.previewFieldInvalid : ""}`}
-            style={{
-              left: `${placement.preview.xPct}%`,
-              top: `${placement.preview.yPct}%`,
-              width: `${placement.preview.widthPct}%`,
-              height: `${placement.preview.heightPct}%`,
-              transform: `rotate(${placement.preview.rotateDeg}deg)`,
-            }}
-          >
-            <svg
-              className={styles.previewSvg}
-              viewBox={`${-placement.fieldWidthMm / 2} ${-placement.fieldHeightMm / 2} ${placement.fieldWidthMm} ${placement.fieldHeightMm}`}
-              preserveAspectRatio="none"
-              aria-hidden="true"
-            >
-              {elements.map((el) => (
-                <g key={el.id} transform={`translate(${el.offset.x} ${el.offset.y}) rotate(${el.rotationDeg})`}>
-                  {drawElement(el).body}
-                </g>
-              ))}
-            </svg>
-          </div>
+        ) : (
+          // Nothing until the photo has been measured, which is one paint. The
+          // flat, non-interactive fallback that used to stand in here is gone
+          // with the tracing: every position now has an area, so there is only
+          // one way a design is ever drawn.
+          null
         )}
 
         {area && guides && (

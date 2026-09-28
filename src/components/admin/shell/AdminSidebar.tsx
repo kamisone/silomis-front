@@ -46,6 +46,7 @@ import {
   Search,
   Send,
   Settings,
+  Shapes,
   ShieldCheck,
   ShoppingBag,
   ShoppingCart,
@@ -134,6 +135,7 @@ const NAV_GROUPS: NavGroup[] = [
           { href: "/admin/shop/media",              icon: Images,            label: "Media Library"           },
           { href: "/admin/shop/personalization/studio",  icon: Crosshair,    label: "Embroidery Positions"    },
           { href: "/admin/shop/personalization/threads", icon: Palette,      label: "Thread Colours"          },
+          { href: "/admin/shop/personalization/designs", icon: Shapes,       label: "Design Library"          },
           // What customers may post in for embroidery, and the handling price
           // of each — catalogue, because it is what the service sells.
           { href: "/admin/shop/send-in/item-types",      icon: PackageCheck, label: "Send-in Item Types"      },
