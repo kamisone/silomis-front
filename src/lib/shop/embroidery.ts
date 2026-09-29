@@ -70,35 +70,28 @@ export const MAX_TEXT_CHARS = 200;
  */
 export const DEFAULT_TEXT_HEIGHT_MM = 17;
 
-export const MOTIF_MIN_MM = 15;
-export const MOTIF_MAX_MM = 120;
+/** The width a design opens at before the customer sizes it themselves. */
+export const MOTIF_START_MM = 30;
 
 /**
- * The widths a design of this shape may be stitched at.
+ * The widths the slider offers for a design of this shape.
  *
- * BOTH sides have to land in range, and only the width is chosen — the height
- * follows the drawing's proportion. So a wide design has a *higher* minimum
- * width than a square one: at 5:1, 30mm wide is 6mm tall, under the 15mm the
- * machine can hold. Mirrors the server's two checks in `resolveMotif`.
+ * There is no band a design has to sit in any more: the machine's limit is what
+ * fits the position's embroidery field, which `evaluate` checks in millimetres
+ * on both sides. So this is only the travel of a control — wide enough to reach
+ * anything the field allows, and it stops where the field does rather than at a
+ * figure of its own. The height follows the drawing's proportion, so a wide
+ * design runs out of field at a smaller width than a square one.
  */
-export function motifWidthBounds(aspect: number, maxHeightMm = MOTIF_MAX_MM): { min: number; max: number } {
+export function motifWidthBounds(aspect: number, maxWidthMm: number, maxHeightMm: number): { min: number; max: number } {
   const a = aspect > 0 ? aspect : 1;
-  const heightCeiling = Math.max(MOTIF_MAX_MM, maxHeightMm);
-  return {
-    min: Math.max(MOTIF_MIN_MM, MOTIF_MIN_MM / a),
-    max: Math.min(MOTIF_MAX_MM, heightCeiling / a),
-  };
+  return { min: 1, max: Math.max(1, Math.round(Math.min(maxWidthMm, maxHeightMm / a))) };
 }
 
-/**
- * The width to start a design at: the usual 30mm, moved just inside the bounds
- * when its proportion will not allow that. Returns null when no width works at
- * all — a ratio past about 8:1, which the admin upload refuses.
- */
-export function startingMotifWidthMm(aspect: number, maxHeightMm = MOTIF_MAX_MM): number | null {
-  const { min, max } = motifWidthBounds(aspect, maxHeightMm);
-  if (min > max) return null;
-  return Math.round(Math.min(Math.max(30, min), max));
+/** The width a design opens at: the usual 30mm, or the widest the field allows. */
+export function startingMotifWidthMm(aspect: number, maxWidthMm: number, maxHeightMm: number): number {
+  const { min, max } = motifWidthBounds(aspect, maxWidthMm, maxHeightMm);
+  return Math.round(Math.min(Math.max(MOTIF_START_MM, min), max));
 }
 /** Lines cannot touch across rows; the sheet uses the same figure. */
 export const LINE_LEADING = 1.35;
@@ -248,8 +241,6 @@ export interface EditorPlacement {
   fieldHeightMm: number;
   /** What this position costs — the hooping and the run, once per position. */
   priceCents: number;
-  /** Whether a frame here can take the height of foam. */
-  allowPuff: boolean;
   /** The photograph this position is placed on. Null only for a send-in position, whose photo the customer brings. */
   imageUrl: string | null;
   /** The photo is the customer's — the editor is given it rather than shown one. */
@@ -561,14 +552,14 @@ export function evaluateElement(args: {
     if (!options.artworkKey) return invalid("empty");
   } else if (contentType === "motif") {
     if (!options.motifKey) return invalid("empty");
-    // Both sides of a shape have to be stitchable. Mirrored from the server so
-    // the customer gets told which way it will not fit, instead of the server's
-    // catch-all "that option is no longer available".
+    // No size band — see the server's `resolveMotif`. What is still true is that
+    // both sides have to fit the field, and saying which way it will not fit is
+    // more use than the server's catch-all. A shape has no lines, so the width
+    // and height gates below never see it; this is where it is measured.
     const picture = pictureSizeMm(options);
-    const ceiling = placement.usesCustomerPhoto ? Math.min(limits.maxWidthMm, limits.maxHeightMm) : MOTIF_MAX_MM;
-    const heightCeiling = Math.max(ceiling, limits.maxHeightMm);
-    if (picture.widthMm < MOTIF_MIN_MM || picture.widthMm > ceiling) return invalid("motifSize");
-    if (picture.heightMm < MOTIF_MIN_MM || picture.heightMm > heightCeiling) return invalid("motifSize");
+    if (!(picture.widthMm > 0) || !(picture.heightMm > 0)) return invalid("motifSize");
+    if (picture.widthMm > limits.maxWidthMm) return invalid("tooWide");
+    if (picture.heightMm > limits.maxHeightMm) return invalid("tooTall");
   } else {
     if (!lines.length) return invalid("empty");
     if (lines.length > MAX_TEXT_LINES) return invalid("tooManyLines");

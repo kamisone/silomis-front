@@ -13,7 +13,7 @@ import { getTranslations, type Locale } from "@/lib/i18n";
 import {
   evaluateDesign, TEXT_MIN_HEIGHT_MM, DEFAULT_WEIGHT_STEP, WEIGHT_SCALE, weightForStep,
   DEFAULT_OPTIONS, MAX_TEXT_LINES, TRACKING_MIN, TRACKING_MAX, KERNING_LIMIT, CURVE_LIMIT_DEG,
-  MOTIF_MIN_MM, MOTIF_MAX_MM, startingMotifWidthMm, DEFAULT_FIELD_LIMITS, MAX_ELEMENTS, ARTWORK_MIN_MM, limitsFor, pictureSizeMm,
+  startingMotifWidthMm, DEFAULT_FIELD_LIMITS, MAX_ELEMENTS, ARTWORK_MIN_MM, limitsFor, pictureSizeMm,
   LINE_LEADING, lineWidthMm, normalizeLines, DEFAULT_TEXT_HEIGHT_MM,
   type ContentKind, type DesignOptions, type EditorConfig, type EditorEvaluation, type EditorPlacement,
 } from "@/lib/shop/embroidery";
@@ -337,17 +337,50 @@ export default function PersonalizationEditor({ locale, config, product, variant
   }, [activeKey, newElement, commit, config.placements]);
 
   /** Removes a box. The last one stays: an empty hoop is not a design. */
+  /**
+   * Takes a box off the position — including the last one.
+   *
+   * The last box out takes the position with it. A position with nothing on it
+   * is a position the customer does not want, which is precisely what
+   * un-choosing it back in the Positions step means, so the two routes land in
+   * the same state instead of leaving an empty position to be charged for and
+   * refused at the quote.
+   *
+   * Not on a send-in: there every photographed side is charged and has to carry
+   * a design, the Positions step is skipped entirely, and there is nothing for a
+   * side to fall back to. The last box stays put there.
+   */
+  const canRemoveLastBox = !locked;
+
   const removeElement = useCallback(
     (id: string) => {
       if (!activeKey) return;
       const d = designsRef.current[activeKey];
-      if (!d || d.elements.length <= 1) return;
+      if (!d) return;
       const idx = d.elements.findIndex((el) => el.id === id);
+      if (idx < 0) return;
       const elements = d.elements.filter((el) => el.id !== id);
+
+      if (!elements.length) {
+        if (locked) return;
+        const next = { ...designsRef.current };
+        delete next[activeKey];
+        commit(next);
+        // The effect below moves the open tab on; clearing it here keeps the
+        // render in between from pointing at a position that is gone.
+        setActiveKey("");
+        // With the last position gone there is nothing left to design, and this
+        // step's whole panel is guarded on having a position — so it would sit
+        // blank with no hint of what to do. Back to Positions, where the empty
+        // state is the one the customer started from and reads as a choice.
+        if (!Object.keys(next).length) setStep("positions");
+        return;
+      }
+
       const nextActive = d.activeElementId === id ? elements[Math.max(0, idx - 1)].id : d.activeElementId;
       commit({ ...designsRef.current, [activeKey]: { ...d, elements, activeElementId: nextActive } });
     },
-    [activeKey, commit],
+    [activeKey, commit, locked],
   );
 
   // ── Evaluation, per position ─────────────────────────────────────────
@@ -395,6 +428,13 @@ export default function PersonalizationEditor({ locale, config, product, variant
     [config.threads, activeElement?.threadId],
   );
 
+  /**
+   * The colour a one-spool design comes out in: the thread chosen for this box.
+   * `currentColor` only while the config has no threads at all, which is a
+   * misconfigured shop rather than a state to design for.
+   */
+  const spoolHex = activeThread?.hex ?? "currentColor";
+
   const availableFonts = useMemo(
     () => (activeElement?.options.contentType === "monogram" ? config.fonts.filter((f) => f.supportsMonogram) : config.fonts),
     [config.fonts, activeElement?.options.contentType],
@@ -405,7 +445,6 @@ export default function PersonalizationEditor({ locale, config, product, variant
     () => (activePlacement ? limitsFor(activePlacement, config.fieldLimits ?? DEFAULT_FIELD_LIMITS) : (config.fieldLimits ?? DEFAULT_FIELD_LIMITS)),
     [activePlacement, config.fieldLimits],
   );
-  const motifMax = activePlacement?.usesCustomerPhoto ? Math.min(activeLimits.maxWidthMm, activeLimits.maxHeightMm) : MOTIF_MAX_MM;
   const artworkMax = activeLimits.maxWidthMm;
 
   /**
@@ -1321,8 +1360,14 @@ export default function PersonalizationEditor({ locale, config, product, variant
                                 : `${font?.name} · ${el.heightMm} mm`}
                           </span>
                         </button>
-                        {activeDesign.elements.length > 1 && (
-                          <button type="button" className={styles.boxRemove} onClick={() => removeElement(el.id)} aria-label={c.removeBox} title={c.removeBox}>
+                        {(activeDesign.elements.length > 1 || canRemoveLastBox) && (
+                          <button
+                            type="button"
+                            className={styles.boxRemove}
+                            onClick={() => removeElement(el.id)}
+                            aria-label={activeDesign.elements.length > 1 ? c.removeBox : c.removeLastBox}
+                            title={activeDesign.elements.length > 1 ? c.removeBox : c.removeLastBox}
+                          >
                             <X size={13} aria-hidden="true" />
                           </button>
                         )}
@@ -1475,7 +1520,7 @@ export default function PersonalizationEditor({ locale, config, product, variant
                             // its short side long before its width runs out. It
                             // opens at a width where both sides are stitchable,
                             // so picking a shape never lands on an error.
-                            const widthMm = startingMotifWidthMm(aspect, activeLimits.maxHeightMm) ?? activeElement.options.motifSizeMm;
+                            const widthMm = startingMotifWidthMm(aspect, activeLimits.maxWidthMm, activeLimits.maxHeightMm);
                             patchOptions({ motifKey: m.key, motifAspect: aspect, motifSizeMm: widthMm, motifHeightMm: null });
                           }}
                           aria-pressed={activeElement.options.motifKey === m.key}
@@ -1484,12 +1529,17 @@ export default function PersonalizationEditor({ locale, config, product, variant
                           {/* The catalogue is admin-authored, so the path goes
                               on a `d` attribute — never injected as markup. */}
                           <svg viewBox={m.viewBox} className={styles.motifSvg} aria-hidden="true">
-                            {/* Drawn the way it is sewn: its own fills when it
-                                keeps them, otherwise every shape in one colour,
-                                which is what a chosen spool does to it. */}
-                            {m.paths?.length
-                              ? m.paths.map((sp, i) => <path key={i} d={sp.d} fill={(m.ownColours ?? true) ? sp.fill : "currentColor"} transform={sp.transform} />)
-                              : <path d={m.path} fill="currentColor" />}
+                            {/* Drawn the way it is sewn: a design that carries
+                                its own fills in those, and a plain silhouette in
+                                the thread chosen for this box — that is the
+                                colour it will come out in, and it stops the
+                                simple shapes reading as a wall of black next to
+                                the full-colour ones. */}
+                            {m.paths?.length && (m.ownColours ?? true)
+                              ? m.paths.map((sp, i) => <path key={i} d={sp.d} fill={sp.fill} transform={sp.transform} />)
+                              : m.paths?.length
+                                ? m.paths.map((sp, i) => <path key={i} d={sp.d} fill={spoolHex} transform={sp.transform} />)
+                                : <path d={m.path} fill={spoolHex} />}
                           </svg>
                           <span className={styles.motifName}>{m.name}</span>
                         </button>
@@ -1543,9 +1593,13 @@ export default function PersonalizationEditor({ locale, config, product, variant
                     const isArt = activeElement.options.contentType === "artwork";
                     const size = pictureSizeMm(activeElement.options);
                     const aspect = isArt ? activeElement.options.artworkAspect || 1 : activeElement.options.motifAspect || 1;
-                    const minMm = isArt ? ARTWORK_MIN_MM : MOTIF_MIN_MM;
-                    const maxW = isArt ? artworkMax : motifMax;
-                    const maxH = activePlacement?.usesCustomerPhoto ? activeLimits.maxHeightMm : motifMax;
+                    // A design has no band of its own: it may be any size the
+                    // position's embroidery field can hold, which is what these
+                    // two run to. A logo the customer uploaded keeps its floor —
+                    // below it there is not enough of the file to digitise.
+                    const minMm = isArt ? ARTWORK_MIN_MM : 1;
+                    const maxW = isArt ? artworkMax : activeLimits.maxWidthMm;
+                    const maxH = isArt ? artworkMax : activeLimits.maxHeightMm;
                     const stretched = isArt ? activeElement.options.artworkHeightMm !== null : activeElement.options.motifHeightMm !== null;
                     const setSize = (widthMm: number, heightMm: number | null) =>
                       patchOptions(isArt ? { artworkSizeMm: widthMm, artworkHeightMm: heightMm } : { motifSizeMm: widthMm, motifHeightMm: heightMm });
@@ -2079,7 +2133,7 @@ function errorCopyForCode(code: string, placement: EditorPlacement, c: Copy, nam
     case "tooManyBoxes":
       return where(c.errTooManyBoxes.replace("{n}", String(MAX_ELEMENTS)));
     case "motifSize":
-      return where(c.errors.motifSize.replace("{min}", String(MOTIF_MIN_MM)).replace("{max}", String(MOTIF_MAX_MM)));
+      return where(c.errors.motifSize);
     default:
       return where(c.errors.generic);
   }
@@ -2108,7 +2162,7 @@ function errorCopy(code: string | undefined, c: Copy): string | null {
     case "PERSONALIZATION_CURVE_UNAVAILABLE":
       return c.errors.unavailable;
     case "PERSONALIZATION_MOTIF_SIZE":
-      return c.errors.motifSize.replace("{min}", String(MOTIF_MIN_MM)).replace("{max}", String(MOTIF_MAX_MM));
+      return c.errors.motifSize;
     case "PERSONALIZATION_MOTIF_UNKNOWN":
       return c.errors.unavailable;
     case "PERSONALIZATION_NOT_AVAILABLE":

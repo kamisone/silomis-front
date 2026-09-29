@@ -2205,9 +2205,17 @@
   color: var(--color-primary);
 }
 
+/* A faint plate behind the shape. A design carries its own colours or is sewn
+   in the box's thread, and either can be white or very pale — on a white card
+   that would simply vanish. */
 .motifSvg {
-  width: 38px;
-  height: 38px;
+  box-sizing: border-box;
+  width: 44px;
+  height: 44px;
+  padding: 3px;
+  border-radius: 10px;
+  background: rgb(16 24 40 / 4%);
+  box-shadow: inset 0 0 0 1px rgb(16 24 40 / 7%);
 }
 
 .motifName {

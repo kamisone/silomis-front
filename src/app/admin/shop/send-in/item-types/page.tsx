@@ -23,7 +23,6 @@ interface ItemType {
   sku: string;
   priceCents: number;
   maxChars: number;
-  allowPuff: boolean;
   imageKey: string | null;
   imageUrl: string | null;
   isActive: boolean;
@@ -246,7 +245,6 @@ export default function SendInItemTypesPage() {
                       <strong className={studio.placementName}>{t.label.en ?? Object.values(t.label)[0] ?? t.key}</strong>
                       <span className={studio.placementSub}>
                         <code className={ui.codeChip}>{t.key}</code> €{eur(t.priceCents)} / side
-                        {t.allowPuff ? " · 3D puff" : ""}
                       </span>
                     </div>
                   </div>
@@ -277,7 +275,6 @@ export default function SendInItemTypesPage() {
                     <div className={studio.numberGrid}>
                       <NumberField label="Price per side (€)" value={t.priceCents / 100} step={0.1} onCommit={(v) => void patch(t.id, { priceCents: Math.round(v * 100) })} />
                     </div>
-                    <Switch label="3D puff allowed" hint="Only where a frame can take the height of foam — a cap front or a jacket back, not a beanie cuff." checked={t.allowPuff} onChange={(allowPuff) => void patch(t.id, { allowPuff })} disabled={saving} />
                     <MediaPicker label="Picture on the card" mediaType="image" value={t.imageKey} previewUrl={t.imageUrl} onChange={(key) => void patch(t.id, { imageKey: key })} />
                   </div>
                 )}

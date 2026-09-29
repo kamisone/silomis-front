@@ -7,7 +7,6 @@ import {
 import { api, ApiError } from "@/lib/api";
 import LocalizedTextField, { type LocalizedTextMap, toLocalizedMap } from "@/components/admin/ui/LocalizedTextField";
 import Select from "@/components/admin/ui/Select";
-import Switch from "@/components/admin/ui/Switch";
 import ui from "@/components/admin/ui/admin-ui.module.css";
 import styles from "./designs.module.css";
 
@@ -30,7 +29,12 @@ interface Design {
   viewBox: string;
   /** Every shape of the design; null for one of the older seeded silhouettes. */
   paths: Shape[] | null;
-  /** Sewn in those shapes' own fills, rather than in a spool the customer picks. */
+  /**
+   * Sewn in those shapes' own fills. True for anything uploaded here — a design
+   * is stitched as the file draws it — and false only for one of the older
+   * seeded silhouettes, which has no fills to sew and so takes a thread the
+   * customer picks. Derived by the server from the artwork, not chosen.
+   */
   ownColours: boolean;
   /** What picking this design adds to the embroidery price, in cents. */
   priceCents: number;
@@ -85,11 +89,11 @@ function plainName(value: LocalizedTextMap | string, fallback: string): string {
 }
 
 /**
- * Draws a design the way the storefront will.
+ * Draws a stored design the way the storefront will.
  *
- * Not the uploaded file — the parsed shapes. The two differ whenever something
- * in the file cannot be stitched, and that difference is the whole reason an
- * admin looks at this preview before saving.
+ * From its shapes, because that is all a stored design is — the uploaded file is
+ * never kept. (The preview beside the file picker is the other way round: while
+ * the admin still has the file, it shows the file.)
  */
 function DesignArt({
   viewBox,
@@ -554,7 +558,10 @@ function useSvgUpload() {
   return { svg, parsed, problem, busy, take, reset };
 }
 
-/** The file picker plus the preview of what was read out of it. */
+/** An SVG for an <img>, so the file can be shown without being inlined as markup. */
+const svgDataUri = (svg: string) => `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+
+/** The file picker plus the preview of the artwork it holds. */
 function SvgField({
   upload,
   label,
@@ -611,24 +618,25 @@ function SvgField({
         </p>
       )}
 
+      {/* The file itself, whole — not the shapes read out of it. An admin
+          checking a design wants to see the artwork they exported, at a size
+          they can judge, and a list of shape counts and swatches is not that.
+          It appears only once the server has accepted the file, so what is on
+          screen is always something that can be saved.
+
+          Drawn through an <img> data URI rather than inlined as markup: a
+          browser renders SVG in an <img> with scripts and external loads
+          disabled, so the admin's file is displayed without this page gaining a
+          markup sink — the same reason the design is stored as shapes and never
+          as the file. */}
       {upload.parsed && (
-        <div className={styles.parsed}>
-          <span className={styles.parsedArt}>
-            <DesignArt viewBox={upload.parsed.viewBox} shapes={upload.parsed.shapes} size={72} />
-          </span>
-          <div className={styles.parsedMeta}>
-            <strong>{upload.parsed.shapes.length} shape(s)</strong>
-            <span>
-              {upload.parsed.colorCount} colour{upload.parsed.colorCount === 1 ? "" : "s"} · drawn in {upload.parsed.viewBox}
-            </span>
-            <div className={styles.swatches}>
-              {[...new Set(upload.parsed.shapes.map((s) => s.fill))].map((hex) => (
-                <span key={hex} className={styles.swatch} style={{ background: hex }} title={hex} />
-              ))}
-            </div>
-            <span className={styles.parsedNote}>This is what will be stitched — check nothing is missing from it.</span>
-          </div>
-        </div>
+        <figure className={styles.parsed}>
+          {/* eslint-disable-next-line @next/next/no-img-element -- a data URI: there is nothing for next/image to fetch or optimise. */}
+          <img className={styles.parsedArt} src={svgDataUri(upload.svg)} alt="The design as uploaded" />
+          <figcaption className={styles.parsedNote}>
+            This is the file as uploaded, and what will be stitched — check nothing is missing from it.
+          </figcaption>
+        </figure>
       )}
     </div>
   );
@@ -650,11 +658,6 @@ function AddDesign({
   const [categoryId, setCategoryId] = useState(UNFILED);
   /** The surcharge, held in euros because that is what the admin types. */
   const [extra, setExtra] = useState("0");
-  /** Its own colours, or one spool the customer picks. Follows the artwork until touched. */
-  const [ownColours, setOwnColours] = useState<boolean | null>(null);
-
-  const multi = (upload.parsed?.colorCount ?? 1) > 1;
-  const effectiveOwn = ownColours ?? multi;
   const valid = !!upload.parsed && Object.values(toLocalizedMap(name)).some(Boolean);
 
   return (
@@ -680,23 +683,11 @@ function AddDesign({
             <span className={ui.label}>Extra charge (€)</span>
             <input className={ui.input} type="number" min={0} step={0.5} value={extra} onChange={(e) => setExtra(e.target.value)} />
             <span className={ui.hint}>
-              Added to the embroidery price on top of the position's own price, per box. Leave it at 0 for a design that
+              Added to the embroidery price on top of the position&rsquo;s own price, per box. Leave it at 0 for a design that
               costs no more than the plain ones.
             </span>
           </label>
         </div>
-
-        <Switch
-          label="Stitched in its own colours"
-          hint={
-            effectiveOwn
-              ? "The customer does not pick a thread — the design is sewn in the colours above."
-              : "The customer picks one thread and the whole shape is sewn in it."
-          }
-          checked={effectiveOwn}
-          onChange={setOwnColours}
-          disabled={!upload.parsed}
-        />
       </div>
 
       <div className={styles.addActions}>
@@ -707,7 +698,7 @@ function AddDesign({
           type="button"
           className={styles.primaryBtn}
           disabled={saving || !valid}
-          onClick={() => onCreate({ name, svg: upload.svg, ownColours: effectiveOwn, priceCents: toCents(extra), categoryId: categoryId === UNFILED ? null : categoryId })}
+          onClick={() => onCreate({ name, svg: upload.svg, priceCents: toCents(extra), categoryId: categoryId === UNFILED ? null : categoryId })}
         >
           {saving ? <Loader2 size={14} className={styles.spin} aria-hidden="true" /> : <Shapes size={14} aria-hidden="true" />}
           Add design
@@ -739,25 +730,23 @@ function EditDesign({
   const [name, setName] = useState<LocalizedTextMap>(toLocalizedMap(design.name));
   const [categoryId, setCategoryId] = useState(design.categoryId ?? UNFILED);
   const [extra, setExtra] = useState(euros(design.priceCents));
-  /** Null until the admin touches it, so replacement artwork can bring its own answer. */
-  const [ownColours, setOwnColours] = useState<boolean | null>(null);
-
   const hasNewArt = !!upload.parsed;
-  // A three-colour file dropped onto a design that used to be one spool almost
-  // certainly wants its colours; keeping the old setting would silently flatten
-  // it, and the admin would find out on the machine.
-  const effectiveOwn = ownColours ?? (hasNewArt ? upload.parsed!.colorCount > 1 : design.ownColours);
+  // Its own colours, always: a design is stitched as the file draws it. Only a
+  // shape with no fills of its own — one of the older seeded silhouettes — takes
+  // a thread the customer picks, and that follows from the artwork, not a
+  // setting.
+  const own = hasNewArt ? !!upload.parsed!.shapes.length : design.ownColours;
   const valid = Object.values(toLocalizedMap(name)).some(Boolean);
 
   return (
     <div className={styles.editCard}>
       <div className={styles.editHead}>
         <span className={styles.editArt}>
-          {/* Drawn as it will be sewn, so the toggle above shows its effect. */}
+          {/* Drawn as it will be sewn — replacement artwork shows here at once. */}
           <DesignArt
             viewBox={upload.parsed?.viewBox ?? design.viewBox}
-            shapes={effectiveOwn ? (upload.parsed?.shapes ?? design.paths) : null}
-            flatShapes={effectiveOwn ? null : (upload.parsed?.shapes ?? design.paths)}
+            shapes={own ? (upload.parsed?.shapes ?? design.paths) : null}
+            flatShapes={own ? null : (upload.parsed?.shapes ?? design.paths)}
             path={design.path}
             size={56}
           />
@@ -778,20 +767,9 @@ function EditDesign({
         <label className={ui.field}>
           <span className={ui.label}>Extra charge (€)</span>
           <input className={ui.input} type="number" min={0} step={0.5} value={extra} onChange={(e) => setExtra(e.target.value)} />
-          <span className={ui.hint}>On top of the position's price, per box.</span>
+          <span className={ui.hint}>On top of the position&rsquo;s price, per box.</span>
         </label>
       </div>
-
-      <Switch
-        label="Stitched in its own colours"
-        hint={
-          effectiveOwn
-            ? "Sewn in the colours the artwork carries; the customer picks no thread."
-            : "The customer picks one thread and the whole shape is sewn in it."
-        }
-        checked={effectiveOwn}
-        onChange={setOwnColours}
-      />
 
       <SvgField upload={upload} label="Replace the artwork" />
 
@@ -808,7 +786,6 @@ function EditDesign({
               name,
               categoryId: categoryId === UNFILED ? null : categoryId,
               priceCents: toCents(extra),
-              ownColours: effectiveOwn,
               ...(hasNewArt ? { svg: upload.svg } : {}),
             })
           }

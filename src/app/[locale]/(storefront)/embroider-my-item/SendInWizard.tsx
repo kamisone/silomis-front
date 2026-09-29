@@ -16,7 +16,6 @@ export interface SendInItemType {
   imageUrl: string | null;
   variantId: string;
   priceCents: number;
-  allowPuff: boolean;
   maxChars: number;
 }
 
@@ -155,7 +154,6 @@ export default function SendInWizard({ locale, config, editorConfig }: Props) {
           hint: null,
           imageUrl: sd.url,
           corners: item.corners,
-          allowPuff: base.allowPuff && type.allowPuff,
           // Handling and return, charged per side — the server adds the same.
           priceCents: type.priceCents,
         },
