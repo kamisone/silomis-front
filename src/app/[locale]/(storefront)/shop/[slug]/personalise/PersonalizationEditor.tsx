@@ -11,9 +11,9 @@ import DesignPreview, { type PreviewElement } from "./DesignPreview";
 import { useCart, type CustomerItemInput, type PersonalizationInput } from "@/components/shop/CartContext";
 import { getTranslations, type Locale } from "@/lib/i18n";
 import {
-  evaluateDesign, heightBounds, MONOGRAM_MAX_CHARS, DEFAULT_WEIGHT_STEP, WEIGHT_SCALE, weightForStep,
+  evaluateDesign, TEXT_MIN_HEIGHT_MM, DEFAULT_WEIGHT_STEP, WEIGHT_SCALE, weightForStep,
   DEFAULT_OPTIONS, MAX_TEXT_LINES, TRACKING_MIN, TRACKING_MAX, KERNING_LIMIT, CURVE_LIMIT_DEG,
-  MOTIF_MIN_MM, MOTIF_MAX_MM, MAX_TEXT_CHARS, startingMotifWidthMm, DEFAULT_FIELD_LIMITS, MAX_ELEMENTS, ARTWORK_MIN_MM, limitsFor, pictureSizeMm,
+  MOTIF_MIN_MM, MOTIF_MAX_MM, startingMotifWidthMm, DEFAULT_FIELD_LIMITS, MAX_ELEMENTS, ARTWORK_MIN_MM, limitsFor, pictureSizeMm,
   LINE_LEADING, lineWidthMm, normalizeLines, DEFAULT_TEXT_HEIGHT_MM,
   type ContentKind, type DesignOptions, type EditorConfig, type EditorEvaluation, type EditorPlacement,
 } from "@/lib/shop/embroidery";
@@ -213,7 +213,7 @@ export default function PersonalizationEditor({ locale, config, product, variant
       // customer's own item, measured from the photo they sent, and a jacket
       // back is not a cap front.
       const startMm = placement.usesCustomerPhoto ? Math.round(placement.fieldHeightMm * 0.34) : DEFAULT_TEXT_HEIGHT_MM;
-      const heightMm = Math.min(font?.maxHeightMm ?? 40, Math.max(font?.minHeightMm ?? 8, startMm));
+      const heightMm = startMm;
       return {
         id: nextElementId(),
         raw: "",
@@ -408,9 +408,19 @@ export default function PersonalizationEditor({ locale, config, product, variant
   const motifMax = activePlacement?.usesCustomerPhoto ? Math.min(activeLimits.maxWidthMm, activeLimits.maxHeightMm) : MOTIF_MAX_MM;
   const artworkMax = activeLimits.maxWidthMm;
 
+  /**
+   * How big the lettering may be.
+   *
+   * A face used to carry its own 8–40mm range and anything outside it was
+   * refused. That was an arbitrary answer to a question the geometry already
+   * answers: the customer picks a size, and what decides whether it can be sewn
+   * is whether the hoop fitted round the design fits the machine — measured, and
+   * shown by the fit meter. So the control's range is the machine's own frame,
+   * and the only floor is the far-off rail the DTO keeps.
+   */
   const bounds = useMemo(
-    () => (activeFont ? heightBounds(activeFont, activePlacement?.usesCustomerPhoto ? activeLimits : undefined) : { min: 8, max: 40 }),
-    [activeFont, activePlacement?.usesCustomerPhoto, activeLimits],
+    () => ({ min: TEXT_MIN_HEIGHT_MM, max: Math.round(activeLimits.maxHeightMm) }),
+    [activeLimits.maxHeightMm],
   );
 
   /**
@@ -577,11 +587,12 @@ export default function PersonalizationEditor({ locale, config, product, variant
     if (!activeDesign || !activeElement) return;
     const patch: Partial<ElementState> = {};
     if (!availableFonts.some((f) => f.key === activeElement.fontKey)) patch.fontKey = availableFonts[0]?.key;
-    const clamped = Math.min(bounds.max, Math.max(bounds.min, activeElement.heightMm));
-    if (clamped !== activeElement.heightMm) patch.heightMm = clamped;
     if (!config.threads.some((t) => t.id === activeElement.threadId)) patch.threadId = config.threads[0]?.id ?? "";
     if (Object.keys(patch).length) patchElement(patch);
-  }, [activeDesign, activeElement, availableFonts, bounds.min, bounds.max, config.threads, patchElement]);
+    // No height clamp here any more: a face has no range of its own to pull a
+    // size back into, and re-writing the customer's number behind their back is
+    // exactly what made switching font feel like it lost their work.
+  }, [activeDesign, activeElement, availableFonts, config.threads, patchElement]);
 
   /**
    * Copies another position's design onto the open one.
@@ -793,6 +804,7 @@ export default function PersonalizationEditor({ locale, config, product, variant
         font: config.fonts.find((f) => f.key === el.fontKey) ?? config.fonts[0],
         contentType: el.options.contentType,
         text: ev?.text ?? "",
+        raw: el.raw,
         lines: ev?.lines ?? [],
         heightMm: el.heightMm,
         weightStep: el.weightStep,
@@ -890,6 +902,11 @@ export default function PersonalizationEditor({ locale, config, product, variant
           // is. Null on a catalogue position, whose area is stated
           // on the row.
           quadPct={isUsableQuad(placement.corners as Quad | undefined) ? (placement.corners as Quad) : null}
+          // Typing on a photograph writes into the box that is open there.
+          // The two can only ever be the same box: a position is editable only
+          // while it is the open one.
+          onTextChange={(id, raw) => patchElement({ raw }, id)}
+          textLabel={activeElement?.options.contentType === "monogram" ? c.monogramLabel : c.textLabel}
           resizeLabel={c.resizeLabel}
           placeholder={c.previewPlaceholder}
           logoPlaceholder={c.contentTypes.artwork}
@@ -1057,29 +1074,17 @@ export default function PersonalizationEditor({ locale, config, product, variant
                 The row of text buttons that used to walk between positions has
                 gone with it: each photo now carries its own caption, which says
                 the same thing while being attached to the thing it names. */}
-            {step !== "positions" && activeEval && activePlacement && activeElementEval && (
+            {/* The width meter that used to sit here is gone. It filled against
+                the position's `fieldWidthMm` and turned amber past it, meaning
+                "wider than the panel we photographed" — but that number stopped
+                being a measurement when the tracing was removed: it is the same
+                constant for every position now, so the warning fired on designs
+                the machine has no trouble with, and fired constantly once
+                lettering could be any height. The limit that is real — the hoop
+                against the machine's frame — is checked locally and says so
+                immediately, in words, under these controls. */}
+            {step !== "positions" && (
               <>
-                <div className={styles.fitRow}>
-                  <div className={styles.fitMeter} role="img" aria-label={c.fitLabel}>
-                    {/* Against the position's field on a catalogue product; against the
-                        whole photograph on the customer's own item, where the field is
-                        only the scale and the box may grow to the picture. */}
-                    {(() => {
-                      const span = activePlacement.usesCustomerPhoto ? activeLimits.maxWidthMm : activePlacement.fieldWidthMm;
-                      const fill = span > 0 ? Math.min(1, activeElementEval.widthMm / span) : 0;
-                      return (
-                        <div
-                          className={`${styles.fitFill} ${activeElementEval.error === "tooWide" ? styles.fitFillOver : fill > 0.99 ? styles.fitFillWide : ""}`}
-                          style={{ width: `${fill * 100}%` }}
-                        />
-                      );
-                    })()}
-                  </div>
-                  <span className={styles.fitText}>
-                    {Math.round(activeElementEval.widthMm)} / {Math.round(activePlacement.usesCustomerPhoto ? activeLimits.maxWidthMm : activePlacement.fieldWidthMm)} mm
-                  </span>
-                </div>
-
                 {previewDesign && activeElement && (
                   <div className={styles.orientationRow}>
                     {/* Quarter turns of the open box. Labelled by angle rather
@@ -1492,41 +1497,17 @@ export default function PersonalizationEditor({ locale, config, product, variant
                     </div>
                   </>
                 ) : (
-                  <>
-                    <label className={styles.fieldLabel} htmlFor="personalize-text">
-                      {activeElement.options.contentType === "monogram" ? c.monogramLabel : c.textLabel}
-                    </label>
-                    {/* A textarea, because a design can be several lines. It
-                        grows with them rather than scrolling — there are at
-                        most three, and a scrollbar would hide one. */}
-                    <textarea
-                      key={activeElement.id}
-                      id="personalize-text"
-                      className={`${styles.textInput} ${activeElementEval.error && activeElement.raw ? styles.textInputError : ""}`}
-                      value={activeElement.raw}
-                      onChange={(e) => patchElement({ raw: e.target.value })}
-                      placeholder={activeElement.options.contentType === "monogram" ? c.monogramPlaceholder : c.textPlaceholder}
-                      rows={Math.min(MAX_TEXT_LINES, Math.max(1, activeElementEval.lines.length))}
-                      maxLength={activeElement.options.contentType === "monogram" ? MONOGRAM_MAX_CHARS + 2 : MAX_TEXT_CHARS}
-                      autoComplete="off"
-                      autoCapitalize={activeFont.uppercaseOnly ? "characters" : "words"}
-                      spellCheck={false}
-                      style={{ fontFamily: activeFont.webFamily, fontWeight: weightForStep(activeElement.weightStep).cssWeight }}
-                      aria-describedby="personalize-text-help"
-                    />
-                    <div className={styles.fieldFooter} id="personalize-text-help">
-                      <span className={styles.charCount}>
-                        {activeElement.options.contentType === "monogram"
-                          ? `${activeElementEval.lines.reduce((n, l) => Math.max(n, l.length), 0)} / ${MONOGRAM_MAX_CHARS}`
-                          : activeElementEval.lines.reduce((n, l) => Math.max(n, l.length), 0)}
-                      </span>
-                      <span className={styles.fieldNote}>
-                        {activeElement.options.contentType === "monogram"
-                          ? c.monogramNote
-                          : c.linesHint.replace("{n}", String(MAX_TEXT_LINES))}
-                      </span>
-                    </div>
-                  </>
+                  /* There is no field here: the customer writes on the cap.
+                     Tapping the lettering in the photograph opens the keyboard
+                     and the letters follow the typing, so the thing being edited
+                     and the thing being looked at are the same object. What is
+                     left to say is the rule the box still holds them to. */
+                  <p className={styles.panelHint}>
+                    {c.writeOnPhoto}{" "}
+                    {activeElement.options.contentType === "monogram"
+                      ? c.monogramNote
+                      : c.linesHint.replace("{n}", String(MAX_TEXT_LINES))}
+                  </p>
                 )}
               </fieldset>
 
@@ -1869,35 +1850,6 @@ export default function PersonalizationEditor({ locale, config, product, variant
                       </div>
                     </fieldset>
                   )}
-
-                  <fieldset className={styles.panel}>
-                    <legend className={styles.panelTitle}>
-                      <Sparkles size={15} aria-hidden="true" /> {c.finishTitle}
-                    </legend>
-
-                    {/* Puff is gated by the position AND the face: foam needs a
-                        flat frame and wide columns, and a fine script collapses
-                        over it. Shown disabled with the reason rather than
-                        hidden, so the option is discoverable. */}
-                    <label
-                      className={`${styles.switchRow} ${
-                        !activePlacement.allowPuff || !activeFont.supportsPuff ? styles.switchRowOff : ""
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={activeElement.options.puff}
-                        disabled={!activePlacement.allowPuff || !activeFont.supportsPuff}
-                        onChange={(e) => patchOptions({ puff: e.target.checked })}
-                      />
-                      <span>
-                        {c.puffLabel}
-                        {(!activePlacement.allowPuff || !activeFont.supportsPuff) && (
-                          <span className={styles.switchNote}>{c.puffUnavailable}</span>
-                        )}
-                      </span>
-                    </label>
-                  </fieldset>
                 </>
               )}
 
@@ -2143,8 +2095,6 @@ function errorCopy(code: string | undefined, c: Copy): string | null {
       return c.errors.blocked;
     case "PERSONALIZATION_MONOGRAM_LENGTH":
       return c.errors.monogramLength;
-    case "PERSONALIZATION_HEIGHT_OUT_OF_RANGE":
-      return c.errors.heightRange;
     case "PERSONALIZATION_TOO_WIDE":
       return c.errors.tooWide;
     case "PERSONALIZATION_TOO_TALL":

@@ -227,8 +227,6 @@ export interface EditorFont {
   webFamily: string;
   /** A stylesheet to load so the face is the same on every device; null for a system face. */
   webFontCss?: string | null;
-  minHeightMm: number;
-  maxHeightMm: number;
   avgCharWidthRatio: number;
   uppercaseOnly: boolean;
   supportsMonogram: boolean;
@@ -311,7 +309,9 @@ export function estimateWidthMm(
   contentType: ContentKind,
   weightStep = DEFAULT_WEIGHT_STEP,
 ): number {
-  const advances = [...text].reduce((sum, ch) => sum + (ch === " " ? 0.5 : 1), 0);
+  // Combining marks (Arabic harakat, Devanagari matras, decomposed accents) sit
+  // on the letter before them and advance nothing — see the server's estimator.
+  const advances = [...text].reduce((sum, ch) => sum + (ch === " " ? 0.5 : COMBINING_MARK.test(ch) ? 0 : 1), 0);
   const base = advances * heightMm * font.avgCharWidthRatio * weightForStep(weightStep).widthFactor;
   return contentType === "monogram" ? base * MONOGRAM_WIDTH_FACTOR : base;
 }
@@ -462,8 +462,6 @@ export interface ElementEvaluation {
   widthMm: number;
   /** Every line stacked, curve included — what has to fit the area's height. */
   stackMm: number;
-  /** How full the area's width is, 0–1, for the fit meter. */
-  widthFill: number;
   error: ValidationCode | null;
 }
 
@@ -483,9 +481,16 @@ export interface EditorEvaluation {
   hoop: { widthMm: number; heightMm: number; cx: number; cy: number };
 }
 
-/** Mirrors STITCHABLE_TEXT / STITCHABLE_MONOGRAM on the server. */
-const STITCHABLE_TEXT = /^[A-Za-zÀ-ÖØ-öø-ÿŁłŃńŚśŹźŻżĄąĆćĘęÓó0-9 '&.\-]+$/u;
-const STITCHABLE_MONOGRAM = /^[A-Za-zÀ-ÖØ-öø-ÿŁłŃńŚśŹźŻżĄąĆćĘęÓó]+$/u;
+/**
+ * Mirrors STITCHABLE_TEXT / STITCHABLE_MONOGRAM on the server.
+ *
+ * Any script — `\p{L}` is every letter Unicode knows and `\p{M}` the combining
+ * marks Arabic and Indic scripts need to spell anything. What stays refused is
+ * what no machine lays in thread: emoji, arrows, control characters.
+ */
+const STITCHABLE_TEXT = /^[\p{L}\p{M}\p{N} '&.\-]+$/u;
+const STITCHABLE_MONOGRAM = /^[\p{L}\p{M}]+$/u;
+const COMBINING_MARK = /\p{M}/u;
 
 /** Mirrors MAX_ELEMENTS on the server. */
 export const MAX_ELEMENTS = 6;
@@ -535,7 +540,6 @@ export function evaluateElement(args: {
   const borderMm = isLettering && placement.usesCustomerPhoto ? Math.max(0, options.borderMm || 0) : 0;
   const widthMm = widthMmRaw + 2 * borderMm;
 
-  const widthFill = placement.fieldWidthMm > 0 ? Math.min(1, widthMm / placement.fieldWidthMm) : 0;
   const stackMm =
     stackHeightMm({
       lineCount: lines.length,
@@ -550,7 +554,7 @@ export function evaluateElement(args: {
     }) +
     2 * borderMm;
 
-  const base = { text, lines, widthMm, stackMm, widthFill };
+  const base = { text, lines, widthMm, stackMm };
   const invalid = (error: ValidationCode): ElementEvaluation => ({ ...base, error });
 
   if (contentType === "artwork") {
@@ -651,8 +655,13 @@ export function evaluateDesign(args: {
   return { ...base, priceCents: placement.priceCents + designCents, error: null, errorElement: null };
 }
 
-/** Height bounds for a font. */
-export function heightBounds(font: EditorFont, limits?: FieldLimits): { min: number; max: number } {
-  // On the customer's own item the face's ceiling gives way to the photo's.
-  return { min: font.minHeightMm, max: limits ? Math.max(font.maxHeightMm, limits.maxHeightMm) : font.maxHeightMm };
-}
+/**
+ * The smallest letter height the editor offers, in millimetres.
+ *
+ * A rail, not a judgement: a face used to declare its own 8–40mm range and
+ * anything outside it was refused, which is an arbitrary answer to a question
+ * the geometry already answers. The ceiling is the machine's frame and the fit
+ * meter shows it; this is only here because a control has to start somewhere and
+ * 0mm is not a size.
+ */
+export const TEXT_MIN_HEIGHT_MM = 1;
