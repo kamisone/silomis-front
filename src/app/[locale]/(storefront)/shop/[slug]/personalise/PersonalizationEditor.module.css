@@ -94,6 +94,10 @@
 .previewCol {
   position: sticky;
   top: var(--header-offset, 90px);
+  /* Follows the header rather than jumping ahead of it — see .galleryCol on the
+     product page for the whole story. `top` only moves when the header comes or
+     goes, so nothing else is animated. */
+  transition: top 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 5;
   /* Opaque: the controls scroll *under* this, not through it. Matches the page
      so the 20px gutters either side stay invisible. */
@@ -135,22 +139,289 @@
     position: sticky;
     /* Clears the fixed site header, whose real height is measured at runtime. */
     top: calc(var(--header-offset, 90px) + 12px);
+    transition: top 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   /* A sticky block taller than the viewport is worse than no sticky at all —
      its bottom is simply unreachable. On a short laptop the image gives up the
      height instead; `contain` means the whole product still shows, just
-     smaller. 250px is what the tabs, fit meter and position row below it need. */
+     smaller. 250px is what the tabs, fit meter and position row below it need.
+
+     --header-HEIGHT, not --header-offset: the offset drops to 0 as the header
+     hides, so a size derived from it re-sized every position photograph each
+     time the header came and went. Worse here than on a plain page, because the
+     column is a grid row: the photographs growing changed the document's own
+     height, which moved the scroll, which flipped the header again. The height
+     is measured the same way but without the hide, so the photographs hold one
+     size and the loop has nothing to feed on. Position still follows the
+     offset, so the block slides up as the header leaves. */
   .previewImageWrap {
-    max-height: calc(100vh - var(--header-offset, 90px) - 250px);
+    max-height: calc(100vh - var(--header-height, 112px) - 250px);
+  }
+
+  /* With a row of thumbnails under it, the working canvas has to leave room for
+     them too — same rule, more to fit. The floor stops it collapsing to a
+     sliver on a very short window. */
+  .previewCardFeatured .previewImageWrap {
+    max-height: max(150px, calc(100vh - var(--header-height, 112px) - 380px));
+  }
+}
+
+/* ── The positions on screen ───────────────────────────────────────────────
+   Every chosen position is shown, and both layouts scroll sideways rather than
+   stacking: a column that grows with each position chosen pushes the step panel
+   off a phone, and this column is sticky — a block taller than the viewport has
+   a bottom nobody can reach. */
+
+/* Positions and Review: nobody is working in one of them, so they share the
+   room equally in a rail the customer scrolls freely. */
+.previewRail {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  overflow-x: auto;
+  /* A sideways fling at the end of the rail must not become a page-level back
+     gesture. */
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  /* Room for the scrollbar, so it never sits on top of a caption. */
+  padding-bottom: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-primary) var(--color-surface-tint);
+}
+
+/* One position has nothing to scroll past, so it simply fills the column. */
+.previewRail > * {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.previewRailMulti > * {
+  /* Wide enough to read the panel and to fit two on a phone, and it grows with
+     the column rather than being pinned to one pixel width. */
+  flex: 0 0 clamp(150px, 46vw, 230px);
+  scroll-snap-align: start;
+}
+
+/* Slim and on-brand rather than hidden: a rail whose scrollbar is invisible
+   reads as a row that simply got cut off. Firefox uses the properties above. */
+.previewRail::-webkit-scrollbar {
+  height: 8px;
+}
+.previewRail::-webkit-scrollbar-track {
+  background: var(--color-surface-tint);
+  border-radius: 999px;
+}
+.previewRail::-webkit-scrollbar-thumb {
+  background: var(--color-primary);
+  border-radius: 999px;
+}
+
+.previewCard {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+/* Your design: the open position is the working canvas and takes the whole
+   column, so its handles are reachable by a fingertip. */
+.previewCardFeatured {
+  width: 100%;
+}
+
+/* The open card is outlined, so "which one do the controls below act on" is
+   answered by looking rather than by remembering. */
+.previewCardOpen .previewStage {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 1px var(--color-primary);
+}
+
+/* A rail card gives up some of the stage's radius, and on a phone some of the
+   photo's height, so three positions do not push the step panel off screen. */
+.previewRailMulti .previewStage {
+  border-radius: 14px;
+}
+
+@media (max-width: 899px) {
+  .previewRailMulti .previewImageWrap {
+    height: clamp(110px, 18vh, 200px);
+  }
+}
+
+/* ── The other positions, while one is being worked on ─────────────────────
+   Icons, not previews. At this size the lettering is a few pixels tall, so a
+   photograph says everything a live canvas would — and a measured canvas per
+   position would cost a ResizeObserver and an SVG each to say it. They are here
+   to be recognised and tapped, and to leave the working canvas the room. */
+.thumbRail {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  padding-bottom: 6px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-primary) var(--color-surface-tint);
+}
+.thumbRail::-webkit-scrollbar {
+  height: 6px;
+}
+.thumbRail::-webkit-scrollbar-track {
+  background: var(--color-surface-tint);
+  border-radius: 999px;
+}
+.thumbRail::-webkit-scrollbar-thumb {
+  background: var(--color-primary);
+  border-radius: 999px;
+}
+
+.thumb {
+  position: relative;
+  flex: 0 0 52px;
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  border-radius: 12px;
+  border: 1.5px solid var(--field-border, #e2e6eb);
+  background: var(--background);
+  overflow: clip;
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.12s ease;
+}
+.thumb:hover {
+  border-color: var(--color-primary);
+  transform: translateY(-1px);
+}
+
+.thumbImg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Amber for a position with nothing written in it yet, red for one that is
+   wrong. The sentence itself is under the controls; a 52px icon is not where
+   anybody reads an explanation. */
+.thumbDot {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #c81818;
+  box-shadow: 0 0 0 2px var(--background);
+}
+.thumbDotEmpty {
+  background: #d97706;
+}
+
+@media (min-width: 900px) {
+  /* Room to recognise a panel by what is on it, not just by its shape. */
+  .thumb {
+    flex-basis: 72px;
+    width: 72px;
+    height: 72px;
+  }
+}
+
+/* The caption doubles as the switch on a rail: it names the position, carries
+   its price, and pressing it opens that position. A tab in all but the markup. */
+.previewCaption {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--field-border, #e2e6eb);
+  background: var(--background);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-secondary);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+.previewCaption:hover {
+  border-color: var(--color-primary);
+}
+
+.previewCaptionOpen {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: #fff;
+  cursor: default;
+}
+
+/* The same line where there is nothing to open: a caption, not a control. No
+   border, no background, no pointer — it names the photograph above it. */
+.previewCaptionLabel {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  padding: 2px 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-secondary);
+  text-align: center;
+}
+
+.previewCaptionName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.previewCaptionPrice {
+  font-size: 11px;
+  font-weight: 800;
+  opacity: 0.75;
+  flex-shrink: 0;
+}
+
+.previewCaptionWarn {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #c81818;
+  flex-shrink: 0;
+}
+.previewCaptionWarnEmpty {
+  background: #d97706;
+}
+.previewCaptionOpen .previewCaptionWarn {
+  background: #fff;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .previewCaption,
+  .thumb {
+    transition: none;
+  }
+  .thumb:hover {
+    transform: none;
   }
 }
 
 .previewStage {
+  /* The photograph IS the card: no padding, so it reaches the frame on every
+     side. The frame does the clipping (`clip`, not `hidden` — it must not become
+     a scroll container, which would break the sticky column above it), which is
+     also why the photo needs no radius of its own: a radius inside a rounded
+     1px border leaves a hairline of card showing at each corner. */
+  position: relative;
   background: var(--background);
   border: 1px solid var(--field-border, #e2e6eb);
   border-radius: 18px;
-  padding: 14px;
+  overflow: clip;
   box-shadow: 0 1px 2px rgb(16 24 40 / 5%);
 }
 
@@ -158,14 +429,16 @@
   position: relative;
   width: 100%;
   aspect-ratio: 1 / 1;
-  border-radius: 12px;
-  /* clip, not hidden: the photo still gets its rounded corners, but this does
-     not become a scroll container — which would break the sticky preview above
-     it, per the overflow interdependence rule. The rotate handle can sit half
-     outside the frame near an edge and is allowed to be trimmed there; what
-     must not happen is the whole page gaining a scrollbar. */
+  /* The frame above rounds and clips this; see there. Still `clip` in its own
+     right for the rotate handle, which may sit half outside the box near an
+     edge and is allowed to be trimmed — what must never happen is the page
+     gaining a scrollbar. */
   overflow: clip;
-  background: var(--color-surface-tint);
+  /* Same as the card, not a tint. The photo is `contain`-fitted, so whenever
+     the box is capped shorter than it is wide a square photo leaves a band
+     either side; against the card those read as the frame rather than as an
+     empty box the picture is floating in. */
+  background: var(--background);
 }
 
 .previewImage {
@@ -1050,86 +1323,6 @@
   opacity: 0;
 }
 
-/* ── Angle switcher ───────────────────────────────────────────────────── */
-
-.angleRow {
-  display: flex;
-  gap: 6px;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-.angleRow::-webkit-scrollbar {
-  display: none;
-}
-
-.angleBtn {
-  flex: 1;
-  min-width: fit-content;
-  padding: 8px 13px;
-  border-radius: 10px;
-  border: 1px solid var(--field-border, #e2e6eb);
-  background: var(--background);
-  color: var(--color-muted, #6b7280);
-  font-size: 12.5px;
-  font-weight: 600;
-  white-space: nowrap;
-  cursor: pointer;
-  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
-}
-.angleBtn:hover {
-  border-color: var(--color-primary);
-}
-
-.angleBtnActive {
-  border-color: var(--color-primary);
-  background: var(--color-surface-tint);
-  color: var(--color-primary);
-}
-
-/* A side of a send-in: its photo as the tab, its name and a tick when it
-   carries a design. */
-.angleBtnSide {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 5px 10px 5px 5px;
-}
-
-.angleThumb {
-  width: 34px;
-  height: 34px;
-  border-radius: 7px;
-  object-fit: cover;
-  flex-shrink: 0;
-}
-
-.angleLabel {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.angleDone {
-  color: var(--color-primary);
-}
-
-.angleArrow {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  flex-shrink: 0;
-  border-radius: 10px;
-  border: 1px solid var(--field-border, #e2e6eb);
-  background: var(--background);
-  color: var(--color-secondary);
-  cursor: pointer;
-}
-.angleArrow:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
-}
-
 /* ── Position readout ─────────────────────────────────────────────────── */
 
 .positionRow {
@@ -1170,7 +1363,8 @@
 @media (prefers-reduced-motion: reduce) {
   .fieldOutline,
   .dragHint,
-  .angleBtn {
+  .previewCol,
+  .previewSticky {
     transition: none;
   }
 }
@@ -1338,10 +1532,6 @@
   box-shadow: none;
 }
 
-.angleBtnError {
-  border-color: #c81818;
-  color: #9c1f1f;
-}
 
 /* ── Review, one card per position ────────────────────────────────────── */
 

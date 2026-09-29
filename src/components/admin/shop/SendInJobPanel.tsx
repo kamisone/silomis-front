@@ -52,7 +52,7 @@ export interface SendInJob {
     placementKey: string;
     photoUrl: string;
     mockupUrl: string | null;
-    design: { id: string; text: string; productionStatus: string; stitchEstimate: number } | null;
+    design: { id: string; text: string; productionStatus: string } | null;
     /** The customer's own logos on this side: the rendering, and the original file for the digitiser. */
     artworks: { name: string; widthMm: number; heightMm: number; url: string | null; originalUrl: string | null }[];
   }[];
@@ -61,7 +61,7 @@ export interface SendInJob {
   returnCarrier: string | null;
   returnTrackingNumber: string | null;
   returnTrackingUrl: string | null;
-  designs: { id: string; text: string; productionStatus: string; stitchEstimate: number }[];
+  designs: { id: string; text: string; productionStatus: string }[];
   events: { id: string; status: string; note: string | null; photos: { key: string; url: string }[]; at: string }[];
   updatedAt: string;
 }

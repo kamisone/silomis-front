@@ -1,41 +1,36 @@
 /**
- * The editor's local copy of the stitch estimator.
+ * The editor's local copy of the server's measuring and pricing.
  *
  * The backend is the authority: every design is re-validated and re-priced by
- * PersonalizationService before it reaches a cart, and the two must agree.
- * This copy exists so the price and the warnings move with the customer's
- * typing instead of a round trip behind every keystroke — it is a preview of
- * the server's answer, never a substitute for it.
+ * PersonalizationService before it reaches a cart, and the two must agree. This
+ * copy exists so the price and the warnings move with the customer's typing
+ * instead of a round trip behind every keystroke — it is a preview of the
+ * server's answer, never a substitute for it.
  *
- * If you change a number here, change `back/src/personalization/` to match.
- * A drift shows up as a price that jumps when the debounced quote lands.
+ * If you change a number here, change `back/src/personalization/` to match. A
+ * drift shows up as a price that jumps when the debounced quote lands.
+ *
+ * It used to mirror a stitch estimator too, which is gone: only a digitised file
+ * has a stitch count, and pricing off a parametric guess put the guess's whole
+ * error on the invoice. What is left mirrors geometry — how wide the lettering
+ * comes out, how tall it stands, whether it fits the hoop — and adds up figures
+ * the shop typed.
  */
 
-/** Mirrors STITCHES_PER_COLOR_CHANGE — a trim, a tie-off and a re-tie. */
-const STITCHES_PER_COLOR_CHANGE = 120;
-/** Mirrors STITCH_BASE_OVERHEAD — underlay and travel, present in every job. */
-const STITCH_BASE_OVERHEAD = 80;
-/**
- * Mirrors STITCH_HEIGHT_EXPONENT — a satin column widens with the letter rather
- * than adding stitches, so the count grows well short of the square.
- */
-const STITCH_HEIGHT_EXPONENT = 1.3;
-/** Mirrors MONOGRAM_STITCH_FACTOR — interlocked letters, drawn denser. */
-const MONOGRAM_STITCH_FACTOR = 1.45;
 /** Mirrors the monogram width allowance in estimateWidthMm. */
 const MONOGRAM_WIDTH_FACTOR = 1.25;
 
 /**
  * Mirrors WEIGHT_SCALE. How heavy the lettering is stitched — not a second
  * digitised face, but the same outline laid down as a thicker or thinner satin
- * column, which is why it costs stitches and barely any width.
+ * column, which is why it barely changes the width.
  */
 export const WEIGHT_SCALE = [
-  { step: 1, cssWeight: 300, stitchFactor: 0.82, widthFactor: 0.97 },
-  { step: 2, cssWeight: 400, stitchFactor: 1.0, widthFactor: 1.0 },
-  { step: 3, cssWeight: 500, stitchFactor: 1.18, widthFactor: 1.02 },
-  { step: 4, cssWeight: 700, stitchFactor: 1.42, widthFactor: 1.05 },
-  { step: 5, cssWeight: 900, stitchFactor: 1.72, widthFactor: 1.09 },
+  { step: 1, cssWeight: 300, widthFactor: 0.97 },
+  { step: 2, cssWeight: 400, widthFactor: 1.0 },
+  { step: 3, cssWeight: 500, widthFactor: 1.02 },
+  { step: 4, cssWeight: 700, widthFactor: 1.05 },
+  { step: 5, cssWeight: 900, widthFactor: 1.09 },
 ] as const;
 
 export const DEFAULT_WEIGHT_STEP = 2;
@@ -55,8 +50,6 @@ export const TRACKING_MIN = -0.12;
 export const TRACKING_MAX = 0.5;
 export const KERNING_LIMIT = 0.4;
 export const CURVE_LIMIT_DEG = 160;
-export const PUFF_STITCH_FACTOR = 1.35;
-export const CURVE_STITCH_FACTOR = 1.08;
 /**
  * A rail on the text field, not a limit on the design: it stops a pathological
  * paste, and matches the DTO's own `z.string().max(200)`. What a position
@@ -210,6 +203,11 @@ export interface EditorMotif {
   ownColours?: boolean;
   /** The key of the tab it sits under, or null for one that only shows under "All". */
   category: string | null;
+  /**
+   * What picking this design adds to the embroidery price, in cents, on top of
+   * the position's own price. Charged per box, because each box is stitched.
+   */
+  priceCents?: number;
 }
 
 /** One tab in the design library, named by the server in the customer's language. */
@@ -237,7 +235,6 @@ export interface EditorFont {
   supportsPuff: boolean;
   supportsCurve: boolean;
   /** Only the estimator uses it; the server holds the authoritative value. */
-  stitchesPerCharAt10mm?: number;
 }
 
 export interface EditorPlacement {
@@ -251,7 +248,7 @@ export interface EditorPlacement {
    */
   fieldWidthMm: number;
   fieldHeightMm: number;
-  /** What this position costs, before the stitch-count band. */
+  /** What this position costs — the hooping and the run, once per position. */
   priceCents: number;
   /** Whether a frame here can take the height of foam. */
   allowPuff: boolean;
@@ -276,12 +273,6 @@ export interface EditorThread {
   priceMultiplier: number;
 }
 
-export interface EditorPriceBand {
-  maxStitches: number;
-  priceCents: number;
-  label: string | null;
-}
-
 export interface EditorConfig {
   productId: string;
   template: { id: string; key: string; name: string; allowText: boolean; allowMonogram: boolean; allowUpload: boolean };
@@ -297,7 +288,6 @@ export interface EditorConfig {
   motifCategories?: EditorMotifCategory[];
   /** The machine's largest frame — what every box, and the hoop round them, must fit. */
   fieldLimits?: FieldLimits;
-  priceBands: EditorPriceBand[];
 }
 
 /**
@@ -324,72 +314,6 @@ export function estimateWidthMm(
   const advances = [...text].reduce((sum, ch) => sum + (ch === " " ? 0.5 : 1), 0);
   const base = advances * heightMm * font.avgCharWidthRatio * weightForStep(weightStep).widthFactor;
   return contentType === "monogram" ? base * MONOGRAM_WIDTH_FACTOR : base;
-}
-
-/**
- * Stitch count. Scales with the square of the height because a letter grows
- * in both directions at once — doubling a name's height roughly quadruples
- * the thread laid down, which is why the price climbs faster than the size.
- */
-export function estimateStitches(args: {
-  lines: string[];
-  heightMm: number;
-  font: EditorFont;
-  contentType: ContentKind;
-  colorCount: number;
-  weightStep?: number;
-  options: DesignOptions;
-  /** Measured stitch count of the chosen motif at 30mm, when there is one. */
-  motifStitchesAt30mm?: number;
-}): number {
-  const colorStitches = Math.max(0, args.colorCount - 1) * STITCHES_PER_COLOR_CHANGE;
-
-  if (args.contentType === "artwork") {
-    // Drawn area × fill density: the upload measured how much of the box is
-    // actually drawn on, and the server multiplies the same way. Nothing to
-    // count until a file is in.
-    if (!args.options.artworkKey) return STITCH_BASE_OVERHEAD;
-    const { widthMm: w, heightMm: h } = pictureSizeMm(args.options);
-    return Math.ceil(w * h * (args.options.artworkCoverage || 0.5) * ARTWORK_STITCHES_PER_MM2 + STITCH_BASE_OVERHEAD);
-  }
-
-  if (args.contentType === "motif") {
-    // The catalogue's measured figure is not sent to the browser, so the local
-    // estimate uses the seeded average. The debounced server quote replaces it
-    // within a moment, and the difference is never more than a band edge.
-    const per30 = args.motifStitchesAt30mm ?? 2200;
-    const { widthMm: mw, heightMm: mh } = pictureSizeMm(args.options);
-    const areaFactor = (mw * mh) / (30 * 30);
-    return Math.ceil(per30 * areaFactor + colorStitches + STITCH_BASE_OVERHEAD);
-  }
-
-  const glyphs = args.lines.join("").split("").filter((ch) => ch !== " ").length;
-  // A border is a satin band the length of the outline — about three times a
-  // glyph's height per glyph — at 6 stitches per mm². Mirrors the server.
-  const borderStitches = args.options.borderMm ? Math.ceil(glyphs * args.heightMm * 3 * args.options.borderMm * 6) : 0;
-  const heightFactor = (args.heightMm / 10) ** STITCH_HEIGHT_EXPONENT;
-  const typeFactor = args.contentType === "monogram" ? MONOGRAM_STITCH_FACTOR : 1;
-  const perChar = args.font.stitchesPerCharAt10mm ?? 140;
-  const weightFactor = weightForStep(args.weightStep).stitchFactor;
-
-  let glyphStitches = glyphs * perChar * heightFactor * typeFactor * weightFactor;
-  if (args.options.curveDeg) glyphStitches *= CURVE_STITCH_FACTOR;
-  if (args.options.puff) glyphStitches *= PUFF_STITCH_FACTOR;
-
-  return Math.ceil(glyphStitches + borderStitches + colorStitches + STITCH_BASE_OVERHEAD);
-}
-
-/**
- * The first band the estimate fits in.
- *
- * The top band is open-ended: a design past it is priced there rather than
- * refused, because the customer decides how much goes on their item and no
- * stitch count is turned away. Null only when the ladder is empty, which the
- * server does not allow — a template always has at least one band.
- */
-export function resolveBand(stitches: number, bands: EditorPriceBand[]): EditorPriceBand | null {
-  const ladder = [...bands].sort((a, b) => a.maxStitches - b.maxStitches);
-  return ladder.find((b) => stitches <= b.maxStitches) ?? ladder[ladder.length - 1] ?? null;
 }
 
 /**
@@ -535,7 +459,6 @@ export type ValidationCode =
 export interface ElementEvaluation {
   text: string;
   lines: string[];
-  stitches: number;
   widthMm: number;
   /** Every line stacked, curve included — what has to fit the area's height. */
   stackMm: number;
@@ -549,10 +472,8 @@ export interface EditorEvaluation {
   elements: ElementEvaluation[];
   /** Every box's words, in order — what the review step spells out. */
   text: string;
-  stitches: number;
   /** null while the design is invalid — there is nothing to quote yet. */
   priceCents: number | null;
-  band: EditorPriceBand | null;
   error: ValidationCode | null;
   /** Which box the error is on, or null for a position-level one. */
   errorElement: number | null;
@@ -614,9 +535,6 @@ export function evaluateElement(args: {
   const borderMm = isLettering && placement.usesCustomerPhoto ? Math.max(0, options.borderMm || 0) : 0;
   const widthMm = widthMmRaw + 2 * borderMm;
 
-  // A box is one spool, so it carries no colour change of its own; those are
-  // counted once for the position, between one box's spool and the next.
-  const stitches = estimateStitches({ lines, heightMm, font, contentType, colorCount: 1, weightStep, options: { ...options, borderMm } });
   const widthFill = placement.fieldWidthMm > 0 ? Math.min(1, widthMm / placement.fieldWidthMm) : 0;
   const stackMm =
     stackHeightMm({
@@ -632,7 +550,7 @@ export function evaluateElement(args: {
     }) +
     2 * borderMm;
 
-  const base = { text, lines, stitches, widthMm, stackMm, widthFill };
+  const base = { text, lines, widthMm, stackMm, widthFill };
   const invalid = (error: ValidationCode): ElementEvaluation => ({ ...base, error });
 
   if (contentType === "artwork") {
@@ -670,9 +588,8 @@ export function evaluateElement(args: {
 }
 
 /**
- * The position as a whole: every box checked, then one hoop priced as one
- * run — the stitches summed, a colour change per extra spool, the band on the
- * total, the position's own price once. Mirrors PersonalizationService.resolve.
+ * The position as a whole: every box checked, the hoop fitted round them, and
+ * the price added up. Mirrors PersonalizationService.resolve.
  */
 export function evaluateDesign(args: {
   elements: {
@@ -682,14 +599,15 @@ export function evaluateDesign(args: {
     weightStep?: number;
     options: DesignOptions;
     thread: EditorThread | undefined;
+    /** The design in this box, when it holds one — its surcharge is part of the price. */
+    motif?: EditorMotif;
     offset: { x: number; y: number };
     rotationDeg: number;
   }[];
   placement: EditorPlacement;
   limits: FieldLimits;
-  bands: EditorPriceBand[];
 }): EditorEvaluation {
-  const { placement, limits, bands } = args;
+  const { placement, limits } = args;
   const elements = args.elements.map((el) =>
     evaluateElement({ raw: el.raw, font: el.font, placement, limits, heightMm: el.heightMm, weightStep: el.weightStep, options: el.options }),
   );
@@ -700,13 +618,8 @@ export function evaluateDesign(args: {
   for (const el of args.elements) if (el.thread) threads.set(el.thread.id, el.thread);
   const threadCount = threads.size;
 
-  const stitches = elements.reduce((sum, el) => sum + el.stitches, 0) + Math.max(0, threadCount - 1) * STITCHES_PER_COLOR_CHANGE;
-  // A customer's own item is priced flat; a catalogue item is priced by band,
-  // and the top band is open-ended. Either way the stitch count stops nothing —
-  // the customer puts on it what they like. Mirrors the server.
-  const band = placement.usesCustomerPhoto ? { maxStitches: Number.POSITIVE_INFINITY, priceCents: 0, label: "" } : resolveBand(stitches, bands);
   const text = elements.map((el) => el.text).filter(Boolean).join("\n");
-  const base = { elements, text, stitches, band, threadCount, hoop };
+  const base = { elements, text, threadCount, hoop };
   const invalid = (error: ValidationCode, errorElement: number | null = null): EditorEvaluation => ({
     ...base,
     priceCents: null,
@@ -721,16 +634,21 @@ export function evaluateDesign(args: {
   if (hoop.widthMm > limits.maxWidthMm) return invalid("tooWide");
   if (hoop.heightMm > limits.maxHeightMm) return invalid("tooTall");
 
-  // A customer's own item is a flat fee per side — the position's price is the
-  // item type's, and the design never moves it. Mirrors the server, which
-  // charges only the side.
-  if (placement.usesCustomerPhoto) return { ...base, priceCents: placement.priceCents, error: null, errorElement: null };
-
-  // Band covers machine time, the position covers the hooping and the run, and
-  // a slow thread multiplies the first — the dearest spool on the hoop decides.
-  const multiplier = Math.max(1, ...[...threads.values()].map((t) => t.priceMultiplier ?? 1));
-  const priceCents = Math.round((band?.priceCents ?? 0) * multiplier) + placement.priceCents;
-  return { ...base, priceCents, error: null, errorElement: null };
+  /**
+   * The position's own price for the hooping and the run, plus each design's
+   * own surcharge. Both are figures the shop typed — mirrors the server, which
+   * is the authority. A second box on a position adds nothing: the hooping and
+   * the run happen once however many boxes are in the frame.
+   *
+   * A send-in's position price IS the item type's flat side fee, so the same sum
+   * covers both: the customer was quoted that figure per side, and only what
+   * they then knowingly added to it moves the total.
+   */
+  const designCents = args.elements.reduce(
+    (sum, el) => sum + (el.options.contentType === "motif" && el.motif ? (el.motif.priceCents ?? 0) : 0),
+    0,
+  );
+  return { ...base, priceCents: placement.priceCents + designCents, error: null, errorElement: null };
 }
 
 /** Height bounds for a font. */

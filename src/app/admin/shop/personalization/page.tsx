@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Search, Scissors } from "lucide-react";
 import { api } from "@/lib/api";
 import ui from "@/components/admin/ui/admin-ui.module.css";
@@ -68,8 +68,6 @@ export default function PersonalizationQueuePage() {
     [load],
   );
 
-  const totalStitches = useMemo(() => (data?.items ?? []).reduce((sum, r) => sum + r.stitchEstimate * r.quantity, 0), [data]);
-
   return (
     <div className={ui.page}>
       <div className={ui.pageHeader}>
@@ -87,8 +85,8 @@ export default function PersonalizationQueuePage() {
           </div>
         ))}
         <div className={ui.kpiCard}>
-          <span className={ui.kpiLabel}>Stitches in view</span>
-          <span className={ui.kpiValue}>{totalStitches.toLocaleString()}</span>
+          <span className={ui.kpiLabel}>Caps in view</span>
+          <span className={ui.kpiValue}>{(data?.items ?? []).reduce((sum, r) => sum + r.quantity, 0).toLocaleString()}</span>
         </div>
       </div>
 

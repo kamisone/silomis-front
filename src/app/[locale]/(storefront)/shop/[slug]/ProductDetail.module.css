@@ -45,8 +45,26 @@
 .galleryCol {
   min-width: 0;
   position: sticky;
+  /* WHERE it sits tracks --header-offset, which drops to 0 as the header hides,
+     so the column slides up into the freed room.
+
+     HOW TALL it is must not. --header-offset changes on every scroll direction
+     change, so a height derived from it re-sized this column — and every image
+     inside it — each time the header came and went: a visible flicker, the
+     gallery growing and shrinking under the pointer. --header-height is the
+     same measurement without the hide, so the column keeps one size whether
+     the header is on screen or not. It still fits either way: hidden, the
+     column starts 16px from the top and is a header shorter than the viewport,
+     which simply leaves that much room at the bottom. */
   top: calc(var(--header-offset, 84px) + 16px);
-  height: calc(100vh - var(--header-offset, 84px) - 32px);
+  height: calc(100vh - var(--header-height, 112px) - 32px);
+  /* The header slides away over 300ms but the offset it publishes changes in one
+     step, so this column used to jump its whole height in a single frame and sit
+     under a header that was still visibly there. Same curve and duration as the
+     header's own transform, so the column travels with it. `top` only changes
+     when the header comes or goes — never while scrolling — so this animates
+     nothing else. */
+  transition: top 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   align-self: start;
   z-index: 10;
   background: var(--background);
@@ -1305,5 +1323,14 @@
   }
   .personalizeCta:hover {
     transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Both of these follow the header's offset rather than jumping to it. The
+     out-of-stock notice already did; it was simply never listed here. */
+  .galleryCol,
+  .oosStickyNotice {
+    transition: none;
   }
 }

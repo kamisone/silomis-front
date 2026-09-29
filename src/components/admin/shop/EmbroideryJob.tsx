@@ -68,7 +68,6 @@ export interface EmbroideryJob {
   motifName: string | null;
   motifSizeMm: number | null;
   threadColors: ThreadColor[];
-  stitchEstimate: number;
   priceCents: number;
   productionStatus: ProductionStatus;
   productionNote: string | null;
@@ -96,7 +95,6 @@ export interface EmbroideryJobElement {
   offsetXMm: number;
   offsetYMm: number;
   rotationDeg: number;
-  stitchEstimate: number;
 }
 
 /** Orders the floor may actually work. Mirrors the backend's queue filter. */
@@ -252,7 +250,6 @@ export function EmbroideryJobCard({
                       : `${el.fontName} · ${mm(el.heightMm)}`}
                   {finish.length > 0 && ` · ${finish.join(" · ")}`}
                   {` · ${placed}`}
-                  {` · ≈ ${el.stitchEstimate.toLocaleString()} st.`}
                 </span>
               </div>
             </li>
@@ -279,13 +276,6 @@ export function EmbroideryJobCard({
           <dt>Area</dt>
           <dd className={moved ? styles.specWarn : undefined}>
             {mm(job.fieldWidthMm)} × {mm(job.fieldHeightMm)} · {placement}
-          </dd>
-        </div>
-        <div>
-          <dt>Stitches</dt>
-          <dd>
-            ≈ {(job.stitchEstimate * job.quantity).toLocaleString()}
-            {job.quantity > 1 && <span className={ui.muted}> ({job.stitchEstimate.toLocaleString()} each)</span>}
           </dd>
         </div>
         <div>

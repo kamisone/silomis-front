@@ -32,7 +32,8 @@ interface Design {
   paths: Shape[] | null;
   /** Sewn in those shapes' own fills, rather than in a spool the customer picks. */
   ownColours: boolean;
-  stitchesAt30mm: number;
+  /** What picking this design adds to the embroidery price, in cents. */
+  priceCents: number;
   colorCount: number;
   categoryId: string | null;
   categoryKey: string | null;
@@ -58,6 +59,17 @@ interface ParsedArtwork {
 }
 
 const UNFILED = "__none__";
+
+/** Cents as the admin reads them. */
+function euros(cents: number): string {
+  return (cents / 100).toFixed(2);
+}
+
+/** What the admin typed, as cents. A blank or a nonsense figure is no surcharge. */
+function toCents(value: string): number {
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? Math.round(n * 100) : 0;
+}
 
 /** Message from a coded 400, or a fallback — the API names the real problem. */
 function apiMessage(err: unknown, fallback: string): string {
@@ -332,6 +344,7 @@ export default function DesignLibraryPage() {
                         {(d.categoryId && tabName.get(d.categoryId)) || "No tab"}
                         {" · "}
                         {d.ownColours ? `${d.colorCount} colours` : "one spool"}
+                        {d.priceCents > 0 ? ` · +€${euros(d.priceCents)}` : ""}
                       </span>
                     </div>
                     <div className={styles.cardActions}>
@@ -635,7 +648,8 @@ function AddDesign({
   const upload = useSvgUpload();
   const [name, setName] = useState<LocalizedTextMap>({});
   const [categoryId, setCategoryId] = useState(UNFILED);
-  const [stitches, setStitches] = useState(2200);
+  /** The surcharge, held in euros because that is what the admin types. */
+  const [extra, setExtra] = useState("0");
   /** Its own colours, or one spool the customer picks. Follows the artwork until touched. */
   const [ownColours, setOwnColours] = useState<boolean | null>(null);
 
@@ -663,16 +677,11 @@ function AddDesign({
             <Select value={categoryId} onChange={setCategoryId} options={tabOptions} ariaLabel="Tab" />
           </label>
           <label className={ui.field}>
-            <span className={ui.label}>Stitches at 30 mm</span>
-            <input
-              className={ui.input}
-              type="number"
-              min={1}
-              value={stitches}
-              onChange={(e) => setStitches(Number(e.target.value))}
-            />
+            <span className={ui.label}>Extra charge (€)</span>
+            <input className={ui.input} type="number" min={0} step={0.5} value={extra} onChange={(e) => setExtra(e.target.value)} />
             <span className={ui.hint}>
-              Measured from a real stitch-out at 30 mm. The price scales it by area, so a rough figure prices roughly.
+              Added to the embroidery price on top of the position's own price, per box. Leave it at 0 for a design that
+              costs no more than the plain ones.
             </span>
           </label>
         </div>
@@ -698,7 +707,7 @@ function AddDesign({
           type="button"
           className={styles.primaryBtn}
           disabled={saving || !valid}
-          onClick={() => onCreate({ name, svg: upload.svg, ownColours: effectiveOwn, stitchesAt30mm: stitches, categoryId: categoryId === UNFILED ? null : categoryId })}
+          onClick={() => onCreate({ name, svg: upload.svg, ownColours: effectiveOwn, priceCents: toCents(extra), categoryId: categoryId === UNFILED ? null : categoryId })}
         >
           {saving ? <Loader2 size={14} className={styles.spin} aria-hidden="true" /> : <Shapes size={14} aria-hidden="true" />}
           Add design
@@ -729,7 +738,7 @@ function EditDesign({
   const upload = useSvgUpload();
   const [name, setName] = useState<LocalizedTextMap>(toLocalizedMap(design.name));
   const [categoryId, setCategoryId] = useState(design.categoryId ?? UNFILED);
-  const [stitches, setStitches] = useState(design.stitchesAt30mm);
+  const [extra, setExtra] = useState(euros(design.priceCents));
   /** Null until the admin touches it, so replacement artwork can bring its own answer. */
   const [ownColours, setOwnColours] = useState<boolean | null>(null);
 
@@ -767,8 +776,9 @@ function EditDesign({
           <Select value={categoryId} onChange={setCategoryId} options={tabOptions} ariaLabel="Tab" />
         </label>
         <label className={ui.field}>
-          <span className={ui.label}>Stitches at 30 mm</span>
-          <input className={ui.input} type="number" min={1} value={stitches} onChange={(e) => setStitches(Number(e.target.value))} />
+          <span className={ui.label}>Extra charge (€)</span>
+          <input className={ui.input} type="number" min={0} step={0.5} value={extra} onChange={(e) => setExtra(e.target.value)} />
+          <span className={ui.hint}>On top of the position's price, per box.</span>
         </label>
       </div>
 
@@ -797,7 +807,7 @@ function EditDesign({
             onSave({
               name,
               categoryId: categoryId === UNFILED ? null : categoryId,
-              stitchesAt30mm: stitches,
+              priceCents: toCents(extra),
               ownColours: effectiveOwn,
               ...(hasNewArt ? { svg: upload.svg } : {}),
             })

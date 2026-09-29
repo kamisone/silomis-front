@@ -6,7 +6,6 @@ import { api } from "@/lib/api";
 import MediaPicker from "@/components/admin/ui/MediaPicker";
 import ProductPicker from "@/components/admin/shop/ProductPicker";
 import LocalizedTextField, { type LocalizedTextMap } from "@/components/admin/ui/LocalizedTextField";
-import PriceBandEditor from "@/components/admin/shop/PriceBandEditor";
 import ui from "@/components/admin/ui/admin-ui.module.css";
 import styles from "./studio.module.css";
 
@@ -150,7 +149,6 @@ export default function PlacementStudioPage() {
           also the hard ceiling, and a shop that turns on outline and 3D puff
           without raising it starts refusing designs that fit the panel with
           room to spare. */}
-      <PriceBandEditor />
 
       {/* The product comes first: a position is a photograph of one product, so
           there is nothing meaningful to add or edit until one is chosen.

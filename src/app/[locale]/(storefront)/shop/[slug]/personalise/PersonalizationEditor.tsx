@@ -107,6 +107,9 @@ function euros(cents: number): string {
   return (cents / 100).toFixed(2);
 }
 
+/** For a preview that cannot be picked out — there is nothing to select. */
+function noop(): void {}
+
 /**
  * The embroidery editor.
  *
@@ -362,16 +365,17 @@ export default function PersonalizationEditor({ locale, config, product, variant
           weightStep: el.weightStep,
           options: el.options,
           thread: config.threads.find((t) => t.id === el.threadId),
+          // The design in this box, so its own surcharge is in the live figure.
+          motif: config.motifs.find((m) => m.key === el.options.motifKey),
           offset: el.offset,
           rotationDeg: el.rotationDeg,
         })),
         placement,
         limits: limitsFor(placement, config.fieldLimits ?? DEFAULT_FIELD_LIMITS),
-        bands: config.priceBands,
       });
     }
     return out;
-  }, [config.placements, config.fonts, config.threads, config.priceBands, config.fieldLimits, designs]);
+  }, [config.placements, config.fonts, config.threads, config.motifs, config.fieldLimits, designs]);
 
   const activeElement = useMemo(
     () => activeDesign?.elements.find((el) => el.id === activeDesign.activeElementId) ?? activeDesign?.elements[0],
@@ -763,18 +767,26 @@ export default function PersonalizationEditor({ locale, config, product, variant
     setAddError(errorCopy(result.code, c) ?? c.errors.addFailed);
   }, [addItem, variant.id, payload, openDrawer, c]);
 
-  // The preview follows the open tab; with nothing chosen it shows the first
-  // position's photo so the page is never a blank rectangle.
-  const previewPlacement = activePlacement ?? config.placements[0];
   const previewDesign = activeDesign;
-  /** Only a send-in has one: the panel the customer framed on their own photo. */
-  const previewQuad = (previewPlacement?.corners as Quad | undefined) ?? null;
 
-  /** Every box of the open position, measured, as the preview draws it. */
-  const previewElements: PreviewElement[] = useMemo(() => {
-    if (!previewDesign || !activeEval) return [];
-    return previewDesign.elements.map((el, i) => {
-      const ev = activeEval.elements[i];
+  /**
+   * The positions on screen: every one the customer has chosen, so a cap being
+   * embroidered front and side shows both photographs together rather than one
+   * at a time behind a switch. With nothing chosen yet it shows the first
+   * position as a taster, so the page is never a blank rectangle.
+   */
+  const previewKeys = useMemo(
+    () => (chosenKeys.length ? chosenKeys : config.placements[0] ? [config.placements[0].key] : []),
+    [chosenKeys, config.placements],
+  );
+
+  /** Every box of one position, measured, as the preview draws it. */
+  const elementsFor = useCallback((key: string): PreviewElement[] => {
+    const design = designs[key];
+    const evaluation = evaluations[key];
+    if (!design || !evaluation) return [];
+    return design.elements.map((el, i) => {
+      const ev = evaluation.elements[i];
       const motif = el.options.contentType === "motif" && el.options.motifKey ? config.motifs.find((m) => m.key === el.options.motifKey) : null;
       return {
         id: el.id,
@@ -811,7 +823,137 @@ export default function PersonalizationEditor({ locale, config, product, variant
         invalid: !!ev?.error && ev.error !== "empty",
       };
     });
-  }, [previewDesign, activeEval, config.fonts, config.threads, config.motifs]);
+  }, [designs, evaluations, config.fonts, config.threads, config.motifs, customerItems]);
+
+  /**
+   * One position's photograph with its design drawn on it, as the preview card
+   * the rail and the featured slot both use.
+   *
+   * A function rather than a component so it closes over the editor's state
+   * directly: it is called from two places in one render, never mounted twice.
+   */
+  const renderPreview = (key: string) => {
+    const placement = config.placements.find((p) => p.key === key);
+    if (!placement) return null;
+    const open = key === activeKey;
+    /** Only the open position on the design step is a canvas to work in. */
+    const editing = open && step === "design";
+    /**
+     * Whether one of these can be picked out.
+     *
+     * Only where that means something. On the Positions step no design is open
+     * and the controls below are hidden, so "select this image" would change
+     * nothing a customer can see — it is just a button that moves a highlight.
+     * The panels are chosen on the cards below; up here the photographs are the
+     * answer to "what is a front panel", nothing more.
+     */
+    const selectable = step !== "positions" && previewKeys.length > 1;
+    return (
+      <div
+        key={key}
+        className={`${styles.previewCard} ${editing ? styles.previewCardFeatured : ""} ${selectable && open ? styles.previewCardOpen : ""}`}
+      >
+        <DesignPreview
+          imageUrl={placement.imageUrl}
+          productTitle={product.title}
+          placement={placement}
+          elements={elementsFor(key)}
+          activeElementId={open ? activeElementId || null : null}
+          // Pressing a locked photo opens that position rather than
+          // reaching into a design the controls are not pointed at —
+          // and does nothing at all where there is nothing to open.
+          onSelectElement={editing ? selectElement : selectable ? () => setActiveKey(key) : noop}
+          onElementChange={(id, patch) => {
+            if (!editing) return;
+            if (patch.size) {
+              const target = activeDesign?.elements.find((x) => x.id === id);
+              if (!target) return;
+              const o = target.options;
+              // A picture has a width and a height of its own, so a
+              // pull on a handle sets them directly.
+              if (o.contentType === "artwork" || o.contentType === "motif") {
+                const next: Partial<DesignOptions> =
+                  o.contentType === "artwork"
+                    ? { artworkSizeMm: Math.round(patch.size.widthMm), artworkHeightMm: Math.round(patch.size.heightMm) }
+                    : { motifSizeMm: Math.round(patch.size.widthMm), motifHeightMm: Math.round(patch.size.heightMm) };
+                patchElement({ options: { ...o, ...next } }, id);
+                return;
+              }
+              resizeLettering(target, patch.size);
+              return;
+            }
+            patchElement(patch, id);
+          }}
+          // A send-in's area is the four corners the CUSTOMER framed
+          // on the photo of their own item — the one tracing that
+          // survives, because nobody else can know where that panel
+          // is. Null on a catalogue position, whose area is stated
+          // on the row.
+          quadPct={isUsableQuad(placement.corners as Quad | undefined) ? (placement.corners as Quad) : null}
+          resizeLabel={c.resizeLabel}
+          placeholder={c.previewPlaceholder}
+          logoPlaceholder={c.contentTypes.artwork}
+          dragHint={c.dragHint}
+          moveLabel={c.moveLabel}
+          rotateLabel={c.rotateLabel}
+          // Only Your design is for editing, and only the position
+          // that is open. On Positions the preview answers "where
+          // does it go" — it shows the placeholder sitting on the
+          // panel and nothing else, because the customer has not
+          // been offered a field to write in yet and a box they can
+          // drag before typing invites them to arrange text that
+          // does not exist. Review is for confirming.
+          editable={editing}
+        />
+
+        {/* A caption belongs on a rail item, where there is room to read one.
+            With one position there is nothing to name or choose between, and on
+            the design step the featured card is already named by the tabs in the
+            controls column. */}
+        {previewKeys.length > 1 && step !== "design" &&
+          (() => {
+            const body = (
+              <>
+                <span className={styles.previewCaptionName}>{placement.label}</span>
+                {/* On the Positions step every design is empty by
+                    definition, so a "nothing written yet" mark on
+                    every photograph says nothing and hides the one
+                    thing that is worth reading there — what the
+                    position costs. The mark starts once the customer
+                    is actually writing: amber for a position still
+                    to fill in, red for one that is wrong. The
+                    sentence itself lives under the controls; a
+                    caption is not where anybody reads an
+                    explanation. */}
+                {selectable && evaluations[key]?.error ? (
+                  <span
+                    className={`${styles.previewCaptionWarn} ${evaluations[key]?.error === "empty" ? styles.previewCaptionWarnEmpty : ""}`}
+                    aria-hidden="true"
+                  />
+                ) : (
+                  placement.priceCents > 0 && <span className={styles.previewCaptionPrice}>+€{euros(placement.priceCents)}</span>
+                )}
+              </>
+            );
+            // A label where there is nothing to open, a tab where
+            // there is. Not a button that does nothing, which is
+            // what a disabled one would be.
+            return selectable ? (
+              <button
+                type="button"
+                className={`${styles.previewCaption} ${open ? styles.previewCaptionOpen : ""}`}
+                onClick={() => setActiveKey(key)}
+                aria-current={open ? "true" : undefined}
+              >
+                {body}
+              </button>
+            ) : (
+              <span className={styles.previewCaptionLabel}>{body}</span>
+            );
+          })()}
+      </div>
+    );
+  };
 
   return (
     <div className={styles.page}>
@@ -837,109 +979,85 @@ export default function PersonalizationEditor({ locale, config, product, variant
         {/* ── Preview ────────────────────────────────────────────────── */}
         <section className={styles.previewCol} aria-label={c.previewLabel}>
           <div className={styles.previewSticky}>
-            {previewPlacement && (
-              <DesignPreview
-                imageUrl={previewPlacement.imageUrl}
-                productTitle={product.title}
-                placement={previewPlacement}
-                elements={previewElements}
-                activeElementId={activeElementId || null}
-                onSelectElement={selectElement}
-                onElementChange={(id, patch) => {
-                  if (patch.size) {
-                    const target = activeDesign?.elements.find((x) => x.id === id);
-                    if (!target) return;
-                    const o = target.options;
-                    // A picture has a width and a height of its own, so a pull
-                    // on a handle sets them directly.
-                    if (o.contentType === "artwork" || o.contentType === "motif") {
-                      const next: Partial<DesignOptions> =
-                        o.contentType === "artwork"
-                          ? { artworkSizeMm: Math.round(patch.size.widthMm), artworkHeightMm: Math.round(patch.size.heightMm) }
-                          : { motifSizeMm: Math.round(patch.size.widthMm), motifHeightMm: Math.round(patch.size.heightMm) };
-                      patchElement({ options: { ...o, ...next } }, id);
-                      return;
-                    }
-                    resizeLettering(target, patch.size);
-                    return;
-                  }
-                  patchElement(patch, id);
-                }}
-                // A send-in's area is the four corners the CUSTOMER framed on
-                // the photo of their own item — the one tracing that survives,
-                // because nobody else can know where that panel is. Null on a
-                // catalogue position, whose area is stated on the row.
-                quadPct={isUsableQuad(previewQuad) ? previewQuad : null}
-                resizeLabel={c.resizeLabel}
-                placeholder={c.previewPlaceholder}
-                logoPlaceholder={c.contentTypes.artwork}
-                dragHint={c.dragHint}
-                moveLabel={c.moveLabel}
-                rotateLabel={c.rotateLabel}
-                // Only Your design is for editing. On Positions the preview is
-                // there to answer "where does it go" — it shows the placeholder
-                // sitting on the panel and nothing else, because the customer
-                // has not been offered a field to write in yet and a box they
-                // can drag before they have typed anything invites them to
-                // arrange text that does not exist. Review is for confirming,
-                // so the handles come off there too.
-                editable={step === "design"}
-              />
-            )}
+            {/* Every chosen position, on screen together.
+                A cap embroidered on the front and the side is two photographs,
+                and the customer is deciding about both at once. How they are
+                laid out follows what the step is for:
 
-            {chosenKeys.length > 1 && (
-              <div className={styles.angleRow} role="tablist" aria-label={c.angleLabel}>
-                {/* Sides of a send-in are walked with arrows too: on a phone
-                    three thumbnails and a photo do not all fit at once. */}
-                {locked && (
-                  <button
-                    type="button"
-                    className={styles.angleArrow}
-                    aria-label={t.sendIn.prevSide}
-                    disabled={chosenKeys.indexOf(activeKey) <= 0}
-                    onClick={() => setActiveKey(chosenKeys[chosenKeys.indexOf(activeKey) - 1])}
-                  >
-                    <ArrowLeft size={14} aria-hidden="true" />
-                  </button>
+                - On Positions and Review nobody is working in one of them, so
+                  they share the room equally, in a rail that scrolls sideways
+                  rather than a grid that stacks. Three positions on a phone
+                  would otherwise push the step panel off the screen.
+                - On Your design one of them IS the working canvas, so it takes
+                  the column and the rest shrink to thumbnails beside it. They
+                  are there to be recognised and tapped, not worked in, and at
+                  that size a live preview shows nothing a photograph does not.
+
+                Only the open one ever takes a pointer: the controls below act on
+                one design, and a handle on a photo nobody is working in would
+                move something out of sight. */}
+            {step === "design" ? (
+              <>
+                {activeKey && renderPreview(activeKey)}
+
+                {/* Not a tablist: the open position is the featured card above,
+                    not one of these, and a tablist whose selected tab is
+                    somewhere else is a lie to a screen reader. The real one is
+                    `designTabs` in the controls column; these are a pointer
+                    shortcut to the same thing. */}
+                {previewKeys.length > 1 && (
+                  <div className={styles.thumbRail}>
+                    {previewKeys
+                      .filter((key) => key !== activeKey)
+                      .map((key) => {
+                        const placement = config.placements.find((p) => p.key === key);
+                        if (!placement) return null;
+                        const trouble = evaluations[key]?.error;
+                        return (
+                          <button
+                            key={key}
+                            type="button"
+                            className={styles.thumb}
+                            onClick={() => setActiveKey(key)}
+                            title={placement.label}
+                            aria-label={placement.label}
+                          >
+                            {/* The photograph, not a preview: at this size the
+                                lettering is a few pixels tall, and a second
+                                measured canvas per position would cost a
+                                ResizeObserver and an SVG to show nothing. */}
+                            {placement.imageUrl && (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={placement.imageUrl} alt="" className={styles.thumbImg} />
+                            )}
+                            {trouble && (
+                              <span
+                                className={`${styles.thumbDot} ${trouble === "empty" ? styles.thumbDotEmpty : ""}`}
+                                aria-hidden="true"
+                              />
+                            )}
+                          </button>
+                        );
+                      })}
+                  </div>
                 )}
-                {chosenKeys.map((k) => {
-                  const p = config.placements.find((pl) => pl.key === k)!;
-                  const done = !evaluations[k]?.error;
-                  return (
-                    <button
-                      key={k}
-                      type="button"
-                      role="tab"
-                      aria-selected={k === activeKey}
-                      className={`${styles.angleBtn} ${locked ? styles.angleBtnSide : ""} ${k === activeKey ? styles.angleBtnActive : ""} ${evaluations[k]?.error ? styles.angleBtnError : ""}`}
-                      onClick={() => setActiveKey(k)}
-                    >
-                      {locked && p.imageUrl && (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={p.imageUrl} alt="" className={styles.angleThumb} />
-                      )}
-                      <span className={styles.angleLabel}>
-                        {p.label}
-                        {locked && done && <Check size={11} aria-hidden="true" className={styles.angleDone} />}
-                      </span>
-                    </button>
-                  );
-                })}
-                {locked && (
-                  <button
-                    type="button"
-                    className={styles.angleArrow}
-                    aria-label={t.sendIn.nextSide}
-                    disabled={chosenKeys.indexOf(activeKey) >= chosenKeys.length - 1}
-                    onClick={() => setActiveKey(chosenKeys[chosenKeys.indexOf(activeKey) + 1])}
-                  >
-                    <ArrowRight size={14} aria-hidden="true" />
-                  </button>
-                )}
+              </>
+            ) : (
+              <div className={`${styles.previewRail} ${previewKeys.length > 1 ? styles.previewRailMulti : ""}`}>
+                {previewKeys.map((key) => renderPreview(key))}
               </div>
             )}
 
-            {activeEval && activePlacement && activeElementEval && (
+            {/* Everything below the photographs is for working on one design:
+                how wide the lettering came out, its quarter turn, and where it
+                sits. On the Positions step none of that is the question being
+                asked — the customer is picking panels — so the column is the
+                photographs and nothing else until the design step.
+
+                The row of text buttons that used to walk between positions has
+                gone with it: each photo now carries its own caption, which says
+                the same thing while being attached to the thing it names. */}
+            {step !== "positions" && activeEval && activePlacement && activeElementEval && (
               <>
                 <div className={styles.fitRow}>
                   <div className={styles.fitMeter} role="img" aria-label={c.fitLabel}>
