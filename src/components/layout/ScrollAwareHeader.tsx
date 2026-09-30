@@ -4,19 +4,37 @@ import { useEffect, useRef, useState } from "react";
 import styles from "./ScrollAwareHeader.module.css";
 
 /**
- * The band at the top of the page where the header is shown whichever way the
- * last scroll was going — and, further down, how far the page has to travel
- * in one direction before the header hides (down) or comes back (up).
+ * How far the page has to travel down before the header gets out of the way.
  *
- * A share of the page rather than a flat 80px: the reason the header could be
- * caught hidden at the very top was a bounce/fling arriving there faster than
- * the scroll events describing it, and a wider band is simply harder to land
- * past. The floor keeps it sane on a short page, the ceiling stops it becoming
- * "the header never hides" on a very long one.
+ * Cheap, and deliberately so. Somebody scrolling down has decided to read what
+ * is below, and the header is 110px of chrome sitting on top of it, so it should
+ * go almost as soon as they mean it — about half the header's own height.
  */
-const REVEAL_ZONE_RATIO = 0.05;
-const REVEAL_ZONE_MIN_PX = 80;
-const REVEAL_ZONE_MAX_PX = 400;
+const HIDE_AFTER_PX = 48;
+
+/**
+ * How close to the top of the page the header comes back — and the ONLY way it
+ * comes back.
+ *
+ * Scrolling up part-way through a page does not bring it down over the paragraph
+ * being read. Once it has gone it is gone until the reader is back near the top,
+ * with no more than this much scrolling left to go.
+ *
+ * An absolute position rather than a distance travelled up, which is what this
+ * replaced. A travelled-distance rule makes the header's state depend on how the
+ * reader got to where they are, so the same place on the page shows it or hides it
+ * according to history — and any value low enough to feel responsive also lets a
+ * long upward flick halfway down drop it over the text. Measured from the top it
+ * is a property of WHERE YOU ARE: near the top the header is there, everywhere
+ * else it is not, which is a rule a reader learns without thinking about it.
+ *
+ * It also guards against the header being caught hidden AT the top. iOS reports a
+ * negative scrollY while rubber-banding past it and the spring back reads as a
+ * downward scroll, so this band has to be wide enough to be hard to land past
+ * during a fling: much below about 150 and a fast throw to the top can leave the
+ * page at rest with no header.
+ */
+const SHOW_WITHIN_PX = 100;
 
 export default function ScrollAwareHeader({ children }: { children: React.ReactNode }) {
   const [hidden, setHidden] = useState(false);
@@ -25,16 +43,6 @@ export default function ScrollAwareHeader({ children }: { children: React.ReactN
   const headerRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
-    // Measured here and on resize rather than per scroll event: scrollHeight
-    // forces a layout read, and doing that on every scroll tick is exactly the
-    // kind of thing that makes a phone stutter.
-    let revealZone = REVEAL_ZONE_MIN_PX;
-    const measure = () => {
-      const scrollable = document.documentElement.scrollHeight - window.innerHeight;
-      revealZone = Math.min(REVEAL_ZONE_MAX_PX, Math.max(REVEAL_ZONE_MIN_PX, scrollable * REVEAL_ZONE_RATIO));
-    };
-    measure();
-
     // iOS reports a *negative* scrollY while the page is rubber-banded past the
     // top. Unclamped it lands in lastY, and the spring back to rest then reads
     // as scrolling down (0 > -40) — hiding the header at the one position it
@@ -42,10 +50,9 @@ export default function ScrollAwareHeader({ children }: { children: React.ReactN
     const currentY = () => Math.max(0, window.scrollY);
 
     lastY.current = currentY();
-    // Where the scroll last changed direction. The header only reacts once
-    // the page has travelled a whole zone from there — the same distance
-    // down to hide it as up to bring it back — so a wobble of the thumb, or
-    // a page that settles a few pixels after a fling, does not flicker it.
+    // Where the scroll last turned around. Hiding is measured from there rather
+    // than from wherever the last event landed, so a wobble of the thumb — or a
+    // page that settles a few pixels after a fling — does not hide it.
     let anchorY = lastY.current;
     let goingDown = false;
     const onScroll = () => {
@@ -56,23 +63,22 @@ export default function ScrollAwareHeader({ children }: { children: React.ReactN
         anchorY = lastY.current;
         goingDown = down;
       }
-      if (y <= revealZone) {
+      if (y <= SHOW_WITHIN_PX) {
+        // Back near the top: shown whichever way the scroll was going, and the
+        // anchor follows, so leaving again costs a full HIDE_AFTER_PX rather than
+        // whatever was left over from the way in.
         setHidden(false);
         anchorY = y;
-      } else if (goingDown && y - anchorY >= revealZone) {
+      } else if (goingDown && y - anchorY >= HIDE_AFTER_PX) {
         setHidden(true);
-      } else if (!goingDown && anchorY - y >= revealZone) {
-        setHidden(false);
       }
+      // There is deliberately no branch for scrolling up. Below SHOW_WITHIN_PX
+      // the header stays hidden however far back up the page the reader travels.
       lastY.current = y;
     };
 
     window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", measure);
-    return () => {
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", measure);
-    };
+    return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
   // Keep --header-offset and --header-height in sync with the real, measured
