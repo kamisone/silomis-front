@@ -12,6 +12,7 @@ import BlogTeasers, { type HomePost } from "@/components/home/BlogTeasers";
 import SectionHeading from "@/components/home/SectionHeading";
 import SectionSeparator from "@/components/home/SectionSeparator";
 import SeoText from "@/components/home/SeoText";
+import SendInBand from "@/components/home/SendInBand";
 import Faqs from "@/components/home/Faqs";
 import Testimonials from "@/components/home/Testimonials";
 import {
@@ -394,6 +395,11 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
 
           case "testimonials":
             return <Testimonials key={section.id} config={section.config} locale={locale} t={t} tinted={tintIndex++ % 2 === 1} />;
+
+          // Draws no catalogue data: the copy is the section's own, or the
+          // service's, and the only link it has is to a fixed page.
+          case "send_in_band":
+            return <SendInBand key={section.id} config={section.config} locale={locale} tinted={tintIndex++ % 2 === 1} />;
 
           case "blog_posts":
             return (

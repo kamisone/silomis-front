@@ -146,6 +146,14 @@ function settingsSummary(section: HomeSection, catalogue: Catalogue): string | n
     parts.push(items.length ? countLabel(items.length, "question") : "No questions yet — hidden");
   }
 
+  if (section.type === "send_in_band") {
+    // Every text field has a translated fallback, so the only thing worth saying
+    // here is whether it has its picture and whether the copy is the shop's own.
+    parts.push(config.imageUrl ? "with a photo" : "no photo — copy full width");
+    const own = localized(config.heading, DEFAULT_LOCALE);
+    parts.push(own ? `\u201c${own}\u201d` : "service's own wording");
+  }
+
   if (section.type === "testimonials") {
     const items = config.testimonials ?? [];
     parts.push(items.length ? countLabel(items.length, "testimonial") : "No testimonials yet — hidden");

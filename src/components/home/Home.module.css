@@ -1599,3 +1599,152 @@
     min-height: 0;
   }
 }
+
+/* ── Embroider your own item ───────────────────────────────────────────────
+   The service, given a band. Picture and copy side by side on a desk, stacked on
+   a phone — the photograph first there, because it is what makes somebody read
+   the heading at all. */
+.sendIn {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: clamp(20px, 4vw, 44px);
+  align-items: center;
+}
+
+/* No photograph: the copy takes the width rather than sitting beside a hole,
+   and centres, because a single column of left-aligned text in a wide band reads
+   as a mistake. */
+.sendInNoImage {
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 62ch;
+  margin-inline: auto;
+  text-align: center;
+}
+
+.sendInNoImage .sendInSteps {
+  justify-items: center;
+}
+
+.sendInImage {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  border-radius: 20px;
+  overflow: clip;
+  background: var(--color-surface-tint);
+}
+
+.sendInImageFit {
+  object-fit: cover;
+}
+
+.sendInCopy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+}
+
+.sendInNoImage .sendInCopy {
+  align-items: center;
+}
+
+.sendInEyebrow {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-primary);
+}
+
+.sendInTitle {
+  margin: 0;
+  font-size: clamp(1.4rem, 3.2vw, 2.1rem);
+  line-height: 1.15;
+  letter-spacing: -0.015em;
+  color: var(--color-secondary);
+}
+
+.sendInBody {
+  margin: 0;
+  max-width: 54ch;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: color-mix(in srgb, var(--foreground) 68%, transparent);
+}
+
+/* The steps are the reassurance, so they are a list and not a sentence: three
+   short things somebody can count beats one long clause they have to parse. */
+.sendInSteps {
+  display: grid;
+  gap: 8px;
+  margin: 6px 0 4px;
+  padding: 0;
+  list-style: none;
+}
+
+.sendInStep {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--color-secondary);
+}
+
+.sendInStepNo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--color-primary) 14%, transparent);
+  color: var(--color-primary);
+  font-size: 0.72rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.sendInCta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  padding: 12px 22px;
+  border-radius: 999px;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 0.92rem;
+  font-weight: 700;
+  text-decoration: none;
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--color-primary) 34%, transparent);
+  transition: transform 0.14s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.sendInCta:hover {
+  background: color-mix(in srgb, var(--color-primary) 88%, #000);
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--color-primary) 42%, transparent);
+  transform: translateY(-1px);
+}
+
+.sendInCta:active {
+  transform: none;
+}
+
+@media (max-width: 899px) {
+  .sendIn {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sendInImage {
+    aspect-ratio: 16 / 10;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sendInCta {
+    transition: none;
+  }
+}

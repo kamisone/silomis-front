@@ -173,6 +173,24 @@ const PREVIEWS: Record<HomeSectionType, React.ReactNode> = {
   // A heading over quote cards running off the right edge — the third is cut
   // to say "this scrolls sideways", which is the one thing the shape has to
   // convey. Stars along the top of each card, attribution line at the foot.
+  // Photograph left, copy right: eyebrow, heading, two lines of body, three
+  // numbered steps and a button.
+  send_in_band: (
+    <>
+      <B x={6} y={8} w={34} h={47} o={0.16} r={3} />
+      <L x={45} y={11} w={12} o={0.34} />
+      <L x={45} y={18} w={40} o={0.55} />
+      <L x={45} y={25} w={45} o={0.26} />
+      <L x={45} y={30} w={31} o={0.26} />
+      {[0, 1, 2].map((i) => (
+        <g key={i}>
+          <circle cx={47 + i * 16} cy={40} r="2.6" fill="currentColor" opacity={0.4} />
+          <L x={51 + i * 16} y={38.5} w={10} o={0.26} />
+        </g>
+      ))}
+      <B x={45} y={47} w={30} h={8} o={0.42} r={4} />
+    </>
+  ),
   testimonials: (
     <>
       <L x={6} y={8} w={34} o={0.42} />

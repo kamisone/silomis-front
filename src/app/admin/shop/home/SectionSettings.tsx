@@ -281,7 +281,7 @@ function Stepper({
 
 // Which group each control belongs to. Content is what the section shows,
 // Appearance is how it looks, Link is where it sends people.
-const APPEARANCE_FIELDS: SectionField[] = ["icon", "align", "tinted", "tone", "height", "flipTint"];
+const APPEARANCE_FIELDS: SectionField[] = ["icon", "image", "align", "tinted", "tone", "height", "flipTint"];
 const LINK_FIELDS: SectionField[] = ["viewAll"];
 
 /**
@@ -880,6 +880,30 @@ export default function SectionSettings({
                 <span className={styles.iconHint}>
                   Optional. A small square mark printed just before the title — a badge or an emoji exported as an
                   image. Sized to the text, so anything above roughly 96&nbsp;px square is enough.
+                </span>
+              </div>
+            </Field>
+          )}
+
+          {has("image") && (
+            <Field label="Photograph" span="full">
+              <div className={styles.iconRow}>
+                <MediaPicker
+                  value={config.imageKey ?? null}
+                  previewUrl={config.imageUrl ?? null}
+                  mediaType="image"
+                  label="band photograph"
+                  asAddTile
+                  className={styles.iconTile}
+                  // Key and URL together, as with the heading icon above: media/
+                  // objects are public and their URLs never expire, so the
+                  // storefront prints one without a lookup.
+                  onChange={(storageKey, url) => onChange({ imageKey: storageKey, imageUrl: url })}
+                />
+                <span className={styles.iconHint}>
+                  Optional. Shown beside the copy — a cap being embroidered, or the finished stitching close up.
+                  Landscape, and at least 900&nbsp;px wide. Left out, the copy takes the full width of the band
+                  instead of sitting next to a gap.
                 </span>
               </div>
             </Field>

@@ -23,6 +23,7 @@ export const HOME_SECTION_TYPES = [
   "seo_text",
   "faqs",
   "testimonials",
+  "send_in_band",
 ] as const;
 
 export type HomeSectionType = (typeof HOME_SECTION_TYPES)[number];
@@ -240,6 +241,18 @@ export interface HomeSectionConfig {
   iconImageKey?: string | null;
   iconImageUrl?: string | null;
 
+  /**
+   * send_in_band only: the photograph beside the copy — a cap being embroidered,
+   * or the finished stitching close up. Stored as key and URL together for the
+   * same reason as the heading icon above.
+   *
+   * Optional: without one the band lays the copy across its full width rather
+   * than leaving a hole, because a service worth featuring should not stop being
+   * featured while somebody finds a photo.
+   */
+  imageKey?: string | null;
+  imageUrl?: string | null;
+
   // ── separator ──
   /** Which treatment the spacer uses. Default "plain". */
   tone?: SeparatorTone;
@@ -303,7 +316,7 @@ export function newSectionConfig(type: HomeSectionType): HomeSectionConfig {
  * Sections that draw no data of their own. The storefront skips every catalogue
  * query for these, and the admin card shows copy fields instead of item counts.
  */
-export const EDITORIAL_SECTION_TYPES = ["section_heading", "separator", "seo_text", "faqs", "testimonials"] as const;
+export const EDITORIAL_SECTION_TYPES = ["section_heading", "separator", "seo_text", "faqs", "testimonials", "send_in_band"] as const;
 
 export type SectionField =
   | "limit"
@@ -327,6 +340,8 @@ export type SectionField =
   | "align"
   | "tinted"
   | "icon"
+  /** A full picture for a band, as opposed to `icon`'s small inline mark. */
+  | "image"
   | "tone"
   | "height"
   | "flipTint";
@@ -386,6 +401,12 @@ export const SECTION_META: Record<
     label: "Separator",
     description: "Breathing room between chapters, and where the white / off-white banding restarts.",
     fields: ["tone", "height", "flipTint"],
+  },
+  send_in_band: {
+    label: "Embroider your own item",
+    description:
+      "The send-in service, given a band of its own: what it is, the three steps, and a button into it. Every field falls back to the service's own copy, translated already — so it says the right thing with nothing filled in.",
+    fields: ["eyebrow", "heading", "body", "image", "tinted"],
   },
   seo_text: {
     label: "SEO text",
