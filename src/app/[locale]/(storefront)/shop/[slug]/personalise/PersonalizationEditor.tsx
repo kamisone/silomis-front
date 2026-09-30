@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft, Check, Loader2, AlertTriangle, Ruler, Palette, Type, MapPin,
   ShoppingBag, RotateCcw, RotateCw, Plus, Bold, ArrowRight, PencilLine,
-  MoveHorizontal, Spline, Sparkles, Undo2, Redo2, Copy, Minus, LayoutList, X, StickyNote, ImagePlus, Trash2, RefreshCw, Search, ChevronDown, Check as CheckIcon, MoveVertical,
+  MoveHorizontal, Spline, Sparkles, Undo2, Redo2, Copy, Minus, LayoutList, X, StickyNote, ImagePlus, Trash2, RefreshCw, Search, ChevronDown, ChevronLeft, ChevronRight, Check as CheckIcon, MoveVertical,
 } from "lucide-react";
 import DesignPreview, { type PreviewElement } from "./DesignPreview";
 import { useCart, type CustomerItemInput, type PersonalizationInput } from "@/components/shop/CartContext";
@@ -913,6 +913,7 @@ export default function PersonalizationEditor({ locale, config, product, variant
           // Pressing a locked photo opens that position rather than
           // reaching into a design the controls are not pointed at —
           // and does nothing at all where there is nothing to open.
+          selectable={editing || selectable}
           onSelectElement={editing ? selectElement : selectable ? () => setActiveKey(key) : noop}
           onElementChange={(id, patch) => {
             if (!editing) return;
@@ -1078,14 +1079,38 @@ export default function PersonalizationEditor({ locale, config, product, variant
                             title={placement.label}
                             aria-label={placement.label}
                           >
-                            {/* The photograph, not a preview: at this size the
-                                lettering is a few pixels tall, and a second
-                                measured canvas per position would cost a
-                                ResizeObserver and an SVG to show nothing. */}
-                            {placement.imageUrl && (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img src={placement.imageUrl} alt="" className={styles.thumbImg} />
-                            )}
+                            {/* A miniature of the position, design and all.
+                                The photograph alone was cheaper, but it made
+                                every unopened position look untouched: a
+                                customer who had just written on the front had no
+                                way to see, from the rail, which panels they had
+                                already done. It is the same component as the
+                                canvas above, inert — no handles, no guides, and
+                                nothing inside it claiming to be a control, since
+                                the button around it is the only target. */}
+                            <span className={styles.thumbPreview}>
+                              <DesignPreview
+                                imageUrl={placement.imageUrl}
+                                productTitle={product.title}
+                                placement={placement}
+                                elements={elementsFor(key)}
+                                activeElementId={null}
+                                onSelectElement={noop}
+                                onElementChange={noop}
+                                placeholder={c.previewPlaceholder}
+                                logoPlaceholder={c.contentTypes.artwork}
+                                quadPct={isUsableQuad(placement.corners as Quad | undefined) ? (placement.corners as Quad) : null}
+                                dragHint=""
+                                moveLabel={c.moveLabel}
+                                rotateLabel={c.rotateLabel}
+                                // Nothing is typed here; the props exist because
+                                // the same component does the editing above.
+                                onTextChange={noop}
+                                textLabel={c.textLabel}
+                                editable={false}
+                                selectable={false}
+                              />
+                            </span>
                             {trouble && (
                               <span
                                 className={`${styles.thumbDot} ${trouble === "empty" ? styles.thumbDotEmpty : ""}`}
@@ -1099,9 +1124,13 @@ export default function PersonalizationEditor({ locale, config, product, variant
                 )}
               </>
             ) : (
-              <div className={`${styles.previewRail} ${previewKeys.length > 1 ? styles.previewRailMulti : ""}`}>
+              <ScrollRail
+                className={`${styles.previewRail} ${previewKeys.length > 1 ? styles.previewRailMulti : ""}`}
+                prevLabel={c.railPrev}
+                nextLabel={c.railNext}
+              >
                 {previewKeys.map((key) => renderPreview(key))}
-              </div>
+              </ScrollRail>
             )}
 
             {/* Everything below the photographs is for working on one design:
@@ -2181,6 +2210,115 @@ function errorCopy(code: string | undefined, c: Copy): string | null {
  * A millimetre field with a button either side. Typing commits on blur or
  * Enter so "1" of "120" never lands as a 1mm area; the buttons commit at once.
  */
+/**
+ * A row that scrolls sideways when it has to, and says so when it does.
+ *
+ * On a phone three positions cannot sit side by side, so the row scrolls. A
+ * scrollbar under a photograph reads as a broken layout, though, and a row that
+ * is simply cut off gives no sign there is more — so there is no bar, and an
+ * arrow appears at whichever end still has something past it, scrolling most of
+ * a screenful when pressed.
+ *
+ * On a desktop the same row is laid out as a grid (see `.previewRailMulti` in
+ * the stylesheet), nothing overflows, and the arrows never appear. That falls
+ * out of the measurement rather than from a breakpoint repeated in here: the
+ * arrows are shown when there is hidden content, whatever the reason.
+ */
+function ScrollRail({
+  className,
+  prevLabel,
+  nextLabel,
+  children,
+}: {
+  className: string;
+  prevLabel: string;
+  nextLabel: string;
+  children: React.ReactNode;
+}) {
+  const scroller = useRef<HTMLDivElement>(null);
+  const [ends, setEnds] = useState({ start: false, end: false });
+
+  const measure = useCallback(() => {
+    const el = scroller.current;
+    if (!el) return;
+    // A couple of pixels of slack: fractional layout widths leave scrollWidth a
+    // hair over clientWidth on a row that cannot actually scroll, which would
+    // show an arrow that does nothing.
+    const slack = 2;
+    setEnds({
+      start: el.scrollLeft > slack,
+      end: el.scrollLeft + el.clientWidth < el.scrollWidth - slack,
+    });
+  }, []);
+
+  useEffect(() => {
+    const el = scroller.current;
+    if (!el) return;
+    measure();
+    // The row's own width decides whether it overflows, and so does each card's
+    // — a position added or removed moves both ends.
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    for (const child of Array.from(el.children)) observer.observe(child);
+    el.addEventListener("scroll", measure, { passive: true });
+    return () => {
+      observer.disconnect();
+      el.removeEventListener("scroll", measure);
+    };
+  }, [measure, children]);
+
+  const nudge = (direction: -1 | 1) => {
+    const el = scroller.current;
+    if (!el) return;
+    // Most of a screenful, not all of it: a card stays partly in view, so it is
+    // clear the row moved rather than jumped somewhere else.
+    //
+    // `behavior: "smooth"` does not consult the reduced-motion setting the way a
+    // CSS transition does, so it is asked here.
+    const still = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    el.scrollBy({ left: direction * el.clientWidth * 0.8, behavior: still ? "auto" : "smooth" });
+  };
+
+  return (
+    <div className={styles.railWrap}>
+      <div ref={scroller} className={className}>
+        {children}
+      </div>
+
+      {/* Both the fade and the arrow, at the end that has more behind it. The
+          fade is what catches the eye; the arrow is what can be pressed. */}
+      {ends.start && (
+        <>
+          <span className={`${styles.railFade} ${styles.railFadeStart}`} aria-hidden="true" />
+          <button
+            type="button"
+            className={`${styles.railArrow} ${styles.railArrowStart}`}
+            onClick={() => nudge(-1)}
+            aria-label={prevLabel}
+            title={prevLabel}
+          >
+            <ChevronLeft size={17} aria-hidden="true" />
+          </button>
+        </>
+      )}
+      {ends.end && (
+        <>
+          <span className={`${styles.railFade} ${styles.railFadeEnd}`} aria-hidden="true" />
+          <button
+            type="button"
+            className={`${styles.railArrow} ${styles.railArrowEnd}`}
+            onClick={() => nudge(1)}
+            aria-label={nextLabel}
+            title={nextLabel}
+          >
+            <ChevronRight size={17} aria-hidden="true" />
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
 /**
  * The face, as a searchable dropdown: the chosen face set large in the
  * customer's own words, and a list that opens under it with every face drawn

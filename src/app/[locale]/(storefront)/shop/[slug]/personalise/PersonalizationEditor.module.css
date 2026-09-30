@@ -175,6 +175,17 @@
 
 /* Positions and Review: nobody is working in one of them, so they share the
    room equally in a rail the customer scrolls freely. */
+/* ── The positions, on a phone: one row that scrolls ──────────────────────
+   Three photographs will not sit side by side on a phone, so the row scrolls
+   sideways. No scrollbar, though: an 8px bar under a photograph reads as a
+   broken layout rather than as a control, and it stole a strip of the column on
+   every screen size to say something the arrows say better. What tells the
+   customer there is more is the fade and the arrow at that end — see .railArrow,
+   and ScrollRail, which measures whether anything is actually hidden. */
+.railWrap {
+  position: relative;
+}
+
 .previewRail {
   display: flex;
   gap: 10px;
@@ -184,10 +195,12 @@
      gesture. */
   overscroll-behavior-x: contain;
   scroll-snap-type: x proximity;
-  /* Room for the scrollbar, so it never sits on top of a caption. */
-  padding-bottom: 8px;
-  scrollbar-width: thin;
-  scrollbar-color: var(--color-primary) var(--color-surface-tint);
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.previewRail::-webkit-scrollbar {
+  display: none;
 }
 
 /* One position has nothing to scroll past, so it simply fills the column. */
@@ -203,18 +216,72 @@
   scroll-snap-align: start;
 }
 
-/* Slim and on-brand rather than hidden: a rail whose scrollbar is invisible
-   reads as a row that simply got cut off. Firefox uses the properties above. */
-.previewRail::-webkit-scrollbar {
-  height: 8px;
+/* A round button over the edge of the row, at the end that has something past
+   it. Not an always-present pair with one greyed out: a control that cannot do
+   anything is worth less than the space it takes on a phone. */
+.railArrow {
+  position: absolute;
+  top: 38%;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--field-border, #e2e6eb);
+  background: var(--background);
+  color: var(--color-secondary);
+  box-shadow: 0 2px 10px rgb(16 24 40 / 18%);
+  cursor: pointer;
+  transition: transform 0.12s ease, color 0.15s ease, border-color 0.15s ease;
 }
-.previewRail::-webkit-scrollbar-track {
-  background: var(--color-surface-tint);
-  border-radius: 999px;
+
+.railArrow:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
 }
-.previewRail::-webkit-scrollbar-thumb {
-  background: var(--color-primary);
-  border-radius: 999px;
+
+.railArrow:active {
+  transform: scale(0.94);
+}
+
+.railArrowStart {
+  left: 2px;
+  transform: translateY(-50%);
+}
+
+.railArrowEnd {
+  right: 2px;
+  transform: translateY(-50%);
+}
+
+.railArrowStart:active,
+.railArrowEnd:active {
+  transform: translateY(-50%) scale(0.94);
+}
+
+/* The part that is actually noticed: the row visibly continues under it rather
+   than stopping at a hard edge. Never takes the pointer — the arrow sits on top
+   of it and is the target. */
+.railFade {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 56px;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.railFadeStart {
+  left: 0;
+  background: linear-gradient(to right, var(--background), transparent);
+}
+
+.railFadeEnd {
+  right: 0;
+  background: linear-gradient(to left, var(--background), transparent);
 }
 
 .previewCard {
@@ -246,6 +313,31 @@
 @media (max-width: 899px) {
   .previewRailMulti .previewImageWrap {
     height: clamp(110px, 18vh, 200px);
+  }
+}
+
+/* ── The positions, on a desktop: a grid ──────────────────────────────────
+   There is room for them all here, so sideways scrolling would be a worse way
+   to show three things than simply showing three things. `auto-fit` decides how
+   many fit per row and the rest wrap, so four positions on a narrow window read
+   as two and two rather than as a row with half of it hidden.
+   `min(210px, 100%)` rather than a bare 210px: in a column narrower than a card
+   the track would otherwise overflow its own grid.
+   Nothing overflows, so ScrollRail measures no hidden content and draws no
+   arrows — the two layouts need no agreement beyond that. */
+@media (min-width: 900px) {
+  .previewRailMulti {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(210px, 100%), 1fr));
+    gap: 12px;
+    overflow: visible;
+    scroll-snap-type: none;
+  }
+
+  /* Grid tracks size the cards now; the flex basis would fight them. */
+  .previewRailMulti > * {
+    flex: none;
+    scroll-snap-align: none;
   }
 }
 
@@ -294,11 +386,34 @@
   transform: translateY(-1px);
 }
 
-.thumbImg {
+/* A whole DesignPreview, shrunk to the button: same square box and the same
+   `contain` fit as the canvas above, which is what puts the design in the right
+   place on the photo — a cropping `cover` fit would slide it off the panel.
+   Stripped of the card's own frame, radius and shadow, because the button is
+   already the frame here.
+
+   These target DesignPreview's own classes from the outside, which works because
+   it is styled from this same module. */
+.thumbPreview {
   display: block;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+}
+
+.thumbPreview .previewStage {
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* Inert: the button around it is the only target, so a box must not take the
+   press, show a drag cursor, or draw the ring it wears when it is being worked
+   on. */
+.thumbPreview .elementLayer {
+  pointer-events: none;
+  cursor: inherit;
+  outline: 0;
 }
 
 /* Amber for a position with nothing written in it yet, red for one that is
@@ -2277,7 +2392,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .motifCard {
+  .motifCard,
+  .railArrow {
     transition: none;
   }
 }

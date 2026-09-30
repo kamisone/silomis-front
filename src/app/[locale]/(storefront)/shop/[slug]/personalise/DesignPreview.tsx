@@ -93,6 +93,18 @@ interface Props {
   resizeLabel?: string;
   /** False on the review step, where the design is being confirmed, not edited. */
   editable?: boolean;
+  /**
+   * Whether pressing a box means anything.
+   *
+   * True while the design is being worked on, and also on a photograph that is
+   * not open but can be opened — pressing that is how a customer switches to it.
+   * False where the drawing is only a picture: the position cards, and the
+   * thumbnails beside the working canvas, which have one target of their own
+   * around the whole photo. A layer that is not interactive does not claim to be
+   * a button, which it was doing regardless — announcing a control to a screen
+   * reader that did nothing when pressed.
+   */
+  selectable?: boolean;
 }
 
 /**
@@ -123,7 +135,10 @@ export default function DesignPreview({
   rotateLabel,
   resizeLabel = "Resize",
   editable = true,
+  selectable = true,
 }: Props) {
+  /** Whether a press on a box does anything at all — see `selectable`. */
+  const interactive = editable || selectable;
   const wrapRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState({ width: 0, height: 0 });
@@ -798,10 +813,10 @@ export default function DesignPreview({
               return (
                 <div
                   key={el.id}
-                  role="button"
-                  aria-label={`${moveLabel} — ${el.text || (el.artwork ? "logo" : el.motif ? "motif" : placeholder)}`}
-                  aria-pressed={selected}
-                  tabIndex={editable ? 0 : -1}
+                  role={interactive ? "button" : undefined}
+                  aria-label={interactive ? `${moveLabel} — ${el.text || (el.artwork ? "logo" : el.motif ? "motif" : placeholder)}` : undefined}
+                  aria-pressed={interactive ? selected : undefined}
+                  tabIndex={interactive ? (editable ? 0 : -1) : undefined}
                   className={[
                     styles.elementLayer,
                     selected && guides ? styles.elementLayerSelected : "",
@@ -820,10 +835,10 @@ export default function DesignPreview({
                     // press lands on.
                     zIndex: selected ? 2 : 1,
                   }}
-                  onPointerDown={onElementDown(el)}
-                  onPointerMove={onElementMove}
-                  onPointerUp={endGesture}
-                  onPointerCancel={endGesture}
+                  onPointerDown={interactive ? onElementDown(el) : undefined}
+                  onPointerMove={interactive ? onElementMove : undefined}
+                  onPointerUp={interactive ? endGesture : undefined}
+                  onPointerCancel={interactive ? endGesture : undefined}
                   onKeyDown={(e) => {
                     if (editable && el.id === activeElementId && typingTarget && (e.key === "Enter" || e.key === " ")) {
                       e.preventDefault();
@@ -832,7 +847,7 @@ export default function DesignPreview({
                     }
                     onElementKeyDown(el)(e);
                   }}
-                  onFocus={() => onSelectElement(el.id)}
+                  onFocus={interactive ? () => onSelectElement(el.id) : undefined}
                 >
                   <svg className={styles.elementSvg} viewBox={`${-widthMm / 2} ${-stackMm / 2} ${widthMm} ${stackMm}`} overflow="visible" role="img" aria-label={el.text}>
                     {body}
