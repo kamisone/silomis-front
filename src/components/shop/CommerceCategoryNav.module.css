@@ -31,37 +31,42 @@
   display: contents;
 }
 
-/* ── Parent category with children: link + caret toggle ── */
+/* ── Parent category with children: one button, caret inside it ──────────── */
 .dropdownWrap {
   display: inline-flex;
   align-items: center;
-  gap: 1px;
   flex-shrink: 0;
 }
 
-.caretBtn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  margin-left: -6px;
-  border: none;
-  border-radius: 7px;
-  background: transparent;
-  color: color-mix(in srgb, var(--foreground) 45%, transparent);
+/* Shares .item with the plain category links so the row reads as one set of
+   equals, and adds only what a button needs that a link does not. */
+.itemTrigger {
+  gap: 4px;
+  border: 0;
+  background: none;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
 }
-.caretBtn:hover {
-  background: color-mix(in srgb, var(--foreground) 6%, transparent);
+
+.itemCaret {
+  flex-shrink: 0;
+  color: color-mix(in srgb, var(--foreground) 45%, transparent);
+  transition: transform 0.2s ease, color 0.15s;
+}
+
+.itemTrigger:hover .itemCaret {
+  color: inherit;
+}
+
+/* Open: the item keeps the panel's own tint so the two read as one surface,
+   which is what tells you which item the full-width card belongs to. */
+.itemTriggerOpen {
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
   color: var(--foreground);
 }
-.caretBtn svg {
-  transition: transform 0.2s ease;
-}
-.caretBtnOpen svg {
+
+.itemTriggerOpen .itemCaret {
   transform: rotate(180deg);
+  color: var(--color-primary);
 }
 
 /* ── Dropdown panel (portalled to body, only its `top` set from JS) ────────
@@ -102,9 +107,67 @@
 .dropdownInner {
   max-width: 1280px;
   margin: 0 auto;
-  padding: 20px 20px 24px;
+  padding: 16px 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ── "Everything in Caps" ──────────────────────────────────────────────────
+   The parent's own page, across the top of the panel. A row rather than one more
+   column: it is a different kind of thing from the subcategories beside it — the
+   way past the choice rather than one of its options — and a shopper scanning for
+   "just show me the caps" should not have to find it among five tiles.
+
+   Tinted and arrowed so it reads as the primary action in the panel, which for a
+   branch with unphotographed children it usually is. */
+.allIn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 14px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 22%, transparent);
+  background: color-mix(in srgb, var(--color-primary) 7%, transparent);
+  color: var(--color-primary);
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.allIn:hover {
+  background: color-mix(in srgb, var(--color-primary) 13%, transparent);
+  border-color: var(--color-primary);
+}
+
+.allInActive {
+  background: color-mix(in srgb, var(--color-primary) 16%, transparent);
+  border-color: var(--color-primary);
+}
+
+.allInText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.allInArrow {
+  flex-shrink: 0;
+  transition: transform 0.15s ease;
+}
+
+.allIn:hover .allInArrow {
+  transform: translateX(3px);
+}
+
+/* The subcategories themselves. `auto-fill` so a branch with three children does
+   not stretch them across the whole 1280px, and one column on a phone. */
+.columns {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr));
   gap: 16px 28px;
   align-items: start;
 }

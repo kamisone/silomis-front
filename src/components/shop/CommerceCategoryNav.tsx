@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, ArrowRight } from "lucide-react";
 import { getTranslations } from "@/lib/i18n";
 import { buildCategoryTree, getAncestorIds, type CategoryNode as BaseCategoryNode } from "@/lib/shop/categoryTree";
 import styles from "./CommerceCategoryNav.module.css";
@@ -231,21 +231,21 @@ export default function CommerceCategoryNav({ locale, className }: Props) {
             }}
             className={styles.dropdownWrap}
           >
-            <Link
-              href={`/${locale}/shop?categoryId=${node.id}`}
-              className={`${styles.item} ${className ?? ""} ${isActive ? styles.active : ""}`}
-            >
-              {node.name}
-            </Link>
+            {/* The whole item opens the panel — it is not a link any more.
+                Before, the name navigated and only a 14px caret beside it opened
+                the panel, so the obvious thing to press took you past the choice
+                the panel exists to offer, and on a touchscreen the caret was
+                barely hittable. The parent's own page has not gone: it is the
+                first thing in the panel, named and full width. */}
             <button
               type="button"
-              className={`${styles.caretBtn} ${isOpen ? styles.caretBtnOpen : ""}`}
+              className={`${styles.item} ${styles.itemTrigger} ${className ?? ""} ${isActive ? styles.active : ""} ${isOpen ? styles.itemTriggerOpen : ""}`}
               onClick={() => setOpenId(isOpen ? null : node.id)}
               aria-expanded={isOpen}
               aria-haspopup="true"
-              aria-label={isOpen ? t.collapseCategory : t.expandCategory}
             >
-              <ChevronDown size={14} strokeWidth={2.25} />
+              {node.name}
+              <ChevronDown size={14} strokeWidth={2.25} className={styles.itemCaret} aria-hidden="true" />
             </button>
           </div>
         );
@@ -259,15 +259,32 @@ export default function CommerceCategoryNav({ locale, className }: Props) {
                 wrapper matches the header's own 1280px container so the columns
                 line up with the logo and the menu row above them. */}
             <div className={styles.dropdownInner}>
-              {openNode.children.map((child) => (
-                <MegaColumn
-                  key={child.id}
-                  node={child}
-                  locale={locale}
-                  activeCategory={activeCategory}
-                  onNavigate={() => setOpenId(null)}
-                />
-              ))}
+              {/* The parent's own page, first and across the whole panel.
+                  It has to be here and it has to be obvious: the trigger above
+                  no longer navigates, so this is the only route to "show me
+                  every cap" — and it is what a shopper who does not yet know
+                  whether they want a snapback or a trucker is looking for.
+                  Same wording as the heading on the page it opens. */}
+              <Link
+                href={`/${locale}/shop?categoryId=${openNode.id}`}
+                className={`${styles.allIn} ${activeCategory === openNode.id ? styles.allInActive : ""}`}
+                onClick={() => setOpenId(null)}
+              >
+                <span className={styles.allInText}>{t.allInCategory.replace("{category}", openNode.name)}</span>
+                <ArrowRight size={15} strokeWidth={2.25} aria-hidden="true" className={styles.allInArrow} />
+              </Link>
+
+              <div className={styles.columns}>
+                {openNode.children.map((child) => (
+                  <MegaColumn
+                    key={child.id}
+                    node={child}
+                    locale={locale}
+                    activeCategory={activeCategory}
+                    onNavigate={() => setOpenId(null)}
+                  />
+                ))}
+              </div>
             </div>
           </div>,
           document.body,
