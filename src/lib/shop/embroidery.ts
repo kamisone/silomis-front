@@ -49,7 +49,55 @@ export const MAX_TEXT_LINES = 3;
 export const TRACKING_MIN = -0.12;
 export const TRACKING_MAX = 0.5;
 export const KERNING_LIMIT = 0.4;
-export const CURVE_LIMIT_DEG = 160;
+/**
+ * How far a line may be bent, each way. A full circle: at 360° the text closes
+ * on itself, which is the shape a crest or a cap-back name actually wants.
+ *
+ * It could not go past 180° before, and not for a UI reason — the geometry would
+ * not express it. See `curveArc`.
+ */
+export const CURVE_LIMIT_DEG = 360;
+
+/**
+ * The circle a curved line of lettering rides.
+ *
+ * Measured along the ARC, not across the chord. The chord was the wrong
+ * invariant and it capped the feature at 180°: `radius = chord / (2·sin(θ/2))`
+ * is not one-to-one past a semicircle — 270° comes out with the same radius as
+ * 90° — and at 360° `sin(180°)` is zero, so the radius is infinite and the shape
+ * does not exist. Arc length behaves everywhere: `radius = L / θ` falls away
+ * smoothly, the chord closes to nothing at 360°, and the sagitta stays finite.
+ * It is also the honest invariant for embroidery: what is fixed when you bend a
+ * word is the length of thread in it.
+ *
+ * `crownDy` and `endDy` straddle the line's own baseline by half a sagitta each.
+ * They used to push the ends down by the WHOLE sagitta, leaving the curve
+ * hanging below the box the validator had measured for it — by 12.6mm at 160° on
+ * a 60mm line — so the bottom of a strongly curved word fell outside its layer
+ * and was clipped away. That is the letters that went missing as the angle moved.
+ *
+ * The 1% of slack on the radius is deliberate: the longest line's `textLength`
+ * equals the arc length exactly, and SVG drops glyphs that run past the end of a
+ * `textPath`, so the path is made a hair longer than the text it carries.
+ */
+export function curveArc(lengthMm: number, curveDeg: number) {
+  const theta = (Math.abs(curveDeg) * Math.PI) / 180;
+  const radius = (Math.max(1, lengthMm) * 1.01) / theta;
+  const halfTheta = theta / 2;
+  const sagitta = radius * (1 - Math.cos(halfTheta));
+  const up = curveDeg > 0;
+  return {
+    theta,
+    radius,
+    sagitta,
+    /** Half the straight distance between the two ends — zero at a full circle. */
+    halfChord: radius * Math.sin(halfTheta),
+    crownDy: up ? -sagitta / 2 : sagitta / 2,
+    endDy: up ? sagitta / 2 : -sagitta / 2,
+    /** SVG's sweep flag: clockwise on screen for a crown that rises. */
+    sweep: up ? 1 : 0,
+  };
+}
 /**
  * A rail on the text field, not a limit on the design: it stops a pathological
  * paste, and matches the DTO's own `z.string().max(200)`. What a position
@@ -430,10 +478,8 @@ export function stackHeightMm(args: {
   if (args.contentType === "artwork") return args.artworkHeightMm ?? args.heightMm;
   const stack = Math.max(1, args.lineCount) * args.heightMm * (args.lineCount > 1 ? (args.leading ?? LINE_LEADING) : 1);
   if (!args.curveDeg) return stack;
-  const half = (Math.abs(args.curveDeg) * Math.PI) / 360;
-  if (half <= 0) return stack;
-  const radius = args.widthMm / (2 * Math.sin(half));
-  return stack + (radius - radius * Math.cos(half));
+  // Mirrors the server's stackHeightMm — see `curveArc` for the geometry.
+  return stack + curveArc(args.widthMm, args.curveDeg).sagitta;
 }
 
 export type ValidationCode =

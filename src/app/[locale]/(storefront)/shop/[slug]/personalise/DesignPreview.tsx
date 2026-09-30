@@ -5,7 +5,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { Move, RotateCw } from "lucide-react";
 import { areaFromBox, areaFromQuad, isUsableQuad, type Area, type Point, type Quad } from "@/lib/shop/perspective";
 import {
-  MAX_TRAVEL_FACTOR, LINE_LEADING, MAX_TEXT_CHARS, MONOGRAM_MAX_CHARS, weightForStep, lineWidthMm, normalizeText,
+  MAX_TRAVEL_FACTOR, LINE_LEADING, MAX_TEXT_CHARS, MONOGRAM_MAX_CHARS, weightForStep, lineWidthMm, normalizeText, curveArc,
   type ContentKind, type EditorFont, type EditorPlacement, type EditorThread,
 } from "@/lib/shop/embroidery";
 import styles from "./PersonalizationEditor.module.css";
@@ -117,6 +117,11 @@ interface Props {
  * panel's real size, so what the customer lines up by eye is what gets
  * stitched — a 20mm name occupies exactly 20mm of the cap.
  */
+/** Path coordinates to hundredths — a stitch is 0.1mm, not 1e-14. */
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
 export default function DesignPreview({
   imageUrl,
   productTitle,
@@ -747,15 +752,15 @@ export default function DesignPreview({
               </text>
             );
           }
-          // The baseline rides a circular arc whose chord is the width the
-          // straight version would have had, so bending a word does not also
-          // resize it.
-          const half = (Math.abs(el.curveDeg) * Math.PI) / 360;
-          const radius = chord / (2 * Math.sin(half));
-          const sweep = el.curveDeg > 0 ? 1 : 0;
-          const dy = el.curveDeg > 0 ? radius - radius * Math.cos(half) : -(radius - radius * Math.cos(half));
+          // The baseline rides a circular arc. See `curveArc` for why it is
+          // measured along the arc rather than across the chord, and why the
+          // path is two sub-arcs rather than one.
+          const a = curveArc(chord, el.curveDeg);
           const id = `pv-${el.id}-arc-${i}`;
-          const d = `M ${-chord / 2} ${y + dy} A ${radius} ${radius} 0 0 ${sweep} ${chord / 2} ${y + dy}`;
+          const d =
+            `M ${round2(-a.halfChord)} ${round2(y + a.endDy)}` +
+            ` A ${round2(a.radius)} ${round2(a.radius)} 0 0 ${a.sweep} 0 ${round2(y + a.crownDy)}` +
+            ` A ${round2(a.radius)} ${round2(a.radius)} 0 0 ${a.sweep} ${round2(a.halfChord)} ${round2(y + a.endDy)}`;
           return (
             <g key={i}>
               <path id={id} d={d} fill="none" />
