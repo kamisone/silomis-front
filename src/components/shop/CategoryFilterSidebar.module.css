@@ -8,6 +8,14 @@
     display: flex;
     flex-direction: column;
     gap: 22px;
+    /* Its own width and its own gap to the grid, rather than a fixed track and
+       `gap` on the layout. The panel renders NOTHING for a category with no
+       filters and no price bounds, and a fixed 240px track plus a 32px gap went
+       on reserving 272px for it anyway — pushing the products and the
+       subcategory tiles that far right for no reason. An `auto` track with the
+       width here collapses to zero when there is nothing in it. */
+    width: 240px;
+    margin-right: 32px;
     /* Follows the grid down the page rather than the whole viewport height —
        a short filter list under a long product grid shouldn't feel abandoned
        at the top of the screen once the shopper scrolls past it. */

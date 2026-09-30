@@ -3,6 +3,10 @@
   margin: 0 auto;
   padding: 0 20px 64px;
   width: 100%;
+  /* Published as a variable so anything that needs to break out to the screen
+     edge — the subcategory rail on a phone — can undo exactly this much rather
+     than repeating the number and drifting from it. */
+  --shop-gutter: 20px;
 }
 
 /* Sits above the full-bleed CategoryHero banner, so the breadcrumb trail
@@ -22,15 +26,18 @@
   display: block;
 }
 
-/* A leaf category's product grid gets a real sidebar back — not for browsing
-   categories (the header nav does that), but for narrowing the products
-   already on the page: price, and whatever filters the admin defined on this
-   category. Only applied in that one case, so a branch category's
-   subcategory tiles stay full-width. */
+/* The sidebar is for narrowing what is already on the page — price, and
+   whatever filters the admin defined on this category — not for browsing
+   categories, which the header nav does.
+
+   `auto` rather than a fixed 240px, and no `gap`: the panel draws nothing at all
+   for a category with no filters and no price bounds, and a fixed track went on
+   holding the space open, indenting the whole page against an empty column. The
+   width and the gutter belong to the sidebar itself, so when it renders nothing
+   the track is zero wide and the content starts at the left edge. */
 .layoutFiltered {
   display: grid;
-  grid-template-columns: 240px 1fr;
-  gap: 32px;
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: start;
 }
 @media (max-width: 900px) {
@@ -139,19 +146,107 @@
   gap: 18px;
 }
 
+/* ── "Everything in Caps" ──────────────────────────────────────────────────
+   The join between the subcategory tiles and the grid of everything beneath
+   them. A rule through the line rather than a plain heading: it has to read as
+   the start of a second section, because the tiles above it are a complete
+   thought and a bare heading would look like a caption for them.
+
+   The rule is drawn by the flex item growing into the gap, so it takes whatever
+   width the title and count leave — no fixed sizes to keep in step with the
+   copy, in any of seven languages. */
+.allInRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 34px 0 18px;
+}
+
+.allInRow::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: color-mix(in srgb, var(--foreground) 12%, transparent);
+}
+
+.allInTitle {
+  margin: 0;
+  font-size: clamp(1rem, 2.2vw, 1.15rem);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--foreground);
+}
+
+.allInCount {
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: color-mix(in srgb, var(--foreground) 55%, var(--background));
+}
+
+@media (max-width: 560px) {
+  /* The count drops under the title rather than squeezing it: at this width a
+     long category name and a count on one line leaves the rule no room at all,
+     and a 2px rule is not worth a wrapped heading. */
+  .allInRow {
+    flex-wrap: wrap;
+    margin-top: 26px;
+  }
+
+  .allInRow::after {
+    flex-basis: 100%;
+  }
+}
+
 /* ── Subcategory cards ────────────────────────────────────────────────────────
-   Shown instead of products when the category has children. Bigger than the
+   Shown above the products when the category has children. Bigger than the
    home page's picture tiles because these are a step in the journey rather than
    an invitation to it: the name needs room, and the description under it is
    what tells a shopper which branch to take.
 
    Uses the category's list image, never its banner — the banner is cut for a
    3:1 band across the top of a page and would be unreadable at card size. */
-.categoryGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-  gap: 18px;
+/* ── The subcategory rail ──────────────────────────────────────────────────
+   One row that scrolls, at every width. A grid was the wrong shape for this:
+   the tiles are a way to narrow the page, not the page itself, and wrapping
+   eleven of them into three rows pushed the products — the thing most people
+   came for — below the fold. A single row keeps both halves of the page in view,
+   and it is the same gesture on a laptop as on a phone.
+
+   ScrollRail supplies the arrows and the fades; everything about the row itself
+   is here. See components/shop/ScrollRail.tsx. */
+.categoryRailWrap {
+  /* The arrows aim at the middle of the picture rather than the middle of the
+     card, which is taller by the height of the name and the cue beneath it. */
+  --rail-arrow-top: 38%;
+  margin-bottom: 4px;
 }
+
+.categoryRail {
+  display: flex;
+  gap: 14px;
+  overflow-x: auto;
+  /* A swipe that runs past the end must not become a page-level back gesture. */
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  /* No bar — the fade and the arrows do that job. */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  /* Room for the cards' hover lift and focus ring, which sit outside the box. */
+  padding: 4px 2px 6px;
+}
+
+.categoryRail::-webkit-scrollbar {
+  display: none;
+}
+
+.categoryRail > * {
+  /* Wide enough to read the name under the picture, and it grows with the
+     column rather than being pinned to one pixel width. */
+  flex: 0 0 clamp(200px, 21vw, 250px);
+  scroll-snap-align: start;
+}
+
 
 .categoryCard {
   display: flex;
@@ -251,21 +346,74 @@
   gap: 9px;
 }
 
-@media (max-width: 520px) {
-  .categoryGrid {
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    gap: 12px;
+/* ── Subcategories on a phone ──────────────────────────────────────────────
+   Two across, always. One card per row turned a five-way choice into five
+   screens of scrolling, with each picture blown up to full width for no
+   information gained: at this size the choice is made from the name and a
+   glance at the picture, so the card gets smaller and the pair fits.
+
+   The description goes. Two clamped lines under each of two narrow cards is a
+   wall of grey that pushes the row below off the screen, and it is not what the
+   choice is made on — the name is. */
+@media (max-width: 640px) {
+  /* Two cards and a sliver of the third. The sliver is the whole point: it is
+     what tells a thumb the row moves, and it does the job the arrows do on a
+     desk — which is why they are hidden at this width. A card sized to exactly
+     half the screen would look like a two-item grid that happens to be cut off. */
+  .categoryRail > * {
+    flex-basis: 43%;
   }
+
+  .categoryRail {
+    gap: 10px;
+    /* Full-bleed: the row runs to both edges of the screen instead of stopping
+       inside the page gutter, which is what makes it read as a track that
+       continues rather than a box with something missing. The padding puts the
+       first card back on the text's left margin. */
+    margin-inline: calc(var(--shop-gutter, 20px) * -1);
+    padding-inline: var(--shop-gutter, 20px);
+    scroll-padding-left: var(--shop-gutter, 20px);
+  }
+
+  .categoryCard {
+    border-radius: 14px;
+  }
+
+  /* Square, not 4:3: a narrow card with a landscape picture is mostly padding,
+     and a square crop shows more of a cap. */
+  .categoryMedia {
+    aspect-ratio: 1 / 1;
+  }
+
   .categoryBody {
-    padding: 11px 12px 12px;
+    gap: 3px;
+    padding: 10px 11px 11px;
   }
+
   .categoryName {
-    font-size: 14px;
+    font-size: 13.5px;
+    line-height: 1.25;
   }
+
   .categoryDesc {
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    font-size: 12px;
+    display: none;
+  }
+
+  .categoryCue {
+    padding-top: 7px;
+    font-size: 11.5px;
+  }
+}
+
+/* Below this a pair leaves each card under about 150px, where the name wraps to
+   three lines and the picture is a stamp. One per row reads better than two
+   cramped ones — and the picture goes wide rather than square, so the row is
+   short enough that the next one is still on screen. */
+/* A narrow phone: one card and a clear sliver rather than two cramped ones. The
+   picture stays square — it is the card that gets wider, not shorter. */
+@media (max-width: 379px) {
+  .categoryRail > * {
+    flex-basis: 66%;
   }
 }
 

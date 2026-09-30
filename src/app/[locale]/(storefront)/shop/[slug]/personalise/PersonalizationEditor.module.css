@@ -180,11 +180,9 @@
    sideways. No scrollbar, though: an 8px bar under a photograph reads as a
    broken layout rather than as a control, and it stole a strip of the column on
    every screen size to say something the arrows say better. What tells the
-   customer there is more is the fade and the arrow at that end — see .railArrow,
-   and ScrollRail, which measures whether anything is actually hidden. */
-.railWrap {
-  position: relative;
-}
+   customer there is more is the fade and the arrow at either end, both of which
+   belong to ScrollRail — see components/shop/ScrollRail.tsx, which also measures
+   whether anything is actually hidden before drawing them. */
 
 .previewRail {
   display: flex;
@@ -216,129 +214,11 @@
   scroll-snap-align: start;
 }
 
-/* A round button over the edge of the row, at the end that has something past
-   it. Not an always-present pair with one greyed out: a control that cannot do
-   anything is worth less than the space it takes on a phone. */
-.railArrow {
-  position: absolute;
-  top: 38%;
-  z-index: 3;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 34px;
-  padding: 0;
-  border-radius: 50%;
-  border: 1px solid var(--field-border, #e2e6eb);
-  background: var(--background);
-  color: var(--color-secondary);
-  box-shadow: 0 2px 10px rgb(16 24 40 / 18%);
-  cursor: pointer;
-  transition: transform 0.12s ease, color 0.15s ease, border-color 0.15s ease;
-}
-
-.railArrow:hover {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
-}
-
-.railArrow:active {
-  transform: scale(0.94);
-}
-
-.railArrowStart {
-  left: 2px;
-  transform: translateY(-50%);
-}
-
-.railArrowEnd {
-  right: 2px;
-  transform: translateY(-50%);
-}
-
-.railArrowStart:active,
-.railArrowEnd:active {
-  transform: translateY(-50%) scale(0.94);
-}
-
-/* The part that is actually noticed: the row visibly continues under it rather
-   than stopping at a hard edge. Never takes the pointer — the arrow sits on top
-   of it and is the target. */
-.railFade {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 56px;
-  z-index: 2;
-  pointer-events: none;
-}
-
-.railFadeStart {
-  left: 0;
-  background: linear-gradient(to right, var(--background), transparent);
-}
-
-.railFadeEnd {
-  right: 0;
-  background: linear-gradient(to left, var(--background), transparent);
-}
-
-.previewCard {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 0;
-}
-
-/* Your design: the open position is the working canvas and takes the whole
-   column, so its handles are reachable by a fingertip. */
-.previewCardFeatured {
-  width: 100%;
-}
-
-/* The open card is outlined, so "which one do the controls below act on" is
-   answered by looking rather than by remembering. */
-.previewCardOpen .previewStage {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 1px var(--color-primary);
-}
-
-/* A rail card gives up some of the stage's radius, and on a phone some of the
-   photo's height, so three positions do not push the step panel off screen. */
-.previewRailMulti .previewStage {
-  border-radius: 14px;
-}
-
-@media (max-width: 899px) {
-  .previewRailMulti .previewImageWrap {
-    height: clamp(110px, 18vh, 200px);
-  }
-}
-
-/* ── The positions, on a desktop: a grid ──────────────────────────────────
-   There is room for them all here, so sideways scrolling would be a worse way
-   to show three things than simply showing three things. `auto-fit` decides how
-   many fit per row and the rest wrap, so four positions on a narrow window read
-   as two and two rather than as a row with half of it hidden.
-   `min(210px, 100%)` rather than a bare 210px: in a column narrower than a card
-   the track would otherwise overflow its own grid.
-   Nothing overflows, so ScrollRail measures no hidden content and draws no
-   arrows — the two layouts need no agreement beyond that. */
-@media (min-width: 900px) {
-  .previewRailMulti {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(210px, 100%), 1fr));
-    gap: 12px;
-    overflow: visible;
-    scroll-snap-type: none;
-  }
-
-  /* Grid tracks size the cards now; the flex basis would fight them. */
-  .previewRailMulti > * {
-    flex: none;
-    scroll-snap-align: none;
-  }
+/* The arrows aim at the photographs rather than the middle of a card, which is
+   taller by the height of its caption. The rail's own chrome — the buttons, the
+   fades — belongs to ScrollRail now. */
+.previewRailWrap {
+  --rail-arrow-top: 38%;
 }
 
 /* ── The other positions, while one is being worked on ─────────────────────
@@ -2392,8 +2272,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .motifCard,
-  .railArrow {
+  .motifCard {
     transition: none;
   }
 }

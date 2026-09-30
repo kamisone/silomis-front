@@ -10,6 +10,7 @@ import CategoryHero from "@/components/shop/CategoryHero";
 import CategoryHeroSkeleton from "@/components/shop/CategoryHeroSkeleton";
 import { CategoryFiltersProvider, CategoryFilterTrigger, CategoryFilterPanel } from "@/components/shop/CategoryFilterSidebar";
 import ProductGridSkeleton from "@/components/shop/ProductGridSkeleton";
+import ScrollRail from "@/components/shop/ScrollRail";
 import type { PromotionInfo } from "@/components/shop/PromotionBadge";
 import { trackSearch } from "@/lib/shop/behaviorTracking";
 import { pixelTrack, trackServerEvent } from "@/lib/metaPixel";
@@ -111,9 +112,11 @@ export default function ShopListing() {
   /**
    * This category's immediate children, in the admin's order.
    *
-   * A branch category shows its children; only a leaf shows products. Browsing
-   * "Apparel" and being handed every shirt, coat and pair of trousers at once
-   * skips the step the tree exists for.
+   * A branch shows these AND, under them, everything filed anywhere beneath it.
+   * Tiles alone were a dead end: a shopper who does not yet know whether they
+   * want a snapback or a trucker had no way to see the caps, and a branch whose
+   * children were not yet photographed showed a row of grey panels and nothing
+   * else. The tiles narrow; the grid below is the answer to "just show me".
    */
   const subcategories = useMemo(() => {
     if (!categoryId) return [] as Category[];
@@ -128,9 +131,9 @@ export default function ShopListing() {
     let cancelled = false;
 
     function load() {
-      // Nothing to ask for: a branch category renders its children, and a
-      // request whose answer cannot be shown is a request worth not making.
-      if (!categoriesLoaded || showsSubcategories) {
+      // Still waiting on the tree — which decides whether tiles go above the
+      // grid, not whether there is a grid at all.
+      if (!categoriesLoaded) {
         setProducts([]);
         setTotal(0);
         setLoading(false);
@@ -193,7 +196,7 @@ export default function ShopListing() {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [locale, categoryId, search, featured, minPrice, maxPrice, filterValues, categoriesLoaded, showsSubcategories]);
+  }, [locale, categoryId, search, featured, minPrice, maxPrice, filterValues, categoriesLoaded]);
 
   const activeCategory = categoryId ? categories.find((c) => c.id === categoryId) ?? null : null;
   /** The branch this category sits in — context the name alone cannot give. */
@@ -220,10 +223,11 @@ export default function ShopListing() {
     return `/${locale}/shop${qs.toString() ? `?${qs.toString()}` : ""}`;
   }
 
-  // The sidebar only ever applies to a leaf category's product grid — a
-  // branch category shows subcategory tiles, not products, so there is
-  // nothing to filter.
-  const showsFilters = !showsSubcategories && !!categoryId;
+  // The sidebar narrows the grid, and a branch has one now — so it belongs on
+  // both. It draws nothing of its own accord when the category has no filters
+  // and no price bounds, which is the usual case for a branch, so this costs an
+  // empty panel nowhere.
+  const showsFilters = !!categoryId;
 
   // Nothing meaningful to show yet — either the category tree itself hasn't
   // loaded (so it's unknown whether this is even a product-bearing leaf), or
@@ -288,11 +292,11 @@ export default function ShopListing() {
         </p>
       )}
 
-      {/* A count of products belongs only where products are shown; over a
-          grid of categories it would be counting the wrong thing. Stays on
-          screen (with a spinner alongside) through a refetch instead of
-          disappearing and reappearing — only the first-ever load has
-          nothing worth showing yet. */}
+      {/* Only over the grid, and only once there is a grid: on a branch the
+          count sits with the products below rather than up here, where it would
+          read as a count of the subcategories beside it. Stays on screen (with a
+          spinner alongside) through a refetch instead of disappearing and
+          reappearing — only the first-ever load has nothing worth showing. */}
       {!showsSubcategories && hasLoadedOnce && (
         <div className={styles.resultCountRow}>
           <p className={styles.resultCount}>
@@ -302,35 +306,68 @@ export default function ShopListing() {
         </div>
       )}
 
-      {showsSubcategories ? (
-        <div className={styles.categoryGrid}>
-          {subcategories.map((cat) => (
-            <Link key={cat.id} href={buildUrl({ categoryId: cat.id })} className={styles.categoryCard}>
-              <span className={styles.categoryMedia}>
-                {cat.imageUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={cat.imageUrl} alt="" className={styles.categoryImage} loading="lazy" />
-                ) : (
-                  // A tinted panel rather than a hole in the grid, so an
-                  // unfinished catalogue still looks deliberate.
-                  <span className={styles.categoryImageFallback} aria-hidden="true" />
-                )}
-              </span>
-              <span className={styles.categoryBody}>
-                <span className={styles.categoryName}>{cat.name}</span>
-                {cat.description && <span className={styles.categoryDesc}>{cat.description}</span>}
-                <span className={styles.categoryCue}>
-                  {t.shop.browseCategory}
-                  <ArrowRight size={14} strokeWidth={2.25} aria-hidden="true" />
+      {/* A branch: the ways to narrow first, then everything under it. */}
+      {showsSubcategories && (
+        <>
+          <ScrollRail
+            className={styles.categoryRail}
+            wrapClassName={styles.categoryRailWrap}
+            prevLabel={t.shop.railPrev}
+            nextLabel={t.shop.railNext}
+          >
+            {subcategories.map((cat) => (
+              <Link key={cat.id} href={buildUrl({ categoryId: cat.id })} className={styles.categoryCard}>
+                <span className={styles.categoryMedia}>
+                  {cat.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={cat.imageUrl} alt="" className={styles.categoryImage} loading="lazy" />
+                  ) : (
+                    // A tinted panel rather than a hole in the grid, so an
+                    // unfinished catalogue still looks deliberate.
+                    <span className={styles.categoryImageFallback} aria-hidden="true" />
+                  )}
                 </span>
-              </span>
-            </Link>
-          ))}
-        </div>
-      ) : initialLoading ? (
+                <span className={styles.categoryBody}>
+                  <span className={styles.categoryName}>{cat.name}</span>
+                  {cat.description && <span className={styles.categoryDesc}>{cat.description}</span>}
+                  <span className={styles.categoryCue}>
+                    {t.shop.browseCategory}
+                    <ArrowRight size={14} strokeWidth={2.25} aria-hidden="true" />
+                  </span>
+                </span>
+              </Link>
+            ))}
+          </ScrollRail>
+
+          {/* The join between the two halves of the page. It names what follows
+              — "Everything in Caps", not a bare "Products" — because after a row
+              of tiles the question a shopper is answering is "and if I don't
+              want to choose?". Hidden entirely while the branch has nothing in
+              it: a heading over an empty state says the shop is broken, where no
+              heading at all just means the tiles are the whole page. */}
+          {(initialLoading || products.length > 0) && (
+            <div className={styles.allInRow}>
+              <h2 className={styles.allInTitle}>
+                {t.shop.allInCategory.replace("{category}", activeCategory?.name ?? "")}
+              </h2>
+              {hasLoadedOnce && (
+                <span className={styles.allInCount}>
+                  {total} {total === 1 ? t.shop.resultSingular : t.shop.resultPlural}
+                </span>
+              )}
+              {loading && <span className={styles.spinner} role="status" aria-live="polite" aria-label={t.shop.loading} />}
+            </div>
+          )}
+        </>
+      )}
+
+      {initialLoading ? (
         <ProductGridSkeleton />
       ) : products.length === 0 && !loading ? (
-        <div className={styles.empty}>{t.shop.noProductsFound}</div>
+        // On a branch the tiles above are already a way forward, so an empty
+        // grid needs no apology — and saying "no products found" under them
+        // would contradict them.
+        showsSubcategories ? null : <div className={styles.empty}>{t.shop.noProductsFound}</div>
       ) : (
         // `loading` here only ever means "refetching with something to
         // show already" — dimmed in place rather than swapped out, per
