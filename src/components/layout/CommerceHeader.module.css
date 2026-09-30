@@ -40,28 +40,31 @@
    the two as one word — which is the only arrangement where dropping the
    letter works: stacked above the name, "ilomis" is just a misspelling.
    Everything below is therefore about making the join invisible. */
-/* The lockup and the tagline stack; the mark and the name still sit side by
-   side inside .logoLockup, which is the arrangement the comment above is about.
-   Left-aligned rather than centred: the tagline is a caption to the name, and a
-   centred caption under an asymmetric lockup looks misaligned rather than
-   deliberate. */
 .logo {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 3px;
-  flex-shrink: 0;
-  text-decoration: none;
-}
-
-.logoLockup {
-  display: flex;
   flex-direction: row;
+  /* The mark against the middle of the two lines beside it, not against the
+     first of them. That is why .logoWord no longer carries the baseline nudge it
+     used to: the pair is now positioned as a block, and matching the S's
+     baseline to the i's would push the block down by half the tagline. */
   align-items: center;
   /* Optical, not metric. The mark carries its own sliver of transparent edge,
      so a 0 gap already leaves a hair of air; 2px is what makes the S and the
      i sit at the same rhythm as the i and the l. */
   gap: 2px;
+  flex-shrink: 0;
+  text-decoration: none;
+}
+
+/* The name with what it does under it. Not `align-items`, deliberately: the
+   default `stretch` is what makes the tagline — and the stitch rule drawn on it —
+   span exactly the width of "ilomis", so the line underscores the word rather
+   than running short of it or past it. */
+.logoText {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
 }
 
 /* ── What the shop does ────────────────────────────────────────────────────
@@ -74,6 +77,35 @@
    dashed border would have given hairline ticks; a gradient gives a dash with
    real weight, which is what a satin stitch looks like at this size. */
 .logoTagline {
+  /* ── Never wider than the word above it ──────────────────────────────────
+     Two separate guarantees, because they fail differently.
+
+     STRUCTURAL: `width: 0` with `min-width: 100%`. In a flex column the
+     container's width is the widest item's max-content width, so a long tagline
+     would otherwise decide the lockup's width and push the search field along —
+     the header would grow to fit the caption rather than the brand. A zero
+     declared width contributes nothing to that calculation, so "ilomis" alone
+     sets the width; `min-width: 100%` then stretches this back out to it. The box
+     can therefore never exceed the word, whatever it says, in any language.
+
+     DIMENSIONAL: the size and tracking are chosen so the text fits inside that
+     box. The longest of the seven translations is "Borduurwerk" at 11
+     characters; at 9.5px with 0.12em tracking that is about 82px against the
+     word's ~88px, so every locale clears it with room. Tracking came down from
+     0.16em to buy that room — the letters are still open, just not wide.
+
+     `overflow: hidden` is the backstop, not the mechanism: if a future tagline
+     is longer than anything here, it clips instead of breaking the header, which
+     is a visible problem rather than a silent one. */
+  width: 0;
+  min-width: 100%;
+  overflow: hidden;
+  /* Centred, so a short word like "Haft" reads as deliberate under the wordmark
+     rather than as a line that ran out early. */
+  text-align: center;
+  /* Tracking adds a trailing gap after the last letter, which shifts centred
+     text left by half of it. Indenting by the tracking puts it back. */
+  text-indent: 0.12em;
   padding-top: 5px;
   background-image: repeating-linear-gradient(
     to right,
@@ -85,7 +117,7 @@
   background-position: top left;
   font-size: 9.5px;
   font-weight: 700;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   line-height: 1;
   white-space: nowrap;
@@ -128,16 +160,18 @@
   font-family: var(--font-brand), "Segoe UI", system-ui, sans-serif;
   font-weight: 400;
   font-size: 32px;
-  /* The mark's own baseline sits at 97.2% of its box — a detached ground
-     ellipse takes the rest — so centring the word leaves it floating above the
-     line the S stands on. Measured against the art and against Pacifico's
-     metrics, which is why it is a pixel value and not a ratio, and why it
-     depends on line-height being exactly 1. Re-measure it whenever the mark is
-     replaced: the baseline has landed anywhere from 91.9% (a version with a
-     deep reflection, which wanted 0 here) to 97.2%, and anything inside about
-     a percent of this is under half a pixel at 50px and not worth chasing. */
+  /* Exactly 1, so the word's box is its type and nothing else: the tagline
+     under it and the stitch rule on that both measure from this edge, and any
+     leading here would open a gap that looks like a mistake rather than a
+     margin.
+     
+     There used to be a 2px nudge here, matching the word's baseline to the one
+     the mark's S stands on (that baseline sits at 97.2% of the art's box, a
+     detached ground ellipse taking the rest). It is gone because the word is no
+     longer aligned against the mark on its own — it and the tagline are one
+     block now, centred against the mark as a pair, so a nudge on the word alone
+     would tilt the block instead of levelling the letters. */
   line-height: 1;
-  margin-top: 2px;
   color: var(--color-secondary);
 }
 

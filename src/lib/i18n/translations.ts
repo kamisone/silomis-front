@@ -16,7 +16,7 @@ export const en = {
   },
   nav: {
     logoAriaLabel: "Silomis home",
-    tagline: "Custom embroidery",
+    tagline: "Embroidery",
     navAriaLabel: "Category navigation",
     selectLanguage: "Select language",
     trackMyOrder: "Track my order",
@@ -820,7 +820,7 @@ export const fr: Translations = {
   },
   nav: {
     logoAriaLabel: "Accueil Silomis",
-    tagline: "Broderie personnalisée",
+    tagline: "Broderie",
     navAriaLabel: "Navigation des catégories",
     selectLanguage: "Choisir la langue",
     trackMyOrder: "Suivre ma commande",
@@ -1609,7 +1609,7 @@ export const es: Translations = {
   },
   nav: {
     logoAriaLabel: "Silomis inicio",
-    tagline: "Bordado personalizado",
+    tagline: "Bordado",
     navAriaLabel: "Navegación de categorías",
     selectLanguage: "Seleccionar idioma",
     trackMyOrder: "Seguir mi pedido",
@@ -2398,7 +2398,7 @@ export const it: Translations = {
   },
   nav: {
     logoAriaLabel: "Silomis home",
-    tagline: "Ricamo personalizzato",
+    tagline: "Ricamo",
     navAriaLabel: "Navigazione categorie",
     selectLanguage: "Seleziona lingua",
     trackMyOrder: "Traccia il mio ordine",
@@ -3187,7 +3187,7 @@ export const de: Translations = {
   },
   nav: {
     logoAriaLabel: "Silomis Startseite",
-    tagline: "Individuelle Stickerei",
+    tagline: "Stickerei",
     navAriaLabel: "Kategorienavigation",
     selectLanguage: "Sprache auswählen",
     trackMyOrder: "Meine Bestellung verfolgen",
@@ -3976,7 +3976,7 @@ export const nl: Translations = {
   },
   nav: {
     logoAriaLabel: "Silomis home",
-    tagline: "Borduurwerk op maat",
+    tagline: "Borduurwerk",
     navAriaLabel: "Categorienavigatie",
     selectLanguage: "Taal selecteren",
     trackMyOrder: "Volg mijn bestelling",
@@ -4765,7 +4765,7 @@ export const pl: Translations = {
   },
   nav: {
     logoAriaLabel: "Silomis strona główna",
-    tagline: "Haft na zamówienie",
+    tagline: "Haft",
     navAriaLabel: "Nawigacja kategorii",
     selectLanguage: "Wybierz język",
     trackMyOrder: "Śledź moje zamówienie",
