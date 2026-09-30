@@ -13,7 +13,7 @@ import { useCart, type CustomerItemInput, type PersonalizationInput } from "@/co
 import { getTranslations, type Locale } from "@/lib/i18n";
 import {
   evaluateDesign, TEXT_MIN_HEIGHT_MM, DEFAULT_WEIGHT_STEP, WEIGHT_SCALE, weightForStep,
-  DEFAULT_OPTIONS, MAX_TEXT_LINES, TRACKING_MIN, TRACKING_MAX, KERNING_LIMIT, CURVE_LIMIT_DEG,
+  DEFAULT_OPTIONS, MAX_TEXT_LINES, MAX_TEXT_CHARS, MONOGRAM_MAX_CHARS, TRACKING_MIN, TRACKING_MAX, KERNING_LIMIT, CURVE_LIMIT_DEG,
   startingMotifWidthMm, DEFAULT_FIELD_LIMITS, MAX_ELEMENTS, ARTWORK_MIN_MM, limitsFor, pictureSizeMm,
   LINE_LEADING, lineWidthMm, normalizeLines, DEFAULT_TEXT_HEIGHT_MM,
   type ContentKind, type DesignOptions, type EditorConfig, type EditorEvaluation, type EditorPlacement,
@@ -943,11 +943,6 @@ export default function PersonalizationEditor({ locale, config, product, variant
           // is. Null on a catalogue position, whose area is stated
           // on the row.
           quadPct={isUsableQuad(placement.corners as Quad | undefined) ? (placement.corners as Quad) : null}
-          // Typing on a photograph writes into the box that is open there.
-          // The two can only ever be the same box: a position is editable only
-          // while it is the open one.
-          onTextChange={(id, raw) => patchElement({ raw }, id)}
-          textLabel={activeElement?.options.contentType === "monogram" ? c.monogramLabel : c.textLabel}
           resizeLabel={c.resizeLabel}
           placeholder={c.previewPlaceholder}
           logoPlaceholder={c.contentTypes.artwork}
@@ -1104,10 +1099,6 @@ export default function PersonalizationEditor({ locale, config, product, variant
                                 dragHint=""
                                 moveLabel={c.moveLabel}
                                 rotateLabel={c.rotateLabel}
-                                // Nothing is typed here; the props exist because
-                                // the same component does the editing above.
-                                onTextChange={noop}
-                                textLabel={c.textLabel}
                                 editable={false}
                                 selectable={false}
                               />
@@ -1578,17 +1569,49 @@ export default function PersonalizationEditor({ locale, config, product, variant
                     </div>
                   </>
                 ) : (
-                  /* There is no field here: the customer writes on the cap.
-                     Tapping the lettering in the photograph opens the keyboard
-                     and the letters follow the typing, so the thing being edited
-                     and the thing being looked at are the same object. What is
-                     left to say is the rule the box still holds them to. */
-                  <p className={styles.panelHint}>
-                    {c.writeOnPhoto}{" "}
-                    {activeElement.options.contentType === "monogram"
-                      ? c.monogramNote
-                      : c.linesHint.replace("{n}", String(MAX_TEXT_LINES))}
-                  </p>
+                  /* The words are typed here, in a field of their own, and the
+                     photograph shows the result. A monogram gets a single line
+                     because it is two or three letters by definition; text gets
+                     a textarea, because a name over a line break is a common
+                     thing to want and Enter is how anyone expects to get one. */
+                  <label className={styles.field}>
+                    <span className={styles.fieldLabel}>
+                      {activeElement.options.contentType === "monogram" ? c.monogramLabel : c.textLabel}
+                    </span>
+                    {activeElement.options.contentType === "monogram" ? (
+                      <input
+                        className={styles.textInput}
+                        value={activeElement.raw}
+                        onChange={(e) => patchElement({ raw: e.target.value })}
+                        placeholder={c.previewPlaceholder}
+                        maxLength={MONOGRAM_MAX_CHARS}
+                        autoComplete="off"
+                        autoCorrect="off"
+                        autoCapitalize="characters"
+                        spellCheck={false}
+                        aria-label={c.monogramLabel}
+                      />
+                    ) : (
+                      <textarea
+                        className={styles.textInput}
+                        value={activeElement.raw}
+                        onChange={(e) => patchElement({ raw: e.target.value })}
+                        placeholder={c.previewPlaceholder}
+                        rows={2}
+                        maxLength={MAX_TEXT_CHARS}
+                        autoComplete="off"
+                        autoCorrect="off"
+                        autoCapitalize={activeFont?.uppercaseOnly ? "characters" : "words"}
+                        spellCheck={false}
+                        aria-label={c.textLabel}
+                      />
+                    )}
+                    <span className={styles.panelHint}>
+                      {activeElement.options.contentType === "monogram"
+                        ? c.monogramNote
+                        : c.linesHint.replace("{n}", String(MAX_TEXT_LINES))}
+                    </span>
+                  </label>
                 )}
               </fieldset>
 

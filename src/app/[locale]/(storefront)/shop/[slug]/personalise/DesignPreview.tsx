@@ -63,9 +63,6 @@ interface Props {
    * the value and the evaluator normalises a copy, so backspacing through a
    * space behaves the way it does in any text field.
    */
-  onTextChange: (id: string, raw: string) => void;
-  /** Names the hidden field that takes the keystrokes, for a screen reader. */
-  textLabel: string;
   onElementChange: (
     id: string,
     patch: {
@@ -129,8 +126,6 @@ export default function DesignPreview({
   elements,
   activeElementId,
   onSelectElement,
-  onTextChange,
-  textLabel,
   onElementChange,
   placeholder,
   logoPlaceholder = "Logo",
@@ -215,243 +210,6 @@ export default function DesignPreview({
 
   const round1 = (n: number) => Math.round(n * 10) / 10;
 
-  // ── Typing on the photograph ─────────────────────────────────────────
-  // There is no "text to embroider" field beside the preview any more: the
-  // customer writes on the cap. A hidden textarea takes the keystrokes and the
-  // SVG stays the only renderer — it draws every line at exactly the width the
-  // validator measured, which no HTML overlay could match, so an editable
-  // element over the top would drift from the letters underneath it.
-  //
-  // It is deliberately NOT stretched across the box: a transparent field over
-  // the lettering would swallow the drag that moves it and the handle that
-  // turns it. A tap opens it instead, and it stays in the tab order so a
-  // keyboard reaches it without pointing at anything.
-
-  const textRef = useRef<HTMLTextAreaElement>(null);
-  const [typing, setTyping] = useState(false);
-  /**
-   * Where the field's own caret sits, as an index into the RAW text.
-   *
-   * State rather than a ref because the caret can move without the text
-   * changing — an arrow key, a click, Home — and the measurement below has to
-   * re-run when it does.
-   */
-  const [caretIndex, setCaretIndex] = useState(0);
-  /** The drawn `<text>` per line of the box being typed into, for measuring. */
-  const rowRefs = useRef<(SVGTextElement | null)[]>([]);
-  const caretRef = useRef<SVGRectElement>(null);
-  /**
-   * What the pointer went down on, cleared by any movement: a drag across the
-   * photograph must not also open a keyboard. It records whether the box was
-   * lettering rather than reading that off the active element later, because
-   * the tap may be what MADE it active — the closure would still be looking at
-   * the box that was open before.
-   */
-  const tapped = useRef<{ el: PreviewElement; x: number; y: number } | null>(null);
-
-  /** The box the keystrokes belong to, or null while a picture is open. */
-  const typingTarget = (() => {
-    const open = elements.find((el) => el.id === activeElementId);
-    return open && (open.contentType === "text" || open.contentType === "monogram") ? open : null;
-  })();
-
-  // Opening a picture puts the keyboard away: there is nothing to write into,
-  // and a bar blinking on a shape the customer cannot type on is a lie. The
-  // field stays mounted, so nothing else clears this.
-  useEffect(() => {
-    if (!typingTarget && typing) textRef.current?.blur();
-  }, [typingTarget, typing]);
-
-  /**
-   * Puts the drawn caret where the field's own caret is.
-   *
-   * Written straight onto the `<rect>` rather than through state, because this
-   * has to run AFTER the letters are laid out — it measures them — and a state
-   * update from a layout effect would cost a second render per keystroke.
-   *
-   * The hard part is that the drawn lines are the NORMALISED text while the
-   * caret indexes the RAW text: `normalizeText` collapses runs of spaces, drops
-   * blank lines and can upper-case a face's letters. So the raw prefix in front
-   * of the caret is put through exactly the same normalisation, and its length
-   * is the column in the drawn line. A trailing space the customer just typed
-   * therefore leaves the caret where the next visible letter will land, which is
-   * the honest place for it.
-   *
-   * The position itself comes from the DOM (`getStartPositionOfChar`), never from
-   * our own width model: each line is stretched to the measured width with
-   * `textLength`, so only the browser knows where a glyph ended up inside it.
-   */
-  useLayoutEffect(() => {
-    const bar = caretRef.current;
-    if (!bar) return;
-    const el = typingTarget;
-    if (!el) return;
-
-    const rows = el.lines;
-    const lead = el.heightMm * (el.leading ?? LINE_LEADING);
-    const firstY = -((Math.max(1, rows.length) - 1) * lead) / 2;
-    const barW = Math.max(0.5, el.heightMm * 0.07);
-
-    // An empty box: the lettering is centre-anchored, so the first letter lands
-    // in the middle. Nothing to measure.
-    if (!rows.length) {
-      bar.setAttribute("x", String(-barW / 2));
-      bar.setAttribute("y", String(-el.heightMm / 2));
-      return;
-    }
-
-    // Which raw line the caret is on, and how far into it.
-    const rawLines = el.raw.split(/\r?\n/);
-    const caret = Math.max(0, Math.min(caretIndex, el.raw.length));
-    let consumed = 0;
-    let rawLine = rawLines.length - 1;
-    let column = rawLines[rawLine]?.length ?? 0;
-    for (let i = 0; i < rawLines.length; i += 1) {
-      const len = rawLines[i].length;
-      if (caret <= consumed + len) {
-        rawLine = i;
-        column = caret - consumed;
-        break;
-      }
-      consumed += len + 1;
-    }
-
-    // Blank raw lines are not drawn, so the drawn row is the count of lines
-    // before this one that survived normalisation.
-    const normalise = (text: string) => normalizeText(text, el.contentType, el.font.uppercaseOnly);
-    let rowIdx = 0;
-    for (let i = 0; i < rawLine; i += 1) if (normalise(rawLines[i])) rowIdx += 1;
-    rowIdx = Math.min(rowIdx, rows.length - 1);
-
-    const drawnCol = Math.min(normalise(rawLines[rawLine].slice(0, column)).length, rows[rowIdx].length);
-    const textEl = rowRefs.current[rowIdx];
-    const y = firstY + rowIdx * lead;
-
-    let x: number | null = null;
-    if (textEl && rows[rowIdx].length) {
-      try {
-        const point = drawnCol > 0 ? textEl.getEndPositionOfChar(drawnCol - 1) : textEl.getStartPositionOfChar(0);
-        x = point.x;
-      } catch {
-        // The character is not laid out yet — a face still loading, or a row
-        // React has not flushed. The fallback below is still a sane place.
-        x = null;
-      }
-    }
-    if (x === null) {
-      // No measurement to be had: sit at the end of the line, which is where
-      // typing lands, using the width the validator measured.
-      x =
-        lineWidthMm({
-          line: rows[rowIdx],
-          heightMm: el.heightMm,
-          font: el.font,
-          contentType: el.contentType,
-          weightStep: el.weightStep,
-          trackingPct: el.trackingPct,
-          kerning: el.kerning,
-        }) / 2;
-    }
-
-    bar.setAttribute("x", String(x - barW / 2));
-    bar.setAttribute("y", String(y - el.heightMm / 2));
-  });
-
-  /**
-   * The raw index a tap on the lettering points at, or null when it cannot be
-   * worked out (a face still loading, a curved line, a tap off the letters).
-   *
-   * The inverse of the mapping the layout effect does: the DOM says which drawn
-   * character was hit, and the raw column is then the shortest prefix of the raw
-   * line that normalises to that many characters. Lossy in the same place and
-   * for the same reason — a run of spaces is one space once drawn — and landing
-   * on the first raw index that renders to the tapped spot is the right answer
-   * there.
-   */
-  const caretIndexAt = useCallback((el: PreviewElement, clientX: number, clientY: number): number | null => {
-    if (!el.lines.length || el.curveDeg) return null;
-    const svg = rowRefs.current.find(Boolean)?.ownerSVGElement;
-    const ctm = svg?.getScreenCTM();
-    if (!svg || !ctm) return null;
-
-    // Screen coordinates into the box's own user space, which is what carries
-    // the box's rotation and the photograph's scale.
-    const local = new DOMPoint(clientX, clientY).matrixTransform(ctm.inverse());
-
-    const lead = el.heightMm * (el.leading ?? LINE_LEADING);
-    const firstY = -((el.lines.length - 1) * lead) / 2;
-    const rowIdx = Math.max(0, Math.min(el.lines.length - 1, Math.round((local.y - firstY) / (lead || 1))));
-    const textEl = rowRefs.current[rowIdx];
-    if (!textEl) return null;
-
-    const line = el.lines[rowIdx];
-    let drawnCol = line.length;
-    try {
-      const hit = textEl.getCharNumAtPosition(local);
-      if (hit >= 0) {
-        // Past the middle of a glyph the caret belongs after it, the way it does
-        // in any text field.
-        const start = textEl.getStartPositionOfChar(hit);
-        const end = textEl.getEndPositionOfChar(hit);
-        drawnCol = local.x > (start.x + end.x) / 2 ? hit + 1 : hit;
-      } else {
-        // Off the ends of the line: the nearer end wins.
-        const first = textEl.getStartPositionOfChar(0);
-        drawnCol = local.x < first.x ? 0 : line.length;
-      }
-    } catch {
-      return null;
-    }
-
-    const rawLines = el.raw.split(/\r?\n/);
-    const normalise = (text: string) => normalizeText(text, el.contentType, el.font.uppercaseOnly);
-    // Which raw line drew this row: count the ones before it that survived.
-    let rawLine = rawLines.length - 1;
-    let drawn = 0;
-    for (let i = 0; i < rawLines.length; i += 1) {
-      if (!normalise(rawLines[i])) continue;
-      if (drawn === rowIdx) {
-        rawLine = i;
-        break;
-      }
-      drawn += 1;
-    }
-
-    let column = rawLines[rawLine].length;
-    for (let i = 0; i <= rawLines[rawLine].length; i += 1) {
-      if (normalise(rawLines[rawLine].slice(0, i)).length >= drawnCol) {
-        column = i;
-        break;
-      }
-    }
-
-    let offset = 0;
-    for (let i = 0; i < rawLine; i += 1) offset += rawLines[i].length + 1;
-    return offset + column;
-  }, []);
-
-  /** Opens the keyboard, with the caret where the customer put it. */
-  const startTyping = useCallback(
-    (at?: { el: PreviewElement; x: number; y: number }) => {
-      const field = textRef.current;
-      if (!field) return;
-      // Focus has to happen inside the gesture that asked for it, or a phone
-      // keyboard will not come up. `preventScroll` because the field is clipped
-      // to a pixel: without it the browser scrolls the page to bring that pixel
-      // into view, jumping the photograph the customer just tapped out from
-      // under them.
-      field.focus({ preventScroll: true });
-      // Where they tapped, if that can be worked out — on a phone there are no
-      // arrow keys, so a tap is the only way to move the cursor at all. Failing
-      // that, the end: a tap with nothing to measure means "carry on from here".
-      const at_ = at ? caretIndexAt(at.el, at.x, at.y) : null;
-      const index = at_ ?? field.value.length;
-      field.setSelectionRange(index, index);
-      setCaretIndex(index);
-    },
-    [caretIndexAt],
-  );
-
   // ── Moving a box ─────────────────────────────────────────────────────
 
   const onElementDown = useCallback(
@@ -460,8 +218,6 @@ export default function DesignPreview({
       onSelectElement(el.id);
       setShowGuides(true);
       if (!editable) return;
-      tapped.current =
-        el.contentType === "text" || el.contentType === "monogram" ? { el, x: e.clientX, y: e.clientY } : null;
       (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
       elementDrag.current = { id: el.id, startX: e.clientX, startY: e.clientY, start: el.offset };
       setDraggingId(el.id);
@@ -474,9 +230,6 @@ export default function DesignPreview({
     (e: React.PointerEvent) => {
       const d = elementDrag.current;
       if (!d || !pxPerMm) return;
-      // Past a few pixels this is a drag, not a tap, so it must not also open
-      // the keyboard when the finger lifts.
-      if (Math.abs(e.clientX - d.startX) > 4 || Math.abs(e.clientY - d.startY) > 4) tapped.current = null;
       // Screen pixels straight to millimetres, along the photograph's own
       // axes, so a drag goes exactly where the pointer goes whatever angle
       // the box is at.
@@ -506,18 +259,12 @@ export default function DesignPreview({
   );
 
   const endGesture = useCallback(() => {
-    const tap = elementDrag.current ? tapped.current : null;
-    tapped.current = null;
     elementDrag.current = null;
     spin.current = null;
     stretch.current = null;
     setDraggingId(null);
     setGesture("none");
-    // A tap on lettering is a request to write on it. Focus happens here, still
-    // inside the gesture the customer made — a phone opens no keyboard for a
-    // focus() that arrives from an effect a frame later.
-    if (tap) startTyping(tap);
-  }, [startTyping]);
+  }, []);
 
   // ── Turning a box ────────────────────────────────────────────────────
 
@@ -639,8 +386,6 @@ export default function DesignPreview({
   const drawElement = (el: PreviewElement) => {
     const empty = !el.text && !el.motif && !el.artwork;
     const logoPending = el.contentType === "artwork" && !el.artwork;
-    /** This box has the keyboard, so it shows where the next letter lands. */
-    const focusedHere = typing && el.id === typingTarget?.id;
     /**
      * The prompt, until the customer is actually writing.
      *
@@ -649,7 +394,7 @@ export default function DesignPreview({
      * through their middle reads as a glitch — and asks someone to type over a
      * word that is not theirs.
      */
-    const rows = el.lines.length ? el.lines : empty && focusedHere ? [] : [el.text || placeholder];
+    const rows = el.lines.length ? el.lines : [el.text || placeholder];
     // Cap height is not the em box — 0.72 is the usual ratio, and using it
     // keeps the rendered letters at the millimetre height being quoted.
     const fontSizeMm = el.heightMm / 0.72;
@@ -736,11 +481,6 @@ export default function DesignPreview({
             return (
               <text
                 key={i}
-                // Only the open box needs measuring, and only its straight
-                // lines — a curved one's letters ride a path. It is the OPEN box
-                // rather than the focused one because the tap that focuses it
-                // has to be measurable against it in the same gesture.
-                ref={el.id === activeElementId ? (node) => { rowRefs.current[i] = node; } : undefined}
                 x={0}
                 y={y}
                 dominantBaseline="central"
@@ -773,30 +513,7 @@ export default function DesignPreview({
           );
         });
 
-    /**
-     * Where the next letter lands, while this box has the keyboard.
-     *
-     * An indicator, not a caret: the drawn lines are the NORMALISED text (spaces
-     * collapsed, blank lines dropped), so a raw caret index cannot be mapped
-     * onto them faithfully — and a caret that claims a position it does not have
-     * is worse than one that only ever claims the end. Typing lands here, which
-     * is where the field's own caret is put when it opens.
-     *
-     * An EMPTY box puts it in the middle, because that is where the first letter
-     * will appear: the lettering is centre-anchored, so an empty line's
-     * insertion point is the centre of the box, not the right-hand edge where
-     * the prompt happened to end.
-     */
-    // The caret. Rendered at the origin and moved by the layout effect above,
-    // which is the only thing that can know where a glyph ended up inside a line
-    // stretched to a measured width.
-    const barW = Math.max(0.5, el.heightMm * 0.07);
-    const bar =
-      focusedHere && !el.motif && !el.artwork ? (
-        <rect ref={caretRef} className={styles.typeBar} x={-barW / 2} y={-el.heightMm / 2} width={barW} height={el.heightMm} fill={fill} />
-      ) : null;
-
-    return { widthMm, stackMm, body: bar ? <>{body}{bar}</> : body };
+    return { widthMm, stackMm, body };
   };
 
   return (
@@ -827,7 +544,6 @@ export default function DesignPreview({
                     selected && guides ? styles.elementLayerSelected : "",
                     el.invalid ? styles.elementLayerInvalid : "",
                     draggingId === el.id ? styles.elementLayerDragging : "",
-                    typing && selected ? styles.elementLayerTyping : "",
                   ].join(" ")}
                   style={{
                     left: area.cx + el.offset.x * pxPerMm,
@@ -844,14 +560,7 @@ export default function DesignPreview({
                   onPointerMove={interactive ? onElementMove : undefined}
                   onPointerUp={interactive ? endGesture : undefined}
                   onPointerCancel={interactive ? endGesture : undefined}
-                  onKeyDown={(e) => {
-                    if (editable && el.id === activeElementId && typingTarget && (e.key === "Enter" || e.key === " ")) {
-                      e.preventDefault();
-                      startTyping();
-                      return;
-                    }
-                    onElementKeyDown(el)(e);
-                  }}
+                  onKeyDown={onElementKeyDown(el)}
                   onFocus={interactive ? () => onSelectElement(el.id) : undefined}
                 >
                   <svg className={styles.elementSvg} viewBox={`${-widthMm / 2} ${-stackMm / 2} ${widthMm} ${stackMm}`} overflow="visible" role="img" aria-label={el.text}>
@@ -896,51 +605,9 @@ export default function DesignPreview({
           null
         )}
 
-        {/* The keystroke sink, mounted for as long as the preview is editable.
-            Not only while a lettering box is open: the first tap on one is what
-            makes it open, and focus has to land on a node that already exists
-            inside that same gesture. Kept in the layout (not `display: none`)
-            so it is focusable and in the tab order; clipped to a pixel so it is
-            never seen. */}
-        {editable && (
-          <textarea
-            ref={textRef}
-            className={styles.inlineTextField}
-            value={typingTarget?.raw ?? ""}
-            onChange={(e) => {
-              if (typingTarget) onTextChange(typingTarget.id, e.target.value);
-              setCaretIndex(e.target.selectionStart ?? e.target.value.length);
-            }}
-            // `select` covers every way a caret moves that is not typing: arrow
-            // keys, a click inside the field, Home, End, a drag-select. There is
-            // no "caretchange" event, and this is what browsers fire instead.
-            onSelect={(e) => setCaretIndex((e.target as HTMLTextAreaElement).selectionStart ?? 0)}
-            onFocus={(e) => {
-              setTyping(true);
-              setCaretIndex(e.target.selectionStart ?? e.target.value.length);
-            }}
-            onBlur={() => setTyping(false)}
-            onKeyDown={(e) => {
-              // Escape puts the keyboard away without touching the design; the
-              // box keeps the focus ring the layer gives it.
-              if (e.key === "Escape") {
-                e.preventDefault();
-                textRef.current?.blur();
-              }
-            }}
-            aria-label={textLabel}
-            autoComplete="off"
-            autoCorrect="off"
-            autoCapitalize={typingTarget?.font.uppercaseOnly ? "characters" : "words"}
-            spellCheck={false}
-            rows={1}
-            /* A far-off rail, not the limit: it stops a pathological paste and
-               matches the DTO's own bound. What a position actually holds is
-               decided by measuring the design and fitting a hoop round it. */
-            maxLength={typingTarget?.contentType === "monogram" ? MONOGRAM_MAX_CHARS + 2 : MAX_TEXT_CHARS}
-          />
-        )}
-
+        {/* How to move a box, said once and only while the guides are up — it
+            goes as soon as a gesture starts, so it never sits over the thing
+            being dragged. */}
         {area && guides && (
           <p className={`${styles.dragHint} ${busy ? styles.dragHintHidden : ""}`} aria-hidden="true">
             <Move size={12} /> {dragHint}

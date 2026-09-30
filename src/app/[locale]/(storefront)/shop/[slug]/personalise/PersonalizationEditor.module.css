@@ -406,66 +406,6 @@
   }
 }
 
-/* ── Writing on the photograph ─────────────────────────────────────────────
-   The keystroke sink. It has to stay in the layout to be focusable and in the
-   tab order — `display: none` or `visibility: hidden` would take it out of both
-   — so it is clipped to a pixel instead. Never `opacity: 0` at full size over
-   the box either: that would swallow the drag that moves the lettering and the
-   handle that turns it. A tap on the box is what focuses this. */
-.inlineTextField {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  border: 0;
-  /* Not `clip`, which is deprecated but still the one thing every browser
-     honours here; the modern pair does the real work. */
-  clip-path: inset(50%);
-  overflow: hidden;
-  white-space: nowrap;
-  /* 16px stops iOS zooming the page when the field takes focus. */
-  font-size: 16px;
-  resize: none;
-  /* The drawn bar is the indicator; the field's own caret must not show
-     through in the corner it is clipped to. */
-  color: transparent;
-  background: transparent;
-  caret-color: transparent;
-}
-
-/* The box that has the keyboard: a stronger colour than the selected frame, so
-   "selected" and "being typed into" do not look the same. Two classes, so it
-   beats that frame wherever they meet — a box being typed into is always also
-   the selected one, and with one class each the later rule in the file would win
-   instead of the more specific state. Width, offset and radius come from
-   `.elementLayer`, which every ring on this box shares. */
-.elementLayer.elementLayerTyping {
-  outline-color: var(--color-primary);
-}
-
-/* Where the next letter lands. Blinks like a caret because that is what it is
-   standing in for, and stops for anyone who asked motion to stop. */
-.typeBar {
-  animation: typeBarBlink 1.05s steps(1, end) infinite;
-}
-
-@keyframes typeBarBlink {
-  0%,
-  49% {
-    opacity: 1;
-  }
-  50%,
-  100% {
-    opacity: 0;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .typeBar {
-    animation: none;
-  }
-}
-
 .previewStage {
   /* The photograph IS the card: no padding, so it reaches the frame on every
      side. The frame does the clipping (`clip`, not `hidden` — it must not become
@@ -1229,6 +1169,15 @@
   position: absolute;
   cursor: grab;
   touch-action: none;
+  /* The lettering is a picture of stitching, not a passage of text. Dragging a
+     box would otherwise start a text selection instead of moving it — the word
+     goes blue and stays where it is — and on a phone a long press to reposition
+     raises the selection handles and the copy/paste bar over the design. */
+  user-select: none;
+  -webkit-user-select: none;
+  /* iOS, separately: without this a long press on the lettering still offers to
+     copy it, which is the same interruption by another route. */
+  -webkit-touch-callout: none;
   border-radius: 3px;
   /* Every ring this box can show is this one outline, recoloured by the states
      below. `outline` and not `box-shadow` because only outline takes an offset,
@@ -1296,6 +1245,11 @@
   font-weight: 600;
   white-space: nowrap;
   pointer-events: none;
+  /* A caption on the photograph, not copy: `pointer-events: none` keeps a click
+     off it, but a drag begun on the photo would still sweep a selection through
+     it. */
+  user-select: none;
+  -webkit-user-select: none;
   transition: opacity 0.15s ease;
 }
 
@@ -2569,6 +2523,46 @@
 
 /* A note to the shop: prose, not lettering — so the body size, not the
    embroidery preview size the text field uses. */
+/* ── What it should say ────────────────────────────────────────────────────
+   The words are typed here and the photograph shows the result. Same shape as
+   the note field below, one size larger and in the chosen face, because this is
+   the field the whole page is about. */
+.field {
+  display: block;
+}
+
+.textInput {
+  width: 100%;
+  padding: 11px 13px;
+  border-radius: 11px;
+  border: 1.5px solid var(--field-border, #e2e6eb);
+  background: var(--background);
+  font: inherit;
+  /* 16px is the floor that stops iOS zooming the page in when the field takes
+     focus — below it Safari scales the viewport and the photograph above jumps
+     out of view at the exact moment the customer starts typing. */
+  font-size: 16px;
+  line-height: 1.45;
+  color: var(--color-secondary);
+  resize: vertical;
+}
+
+.textInput:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgb(18 156 152 / 15%);
+}
+
+.textInput::placeholder {
+  color: color-mix(in srgb, var(--color-secondary) 38%, transparent);
+}
+
+/* The hint under the field, not the panel's own lead paragraph. */
+.field .panelHint {
+  display: block;
+  margin-top: 6px;
+}
+
 .noteInput {
   width: 100%;
   padding: 10px 12px;
