@@ -16,6 +16,11 @@
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
+  /* Above the woven ground on .header::before. A positioned pseudo-element
+     paints over ordinary in-flow content, so the rows have to claim a layer of
+     their own rather than relying on source order. */
+  position: relative;
+  z-index: 1;
 }
 
 /* ── Row 1: logo / search / account-wishlist-cart ── */
@@ -35,7 +40,21 @@
    the two as one word — which is the only arrangement where dropping the
    letter works: stacked above the name, "ilomis" is just a misspelling.
    Everything below is therefore about making the join invisible. */
+/* The lockup and the tagline stack; the mark and the name still sit side by
+   side inside .logoLockup, which is the arrangement the comment above is about.
+   Left-aligned rather than centred: the tagline is a caption to the name, and a
+   centred caption under an asymmetric lockup looks misaligned rather than
+   deliberate. */
 .logo {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  flex-shrink: 0;
+  text-decoration: none;
+}
+
+.logoLockup {
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -43,8 +62,43 @@
      so a 0 gap already leaves a hair of air; 2px is what makes the S and the
      i sit at the same rhythm as the i and the l. */
   gap: 2px;
-  flex-shrink: 0;
-  text-decoration: none;
+}
+
+/* ── What the shop does ────────────────────────────────────────────────────
+   Small caps, wide tracking, aligned to the mark's left edge — a caption, not a
+   second wordmark competing with the first.
+
+   The rule above it is stitching, drawn rather than described: 5px dashes with
+   4px gaps in the brand thread colour. It is the one place on the site where the
+   craft is shown instead of claimed, and it costs no image and no request. A
+   dashed border would have given hairline ticks; a gradient gives a dash with
+   real weight, which is what a satin stitch looks like at this size. */
+.logoTagline {
+  padding-top: 5px;
+  background-image: repeating-linear-gradient(
+    to right,
+    var(--color-primary) 0 5px,
+    transparent 5px 9px
+  );
+  background-size: 100% 2px;
+  background-repeat: no-repeat;
+  background-position: top left;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  line-height: 1;
+  white-space: nowrap;
+  color: color-mix(in srgb, var(--foreground) 62%, transparent);
+}
+
+/* Under this the top row is already fighting for width between the logo, the
+   icons and the search field, and 14px of header height costs more than the line
+   earns — the send-in pill in the row below is saying the same thing by then. */
+@media (max-width: 380px) {
+  .logoTagline {
+    display: none;
+  }
 }
 
 .logoIcon {

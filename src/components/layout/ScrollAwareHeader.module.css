@@ -13,6 +13,61 @@
   will-change: transform;
 }
 
+/* ── The cloth ─────────────────────────────────────────────────────────────
+   A woven texture behind the header, rather than embroidery icons scattered
+   across it.
+
+   Why a weave and not needles, hoops and thread spools: a repeated literal motif
+   behind a search field and a cart icon reads as wallpaper, and at the opacity it
+   would need to stay out of the way it stops being legible as a needle anyway —
+   so it costs contrast and buys nothing. This is the fabric an embroiderer works
+   on, which says the same thing without asking to be looked at. Emoji were not an
+   option: they render as a different picture on every platform, cannot be
+   recoloured to the brand, and are informal in a way a shop header is not.
+
+   Drawn with two crossed gradients — a 45° and a -45° per 18px cell — so it is
+   pure CSS, follows the brand colour through `--color-primary`, and adds no
+   request. Roughly 3% ink once the mix and the opacity are multiplied out: enough
+   to feel like a surface, not enough to read as a pattern.
+
+   Masked to fade out across the first two thirds, so the texture sits behind the
+   logo — where the brand is — and has gone before it reaches the search field and
+   the icons, which need a plain ground to stay crisp against. */
+.header::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(
+      45deg,
+      transparent 46%,
+      color-mix(in srgb, var(--color-primary) 24%, transparent) 46% 54%,
+      transparent 54%
+    ),
+    linear-gradient(
+      -45deg,
+      transparent 46%,
+      color-mix(in srgb, var(--color-primary) 24%, transparent) 46% 54%,
+      transparent 54%
+    );
+  background-size: 18px 18px;
+  opacity: 0.15;
+  -webkit-mask-image: linear-gradient(to right, #000 0%, #000 26%, transparent 60%);
+  mask-image: linear-gradient(to right, #000 0%, #000 26%, transparent 60%);
+}
+
+/* A phone header is almost entirely controls — there is no room for a decorative
+   ground behind them, and the logo takes the whole left half of the first row. */
+@media (max-width: 640px) {
+  .header::before {
+    -webkit-mask-image: linear-gradient(to right, #000 0%, #000 12%, transparent 42%);
+    mask-image: linear-gradient(to right, #000 0%, #000 12%, transparent 42%);
+    opacity: 0.11;
+  }
+}
+
 .header.scrolled {
   box-shadow: 0 4px 20px color-mix(in srgb, var(--foreground) 10%, transparent);
 }

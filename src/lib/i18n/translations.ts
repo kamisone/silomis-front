@@ -16,6 +16,7 @@ export const en = {
   },
   nav: {
     logoAriaLabel: "Silomis home",
+    tagline: "Custom embroidery",
     navAriaLabel: "Category navigation",
     selectLanguage: "Select language",
     trackMyOrder: "Track my order",
@@ -821,6 +822,7 @@ export const fr: Translations = {
   },
   nav: {
     logoAriaLabel: "Accueil Silomis",
+    tagline: "Broderie personnalisée",
     navAriaLabel: "Navigation des catégories",
     selectLanguage: "Choisir la langue",
     trackMyOrder: "Suivre ma commande",
@@ -1611,6 +1613,7 @@ export const es: Translations = {
   },
   nav: {
     logoAriaLabel: "Silomis inicio",
+    tagline: "Bordado personalizado",
     navAriaLabel: "Navegación de categorías",
     selectLanguage: "Seleccionar idioma",
     trackMyOrder: "Seguir mi pedido",
@@ -2401,6 +2404,7 @@ export const it: Translations = {
   },
   nav: {
     logoAriaLabel: "Silomis home",
+    tagline: "Ricamo personalizzato",
     navAriaLabel: "Navigazione categorie",
     selectLanguage: "Seleziona lingua",
     trackMyOrder: "Traccia il mio ordine",
@@ -3191,6 +3195,7 @@ export const de: Translations = {
   },
   nav: {
     logoAriaLabel: "Silomis Startseite",
+    tagline: "Individuelle Stickerei",
     navAriaLabel: "Kategorienavigation",
     selectLanguage: "Sprache auswählen",
     trackMyOrder: "Meine Bestellung verfolgen",
@@ -3981,6 +3986,7 @@ export const nl: Translations = {
   },
   nav: {
     logoAriaLabel: "Silomis home",
+    tagline: "Borduurwerk op maat",
     navAriaLabel: "Categorienavigatie",
     selectLanguage: "Taal selecteren",
     trackMyOrder: "Volg mijn bestelling",
@@ -4771,6 +4777,7 @@ export const pl: Translations = {
   },
   nav: {
     logoAriaLabel: "Silomis strona główna",
+    tagline: "Haft na zamówienie",
     navAriaLabel: "Nawigacja kategorii",
     selectLanguage: "Wybierz język",
     trackMyOrder: "Śledź moje zamówienie",

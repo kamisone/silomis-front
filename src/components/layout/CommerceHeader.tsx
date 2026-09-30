@@ -24,16 +24,28 @@ export default function CommerceHeader({ locale }: { locale: Locale }) {
           {/* ── Row 1: logo, search, account/wishlist/cart ── */}
           <div className={styles.topRow}>
             <Link href={`/${locale}`} className={`${styles.logo} ${styles.logoOrder}`} aria-label={t.nav.logoAriaLabel}>
-              {/* The wordmark is set in type rather than shipped as a bitmap: it
-                  stays crisp at any density, recolours with the theme, is
-                  translatable, and drops a render-blocking request from the
-                  header. Only the mark itself is still an image. */}
-              <Image src="/assets/logo_silomis_mark.webp" alt="" width={42} height={50} className={styles.logoIcon} priority />
-              {/* No S: the mark to its left is the S. aria-hidden because the
-                  link already carries the real name — without it a screen
-                  reader would announce the brand as "ilomis". */}
-              <span className={styles.logoWord} aria-hidden="true">
-                ilomis
+              <span className={styles.logoLockup}>
+                {/* The wordmark is set in type rather than shipped as a bitmap: it
+                    stays crisp at any density, recolours with the theme, is
+                    translatable, and drops a render-blocking request from the
+                    header. Only the mark itself is still an image. */}
+                <Image src="/assets/logo_silomis_mark.webp" alt="" width={42} height={50} className={styles.logoIcon} priority />
+                {/* No S: the mark to its left is the S. aria-hidden because the
+                    link already carries the real name — without it a screen
+                    reader would announce the brand as "ilomis". */}
+                <span className={styles.logoWord} aria-hidden="true">
+                  ilomis
+                </span>
+              </span>
+              {/* What the shop DOES, on every page, under the name that does it.
+                  A visitor who lands on a product had no way to tell a workshop
+                  from a reseller — the catalogue looks the same either way — and
+                  this is the one line that is always on screen.
+
+                  Not announced: the link's own aria-label already names the
+                  brand, and a screen reader reading both would say it twice. */}
+              <span className={styles.logoTagline} aria-hidden="true">
+                {t.nav.tagline}
               </span>
             </Link>
 
