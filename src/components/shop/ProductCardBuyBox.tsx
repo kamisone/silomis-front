@@ -23,9 +23,9 @@ function optionLabel(o: AttrGroup["options"][number]): string {
 /**
  * Pick the options and add that one combination straight from the card.
  *
- * Quantity applies to a single resolved variant on purpose — "4 × Black / M",
- * never four different pairs. Mixing combinations is a per-unit choice, which
- * is the product page's PerUnitVariantPicker, not a card control.
+ * Quantity applies to a single resolved variant — "4 × Black / M". A second
+ * combination is a second line: pick it and add it again, the same way the
+ * product page works.
  *
  * The options themselves are collapsed by default. A grid of cards is a
  * scanning surface first: the default combination is already selected, so the

@@ -164,7 +164,6 @@ interface Product {
   /** Linked articles, in the order the storefront shows them. */
   blogRefs?: { postId: string; post: { id: string; title: string; slug: string; status: string } }[];
   upsellingEnabled: boolean;
-  perUnitVariantChoice: boolean;
   upsellTiers: ProductUpsellTier[];
   primaryCategoryId: string | null;
   categories: Category[];
@@ -411,7 +410,6 @@ export default function EditProductPage() {
         // Order is the payload: the backend stores the array index as sortOrder.
         articleIds: articleRefs.map((r) => r.postId),
         upsellingEnabled: product.upsellingEnabled,
-        perUnitVariantChoice: product.perUnitVariantChoice,
         upsellTiers: product.upsellTiers,
         featured: product.featured,
         isNew: product.isNew,
@@ -916,22 +914,6 @@ export default function EditProductPage() {
               />
             )}
 
-            <div className={styles.divider} />
-            <label style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 13.5, marginTop: 14 }}>
-              <input
-                type="checkbox"
-                checked={product.perUnitVariantChoice}
-                onChange={(e) => set({ perUnitVariantChoice: e.target.checked })}
-                style={{ marginTop: 3 }}
-              />
-              <span>
-                Let customers choose a variant per unit
-                <span className={styles.hint} style={{ display: "block", fontWeight: 400 }}>
-                  Buying more than one shows a card next to the quantity where each unit can be a different option — three shirts in three sizes, in one
-                  go. Quantity discounts still count the units together.
-                </span>
-              </span>
-            </label>
           </CollapsibleSection>
 
           {/* Variations — which attributes (Color, Size…) this product uses */}
