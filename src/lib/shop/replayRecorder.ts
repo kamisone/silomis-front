@@ -1,5 +1,6 @@
 import { record } from "rrweb";
 import type { eventWithTime } from "@rrweb/types";
+import { getTrafficSource } from "./trafficSource";
 
 /**
  * Session-replay recorder (rrweb) for test-product landing pages only — see
@@ -86,6 +87,7 @@ export async function startReplayRecording(productId: string): Promise<ReplayRec
         viewportHeight: window.innerHeight,
         pageUrl: window.location.href,
         pageTitle: document.title,
+        ...getTrafficSource(),
       }),
     }).catch(() => null);
 

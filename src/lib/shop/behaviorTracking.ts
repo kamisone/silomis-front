@@ -1,8 +1,10 @@
+import { getTrafficSource } from "./trafficSource";
+
 function post(body: Record<string, unknown>): void {
   fetch("/next-api/public/shop/behavior/track", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
+    body: JSON.stringify({ ...body, ...getTrafficSource() }),
   }).catch(() => {});
 }
 

@@ -5,6 +5,7 @@ import { useLocale } from "@/lib/i18n/useLocale";
 import { parseApiError, type CartMutationResult } from "@/lib/shop/stockError";
 import { pixelTrack } from "@/lib/metaPixel";
 import { ttqTrack } from "@/lib/tiktokPixel";
+import { captureTrafficSource, getTrafficSource } from "@/lib/shop/trafficSource";
 
 export interface CartItemOption {
   attributeId: string;
@@ -174,6 +175,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [mutating, setMutating] = useState(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
+  // Read the landing's referrer/utm_source before a client-side navigation
+  // drops the query string — CartProvider wraps every storefront page.
+  useEffect(() => {
+    captureTrafficSource();
+  }, []);
+
   // Always-current cart ref for optimistic rollback without stale closures
   const cartRef = useRef<Cart | null>(null);
   useEffect(() => {
@@ -221,7 +228,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         const res = await fetch(`/next-api/public/shop/cart/${token}/items?lang=${locale}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ variantId, quantity, selectedOptionValueIds, personalizations }),
+          body: JSON.stringify({ variantId, quantity, selectedOptionValueIds, personalizations, ...getTrafficSource() }),
         });
         if (res.ok) {
           const data: Cart = await res.json();
@@ -303,7 +310,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         const res = await fetch(`/next-api/public/shop/cart/${token}/items/${itemId}?lang=${locale}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ quantity }),
+          body: JSON.stringify({ quantity, ...getTrafficSource() }),
         });
         if (res.ok) {
           applyCart(await res.json());
