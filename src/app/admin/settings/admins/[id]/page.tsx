@@ -14,9 +14,18 @@ import ui from "@/components/admin/ui/admin-ui.module.css";
 import styles from "./admin-detail.module.css";
 import { ADMIN_ROLES, type AdminAccount, type AdminRole, roleBadgeClass } from "../roles";
 
+/**
+ * The two ways a code can reach an admin, and which one is tried first.
+ *
+ * Both are always usable at sign-in — email unconditionally, SMS once a phone
+ * number is on the profile. This setting picks only the one that is SENT
+ * automatically; the sign-in screen offers the other as "send by … instead". So
+ * the descriptions say "first", not "only": an admin reading this should not
+ * conclude they have locked themselves out of the other channel.
+ */
 const MFA_METHODS = [
-  { value: "email" as const, label: "Email", description: "The code is sent to this admin's email address." },
-  { value: "sms" as const, label: "SMS", description: "The code is texted to the phone number on their profile." },
+  { value: "email" as const, label: "Email first", description: "The code goes to this admin's email address. If a phone is on file, SMS stays available at sign-in." },
+  { value: "sms" as const, label: "SMS first", description: "The code is texted to the phone on their profile. Email stays available at sign-in." },
 ];
 
 const MIN_PASSWORD_LENGTH = 6;
@@ -190,7 +199,6 @@ export default function AdminDetailPage() {
   }
 
   const isSelf = meId !== null && meId === admin.id;
-  const smsWithoutPhone = mfa.mfaEnabled && mfa.preferredMfaMethod === "sms" && !admin.phone;
 
   return (
     <div className={ui.page}>
@@ -295,7 +303,7 @@ export default function AdminDetailPage() {
               />
               {mfa.mfaEnabled && (
                 <div className={ui.field}>
-                  <label className={ui.label}>Where to send the code</label>
+                  <label className={ui.label}>Send the code by</label>
                   <Select
                     value={mfa.preferredMfaMethod}
                     options={MFA_METHODS}
@@ -307,15 +315,15 @@ export default function AdminDetailPage() {
                     ) : (
                       <span className={styles.warn}>
                         <AlertTriangle size={13} className={styles.warnIcon} />
-                        No phone number on file. Add one under Profile and save it, or this admin will be locked
-                        out at the code prompt.
+                        No phone number on file, so this setting has no effect yet — the code falls back to email
+                        until one is added under Profile.
                       </span>
                     ))}
                 </div>
               )}
             </div>
             <div className={styles.cardFooter}>
-              <Button type="submit" disabled={savingMfa || smsWithoutPhone}>
+              <Button type="submit" disabled={savingMfa}>
                 {savingMfa ? "Saving…" : "Save two-factor"}
               </Button>
             </div>

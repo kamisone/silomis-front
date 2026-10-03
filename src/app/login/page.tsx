@@ -3,8 +3,13 @@
 import { Suspense, useRef, useState, type ClipboardEvent, type FormEvent, type KeyboardEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
-import { AlertCircle, ArrowLeft, Eye, EyeOff, Loader2, Lock, MailCheck, ShieldCheck } from "lucide-react";
+import { AlertCircle, ArrowLeft, Eye, EyeOff, Loader2, Lock, MailCheck, MessageSquare, RefreshCw, ShieldCheck } from "lucide-react";
 import styles from "./page.module.css";
+
+type MfaMethod = "email" | "sms";
+
+/** What each method is called where an admin has to choose between them. */
+const METHOD_LABEL: Record<MfaMethod, string> = { email: "email", sms: "SMS" };
 
 interface MfaChallenge {
   mfaRequired: true;
@@ -90,8 +95,61 @@ function LoginForm() {
   const [challenge, setChallenge] = useState<MfaChallenge | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  /**
+   * Which method the code in front of the admin was sent by.
+   *
+   * Starts as the one their account prefers — set in admin under Two-factor —
+   * and changes only when they ask for the other. Tracked separately from the
+   * challenge because the challenge token does not change when the code is
+   * re-sent; only the destination does.
+   */
+  const [sentBy, setSentBy] = useState<MfaMethod>("email");
+  const [sending, setSending] = useState(false);
+  /** Set after a successful send, so the admin sees that something happened. */
+  const [sentNote, setSentNote] = useState<string | null>(null);
 
   const otpRefs = useRef<Array<HTMLInputElement | null>>([]);
+
+  /**
+   * Sends the code again, by `method` or by the same one as before.
+   *
+   * The challenge token does not change: this is another code against the same
+   * challenge, which is why the OTP boxes are cleared rather than the step being
+   * restarted. The backend owns the cooldown and whether the method is even
+   * available for this admin — a phone-less account asking for SMS gets a
+   * refusal, which is shown as it comes back rather than guessed at here.
+   */
+  async function sendAgain(method?: MfaMethod) {
+    if (!challenge || sending) return;
+    setSending(true);
+    setError(null);
+    setSentNote(null);
+    try {
+      const res = await fetch("/next-api/auth/mfa/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ challengeToken: challenge.challengeToken, ...(method ? { method } : {}) }),
+      });
+      const data = (await res.json()) as { maskedDestination?: string; error?: string };
+      if (!res.ok) {
+        setError(data.error ?? "Could not send a new code.");
+        return;
+      }
+      if (data.maskedDestination) {
+        setChallenge({ ...challenge, maskedDestination: data.maskedDestination });
+      }
+      if (method) setSentBy(method);
+      // The old code is still valid until it expires, so the boxes are cleared:
+      // typing the previous one into them would fail and read as a bug.
+      setOtp("");
+      setSentNote(`A new code is on its way by ${METHOD_LABEL[method ?? sentBy]}.`);
+      otpRefs.current[0]?.focus();
+    } catch {
+      setError("Unable to reach the authentication server.");
+    } finally {
+      setSending(false);
+    }
+  }
 
   function redirectAfterLogin() {
     const from = searchParams.get("from");
@@ -119,7 +177,11 @@ function LoginForm() {
         // The first code box takes focus via `autoFocus` when it mounts —
         // focusing it from here fired before React had committed the new step,
         // which left the row unfocused and the first keystrokes going nowhere.
-        setChallenge(data as MfaChallenge);
+        const next = data as MfaChallenge;
+        setChallenge(next);
+        // The backend has already sent the code by the admin's preferred method;
+        // this records which so the switcher can offer the other one.
+        setSentBy(next.preferredMethod);
         return;
       }
       redirectAfterLogin();
@@ -211,15 +273,21 @@ function LoginForm() {
           {challenge ? (
             <>
               <span className={styles.eyebrow}>
-                <MailCheck size={13} strokeWidth={2.3} aria-hidden="true" />
+                {sentBy === "sms" ? (
+                  <MessageSquare size={13} strokeWidth={2.3} aria-hidden="true" />
+                ) : (
+                  <MailCheck size={13} strokeWidth={2.3} aria-hidden="true" />
+                )}
                 Two-factor
               </span>
               <h1 className={styles.title}>Verify it&apos;s you</h1>
               <p className={styles.subtitle}>
-                We sent a {OTP_LENGTH}-digit code to <strong>{challenge.maskedDestination}</strong>.
+                We sent a {OTP_LENGTH}-digit code by {METHOD_LABEL[sentBy]} to{" "}
+                <strong>{challenge.maskedDestination}</strong>.
               </p>
 
               {error && <ErrorNote message={error} />}
+              {!error && sentNote && <p className={styles.sentNote}>{sentNote}</p>}
 
               <form onSubmit={handleOtpSubmit} noValidate>
                 <div className={styles.field}>
@@ -261,6 +329,50 @@ function LoginForm() {
                 </button>
               </form>
 
+              {/* Didn't arrive, or arrived somewhere they cannot reach.
+                  Without these two an admin whose code is delayed has no way
+                  forward at all — the only option was to start the sign-in
+                  again, which issues a new challenge and does not help if the
+                  problem is the channel rather than the code. */}
+              <div className={styles.otpActions}>
+                <button
+                  type="button"
+                  className={styles.otpAction}
+                  onClick={() => void sendAgain()}
+                  disabled={sending}
+                >
+                  {sending ? (
+                    <Loader2 size={13} strokeWidth={2.3} className={styles.spin} aria-hidden="true" />
+                  ) : (
+                    <RefreshCw size={13} strokeWidth={2.3} aria-hidden="true" />
+                  )}
+                  Send a new code
+                </button>
+
+                {/* Only when the account actually has the other method. An
+                    admin with no phone number is never offered SMS, because
+                    the backend would refuse it and the offer would be a dead
+                    end wearing the clothes of a solution. */}
+                {challenge.availableMethods
+                  .filter((m) => m !== sentBy)
+                  .map((other) => (
+                    <button
+                      key={other}
+                      type="button"
+                      className={styles.otpAction}
+                      onClick={() => void sendAgain(other)}
+                      disabled={sending}
+                    >
+                      {other === "sms" ? (
+                        <MessageSquare size={13} strokeWidth={2.3} aria-hidden="true" />
+                      ) : (
+                        <MailCheck size={13} strokeWidth={2.3} aria-hidden="true" />
+                      )}
+                      Send by {METHOD_LABEL[other]} instead
+                    </button>
+                  ))}
+              </div>
+
               <button
                 type="button"
                 className={styles.backLink}
@@ -268,6 +380,7 @@ function LoginForm() {
                   setChallenge(null);
                   setOtp("");
                   setError(null);
+                  setSentNote(null);
                 }}
               >
                 <ArrowLeft size={14} strokeWidth={2.2} aria-hidden="true" />

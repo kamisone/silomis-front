@@ -340,6 +340,54 @@
   margin-top: 1px;
 }
 
+/* ── Getting unstuck on the code step ─────────────────────────────────────
+   Two quiet actions under the verify button: send another, or send it the other
+   way. Below the primary action and above "Back to sign in", because that is the
+   order of escalation — try again, try differently, give up. */
+.otpActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-top: 14px;
+}
+
+.otpAction {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--color-primary);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.otpAction:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.otpAction:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+/* Confirmation that a send happened. Deliberately not the error note's colour —
+   an admin who just asked for a new code and sees red assumes it failed. */
+.sentNote {
+  margin: 0 0 14px;
+  padding: 9px 12px;
+  border-radius: 9px;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 28%, transparent);
+  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+  color: var(--color-primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
 .backLink {
   display: inline-flex;
   align-items: center;
