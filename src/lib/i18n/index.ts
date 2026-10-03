@@ -1,10 +1,10 @@
-import { en, fr, es, it, de, nl, pl, type Translations } from "./translations";
+import { en, fr, es, it, de, nl, pl, pt, type Translations } from "./translations";
 
-export const LOCALES = ["en", "fr", "es", "it", "de", "nl", "pl"] as const;
+export const LOCALES = ["en", "fr", "es", "it", "de", "nl", "pl", "pt"] as const;
 export const DEFAULT_LOCALE = "en" as const;
 export type Locale = (typeof LOCALES)[number];
 
-const dict: Record<Locale, Translations> = { en, fr, es, it, de, nl, pl };
+const dict: Record<Locale, Translations> = { en, fr, es, it, de, nl, pl, pt };
 
 export function getTranslations(locale: string): Translations {
   return dict[(locale as Locale) in dict ? (locale as Locale) : DEFAULT_LOCALE];
@@ -22,6 +22,7 @@ const BCP47: Record<Locale, string> = {
   de: "de-DE",
   nl: "nl-NL",
   pl: "pl-PL",
+  pt: "pt-PT",
 };
 
 /** BCP-47 tag for Intl/toLocaleDateString APIs (e.g. "fr-FR"). */

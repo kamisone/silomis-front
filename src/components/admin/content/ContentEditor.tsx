@@ -37,7 +37,7 @@ const TRANSLATE_TEXT = "/next-api/admin/shop/translate/text";
 
 const LOCALE_LABEL: Record<Locale, string> = {
   en: "🇬🇧 English", fr: "🇫🇷 Français", es: "🇪🇸 Español",
-  it: "🇮🇹 Italiano", de: "🇩🇪 Deutsch", nl: "🇳🇱 Nederlands", pl: "🇵🇱 Polski",
+  it: "🇮🇹 Italiano", de: "🇩🇪 Deutsch", nl: "🇳🇱 Nederlands", pl: "🇵🇱 Polski", pt: "🇵🇹 Português",
 };
 
 /** The default set — the policy pages under Content. `sale` and `new` are not

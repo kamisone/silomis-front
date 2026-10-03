@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import ui from "@/components/admin/ui/admin-ui.module.css";
 
-export type AudienceSegment = "all" | "fr" | "en" | "customers" | "non_customers" | "purchasers" | "newsletter_only" | "tags";
+export type AudienceSegment = "all" | "fr" | "en" | "pt" | "customers" | "non_customers" | "purchasers" | "newsletter_only" | "tags";
 
 export interface AudienceDefinition {
   segment: AudienceSegment;
@@ -15,6 +15,7 @@ const SEGMENT_OPTIONS: { value: AudienceSegment; label: string }[] = [
   { value: "all", label: "All subscribers" },
   { value: "fr", label: "French speakers" },
   { value: "en", label: "English speakers" },
+  { value: "pt", label: "Portuguese speakers" },
   { value: "customers", label: "Customers" },
   { value: "non_customers", label: "Non-customers" },
   { value: "purchasers", label: "Purchasers (1+ orders)" },

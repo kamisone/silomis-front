@@ -228,6 +228,7 @@ export default function SubscribersPage() {
           <option value="">All locales</option>
           <option value="fr">French</option>
           <option value="en">English</option>
+          <option value="pt">Portuguese</option>
         </select>
         <input className={ui.searchInput} placeholder="Source…" value={sourceFilter} onChange={(e) => setSourceFilter(e.target.value)} />
         <input className={ui.searchInput} placeholder="Tag…" value={tagFilter} onChange={(e) => setTagFilter(e.target.value)} />

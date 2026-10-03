@@ -70,6 +70,16 @@ function FlagPL() {
     </svg>
   );
 }
+function FlagPT() {
+  return (
+    <svg className={styles.flagSvg} viewBox="0 0 20 15" fill="none" aria-hidden="true">
+      <rect width="20" height="15" fill="#FF0000" />
+      <rect width="8" height="15" fill="#006600" />
+      <circle cx="8" cy="7.5" r="3" fill="#FFCC00" />
+      <rect x="6.6" y="5.8" width="2.8" height="3.4" rx="0.6" fill="#FF0000" stroke="#fff" strokeWidth="0.5" />
+    </svg>
+  );
+}
 
 // Module-scope, not inline in the component: the mutation-detecting lint rule
 // only analyzes assignments inside component/hook bodies.
@@ -85,6 +95,7 @@ const META: Record<Locale, { label: string; short: string; Flag: () => React.Rea
   de: { label: "Deutsch", short: "DE", Flag: FlagDE },
   nl: { label: "Nederlands", short: "NL", Flag: FlagNL },
   pl: { label: "Polski", short: "PL", Flag: FlagPL },
+  pt: { label: "Português", short: "PT", Flag: FlagPT },
 };
 
 /** Roughly what the list measures: one option per locale plus the panel's own

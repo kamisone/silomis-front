@@ -11,10 +11,10 @@ import styles from "./BilingualField.module.css";
 const RichTextEditor = dynamic(() => import("./content/RichTextEditor"), { ssr: false });
 
 const LANG_LABEL: Record<OverlayLang, string> = {
-  fr: "Français", es: "Español", it: "Italiano", de: "Deutsch", nl: "Nederlands", pl: "Polski",
+  fr: "Français", es: "Español", it: "Italiano", de: "Deutsch", nl: "Nederlands", pl: "Polski", pt: "Português",
 };
 const LANG_FLAG: Record<OverlayLang, string> = {
-  fr: "🇫🇷", es: "🇪🇸", it: "🇮🇹", de: "🇩🇪", nl: "🇳🇱", pl: "🇵🇱",
+  fr: "🇫🇷", es: "🇪🇸", it: "🇮🇹", de: "🇩🇪", nl: "🇳🇱", pl: "🇵🇱", pt: "🇵🇹",
 };
 
 interface LangRowProps {

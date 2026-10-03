@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 // Overlay languages stored in the translations table on top of the English base entity fields.
-export const OVERLAY_LANGS = ["fr", "es", "it", "de", "nl", "pl"] as const;
+export const OVERLAY_LANGS = ["fr", "es", "it", "de", "nl", "pl", "pt"] as const;
 export type OverlayLang = typeof OVERLAY_LANGS[number];
 
 interface Translation {

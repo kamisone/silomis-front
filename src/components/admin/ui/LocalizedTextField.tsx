@@ -11,10 +11,10 @@ import ui from "./admin-ui.module.css";
 import styles from "./LocalizedTextField.module.css";
 
 const LANG_FLAG: Record<Locale, string> = {
-  en: "🇬🇧", fr: "🇫🇷", es: "🇪🇸", it: "🇮🇹", de: "🇩🇪", nl: "🇳🇱", pl: "🇵🇱",
+  en: "🇬🇧", fr: "🇫🇷", es: "🇪🇸", it: "🇮🇹", de: "🇩🇪", nl: "🇳🇱", pl: "🇵🇱", pt: "🇵🇹",
 };
 const LANG_NAME: Record<Locale, string> = {
-  en: "English", fr: "Français", es: "Español", it: "Italiano", de: "Deutsch", nl: "Nederlands", pl: "Polski",
+  en: "English", fr: "Français", es: "Español", it: "Italiano", de: "Deutsch", nl: "Nederlands", pl: "Polski", pt: "Português",
 };
 
 /** Copy keyed by locale. Every locale is optional — the storefront falls back. */
