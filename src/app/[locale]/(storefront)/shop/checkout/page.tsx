@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
+import type { StripeElementLocale, StripePaymentElementOptions } from "@stripe/stripe-js";
 import { useCart } from "@/components/shop/CartContext";
 import PriceBreakdown from "@/components/shop/PriceBreakdown";
 import EmbroideryLine from "@/components/shop/EmbroideryLine";
@@ -127,7 +128,51 @@ function ReservationTimer({ expiresAt, onExpire, t }: { expiresAt: string; onExp
 
 // ── Stripe payment form ──────────────────────────────────────────────
 
-function StripePaymentForm({ orderNumber, orderId, total, trackingToken, locale, t }: { orderNumber: string; orderId: string; total: number; trackingToken?: string | null; locale: Locale; t: T }) {
+/** Stripe's own name for each shop language — "en" alone would be US English. */
+const STRIPE_LOCALE: Record<Locale, StripeElementLocale> = {
+  en: "en-GB", fr: "fr", es: "es", it: "it", de: "de", nl: "nl", pl: "pl", pt: "pt",
+};
+
+/**
+ * The card form asks for the card and nothing else. The address step already
+ * has the name, email and address, so those are handed to Stripe at confirm
+ * time instead of being asked a second time; Link, wallets and the terms line
+ * are switched off. A detail the address step did not capture (a resumed
+ * checkout with an empty form, say) is left for the form to ask, because a
+ * field set to "never" must then be supplied.
+ */
+function paymentElementOptions(form: FormState): StripePaymentElementOptions {
+  const hasName = Boolean(form.firstName.trim() || form.lastName.trim() || form.companyName.trim());
+  const hasAddress = Boolean(form.line1.trim() && form.city.trim() && form.zip.trim() && form.country);
+  return {
+    layout: "tabs",
+    wallets: { applePay: "never", googlePay: "never", link: "never" },
+    terms: { card: "never" },
+    fields: {
+      billingDetails: {
+        name: hasName ? "never" : "auto",
+        email: form.email.trim() ? "never" : "auto",
+        phone: "never",
+        address: hasAddress ? "never" : "auto",
+      },
+    },
+  };
+}
+
+function billingDetails(form: FormState) {
+  const name = [form.firstName, form.lastName].map((p) => p.trim()).filter(Boolean).join(" ") || form.companyName.trim();
+  const hasAddress = Boolean(form.line1.trim() && form.city.trim() && form.zip.trim() && form.country);
+  return {
+    ...(name ? { name } : {}),
+    ...(form.email.trim() ? { email: form.email.trim() } : {}),
+    phone: form.phone.trim(),
+    ...(hasAddress
+      ? { address: { line1: form.line1.trim(), line2: form.line2.trim(), city: form.city.trim(), postal_code: form.zip.trim(), state: "", country: form.country } }
+      : {}),
+  };
+}
+
+function StripePaymentForm({ orderNumber, orderId, total, trackingToken, form, locale, t }: { orderNumber: string; orderId: string; total: number; trackingToken?: string | null; form: FormState; locale: Locale; t: T }) {
   const stripe = useStripe();
   const elements = useElements();
   const [paying, setPaying] = useState(false);
@@ -141,7 +186,7 @@ function StripePaymentForm({ orderNumber, orderId, total, trackingToken, locale,
 
     const { error: submitError } = await elements.submit();
     if (submitError) {
-      setError(submitError.message ?? "Payment error");
+      setError(submitError.message ?? t.shop.paymentFailed);
       setPaying(false);
       return;
     }
@@ -149,18 +194,19 @@ function StripePaymentForm({ orderNumber, orderId, total, trackingToken, locale,
     const { error: confirmError } = await stripe.confirmPayment({
       elements,
       confirmParams: {
+        payment_method_data: { billing_details: billingDetails(form) },
         return_url: `${window.location.origin}/${locale}/shop/checkout/success?order=${orderNumber}&id=${orderId}${trackingToken ? `&token=${trackingToken}` : ""}`,
       },
     });
     if (confirmError) {
-      setError(confirmError.message ?? "Payment failed");
+      setError(confirmError.message ?? t.shop.paymentFailed);
       setPaying(false);
     }
   }
 
   return (
     <form onSubmit={handlePay} className={styles.stripeForm}>
-      <PaymentElement />
+      <PaymentElement options={paymentElementOptions(form)} />
       {error && (
         <p className={styles.error} role="alert">
           {error}
@@ -984,8 +1030,8 @@ export default function CheckoutPage() {
               <h2 className={styles.sectionTitle}>{t.shop.paymentTitle}</h2>
               {snapshot.reservationExpiresAt && <ReservationTimer expiresAt={snapshot.reservationExpiresAt} onExpire={handleReservationExpired} t={t} />}
               {clientSecret && (
-                <Elements stripe={stripePromise} options={{ clientSecret, appearance: { theme: "stripe" } }}>
-                  <StripePaymentForm orderId={snapshot.orderId} orderNumber={snapshot.orderNumber} total={snapshot.totalCents} trackingToken={snapshot.trackingToken} locale={locale} t={t} />
+                <Elements key={locale} stripe={stripePromise} options={{ clientSecret, locale: STRIPE_LOCALE[locale], appearance: { theme: "stripe" } }}>
+                  <StripePaymentForm orderId={snapshot.orderId} orderNumber={snapshot.orderNumber} total={snapshot.totalCents} trackingToken={snapshot.trackingToken} form={form} locale={locale} t={t} />
                 </Elements>
               )}
             </div>
