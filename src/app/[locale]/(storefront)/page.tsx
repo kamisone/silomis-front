@@ -27,6 +27,8 @@ import { getTranslations, isValidLocale, DEFAULT_LOCALE, type Locale } from "@/l
 import styles from "./page.module.css";
 import JsonLd from "@/components/seo/JsonLd";
 import { localeAlternates, SITE_NAME, SITE_URL } from "@/lib/seo";
+import { LEGAL } from "@/lib/legal-entity";
+import { definedRegions, fetchEuShippingCountries, ORGANIZATION_ADDRESS } from "@/lib/shop/shippingRegions";
 
 export const revalidate = 120;
 
@@ -206,7 +208,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   const needsAllCollections =
     collectionSections.some((s) => (s.config.collectionIds?.length ?? 0) > 0) ||
     layout.some((s) => s.type === "offer_banners" && (s.config.offerBanners?.length ?? 0) > 0);
-  const [heroSlides, categories, featuredCollections, allCollections, promotions, posts, railProducts, promoProducts] = await Promise.all([
+  const [heroSlides, categories, featuredCollections, allCollections, promotions, posts, railProducts, promoProducts, shippingCountries] = await Promise.all([
     present("hero") ? fetchHeroSlides(locale, t) : [],
     present("categories") ? fetchJson<HomeCategory[]>(`/shop/categories?lang=${locale}`, []) : [],
     needsFeaturedCollections ? fetchJson<HomeCollection[]>(`/shop/collections/featured?lang=${locale}`, []) : [],
@@ -221,6 +223,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
       : [],
     Promise.all(railSections.map((s) => fetchProducts(s, locale))),
     Promise.all(promoSections.map((s) => fetchPromoProducts(s, locale))),
+    fetchEuShippingCountries(),
   ]);
 
   const productsByRailId = new Map(railSections.map((s, i) => [s.id, railProducts[i] ?? []]));
@@ -252,6 +255,12 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
         // PNG is the one format all of them read; it is regenerated from the
         // same source mark by scripts/generate-icons.mjs, so it cannot drift.
         logo: `${SITE_URL}/icons/icon-512.png`,
+        // Where the shop is and where it ships — the same facts the header
+        // strip and footer state, for search engines.
+        legalName: LEGAL.companyName,
+        email: LEGAL.supportEmail,
+        address: ORGANIZATION_ADDRESS,
+        areaServed: definedRegions(shippingCountries),
       },
       {
         "@type": "WebSite",

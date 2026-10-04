@@ -10,6 +10,7 @@ import ProductArticles from "@/components/shop/ProductArticles";
 import type { PromotionInfo } from "@/components/shop/PromotionBadge";
 import { isValidLocale, DEFAULT_LOCALE, getTranslations } from "@/lib/i18n";
 import { localeAlternates } from "@/lib/seo";
+import { definedRegions, fetchEuShippingCountries } from "@/lib/shop/shippingRegions";
 
 const API_BASE_URL = process.env.API_BASE_URL_SERVER ?? "http://127.0.0.1:4000";
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://silomis.com";
@@ -155,10 +156,11 @@ export default async function ProductPage({ params }: PageProps) {
   const product = await fetchProduct(slug, locale);
   if (!product) notFound();
 
-  const [reviewStats, activePromotion, initialReviews] = await Promise.all([
+  const [reviewStats, activePromotion, initialReviews, shippingCountries] = await Promise.all([
     fetchReviewStats(slug),
     fetchActivePromotion(product.id),
     fetchInitialReviews(product.id, locale),
+    fetchEuShippingCountries(),
   ]);
 
   const defaultVariant = product.variants.find((v) => v.isDefault) ?? product.variants[0] ?? null;
@@ -186,6 +188,8 @@ export default async function ProductPage({ params }: PageProps) {
       // Locale-prefixed: the bare /shop/... path only ever redirects, and an
       // offer URL that redirects is a wasted signal.
       url: `${APP_URL}/${locale}/shop/${product.slug}`,
+      // Who can buy it: the EU countries checkout ships to.
+      eligibleRegion: definedRegions(shippingCountries),
     })),
     ...(reviewStats.count > 0
       ? { aggregateRating: { "@type": "AggregateRating", ratingValue: reviewStats.average, reviewCount: reviewStats.count } }

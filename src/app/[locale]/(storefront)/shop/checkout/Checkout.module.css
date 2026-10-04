@@ -605,3 +605,10 @@ a.summaryItemLink:focus-visible {
    product, this is content the customer wrote, and it is the one thing on
    this screen that cannot be put right after payment. */
 
+
+.countryNote {
+  margin: 6px 0 0;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--color-muted, #6b7280);
+}

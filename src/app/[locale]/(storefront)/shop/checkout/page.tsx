@@ -837,6 +837,9 @@ export default function CheckoutPage() {
                   noResultsLabel={t.shop.countryNoResults}
                   ariaLabel={t.shop.countryLabel}
                 />
+                {/* Said at the first field it applies to, so a visitor outside
+                    the EU finds out before typing a whole address. */}
+                <p className={styles.countryNote}>{t.shop.shipsWithinEu}</p>
               </div>
               <div className={styles.field}>
                 <label>

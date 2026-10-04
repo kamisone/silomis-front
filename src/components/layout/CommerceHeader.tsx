@@ -20,6 +20,16 @@ export default function CommerceHeader({ locale }: { locale: Locale }) {
     <>
       <div className={styles.headerSpacer} aria-hidden="true" />
       <ScrollAwareHeader>
+        {/* Where the shop is and where it ships — the first thing a visitor
+            from an ad wants settled before trusting a shop they do not know. */}
+        <div className={styles.originStrip}>
+          <svg className={styles.originFlag} viewBox="0 0 3 2" aria-hidden="true">
+            <rect width="3" height="2" fill="#ED2939" />
+            <rect width="2" height="2" fill="#fff" />
+            <rect width="1" height="2" fill="#002395" />
+          </svg>
+          <span>{t.nav.originStrip}</span>
+        </div>
         <div className={styles.inner}>
           {/* ── Row 1: logo, search, account/wishlist/cart ── */}
           <div className={styles.topRow}>
