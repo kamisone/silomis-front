@@ -1009,9 +1009,6 @@ export default function ShopProductDetail({
             <DeliveryDetails
               locale={locale}
               freeShipping={product.freeShipping}
-              freeShippingDaysMin={product.freeShippingDaysMin}
-              freeShippingDaysMax={product.freeShippingDaysMax}
-              freeShippingUpgradeMethods={product.freeShippingUpgradeMethods}
             />
 
             <PackageContents locale={locale} items={product.packageContents ?? []} />

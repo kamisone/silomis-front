@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Truck, CheckCircle2 } from "lucide-react";
+import { Truck } from "lucide-react";
 import { getTranslations } from "@/lib/i18n";
 import styles from "./ProductDetail.module.css";
 
@@ -12,16 +12,6 @@ interface OverviewMethod {
   priceCents: number;
   estimatedDaysMin: number;
   estimatedDaysMax: number;
-}
-
-interface FreeShippingUpgradeMethod {
-  id: string;
-  name: string;
-  carrier: string | null;
-  priceCents: number;
-  estimatedDaysMin: number;
-  estimatedDaysMax: number;
-  isActive?: boolean;
 }
 
 interface OverviewZone {
@@ -56,18 +46,9 @@ function formatDays(min: number, max: number, unit: string): string {
 interface Props {
   locale: string;
   freeShipping?: boolean;
-  freeShippingDaysMin?: number | null;
-  freeShippingDaysMax?: number | null;
-  freeShippingUpgradeMethods?: FreeShippingUpgradeMethod[];
 }
 
-export default function DeliveryDetails({
-  locale,
-  freeShipping,
-  freeShippingDaysMin,
-  freeShippingDaysMax,
-  freeShippingUpgradeMethods,
-}: Props) {
+export default function DeliveryDetails({ locale, freeShipping }: Props) {
   const t = getTranslations(locale).shop;
   const [loaded, setLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -98,7 +79,22 @@ export default function DeliveryDetails({
     }
   }
 
-  const activeUpgrades = (freeShippingUpgradeMethods ?? []).filter((m) => m.isActive !== false);
+  // Free delivery has nothing to compare: a plain card that says so, not a
+  // dropdown that opens onto the paid zone-by-zone rates the customer will
+  // never be charged. The delivery time is already in the banner under the price.
+  if (freeShipping) {
+    return (
+      <div className={`${styles.deliverySection} ${styles.deliveryStatic}`}>
+        <div className={styles.deliveryToggle}>
+          <span className={styles.deliveryToggleLabel}>
+            <Truck size={16} className={styles.deliveryToggleIcon} aria-hidden="true" />
+            {t.deliveryDetailsTitle}
+          </span>
+          <span className={styles.deliveryFreePill}>{t.deliveryDetailsFree}</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <details className={styles.deliverySection} onToggle={handleToggle}>
@@ -107,50 +103,10 @@ export default function DeliveryDetails({
           <Truck size={16} className={styles.deliveryToggleIcon} aria-hidden="true" />
           {t.deliveryDetailsTitle}
         </span>
-        <span className={styles.deliveryToggleEnd}>
-          {freeShipping && <span className={styles.deliveryFreePill}>{t.deliveryDetailsFree}</span>}
-          <span className={styles.deliveryChevron} aria-hidden="true" />
-        </span>
+        <span className={styles.deliveryChevron} aria-hidden="true" />
       </summary>
 
       <div className={styles.deliveryBody}>
-        {freeShipping && (
-          <>
-            <p className={styles.deliveryFreeBanner}>
-              <CheckCircle2 size={16} className={styles.deliveryFreeIcon} aria-hidden="true" />
-              {t.freeShippingBadge}
-              {freeShippingDaysMax != null && (
-                <>
-                  {" "}
-                  · {formatDays(freeShippingDaysMin ?? freeShippingDaysMax, freeShippingDaysMax, t.deliveryDetailsDaysUnit)}
-                </>
-              )}
-            </p>
-
-            {activeUpgrades.length > 0 && (
-              <div className={styles.deliveryUpgrades}>
-                <p className={styles.deliveryUpgradesTitle}>{t.deliveryDetailsUpgradesTitle}</p>
-                <ul className={styles.deliveryUpgradeList}>
-                  {activeUpgrades.map((method) => (
-                    <li className={styles.deliveryUpgradeRow} key={method.id}>
-                      <span className={styles.deliveryUpgradeMain}>
-                        <span className={styles.deliveryUpgradeName}>{method.name}</span>
-                        <span className={styles.deliveryUpgradeTag}>{t.deliveryDetailsUpgradeTag}</span>
-                      </span>
-                      <span className={styles.deliveryUpgradeMeta}>
-                        <span className={styles.deliveryUpgradeDays}>
-                          {formatDays(method.estimatedDaysMin, method.estimatedDaysMax, t.deliveryDetailsDaysUnit)}
-                        </span>
-                        <span className={styles.deliveryUpgradePrice}>{`${centsToEuros(method.priceCents)} €`}</span>
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </>
-        )}
-
         {loading && <p className={styles.deliveryState}>{t.deliveryDetailsLoading}</p>}
         {!loading && error && <p className={styles.deliveryState}>{t.deliveryDetailsError}</p>}
         {!loading && !error && loaded && zones.length === 0 && (

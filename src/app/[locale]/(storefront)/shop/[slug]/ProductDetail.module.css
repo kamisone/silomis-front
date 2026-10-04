@@ -1090,11 +1090,9 @@
   background-size: contain;
   transition: transform 0.2s ease;
 }
-.deliveryToggleEnd {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  flex-shrink: 0;
+/* Free delivery: the same card, but nothing to open. */
+.deliveryStatic .deliveryToggle {
+  cursor: default;
 }
 .deliveryFreePill {
   padding: 3px 9px;
@@ -1122,75 +1120,6 @@
   color: color-mix(in srgb, var(--foreground) 60%, var(--background));
 }
 
-.deliveryFreeBanner {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  margin: 12px 0 4px;
-  padding: 10px 12px;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--color-success);
-  background: var(--color-success-bg);
-  border: 1px solid var(--color-success-border);
-}
-.deliveryFreeIcon {
-  flex-shrink: 0;
-}
-
-.deliveryUpgrades {
-  margin: 4px 0 4px;
-}
-.deliveryUpgradesTitle {
-  font-size: 11.5px;
-  font-weight: 600;
-  color: color-mix(in srgb, var(--foreground) 60%, var(--background));
-  margin: 0 0 6px;
-  line-height: 1.4;
-}
-.deliveryUpgradeList {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.deliveryUpgradeRow {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 10px;
-  font-size: 12.5px;
-}
-.deliveryUpgradeMain {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  min-width: 0;
-}
-.deliveryUpgradeName {
-  font-weight: 600;
-  color: color-mix(in srgb, var(--foreground) 82%, var(--background));
-}
-.deliveryUpgradeTag {
-  font-size: 11px;
-  color: color-mix(in srgb, var(--foreground) 50%, var(--background));
-}
-.deliveryUpgradeMeta {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  flex-shrink: 0;
-  white-space: nowrap;
-}
-.deliveryUpgradeDays {
-  font-size: 12px;
-  color: color-mix(in srgb, var(--foreground) 60%, var(--background));
-}
-.deliveryUpgradePrice {
-  font-size: 12.5px;
-  font-weight: 700;
-  color: var(--foreground);
-}
 
 .deliveryZone {
   padding: 14px 0;
