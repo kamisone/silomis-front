@@ -107,7 +107,10 @@ export default function DeliveryDetails({
           <Truck size={16} className={styles.deliveryToggleIcon} aria-hidden="true" />
           {t.deliveryDetailsTitle}
         </span>
-        <span className={styles.deliveryChevron} aria-hidden="true" />
+        <span className={styles.deliveryToggleEnd}>
+          {freeShipping && <span className={styles.deliveryFreePill}>{t.deliveryDetailsFree}</span>}
+          <span className={styles.deliveryChevron} aria-hidden="true" />
+        </span>
       </summary>
 
       <div className={styles.deliveryBody}>

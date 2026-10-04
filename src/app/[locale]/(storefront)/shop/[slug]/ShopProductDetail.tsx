@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { PackageX, Sparkles, ChevronRight } from "lucide-react";
+import { PackageX, Sparkles, ChevronRight, Truck } from "lucide-react";
 import AddToCartButton from "@/components/shop/AddToCartButton";
 import ProductVariantSelector, { type SelectableVariant } from "@/components/shop/ProductVariantSelector";
 import StickyVariantSelector from "@/components/shop/StickyVariantSelector";
@@ -849,6 +849,27 @@ export default function ShopProductDetail({
                 discount !== null && <span className={styles.discountBadge}>−{discount}%</span>
               )}
             </div>
+
+            {/* Right under the price, where the buying decision is made — inside
+                the collapsed "Delivery details" panel nobody saw it. */}
+            {product.freeShipping && (
+              <div className={styles.freeShippingBanner}>
+                <span className={styles.freeShippingIcon} aria-hidden="true">
+                  <Truck size={18} strokeWidth={2.2} />
+                </span>
+                <span className={styles.freeShippingText}>
+                  <strong className={styles.freeShippingTitle}>{t.shop.freeShippingBanner}</strong>
+                  {product.freeShippingDaysMax != null && (
+                    <span className={styles.freeShippingDays}>
+                      {(product.freeShippingDaysMin ?? product.freeShippingDaysMax) === product.freeShippingDaysMax
+                        ? product.freeShippingDaysMax
+                        : `${product.freeShippingDaysMin}–${product.freeShippingDaysMax}`}{" "}
+                      {t.shop.deliveryDetailsDaysUnit}
+                    </span>
+                  )}
+                </span>
+              </div>
+            )}
 
             {/* Quantity discounts — clicking a tier raises qty; the price shown
                 everywhere above already reflects it via displayUnitPriceCents.
