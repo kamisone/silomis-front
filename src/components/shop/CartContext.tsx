@@ -114,6 +114,12 @@ export interface CartItem {
   personalizations?: CartItemPersonalization[] | null;
 }
 
+export interface CheckoutFields {
+  companyName: boolean;
+  phone: boolean;
+  addressLine2: boolean;
+}
+
 export interface Cart {
   id: string | null;
   token: string;
@@ -123,6 +129,8 @@ export interface Cart {
   itemCount: number;
   /** At least one item ships free, so the order does. Set by the backend. */
   freeShipping?: boolean;
+  /** Optional address fields the checkout asks for — on when any product in the basket switches them on. */
+  checkoutFields?: CheckoutFields;
   /** Set only on the addItem response — shared with the matching browser pixel call for Meta/TikTok dedup. */
   metaAddToCartEventId?: string;
   tiktokAddToCartEventId?: string;

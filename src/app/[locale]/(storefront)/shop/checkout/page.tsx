@@ -6,7 +6,7 @@ import { ArrowUpRight } from "lucide-react";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import type { StripeElementLocale, StripePaymentElementOptions } from "@stripe/stripe-js";
-import { useCart } from "@/components/shop/CartContext";
+import { useCart, type CheckoutFields } from "@/components/shop/CartContext";
 import PriceBreakdown from "@/components/shop/PriceBreakdown";
 import EmbroideryLine from "@/components/shop/EmbroideryLine";
 import PromoCodeInput, { type ValidateCouponResult } from "@/components/shop/PromoCodeInput";
@@ -172,6 +172,22 @@ function billingDetails(form: FormState) {
   };
 }
 
+const NO_OPTIONAL_FIELDS: CheckoutFields = { companyName: false, phone: false, addressLine2: false };
+
+/**
+ * The form as the customer can see it: a field the basket does not ask for is
+ * blanked, so a value restored from an earlier checkout (sessionStorage) or
+ * typed before the basket changed is never sent along invisibly.
+ */
+function visibleForm(form: FormState, ask: CheckoutFields): FormState {
+  return {
+    ...form,
+    companyName: ask.companyName ? form.companyName : "",
+    phone: ask.phone ? form.phone : "",
+    line2: ask.addressLine2 ? form.line2 : "",
+  };
+}
+
 function StripePaymentForm({ orderNumber, orderId, total, trackingToken, form, locale, t }: { orderNumber: string; orderId: string; total: number; trackingToken?: string | null; form: FormState; locale: Locale; t: T }) {
   const stripe = useStripe();
   const elements = useElements();
@@ -308,6 +324,9 @@ export default function CheckoutPage() {
   const locale = useLocale();
   const t = getTranslations(locale);
   const { cart, token } = useCart();
+  // Company, phone and address line 2 are hidden unless a product in the
+  // basket asks for them (admin › product › Checkout fields).
+  const ask = cart?.checkoutFields ?? NO_OPTIONAL_FIELDS;
 
   const [countries, setCountries] = useState<CountryOption[]>([]);
   const [countriesLoading, setCountriesLoading] = useState(true);
@@ -458,10 +477,11 @@ export default function CheckoutPage() {
     e.preventDefault();
     if (!cart?.items.length) return;
 
-    const hasName = form.firstName.trim() && form.lastName.trim();
-    const hasCompany = form.companyName.trim();
+    const sent = visibleForm(form, ask);
+    const hasName = sent.firstName.trim() && sent.lastName.trim();
+    const hasCompany = sent.companyName.trim();
     if (!hasName && !hasCompany) {
-      setNameGroupError(t.shop.nameOrCompanyRequired);
+      setNameGroupError(ask.companyName ? t.shop.nameOrCompanyRequired : t.shop.nameRequired);
       return;
     }
     setNameGroupError("");
@@ -477,10 +497,10 @@ export default function CheckoutPage() {
         email: form.email,
         firstName: form.firstName || null,
         lastName: form.lastName || null,
-        companyName: form.companyName || null,
-        phone: form.phone || null,
+        companyName: sent.companyName || null,
+        phone: sent.phone || null,
         line1: form.line1,
-        line2: form.line2 || null,
+        line2: sent.line2 || null,
         city: form.city,
         zip: form.zip,
         country: form.country,
@@ -792,17 +812,19 @@ export default function CheckoutPage() {
                   />
                 </div>
               </div>
-              <div className={styles.field}>
-                <label>{t.shop.companyNameOptional}</label>
-                <input
-                  value={form.companyName}
-                  onChange={(e) => {
-                    setForm((f) => ({ ...f, companyName: e.target.value }));
-                    setNameGroupError("");
-                  }}
-                />
-              </div>
-              <p className={styles.requiredNote}>{t.shop.requiredNote}</p>
+              {ask.companyName && (
+                <div className={styles.field}>
+                  <label>{t.shop.companyNameOptional}</label>
+                  <input
+                    value={form.companyName}
+                    onChange={(e) => {
+                      setForm((f) => ({ ...f, companyName: e.target.value }));
+                      setNameGroupError("");
+                    }}
+                  />
+                </div>
+              )}
+              <p className={styles.requiredNote}>{ask.companyName ? t.shop.requiredNote : t.shop.requiredNoteNameOnly}</p>
               {nameGroupError && (
                 <p className={styles.error} role="alert">
                   {nameGroupError}
@@ -815,10 +837,12 @@ export default function CheckoutPage() {
                 </label>
                 <input type="email" required value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} />
               </div>
-              <div className={styles.field}>
-                <label>{t.shop.phoneOptional}</label>
-                <input value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
-              </div>
+              {ask.phone && (
+                <div className={styles.field}>
+                  <label>{t.shop.phoneOptional}</label>
+                  <input type="tel" autoComplete="tel" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
+                </div>
+              )}
 
               <h2 className={styles.sectionTitle}>{t.shop.shippingAddressTitle}</h2>
               <div className={styles.field}>
@@ -848,10 +872,12 @@ export default function CheckoutPage() {
                 </label>
                 <input required value={form.line1} onChange={(e) => setForm((f) => ({ ...f, line1: e.target.value }))} />
               </div>
-              <div className={styles.field}>
-                <label>{t.shop.addressLine2}</label>
-                <input value={form.line2} onChange={(e) => setForm((f) => ({ ...f, line2: e.target.value }))} />
-              </div>
+              {ask.addressLine2 && (
+                <div className={styles.field}>
+                  <label>{t.shop.addressLine2}</label>
+                  <input value={form.line2} onChange={(e) => setForm((f) => ({ ...f, line2: e.target.value }))} />
+                </div>
+              )}
               <div className={styles.row}>
                 <div className={styles.field}>
                   <label>
@@ -1034,7 +1060,7 @@ export default function CheckoutPage() {
               {snapshot.reservationExpiresAt && <ReservationTimer expiresAt={snapshot.reservationExpiresAt} onExpire={handleReservationExpired} t={t} />}
               {clientSecret && (
                 <Elements key={locale} stripe={stripePromise} options={{ clientSecret, locale: STRIPE_LOCALE[locale], appearance: { theme: "stripe" } }}>
-                  <StripePaymentForm orderId={snapshot.orderId} orderNumber={snapshot.orderNumber} total={snapshot.totalCents} trackingToken={snapshot.trackingToken} form={form} locale={locale} t={t} />
+                  <StripePaymentForm orderId={snapshot.orderId} orderNumber={snapshot.orderNumber} total={snapshot.totalCents} trackingToken={snapshot.trackingToken} form={visibleForm(form, ask)} locale={locale} t={t} />
                 </Elements>
               )}
             </div>

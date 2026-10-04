@@ -137,6 +137,9 @@ interface Product {
   featured: boolean;
   isNew: boolean;
   showReturnsGuarantee?: boolean;
+  askCompanyName?: boolean;
+  askPhone?: boolean;
+  askAddressLine2?: boolean;
   isTestProduct: boolean;
   freeShipping: boolean;
   /** Set when the product can be embroidered — the "Custom embroidery" switch. */
@@ -415,6 +418,9 @@ export default function EditProductPage() {
         featured: product.featured,
         isNew: product.isNew,
         showReturnsGuarantee: !!product.showReturnsGuarantee,
+        askCompanyName: !!product.askCompanyName,
+        askPhone: !!product.askPhone,
+        askAddressLine2: !!product.askAddressLine2,
         isTestProduct: product.isTestProduct,
         freeShipping: product.freeShipping,
         freeShippingDaysMin: product.freeShippingDaysMin,
@@ -1351,6 +1357,38 @@ export default function EditProductPage() {
                   Shipping is charged once per order, so it is all or nothing: the order ships free only when <strong>every product in the basket</strong> has free shipping. Add one product with paid delivery and normal shipping applies to the whole order.
                 </p>
               )}
+            </div>
+          </div>
+
+          {/* Checkout fields */}
+          <div className={styles.sidebarCard}>
+            <div className={styles.sidebarCardHead}>
+              <span className={styles.sidebarCardTitle}>Checkout fields</span>
+            </div>
+            <div className={styles.sidebarCardBody}>
+              <p className={styles.hint} style={{ marginTop: 0 }}>
+                Optional fields on the address step, hidden by default. A field is shown when <strong>any</strong> product in the basket switches it on.
+              </p>
+              <Switch
+                label="Company name"
+                hint="For business orders. A company name can then stand in for the customer’s first and last name."
+                checked={!!product.askCompanyName}
+                onChange={(v) => set({ askCompanyName: v })}
+              />
+              <div className={styles.divider} />
+              <Switch
+                label="Phone"
+                hint="Optional for the customer. Useful when the carrier needs to call ahead of delivery."
+                checked={!!product.askPhone}
+                onChange={(v) => set({ askPhone: v })}
+              />
+              <div className={styles.divider} />
+              <Switch
+                label="Address line 2"
+                hint="Apartment, floor, building — for bulky items or addresses that need more than one line."
+                checked={!!product.askAddressLine2}
+                onChange={(v) => set({ askAddressLine2: v })}
+              />
             </div>
           </div>
 
