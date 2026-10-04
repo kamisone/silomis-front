@@ -5,14 +5,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft, Check, Loader2, AlertTriangle, Ruler, Palette, Type, MapPin,
   ShoppingBag, RotateCcw, RotateCw, Plus, Bold, ArrowRight, PencilLine,
-  MoveHorizontal, Spline, Sparkles, Undo2, Redo2, Copy, Minus, LayoutList, X, StickyNote, ImagePlus, Trash2, RefreshCw, Search, ChevronDown, Check as CheckIcon, MoveVertical,
+  MoveHorizontal, Spline, Sparkles, SlidersHorizontal, Undo2, Redo2, Copy, Minus, LayoutList, X, StickyNote, ImagePlus, Trash2, RefreshCw, Search, ChevronDown, Check as CheckIcon, MoveVertical,
 } from "lucide-react";
 import DesignPreview, { type PreviewElement } from "./DesignPreview";
 import ScrollRail from "@/components/shop/ScrollRail";
 import { useCart, type CustomerItemInput, type PersonalizationInput } from "@/components/shop/CartContext";
 import { getTranslations, type Locale } from "@/lib/i18n";
 import {
-  evaluateDesign, TEXT_MIN_HEIGHT_MM, DEFAULT_WEIGHT_STEP, WEIGHT_SCALE, weightForStep,
+  evaluateDesign, evaluateElement, TEXT_MIN_HEIGHT_MM, DEFAULT_WEIGHT_STEP, WEIGHT_SCALE, weightForStep,
   DEFAULT_OPTIONS, MAX_TEXT_LINES, MAX_TEXT_CHARS, MONOGRAM_MAX_CHARS, TRACKING_MIN, TRACKING_MAX, KERNING_LIMIT, CURVE_LIMIT_DEG,
   startingMotifWidthMm, DEFAULT_FIELD_LIMITS, MAX_ELEMENTS, ARTWORK_MIN_MM, limitsFor, pictureSizeMm,
   LINE_LEADING, lineWidthMm, normalizeLines, DEFAULT_TEXT_HEIGHT_MM,
@@ -52,6 +52,21 @@ type Step = (typeof STEPS)[number];
 
 /** Letter heights people ask for by name. Filtered to what the face and area allow. */
 const SIZE_PRESETS = [10, 15, 20, 25, 30, 40, 60, 80, 100, 150] as const;
+
+/**
+ * The smallest letter height "Just add my text" shrinks a long text to before
+ * it gives up and asks for fewer letters. Below this, lettering stops reading
+ * as words on a cap — the full designer still goes lower for those who want it.
+ */
+const SIMPLE_MIN_HEIGHT_MM = 6;
+
+/**
+ * "Just add my text": one text per position, in the shop's first font,
+ * centred, straight, sized to fit — the customer only writes and picks a
+ * thread. "Design it myself" is the full editor. Both produce the same design
+ * data, so pricing, the cart, the order and production need nothing new.
+ */
+type EditorMode = "simple" | "advanced";
 
 /** One-tap angles. Anything between them is the rotate handle's job. */
 const QUARTER_TURNS = [0, 90, 180, 270] as const;
@@ -135,6 +150,12 @@ export default function PersonalizationEditor({ locale, config, product, variant
   const locked = !!customerItems;
   const [step, setStep] = useState<Step>(locked ? "design" : "positions");
   const [designs, setDesigns] = useState<Record<string, DesignState>>({});
+
+  // Not on a send-in (its sides need logos, borders, a customer-framed area),
+  // and not where the shop offers no text to write.
+  const simpleAvailable = !locked && config.template.allowText && config.fonts.length > 0;
+  const [mode, setMode] = useState<EditorMode>(simpleAvailable ? "simple" : "advanced");
+  const simple = simpleAvailable && mode === "simple";
 
   /**
    * Undo history over the whole design map.
@@ -382,6 +403,102 @@ export default function PersonalizationEditor({ locale, config, product, variant
       commit({ ...designsRef.current, [activeKey]: { ...d, elements, activeElementId: nextActive } });
     },
     [activeKey, commit, locked],
+  );
+
+  // ── "Just add my text" ──────────────────────────────────────────────
+
+  /**
+   * The largest letter height, up to the usual starting size, at which this
+   * text fits the position in the house font. The customer has no size
+   * control in this mode, so a long name has to shrink on its own rather than
+   * stop them with "too wide".
+   */
+  const fitSimpleHeight = useCallback(
+    (raw: string, placement: EditorPlacement): number => {
+      const font = config.fonts[0];
+      if (!font) return DEFAULT_TEXT_HEIGHT_MM;
+      const limits = limitsFor(placement, config.fieldLimits ?? DEFAULT_FIELD_LIMITS);
+      const options: DesignOptions = { ...DEFAULT_OPTIONS, contentType: "text" };
+      for (let h = DEFAULT_TEXT_HEIGHT_MM; h >= SIMPLE_MIN_HEIGHT_MM; h -= 0.5) {
+        const ev = evaluateElement({ raw, font, placement, limits, heightMm: h, weightStep: DEFAULT_WEIGHT_STEP, options });
+        if (ev.error !== "tooWide" && ev.error !== "tooTall") return h;
+      }
+      // Still too long at the floor: left there, and the usual "too wide"
+      // message asks for fewer letters.
+      return SIMPLE_MIN_HEIGHT_MM;
+    },
+    [config.fonts, config.fieldLimits],
+  );
+
+  /** Patches the one text of a position in simple mode — any position, not only the open one. */
+  const patchSimple = useCallback((key: string, patch: Partial<ElementState>) => {
+    setDesigns((prev) => {
+      const d = prev[key];
+      if (!d?.elements[0]) return prev;
+      past.current = [...past.current.slice(-49), prev];
+      future.current = [];
+      const first = { ...d.elements[0], ...patch };
+      return { ...prev, [key]: { elements: [first], activeElementId: first.id } };
+    });
+    setHistoryTick((t) => t + 1);
+  }, []);
+
+  const setSimpleText = useCallback(
+    (placement: EditorPlacement, raw: string) => patchSimple(placement.key, { raw, heightMm: fitSimpleHeight(raw, placement) }),
+    [patchSimple, fitSimpleHeight],
+  );
+
+  /** Whether a design uses anything simple mode cannot show — switching to it would reset that. */
+  const isAdvancedDesign = useCallback(
+    (d: DesignState) => {
+      const el = d.elements[0];
+      return (
+        d.elements.length > 1 ||
+        !el ||
+        el.options.contentType !== "text" ||
+        el.fontKey !== config.fonts[0]?.key ||
+        el.weightStep !== DEFAULT_WEIGHT_STEP ||
+        el.options.curveDeg !== DEFAULT_OPTIONS.curveDeg ||
+        el.options.trackingPct !== DEFAULT_OPTIONS.trackingPct ||
+        !!el.options.kerning?.some((k) => k !== 0) ||
+        el.offset.x !== 0 ||
+        el.offset.y !== 0 ||
+        el.rotationDeg !== 0
+      );
+    },
+    [config.fonts],
+  );
+  const hasAdvancedWork = useMemo(() => Object.values(designs).some(isAdvancedDesign), [designs, isAdvancedDesign]);
+
+  /**
+   * Switching to "Just add my text" brings every chosen position down to what
+   * that mode can show: its first text and spool, in the house style. Switching
+   * the other way changes nothing — the full designer opens on the same design.
+   */
+  const chooseMode = useCallback(
+    (next: EditorMode) => {
+      setMode(next);
+      if (next !== "simple") return;
+      const current = designsRef.current;
+      if (!Object.values(current).some(isAdvancedDesign)) return;
+      const converted: Record<string, DesignState> = {};
+      for (const [key, d] of Object.entries(current)) {
+        const placement = config.placements.find((p) => p.key === key);
+        if (!placement) continue;
+        if (!isAdvancedDesign(d)) {
+          converted[key] = d;
+          continue;
+        }
+        const keep = d.elements.find((el) => el.options.contentType === "text" || el.options.contentType === "monogram");
+        const el = newElement(placement);
+        el.raw = keep?.raw ?? "";
+        el.threadId = keep?.threadId ?? d.elements[0]?.threadId ?? el.threadId;
+        el.heightMm = fitSimpleHeight(el.raw, placement);
+        converted[key] = { elements: [el], activeElementId: el.id };
+      }
+      commit(converted);
+    },
+    [config.placements, isAdvancedDesign, newElement, fitSimpleHeight, commit],
   );
 
   // ── Evaluation, per position ─────────────────────────────────────────
@@ -889,7 +1006,8 @@ export default function PersonalizationEditor({ locale, config, product, variant
     if (!placement) return null;
     const open = key === activeKey;
     /** Only the open position on the design step is a canvas to work in. */
-    const editing = open && step === "design";
+    // "Just add my text" places it for the customer — nothing to drag.
+    const editing = open && step === "design" && !simple;
     /**
      * Whether one of these can be picked out.
      *
@@ -1028,8 +1146,11 @@ export default function PersonalizationEditor({ locale, config, product, variant
         </div>
       </header>
 
-      <div className={styles.layout}>
+      {/* "Just add my text" writes and picks a colour on Your design — there is
+          nothing to place, so no photograph either: just the form, centred. */}
+      <div className={`${styles.layout} ${simple && step === "design" ? styles.layoutSingle : ""}`}>
         {/* ── Preview ────────────────────────────────────────────────── */}
+        {!(simple && step === "design") && (
         <section className={styles.previewCol} aria-label={c.previewLabel}>
           <div className={styles.previewSticky}>
             {/* Every chosen position, on screen together.
@@ -1144,7 +1265,7 @@ export default function PersonalizationEditor({ locale, config, product, variant
                 lettering could be any height. The limit that is real — the hoop
                 against the machine's frame — is checked locally and says so
                 immediately, in words, under these controls. */}
-            {step !== "positions" && (
+            {step !== "positions" && !simple && (
               <>
                 {previewDesign && activeElement && (
                   <div className={styles.orientationRow}>
@@ -1194,6 +1315,7 @@ export default function PersonalizationEditor({ locale, config, product, variant
             )}
           </div>
         </section>
+        )}
 
         {/* ── Controls ───────────────────────────────────────────────── */}
         <section className={styles.controlCol}>
@@ -1261,7 +1383,123 @@ export default function PersonalizationEditor({ locale, config, product, variant
             </fieldset>
           )}
 
-          {step === "design" && activePlacement && activeDesign && activeEval && activeElement && activeElementEval && (
+          {step === "positions" && simpleAvailable && (
+            <fieldset className={styles.panel}>
+              <legend className={styles.panelTitle}>
+                <PencilLine size={15} aria-hidden="true" /> {c.modeTitle}
+              </legend>
+              <div className={styles.optionCards} role="radiogroup" aria-label={c.modeTitle}>
+                {(["simple", "advanced"] as const).map((m) => {
+                  const on = mode === m;
+                  return (
+                    <button
+                      key={m}
+                      type="button"
+                      role="radio"
+                      aria-checked={on}
+                      className={`${styles.optionCard} ${on ? styles.optionCardActive : ""}`}
+                      onClick={() => chooseMode(m)}
+                    >
+                      <span className={styles.modeIcon} aria-hidden="true">
+                        {m === "simple" ? <Type size={20} /> : <SlidersHorizontal size={20} />}
+                      </span>
+                      <span className={styles.optionCardBody}>
+                        <span className={styles.optionCardTitle}>{m === "simple" ? c.modeSimple : c.modeAdvanced}</span>
+                        <span className={styles.optionCardHint}>{m === "simple" ? c.modeSimpleHint : c.modeAdvancedHint}</span>
+                      </span>
+                      <span className={`${styles.modeRadio} ${on ? styles.modeRadioOn : ""}`} aria-hidden="true" />
+                    </button>
+                  );
+                })}
+              </div>
+              {/* Said before the switch, not after: choosing the simple mode
+                  resets what it cannot show. */}
+              {mode === "advanced" && hasAdvancedWork && <p className={styles.multiNote}>{c.simpleSwitchNote}</p>}
+            </fieldset>
+          )}
+
+          {step === "design" && simple && (
+            <>
+              {chosenKeys.map((k) => {
+                const p = config.placements.find((pl) => pl.key === k);
+                const el = designs[k]?.elements[0];
+                if (!p || !el) return null;
+                const font = config.fonts.find((f) => f.key === el.fontKey) ?? config.fonts[0];
+                const thread = config.threads.find((th) => th.id === el.threadId) ?? config.threads[0];
+                return (
+                  // Focus anywhere in a position's card puts its photograph in
+                  // the featured slot, so the preview follows the typing.
+                  <fieldset
+                    key={k}
+                    className={`${styles.panel} ${k === activeKey && chosenKeys.length > 1 ? styles.simplePanelActive : ""}`}
+                    onFocus={() => setActiveKey(k)}
+                  >
+                    <legend className={styles.panelTitle}>
+                      <MapPin size={15} aria-hidden="true" /> {p.label}
+                      {p.priceCents > 0 && <span className={styles.simplePrice}>+€{euros(p.priceCents)}</span>}
+                    </legend>
+                    <label className={styles.field}>
+                      <span className={styles.fieldLabel}>{c.textLabel}</span>
+                      <textarea
+                        className={styles.textInput}
+                        value={el.raw}
+                        onChange={(e) => setSimpleText(p, e.target.value)}
+                        placeholder={c.previewPlaceholder}
+                        rows={2}
+                        maxLength={MAX_TEXT_CHARS}
+                        autoComplete="off"
+                        autoCorrect="off"
+                        autoCapitalize={font?.uppercaseOnly ? "characters" : "words"}
+                        spellCheck={false}
+                        aria-label={`${c.textLabel} — ${p.label}`}
+                      />
+                      <span className={styles.panelHint}>{c.linesHint.replace("{n}", String(MAX_TEXT_LINES))}</span>
+                    </label>
+
+                    <span className={styles.fieldLabel}>
+                      {c.simpleColour}
+                      {thread && <span className={styles.simpleThreadName}> · {thread.name}</span>}
+                    </span>
+                    <div className={styles.swatchGrid} role="radiogroup" aria-label={`${c.simpleColour} — ${p.label}`}>
+                      {config.threads.map((th) => {
+                        const chosen = el.threadId === th.id;
+                        return (
+                          <button
+                            key={th.id}
+                            type="button"
+                            role="radio"
+                            aria-checked={chosen}
+                            className={`${styles.swatch} ${chosen ? styles.swatchActive : ""}`}
+                            style={{ ["--swatch" as string]: th.hex }}
+                            onClick={() => patchSimple(k, { threadId: th.id })}
+                            title={`${th.name} · ${th.brand} ${th.code}`}
+                          >
+                            <span className={styles.swatchChip} aria-hidden="true" />
+                            {chosen && (
+                              <span className={styles.swatchOrder}>
+                                <Check size={10} aria-hidden="true" />
+                              </span>
+                            )}
+                            <span className={styles.srOnly}>{th.name}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </fieldset>
+                );
+              })}
+
+              <p className={styles.simpleNote}>
+                <Sparkles size={13} aria-hidden="true" /> {c.simpleNote}
+              </p>
+              {/* Lossless: the full designer opens on exactly this design. */}
+              <button type="button" className={styles.toolBtn} onClick={() => chooseMode("advanced")}>
+                <SlidersHorizontal size={13} aria-hidden="true" /> {c.openDesigner}
+              </button>
+            </>
+          )}
+
+          {step === "design" && !simple && activePlacement && activeDesign && activeEval && activeElement && activeElementEval && (
             <>
               {/* Tools, not settings: they act on whatever is open rather than
                   describing it, so they sit above the panels and not inside

@@ -2580,3 +2580,76 @@
   border-color: var(--color-primary);
   box-shadow: 0 0 0 3px rgb(18 156 152 / 15%);
 }
+
+/* ── "Just add my text" ──────────────────────────────────────────────── */
+
+.modeIcon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  background: var(--color-surface-tint);
+  color: var(--color-primary);
+}
+
+/* A radio, not the positions' checkbox: one of the two, never both. */
+.modeRadio {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1.5px solid var(--field-border, #e2e6eb);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.modeRadioOn {
+  border-color: var(--color-primary);
+  box-shadow: inset 0 0 0 4px var(--background), inset 0 0 0 10px var(--color-primary);
+}
+
+/* With several positions, the card being typed in matches the photograph
+   featured in the preview. */
+.simplePanelActive {
+  border-color: var(--color-primary);
+}
+
+.simplePrice {
+  margin-left: auto;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--color-surface-tint);
+  color: var(--color-secondary);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.simpleThreadName {
+  font-weight: 500;
+  color: var(--color-muted, #6b7280);
+}
+
+.simpleNote {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin: 0 0 12px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-muted, #6b7280);
+}
+.simpleNote svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--color-primary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modeRadio { transition: none; }
+}
+
+/* Your design in "Just add my text": no preview column, the form alone. */
+.layout.layoutSingle {
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 720px;
+}
