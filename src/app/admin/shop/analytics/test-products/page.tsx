@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { Suspense, useEffect, useMemo, useState, useCallback } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Check, ChevronDown, ChevronUp, Play } from "lucide-react";
 import { api } from "@/lib/api";
@@ -153,30 +154,75 @@ function toCents(value: string): string | null {
   return Number.isFinite(cents) ? String(cents) : null;
 }
 
+/**
+ * The tab and every filter live in the URL, so a refresh (or a shared link)
+ * reopens the same report. Keys are short and human-readable; a value equal to
+ * its default is left out so the plain page keeps a clean URL. Anything the
+ * URL holds that is not a known value falls back to the default.
+ */
+function readUrlState(sp: URLSearchParams) {
+  const get = (k: string) => sp.get(k) ?? "";
+  const oneOf = <T extends string>(v: string, allowed: readonly T[], fallback: T): T => (allowed.includes(v as T) ? (v as T) : fallback);
+  return {
+    scope: oneOf<Scope>(get("scope"), SCOPES.map((x) => x.value), "test"),
+    range: oneOf(get("range"), DATE_PRESETS.map((x) => x.value), "today"),
+    startDate: /^\d{4}-\d{2}-\d{2}$/.test(get("from")) ? get("from") : "",
+    endDate: /^\d{4}-\d{2}-\d{2}$/.test(get("to")) ? get("to") : "",
+    productId: get("productId"),
+    limit: oneOf(get("limit"), ["", ...LIMIT_OPTIONS.map((x) => x.value)], ""),
+    categoryId: get("categoryId"),
+    countryCode: get("country"),
+    // Mutually exclusive in the controls; a hand-edited URL with both keeps the country.
+    continent: get("country") ? "" : get("continent"),
+    status: oneOf(get("status"), ["", ...STATUS_OPTIONS.map((x) => x.value)], ""),
+    minPrice: get("minPrice"),
+    maxPrice: get("maxPrice"),
+    minViews: get("minViews"),
+    activeOnly: get("active") === "1",
+    reachedCheckoutOnly: get("reachedCheckout") === "1",
+    sort: oneOf(get("sort"), ["", ...SORT_COLUMNS.map((x) => x.key as string)], ""),
+    order: oneOf<"asc" | "desc">(get("order"), ["asc", "desc"], "desc"),
+  };
+}
+
 export default function TestProductsAnalyticsPage() {
+  // useSearchParams needs a Suspense boundary during prerender
+  return (
+    <Suspense fallback={null}>
+      <TestProductsAnalytics />
+    </Suspense>
+  );
+}
+
+function TestProductsAnalytics() {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  // Read once: from here on the state is the source of truth and the URL follows it.
+  const [initial] = useState(() => readUrlState(new URLSearchParams(searchParams.toString())));
+
   /**
    * Which phase of the catalogue this page is reporting on. Not derived from
    * the product's flag today: the backend matches it against the state
    * recorded on each event, so a product promoted from test to live appears in
    * both tabs, each showing only the events from its own phase.
    */
-  const [scope, setScope] = useState<Scope>("test");
-  const [range, setRange] = useState("today");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const [productId, setProductId] = useState("");
-  const [limit, setLimit] = useState("");
-  const [categoryId, setCategoryId] = useState("");
-  const [countryCode, setCountryCode] = useState("");
-  const [continent, setContinent] = useState("");
-  const [status, setStatus] = useState("");
-  const [minPrice, setMinPrice] = useState("");
-  const [maxPrice, setMaxPrice] = useState("");
-  const [minViews, setMinViews] = useState("");
-  const [activeOnly, setActiveOnly] = useState(false);
-  const [reachedCheckoutOnly, setReachedCheckoutOnly] = useState(false);
-  const [sort, setSort] = useState("");
-  const [order, setOrder] = useState<"asc" | "desc">("desc");
+  const [scope, setScope] = useState<Scope>(initial.scope);
+  const [range, setRange] = useState(initial.range);
+  const [startDate, setStartDate] = useState(initial.startDate);
+  const [endDate, setEndDate] = useState(initial.endDate);
+  const [productId, setProductId] = useState(initial.productId);
+  const [limit, setLimit] = useState(initial.limit);
+  const [categoryId, setCategoryId] = useState(initial.categoryId);
+  const [countryCode, setCountryCode] = useState(initial.countryCode);
+  const [continent, setContinent] = useState(initial.continent);
+  const [status, setStatus] = useState(initial.status);
+  const [minPrice, setMinPrice] = useState(initial.minPrice);
+  const [maxPrice, setMaxPrice] = useState(initial.maxPrice);
+  const [minViews, setMinViews] = useState(initial.minViews);
+  const [activeOnly, setActiveOnly] = useState(initial.activeOnly);
+  const [reachedCheckoutOnly, setReachedCheckoutOnly] = useState(initial.reachedCheckoutOnly);
+  const [sort, setSort] = useState(initial.sort);
+  const [order, setOrder] = useState<"asc" | "desc">(initial.order);
 
   const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [countries, setCountries] = useState<CountryOption[]>([]);
@@ -225,6 +271,37 @@ export default function TestProductsAnalyticsPage() {
     }
     return params.toString();
   }, [scope, range, startDate, endDate, productId, limit, categoryId, countryCode, continent, status, minPrice, maxPrice, minViews, activeOnly, reachedCheckoutOnly, sort, order]);
+
+  // Mirror the tab and filters into the URL. replaceState rather than a router
+  // navigation: no re-render or refetch, and typing in a box does not stack up
+  // one history entry per keystroke.
+  useEffect(() => {
+    const p = new URLSearchParams();
+    if (scope !== "test") p.set("scope", scope);
+    if (range !== "today") p.set("range", range);
+    if (range === "custom") {
+      if (startDate) p.set("from", startDate);
+      if (endDate) p.set("to", endDate);
+    }
+    if (productId) p.set("productId", productId);
+    if (limit) p.set("limit", limit);
+    if (categoryId) p.set("categoryId", categoryId);
+    if (countryCode) p.set("country", countryCode);
+    else if (continent) p.set("continent", continent);
+    if (status) p.set("status", status);
+    if (minPrice.trim()) p.set("minPrice", minPrice.trim());
+    if (maxPrice.trim()) p.set("maxPrice", maxPrice.trim());
+    if (minViews.trim()) p.set("minViews", minViews.trim());
+    if (activeOnly) p.set("active", "1");
+    if (reachedCheckoutOnly) p.set("reachedCheckout", "1");
+    if (sort) {
+      p.set("sort", sort);
+      if (order !== "desc") p.set("order", order);
+    }
+    const qs = p.toString();
+    const next = qs ? `${pathname}?${qs}` : pathname;
+    if (next !== `${window.location.pathname}${window.location.search}`) window.history.replaceState(null, "", next);
+  }, [pathname, scope, range, startDate, endDate, productId, limit, categoryId, countryCode, continent, status, minPrice, maxPrice, minViews, activeOnly, reachedCheckoutOnly, sort, order]);
 
   /** Date window + country scope, so the modal opens on the same slice the table is showing. */
   const windowParams = useMemo(() => {
