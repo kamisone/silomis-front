@@ -34,7 +34,9 @@ export default function TokenRefresher() {
       }
 
       const res = await originalFetch(...args);
-      if (res.status !== 401 && res.status !== 403) return res;
+      // 401 only: a 403 is "not allowed to do this", which a fresh token does
+      // not change — refreshing on it spent the refresh rate limit for nothing.
+      if (res.status !== 401) return res;
 
       if (isRefreshing) {
         return new Promise<Response>((resolve) => {
@@ -53,8 +55,13 @@ export default function TokenRefresher() {
         }
 
         drainQueue(false, res);
-        await originalFetch("/next-api/auth", { method: "DELETE" });
-        window.location.replace("/login");
+        // Log out only when the refresh token itself was refused (401). A 503
+        // (backend down, rate-limited) is transient: the session is still
+        // good, and logging out here would revoke it for nothing.
+        if (refreshRes.status === 401) {
+          await originalFetch("/next-api/auth", { method: "DELETE" });
+          window.location.replace("/login");
+        }
         return res;
       } catch {
         drainQueue(false, res);

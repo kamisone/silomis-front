@@ -59,7 +59,11 @@ async function checkAccessToken(token: string, backendUrl: string): Promise<Chec
       headers: { Authorization: `Bearer ${token}` },
       cache: "no-store",
     });
-    if (!res.ok) return "invalid";
+    // Only an explicit auth rejection means the token is bad. A 429 or 5xx
+    // says nothing about the token, and reading it as "invalid" sent every
+    // backend hiccup down the refresh path.
+    if (res.status === 401 || res.status === 403) return "invalid";
+    if (!res.ok) return "network_error";
 
     if (validTokenCache.size > 500) sweepExpiredTokenCacheEntries(now);
     validTokenCache.set(token, now + VALID_TOKEN_CACHE_TTL_MS);
@@ -74,8 +78,7 @@ export interface RotateResult {
   networkError: boolean;
 }
 
-/** Calls the backend's refresh endpoint (rotating the token on success). */
-export async function rotateTokens(refreshToken: string, backendUrl: string): Promise<RotateResult> {
+async function callRefresh(refreshToken: string, backendUrl: string): Promise<RotateResult> {
   try {
     const res = await fetch(`${backendUrl}/auth/refresh`, {
       method: "POST",
@@ -83,11 +86,47 @@ export async function rotateTokens(refreshToken: string, backendUrl: string): Pr
       body: JSON.stringify({ refresh_token: refreshToken }),
       cache: "no-store",
     });
-    if (!res.ok) return { tokens: null, networkError: false };
+    // Only 400/401/403 mean the backend looked at the token and refused it —
+    // the one case where the caller may wipe the cookies. A 429 (refresh rate
+    // limit) or a 5xx is transient: treating it as a rejection is what logged
+    // admins out minutes into a 15-day session.
+    if (res.status === 400 || res.status === 401 || res.status === 403) return { tokens: null, networkError: false };
+    if (!res.ok) return { tokens: null, networkError: true };
     return { tokens: await res.json(), networkError: false };
   } catch {
     return { tokens: null, networkError: true };
   }
+}
+
+// When the access token expires, every request in flight (the page, its RSC
+// payload, each parallel /next-api call, every open tab) arrives with the same
+// refresh token at once. Without this, each one rotated it separately: N
+// backend rotations, N new token families, and N hits on the refresh rate
+// limit. Concurrent callers now share one rotation, and callers arriving just
+// after it (still carrying the old cookie) get the same result back.
+const ROTATION_REUSE_MS = 30_000;
+const inFlightRotations = new Map<string, Promise<RotateResult>>();
+const recentRotations = new Map<string, { result: RotateResult; until: number }>();
+
+/** Calls the backend's refresh endpoint (rotating the token on success). */
+export async function rotateTokens(refreshToken: string, backendUrl: string): Promise<RotateResult> {
+  const now = Date.now();
+  const recent = recentRotations.get(refreshToken);
+  if (recent && recent.until > now) return recent.result;
+
+  const pending = inFlightRotations.get(refreshToken);
+  if (pending) return pending;
+
+  const promise = callRefresh(refreshToken, backendUrl).then((result) => {
+    inFlightRotations.delete(refreshToken);
+    if (result.tokens) {
+      if (recentRotations.size > 200) recentRotations.forEach((v, k) => v.until <= now && recentRotations.delete(k));
+      recentRotations.set(refreshToken, { result, until: Date.now() + ROTATION_REUSE_MS });
+    }
+    return result;
+  });
+  inFlightRotations.set(refreshToken, promise);
+  return promise;
 }
 
 // ── Session resolution ─────────────────────────────────────────────────
