@@ -32,13 +32,14 @@ export const EVENT_TYPE_OPTIONS: Array<{ value: string; label: string }> = [
   // duplicates of each other.
   { value: "checkout_started", label: "Reached shipping" },
   { value: "test_checkout_blocked", label: "Reached checkout (test)" },
+  { value: "payment_step_reached", label: "Reached checkout" },
   { value: "update_cart_item", label: "Cart updated" },
   { value: "remove_from_cart", label: "Removed from cart" },
   { value: "search", label: "Search" },
 ];
 
-/** The event types a test-product row drills into. */
-export const TEST_EVENT_TYPES = "product_view,add_to_cart,checkout_started,test_checkout_blocked";
+/** The event types a demand-report row drills into — both checkout events, since a row can be on either tab. */
+export const TEST_EVENT_TYPES = "product_view,add_to_cart,checkout_started,test_checkout_blocked,payment_step_reached";
 
 export function eventTypeLabel(value: string): string {
   return EVENT_TYPE_OPTIONS.find((o) => o.value === value)?.label ?? value;

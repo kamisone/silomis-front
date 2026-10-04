@@ -76,6 +76,8 @@ function describeTimelineEntry(e: TimelineEntry): string {
       return `Started checkout${e.productTitle ? ` with ${e.productTitle}` : ""}`;
     case "test_checkout_blocked":
       return `Reached checkout with a test product (${e.productTitle ?? "unknown"}) — blocked before payment`;
+    case "payment_step_reached":
+      return `Reached payment${e.productTitle ? ` with ${e.productTitle}` : ""}`;
     case "order":
       return `Order ${e.orderNumber ?? ""} — ${e.orderStatus ?? ""}${e.totalCents != null ? ` — ${eur(e.totalCents)}` : ""}`;
     case "wishlist_add":

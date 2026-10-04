@@ -42,6 +42,7 @@ const ACTIVITY_LABEL: Record<string, string> = {
   remove_from_cart: "Removed from cart",
   checkout_started: "Reached shipping",
   test_checkout_blocked: "Reached checkout",
+  payment_step_reached: "Reached checkout",
 };
 
 const ORDER_STATUS_LABEL: Record<string, string> = {

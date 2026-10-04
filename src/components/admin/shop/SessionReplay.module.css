@@ -259,7 +259,8 @@
   background: color-mix(in srgb, #f59e0b 18%, transparent);
   color: #b45309;
 }
-.activity_test_checkout_blocked {
+.activity_test_checkout_blocked,
+.activity_payment_step_reached {
   background: color-mix(in srgb, var(--color-success, #16a34a) 18%, transparent);
   color: var(--color-success, #16a34a);
 }
