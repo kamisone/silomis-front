@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
-import { Check, CheckCheck, Play, RotateCcw } from "lucide-react";
+import Link from "next/link";
+import { Check, CheckCheck, ExternalLink, Play, RotateCcw } from "lucide-react";
 import { api } from "@/lib/api";
 import Button from "@/components/admin/ui/Button";
 import styles from "./SessionReplay.module.css";
@@ -17,6 +18,7 @@ interface ReplaySession {
   countryCode: string | null;
   device: string | null;
   source: string | null;
+  clientIp: string | null;
   eventCount: number;
   clickCount: number;
   maxScrollPct: number;
@@ -25,7 +27,34 @@ interface ReplaySession {
   durationMs: number | null;
   viewedAt: string | null;
   product: { id: string; title: string } | null;
+  /** What the visitor did around this session, collapsed per event type (see ReplayAdminService.withActivity). */
+  activity?: Array<{ type: string; count: number; firstAt: string }>;
+  /** Orders this session's cart produced, whatever their status. */
+  orders?: Array<{ id: string; orderNumber: string; status: string }>;
 }
+
+/** Same wording as the funnel columns on the test-products table. */
+const ACTIVITY_LABEL: Record<string, string> = {
+  product_view: "Product view",
+  search: "Search",
+  add_to_cart: "Add to cart",
+  update_cart_item: "Cart updated",
+  remove_from_cart: "Removed from cart",
+  checkout_started: "Reached shipping",
+  test_checkout_blocked: "Reached checkout",
+};
+
+const ORDER_STATUS_LABEL: Record<string, string> = {
+  draft: "Draft",
+  pending: "Pending",
+  awaiting_payment: "Awaiting payment",
+  paid: "Paid",
+  processing: "Processing",
+  shipped: "Shipped",
+  delivered: "Delivered",
+  cancelled: "Cancelled",
+  refunded: "Refunded",
+};
 
 interface Marker {
   id: string;
@@ -158,6 +187,9 @@ export default function SessionReplayModal({ onClose, productId, productTitle, w
                       <th>Device</th>
                       <th>Country</th>
                       <th>Source</th>
+                      <th>IP</th>
+                      <th>Activity</th>
+                      <th>Order</th>
                       <th>Clicks</th>
                       <th>Max scroll</th>
                       <th>Status</th>
@@ -172,6 +204,37 @@ export default function SessionReplayModal({ onClose, productId, productTitle, w
                         <td>{s.device ?? "—"}</td>
                         <td>{s.countryCode ?? "—"}</td>
                         <td>{s.source ?? "—"}</td>
+                        <td className={styles.ipCell}>{s.clientIp ?? "—"}</td>
+                        <td>
+                          {s.activity?.length ? (
+                            <div className={styles.activityList}>
+                              {s.activity.map((a) => (
+                                <span key={a.type} className={`${styles.activityChip} ${styles[`activity_${a.type}`] ?? ""}`} title={`First at ${new Date(a.firstAt).toLocaleString()}`}>
+                                  {ACTIVITY_LABEL[a.type] ?? a.type}
+                                  {a.count > 1 ? ` ×${a.count}` : ""}
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            "—"
+                          )}
+                        </td>
+                        <td>
+                          {s.orders?.length ? (
+                            <div className={styles.activityList}>
+                              {s.orders.map((o) => (
+                                // New tab, so the list (and its scroll position) is still here afterwards.
+                                <Link key={o.id} href={`/admin/shop/orders/${o.id}`} target="_blank" rel="noopener" className={styles.orderLink}>
+                                  {o.orderNumber}
+                                  <span className={styles.orderStatus}>{ORDER_STATUS_LABEL[o.status] ?? o.status}</span>
+                                  <ExternalLink size={12} strokeWidth={2.2} aria-hidden="true" />
+                                </Link>
+                              ))}
+                            </div>
+                          ) : (
+                            "—"
+                          )}
+                        </td>
                         <td>{s.clickCount}</td>
                         <td>{s.maxScrollPct}%</td>
                         <td>{s.status}</td>
