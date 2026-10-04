@@ -135,6 +135,8 @@ export interface Product {
   /** Heading for the linked-articles section at the foot of the page. */
   articlesTitle?: string | null;
   isNew?: boolean;
+  /** The admin's per-product switch for the returns block — off unless set. */
+  showReturnsGuarantee?: boolean;
   storyNarrativeTitle?: string | null;
   freeShipping?: boolean;
   freeShippingDaysMin?: number | null;
@@ -1067,7 +1069,9 @@ export default function ShopProductDetail({
 
         <DocumentsSection documents={product.documents} />
 
-        <ReturnsGuarantee title={t.shop.returnsTitle} body={t.shop.returnsBody} buttonLabel={t.shop.returnsButton} ariaLabel={t.shop.returnsAria} />
+        {product.showReturnsGuarantee && (
+          <ReturnsGuarantee title={t.shop.returnsTitle} body={t.shop.returnsBody} buttonLabel={t.shop.returnsButton} ariaLabel={t.shop.returnsAria} />
+        )}
 
         <ReviewsSection
           productId={product.id}

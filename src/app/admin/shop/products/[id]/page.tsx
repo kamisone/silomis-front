@@ -136,6 +136,7 @@ interface Product {
   status: string;
   featured: boolean;
   isNew: boolean;
+  showReturnsGuarantee?: boolean;
   isTestProduct: boolean;
   freeShipping: boolean;
   /** Set when the product can be embroidered — the "Custom embroidery" switch. */
@@ -413,6 +414,7 @@ export default function EditProductPage() {
         upsellTiers: product.upsellTiers,
         featured: product.featured,
         isNew: product.isNew,
+        showReturnsGuarantee: !!product.showReturnsGuarantee,
         isTestProduct: product.isTestProduct,
         freeShipping: product.freeShipping,
         freeShippingDaysMin: product.freeShippingDaysMin,
@@ -1134,6 +1136,13 @@ export default function EditProductPage() {
                 hint="Draws a “New” badge on this product’s cards and on its page, translated per language. A switch rather than an automatic window on the date added — only you know when a product stops being the new thing."
                 checked={product.isNew}
                 onChange={(v) => set({ isNew: v })}
+              />
+              <div className={styles.divider} />
+              <Switch
+                label="“Wrong size? No problem”"
+                hint="Shows the returns & exchange block on this product’s page. Off by default — switch it on only where an exchange is really offered (not on personalised pieces)."
+                checked={!!product.showReturnsGuarantee}
+                onChange={(v) => set({ showReturnsGuarantee: v })}
               />
               <div className={styles.divider} />
               {/* Saved on the spot rather than with the form: it is its own
