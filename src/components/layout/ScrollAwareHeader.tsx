@@ -1,7 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import styles from "./ScrollAwareHeader.module.css";
+
+/**
+ * Whether the header has scrolled out of view — so the popovers it owns (the
+ * language list, the category panel) close with it instead of staying open
+ * off-screen and reappearing when the header comes back. False outside a
+ * header, so the same LangSwitcher in the footer is unaffected.
+ */
+const HeaderHiddenContext = createContext(false);
+export const useHeaderHidden = () => useContext(HeaderHiddenContext);
 
 /**
  * How far the page has to travel down before the header gets out of the way.
@@ -108,7 +117,7 @@ export default function ScrollAwareHeader({ children }: { children: React.ReactN
       ref={headerRef}
       className={[styles.header, hidden ? styles.headerHidden : "", scrolled ? styles.scrolled : ""].filter(Boolean).join(" ")}
     >
-      {children}
+      <HeaderHiddenContext.Provider value={hidden}>{children}</HeaderHiddenContext.Provider>
     </header>
   );
 }

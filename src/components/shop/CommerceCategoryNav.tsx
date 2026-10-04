@@ -7,6 +7,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { ChevronDown, ArrowRight } from "lucide-react";
 import { getTranslations } from "@/lib/i18n";
 import { buildCategoryTree, getAncestorIds, type CategoryNode as BaseCategoryNode } from "@/lib/shop/categoryTree";
+import { useHeaderHidden } from "../layout/ScrollAwareHeader";
 import styles from "./CommerceCategoryNav.module.css";
 
 interface RawCategory {
@@ -114,6 +115,16 @@ export default function CommerceCategoryNav({ locale, className }: Props) {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const triggerRefs = useRef(new Map<string, HTMLDivElement>());
 
+  // The panel hangs off the header, so it goes when the header does — and
+  // only then. Adjusted during render, as React recommends for state that
+  // follows a context change.
+  const headerHidden = useHeaderHidden();
+  const [prevHeaderHidden, setPrevHeaderHidden] = useState(headerHidden);
+  if (headerHidden !== prevHeaderHidden) {
+    setPrevHeaderHidden(headerHidden);
+    if (headerHidden) setOpenId(null);
+  }
+
   useEffect(() => {
     // `lang` asks the API to overlay the admin's translated name for this
     // locale — without it every locale got back the category's base-language
@@ -154,25 +165,11 @@ export default function CommerceCategoryNav({ locale, className }: Props) {
     };
     update();
 
-    // Scrolling the page dismisses the card rather than dragging it along.
-    // The header itself moves on scroll (ScrollAwareHeader), so a card that
-    // followed it would slide down the page over the content the shopper is
-    // scrolling to read.
-    const handleScroll = (e: Event) => {
-      // Capture phase, so this also sees the panel's own scrollbar — a long
-      // category list must stay open while it is being scrolled. Page scroll
-      // targets the document, which the panel never contains.
-      const target = e.target;
-      if (target instanceof Node && dropdownRef.current?.contains(target)) return;
-      setOpenId(null);
-    };
-
+    // Scrolling does not dismiss the card: both it and the header are fixed,
+    // so it stays put under the header while the page moves beneath, and
+    // closes only once the header scrolls away (headerHidden above).
     window.addEventListener("resize", update);
-    window.addEventListener("scroll", handleScroll, true);
-    return () => {
-      window.removeEventListener("resize", update);
-      window.removeEventListener("scroll", handleScroll, true);
-    };
+    return () => window.removeEventListener("resize", update);
   }, [openId]);
 
   useEffect(() => {

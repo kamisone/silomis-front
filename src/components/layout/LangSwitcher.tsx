@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { LOCALES, type Locale } from "@/lib/i18n";
+import { useHeaderHidden } from "./ScrollAwareHeader";
 import styles from "./LangSwitcher.module.css";
 
 // ── Inline flag SVGs — kept self-contained rather than pulling in an icon library ──
@@ -121,6 +122,15 @@ export default function LangSwitcher({ locale, ariaLabel = "Select language" }: 
   const ref = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
+
+  // Close with the header when it scrolls away — adjusted during render, as
+  // React recommends for state that follows a prop/context change.
+  const headerHidden = useHeaderHidden();
+  const [prevHeaderHidden, setPrevHeaderHidden] = useState(headerHidden);
+  if (headerHidden !== prevHeaderHidden) {
+    setPrevHeaderHidden(headerHidden);
+    if (headerHidden) setOpen(false);
+  }
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {

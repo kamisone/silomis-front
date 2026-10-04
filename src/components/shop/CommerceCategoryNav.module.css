@@ -80,6 +80,9 @@
   width: 100%;
   max-height: 80vh;
   overflow-y: auto;
+  /* Reaching the end of a long list must not hand the scroll on to the page —
+     that would hide the header, which closes this panel mid-browse. */
+  overscroll-behavior: contain;
   background: var(--background);
   /* A teal hairline on top continues the brand line under the header; the
      bottom edge is the one that lifts off the page. */
