@@ -6,6 +6,7 @@ import { ArrowUpRight } from "lucide-react";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import type { StripeElementLocale, StripePaymentElementOptions } from "@stripe/stripe-js";
+import Image from "next/image";
 import { useCart, type CheckoutFields } from "@/components/shop/CartContext";
 import PriceBreakdown from "@/components/shop/PriceBreakdown";
 import EmbroideryLine from "@/components/shop/EmbroideryLine";
@@ -170,6 +171,17 @@ function billingDetails(form: FormState) {
       ? { address: { line1: form.line1.trim(), line2: form.line2.trim(), city: form.city.trim(), postal_code: form.zip.trim(), state: "", country: form.country } }
       : {}),
   };
+}
+
+/**
+ * A carrier's brand mark beside its method name, so a customer who knows the
+ * relay-point network recognises it at a glance. Matched on the method code
+ * the backend seeds (MONDIAL_RELAY_METHOD_CODE), with the carrier name as a
+ * fallback for a method the admin created by hand.
+ */
+function carrierLogo(m: { code: string | null; carrier: string | null }): string | null {
+  if (m.code === "mondial_relay" || /mondial\s*relay/i.test(m.carrier ?? "")) return "/assets/carriers/mondial-relay.svg";
+  return null;
 }
 
 const NO_OPTIONAL_FIELDS: CheckoutFields = { companyName: false, phone: false, addressLine2: false };
@@ -956,7 +968,10 @@ export default function CheckoutPage() {
                           applyShippingMethod(snapshot.orderId, up.id);
                         }}
                       />
-                      <span className={styles.shippingName}>{up.name}</span>
+                      <span className={styles.shippingName}>
+                        {carrierLogo(up) && <Image src={carrierLogo(up)!} alt="" width={28} height={28} unoptimized className={styles.carrierLogo} />}
+                        {up.name}
+                      </span>
                       <span className={styles.shippingDays}>
                         {up.estimatedDaysMin}–{up.estimatedDaysMax} {t.shop.days}
                       </span>
@@ -978,7 +993,10 @@ export default function CheckoutPage() {
                           applyShippingMethod(snapshot.orderId, m.id);
                         }}
                       />
-                      <span className={styles.shippingName}>{m.name}</span>
+                      <span className={styles.shippingName}>
+                        {carrierLogo(m) && <Image src={carrierLogo(m)!} alt="" width={28} height={28} unoptimized className={styles.carrierLogo} />}
+                        {m.name}
+                      </span>
                       <span className={styles.shippingDays}>
                         {m.estimatedDaysMin}–{m.estimatedDaysMax} {t.shop.days}
                       </span>

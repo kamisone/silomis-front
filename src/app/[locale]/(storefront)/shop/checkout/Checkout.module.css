@@ -272,8 +272,19 @@
   background: var(--color-surface-tint);
 }
 .shippingName {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
   font-weight: 700;
   font-size: 14px;
+}
+/* Decorative (alt=""): the method name beside it already says which carrier. */
+.carrierLogo {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
 }
 .shippingDays {
   font-size: 12px;
