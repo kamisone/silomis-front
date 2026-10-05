@@ -2,14 +2,15 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, Check } from "lucide-react";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import type { StripeElementLocale, StripePaymentElementOptions } from "@stripe/stripe-js";
 import Image from "next/image";
 import { useCart, type CheckoutFields } from "@/components/shop/CartContext";
-import PriceBreakdown from "@/components/shop/PriceBreakdown";
+import PriceBreakdown, { embroideryCentsOf } from "@/components/shop/PriceBreakdown";
 import EmbroideryLine from "@/components/shop/EmbroideryLine";
+import PersonaliseOffer, { canOfferPersonalisation, PersonalisedLineActions } from "@/components/shop/PersonaliseOffer";
 import PromoCodeInput, { type ValidateCouponResult } from "@/components/shop/PromoCodeInput";
 import { getTranslations, type Locale } from "@/lib/i18n";
 import { useLocale } from "@/lib/i18n/useLocale";
@@ -64,7 +65,11 @@ interface CheckoutSnapshot {
   trackingToken: string | null;
 }
 
-type Step = "address" | "shipping" | "payment";
+/**
+ * "personalise" is an optional first step, present only when the basket holds
+ * a plain piece that could still be embroidered — see the step's own comment.
+ */
+type Step = "personalise" | "address" | "shipping" | "payment";
 
 interface FormState {
   email: string;
@@ -249,9 +254,9 @@ function StripePaymentForm({ orderNumber, orderId, total, trackingToken, form, l
 
 // ── Step indicator ──────────────────────────────────────────────────
 
-function StepIndicator({ current, onStepClick, t }: { current: Step; onStepClick: (step: Step) => void; t: T }) {
-  const STEP_LABELS: Record<Step, string> = { address: t.shop.stepAddress, shipping: t.shop.stepShipping, payment: t.shop.stepPayment };
-  const steps: Step[] = ["address", "shipping", "payment"];
+function StepIndicator({ current, onStepClick, showPersonalise, t }: { current: Step; onStepClick: (step: Step) => void; showPersonalise: boolean; t: T }) {
+  const STEP_LABELS: Record<Step, string> = { personalise: t.personalize.stepLabel, address: t.shop.stepAddress, shipping: t.shop.stepShipping, payment: t.shop.stepPayment };
+  const steps: Step[] = showPersonalise ? ["personalise", "address", "shipping", "payment"] : ["address", "shipping", "payment"];
   const currentIdx = steps.indexOf(current);
 
   return (
@@ -292,6 +297,8 @@ function StepIndicator({ current, onStepClick, t }: { current: Step; onStepClick
 
 interface CheckoutPersistedState {
   step: Step;
+  /** The personalise step was part of this checkout — keeps it on the step rail after it is left. */
+  personaliseInFlow?: boolean;
   form: FormState;
   snapshot: CheckoutSnapshot | null;
   selectedMethodId: string | null;
@@ -343,6 +350,10 @@ export default function CheckoutPage() {
   const [countries, setCountries] = useState<CountryOption[]>([]);
   const [countriesLoading, setCountriesLoading] = useState(true);
   const [step, setStep] = useState<Step>("address");
+  const [personaliseInFlow, setPersonaliseInFlow] = useState(false);
+  /** The saved session as read on mount — decides whether to open on the personalise step. */
+  const savedSession = useRef<CheckoutPersistedState | null>(null);
+  const landed = useRef(false);
   const [snapshot, setSnapshot] = useState<CheckoutSnapshot | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -359,8 +370,31 @@ export default function CheckoutPage() {
   // Persist state to sessionStorage whenever key values change
   useEffect(() => {
     if (restoring) return;
-    saveCheckoutSession(token, { step, form, snapshot, selectedMethodId, clientSecret });
-  }, [step, form, snapshot, selectedMethodId, clientSecret, token, restoring]);
+    saveCheckoutSession(token, { step, personaliseInFlow, form, snapshot, selectedMethodId, clientSecret });
+  }, [step, personaliseInFlow, form, snapshot, selectedMethodId, clientSecret, token, restoring]);
+
+  /**
+   * Checkout opens on the personalise step when the basket holds a piece that
+   * could still be embroidered but is not — the customer skipped, or never
+   * saw, "Personalise this piece" on the product page.
+   *
+   * Not only on a brand-new checkout: earlier progress saved in this tab (an
+   * address typed last visit) used to switch it off for good, and anyone who
+   * had opened checkout once never saw the step. It is skipped only when the
+   * customer has already been through it in this checkout, or is resuming
+   * further along (shipping, payment).
+   */
+  useEffect(() => {
+    if (restoring || !cart || landed.current) return;
+    landed.current = true;
+    const saved = savedSession.current;
+    const alreadySeen = !!saved?.personaliseInFlow;
+    const resumingLater = saved?.step === "shipping" || saved?.step === "payment";
+    if (!alreadySeen && !resumingLater && step === "address" && cart.items.some(canOfferPersonalisation)) {
+      setPersonaliseInFlow(true);
+      setStep("personalise");
+    }
+  }, [restoring, cart, step]);
 
   // Re-quote whenever the snapshot in hand was not produced in the language
   // being read.
@@ -403,7 +437,9 @@ export default function CheckoutPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           cartToken: token,
-          step,
+          // The server's checkout session knows the three classic steps; the
+          // optional personalise step is still "before the address".
+          step: step === "personalise" ? "address" : step,
           orderId: snapshot?.orderId ?? null,
           formSnapshot: form,
         }),
@@ -416,6 +452,8 @@ export default function CheckoutPage() {
   useEffect(() => {
     const t = setTimeout(() => {
       const saved = loadCheckoutSession(token);
+      savedSession.current = saved;
+      if (saved?.personaliseInFlow) setPersonaliseInFlow(true);
       if (saved && saved.step !== "address") {
         setForm(saved.form);
         setSnapshot(saved.snapshot);
@@ -476,7 +514,10 @@ export default function CheckoutPage() {
   function handleStepClick(s: Step) {
     setFormError("");
     setNameGroupError("");
-    if (s === "address") {
+    if (s === "personalise") {
+      setClientSecret(null);
+      goToStep("personalise");
+    } else if (s === "address") {
       setClientSecret(null);
       goToStep("address");
     } else if (s === "shipping" && snapshot) {
@@ -787,11 +828,63 @@ export default function CheckoutPage() {
   return (
     <div className={styles.container}>
       <h1 className={styles.heading}>{t.shop.checkoutTitle}</h1>
-      <StepIndicator current={step} onStepClick={handleStepClick} t={t} />
+      <StepIndicator current={step} onStepClick={handleStepClick} showPersonalise={personaliseInFlow || step === "personalise" || (!snapshot && cart.items.some(canOfferPersonalisation))} t={t} />
 
       <div className={styles.layout}>
         {/* ── Left: step form ── */}
         <div className={styles.formSection}>
+          {/* STEP 0 — Personalise (optional). Every line that can carry
+              embroidery: the plain ones with the offer, the ones already
+              embroidered with their design, so a customer who personalises
+              one of two caps sees where they stand. Leaving it is one click,
+              and nothing here is required. */}
+          {step === "personalise" && (
+            <div>
+              <h2 className={styles.sectionTitle}>{t.personalize.stepTitle}</h2>
+              <p className={styles.personaliseIntro}>{t.personalize.stepIntro}</p>
+              <div className={styles.personaliseList}>
+                {cart.items
+                  .filter((item) => item.personalizable)
+                  .map((item) => (
+                    <div key={item.id} className={styles.personaliseRow}>
+                      <span className={styles.personaliseThumb}>
+                        {item.imageUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={item.imageUrl} alt="" />
+                        ) : null}
+                      </span>
+                      <div className={styles.personaliseBody}>
+                        <p className={styles.personaliseTitle}>
+                          {item.titleSnapshot}
+                          {item.quantity > 1 && <span className={styles.personaliseQty}> ×{item.quantity}</span>}
+                        </p>
+                        {item.optionsSnapshot && item.optionsSnapshot.length > 0 && (
+                          <p className={styles.personaliseOptions}>{item.optionsSnapshot.map((o) => o.displayValue ?? o.value).join(" · ")}</p>
+                        )}
+                        {item.personalizations?.length ? (
+                          <>
+                            <span className={styles.personaliseDone}>
+                              <Check size={13} strokeWidth={3} aria-hidden="true" />
+                              {t.personalize.stepDone}
+                            </span>
+                            {item.personalizations.map((d) => (
+                              <EmbroideryLine key={d.placementKey} design={d} locale={locale} />
+                            ))}
+                            <PersonalisedLineActions item={item} locale={locale} from="checkout" />
+                          </>
+                        ) : (
+                          <PersonaliseOffer item={item} locale={locale} from="checkout" />
+                        )}
+                      </div>
+                    </div>
+                  ))}
+              </div>
+              <button type="button" className={styles.continueBtn} onClick={() => goToStep("address")}>
+                {t.personalize.stepContinue}
+              </button>
+            </div>
+          )}
+
           {/* STEP 1 — Address */}
           {step === "address" && (
             <form onSubmit={handleSubmitAddress}>
@@ -1122,6 +1215,11 @@ export default function CheckoutPage() {
                     {item.personalizations?.map((d) => (
                       <EmbroideryLine key={d.placementKey} design={d} locale={locale} compact />
                     ))}
+                    {/* The line price beside this includes it; said here so the
+                        customer can see what the personalisation adds. */}
+                    {!!item.personalizations?.length && (
+                      <span className={styles.summaryItemFee}>{t.personalize.feeIncluded.replace("{price}", `€${centsToEuros(embroideryCentsOf([item]))}`)}</span>
+                    )}
                   </span>
                 </>
               );
@@ -1163,6 +1261,7 @@ export default function CheckoutPage() {
               discountCents={breakdownDiscount}
               couponCode={breakdownCouponCode}
               totalCents={breakdownTotal}
+              embroideryCents={embroideryCentsOf(cart.items)}
             />
           </div>
         </div>

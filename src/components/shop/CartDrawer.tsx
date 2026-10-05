@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { useEffect, useCallback, useState, useRef } from "react";
 import { useCart } from "./CartContext";
+import { usePathname } from "next/navigation";
 import EmbroideryLine from "@/components/shop/EmbroideryLine";
+import PersonaliseOffer from "@/components/shop/PersonaliseOffer";
 import { formatStockError } from "@/lib/shop/stockError";
 import { getTranslations, type Locale } from "@/lib/i18n";
 import styles from "./CartDrawer.module.css";
@@ -15,6 +17,8 @@ function centsToEuros(cents: number) {
 export default function CartDrawer({ locale }: { locale: Locale }) {
   const t = getTranslations(locale);
   const { cart, isDrawerOpen, closeDrawer, updateItem, removeItem, mutating } = useCart();
+  // Where the editor sends the customer back to once the embroidery is added.
+  const pathname = usePathname();
 
   // Per-item qty state: pending display qty, error message, known stock cap
   const [pendingQtys, setPendingQtys] = useState<Record<string, number>>({});
@@ -222,6 +226,7 @@ export default function CartDrawer({ locale }: { locale: Locale }) {
                     <span className={styles.lineTotal}>€{centsToEuros(item.lineTotalCents)}</span>
                   </div>
                   {itemErrors[item.id] && <p className={styles.itemError}>{itemErrors[item.id]}</p>}
+                  <PersonaliseOffer item={item} locale={locale} from="drawer" returnPath={pathname} onNavigate={closeDrawer} />
                 </div>
               </div>
             ))

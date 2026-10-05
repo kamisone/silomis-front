@@ -8,8 +8,24 @@ const API_BASE_URL = process.env.API_BASE_URL_SERVER ?? "http://127.0.0.1:4000";
 
 interface PageProps {
   params: Promise<{ slug: string; locale: string }>;
-  /** `v` carries the variant the customer was already looking at on the PDP. */
-  searchParams: Promise<{ v?: string }>;
+  /**
+   * `v` carries the variant the customer was already looking at on the PDP.
+   * `line` is a plain basket line to embroider instead of adding a new one —
+   * the offer in the drawer, the basket and checkout's first step — and
+   * `from`/`return` say where to go back to afterwards.
+   */
+  searchParams: Promise<{ v?: string; line?: string; from?: string; return?: string; edit?: string }>;
+}
+
+/** Where a basket-line edit returns to. Only same-site paths are honoured. */
+function lineReturn(locale: string, slug: string, from: string | undefined, ret: string | undefined): { href: string; openDrawer: boolean; isCheckout: boolean } {
+  if (from === "checkout") return { href: `/${locale}/shop/checkout`, openDrawer: false, isCheckout: true };
+  if (from === "cart") return { href: `/${locale}/shop/cart`, openDrawer: false, isCheckout: false };
+  // The drawer floats over whatever page it was opened on: go back there and
+  // reopen it. Not back into an editor, though — that page is a tool, not a
+  // place, so the product page stands in for it.
+  const safe = ret && ret.startsWith("/") && !ret.startsWith("//") && !ret.includes("/personalise") ? ret : `/${locale}/shop/${slug}`;
+  return { href: safe, openDrawer: true, isCheckout: false };
 }
 
 function langParam(locale: string): string {
@@ -105,7 +121,7 @@ export default async function PersonalisePage({ params, searchParams }: PageProp
   const { slug, locale } = await params;
   if (!isValidLocale(locale)) notFound();
 
-  const [product, { v }] = await Promise.all([fetchProduct(slug, locale), searchParams]);
+  const [product, { v, line, from, return: ret, edit }] = await Promise.all([fetchProduct(slug, locale), searchParams]);
   if (!product) notFound();
 
   const config = await fetchConfig(product.id, locale);
@@ -119,10 +135,16 @@ export default async function PersonalisePage({ params, searchParams }: PageProp
   // is worse than never offering it.
   if (!variant) notFound();
 
+  // `edit=1`: the line is already embroidered and the editor reopens its design to change it.
+  const lineTarget = line ? { itemId: line, mode: edit === "1" ? ("edit" as const) : ("add" as const), ...lineReturn(locale, slug, from, ret) } : undefined;
+  const c = getTranslations(locale).personalize;
+
   return (
     <PersonalizationEditor
       locale={locale}
       config={config}
+      targetLine={lineTarget}
+      back={lineTarget ? { href: lineTarget.href, label: lineTarget.isCheckout ? c.backToCheckout : from === "cart" ? c.backToCart : c.backToProduct } : undefined}
       product={{
         id: product.id,
         slug: product.slug,

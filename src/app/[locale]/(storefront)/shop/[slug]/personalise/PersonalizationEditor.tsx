@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   ArrowLeft, Check, Loader2, AlertTriangle, Ruler, Palette, Type, MapPin,
   ShoppingBag, RotateCcw, RotateCw, Plus, Bold, ArrowRight, PencilLine,
@@ -35,6 +36,12 @@ interface Props {
   customerItems?: Record<string, CustomerItemInput>;
   /** Where "back" leads — the product by default, the previous wizard step for a send-in. */
   back?: { href?: string; label: string; onClick?: () => void };
+  /**
+   * Embroider one unit of a plain basket line rather than adding a new item —
+   * the customer skipped "Personalise this piece" and is offered it again in
+   * the drawer, the basket or checkout. `href` is where to return afterwards.
+   */
+  targetLine?: { itemId: string; href: string; openDrawer: boolean; mode?: "add" | "edit" };
   /**
    * Steps a wizard walked before handing over here (a send-in's "Your item"),
    * shown as done on the rail so the whole journey reads as one.
@@ -119,6 +126,69 @@ function nextElementId(): string {
   return `b${Date.now().toString(36)}${elementSeq}`;
 }
 
+/** One box as the server stored it (designJson v2) — the subset the editor reads back. */
+interface StoredElement {
+  contentType?: string;
+  text?: string;
+  font?: { key?: string } | null;
+  heightMm?: number;
+  weightStep?: number;
+  offsetXMm?: number;
+  offsetYMm?: number;
+  rotationDeg?: number;
+  trackingPct?: number;
+  kerning?: number[] | null;
+  curveDeg?: number;
+  isPuff?: boolean;
+  borderMm?: number;
+  leading?: number;
+  motif?: { key?: string; sizeMm?: number; heightMm?: number | null; viewBox?: string } | null;
+  thread?: { code?: string; hex?: string } | null;
+}
+
+/**
+ * A stored design back into the editor's own state, to change embroidery that
+ * is already in the basket. The server keeps the thread as brand/code/colour
+ * rather than its id, so it is matched back by code and colour; anything the
+ * catalogue no longer has falls to the editor's own defaults, and the
+ * consistency effects clamp the rest.
+ */
+function designFromStored(designJson: unknown, threads: EditorConfig["threads"]): DesignState | null {
+  const stored = (designJson as { elements?: StoredElement[] } | null)?.elements;
+  if (!stored?.length) return null;
+  const elements: ElementState[] = stored.map((el) => {
+    const hex = el.thread?.hex?.toLowerCase();
+    const thread =
+      threads.find((t) => t.code === el.thread?.code && t.hex.toLowerCase() === hex) ?? threads.find((t) => t.hex.toLowerCase() === hex) ?? threads[0];
+    const [, , vw, vh] = (el.motif?.viewBox ?? "").split(/\s+/).map(Number);
+    return {
+      id: nextElementId(),
+      raw: el.text ?? "",
+      fontKey: el.font?.key ?? "",
+      threadId: thread?.id ?? "",
+      heightMm: el.heightMm ?? DEFAULT_TEXT_HEIGHT_MM,
+      weightStep: el.weightStep ?? DEFAULT_WEIGHT_STEP,
+      offset: { x: el.offsetXMm ?? 0, y: el.offsetYMm ?? 0 },
+      rotationDeg: el.rotationDeg ?? 0,
+      options: {
+        ...DEFAULT_OPTIONS,
+        contentType: (el.contentType as DesignOptions["contentType"]) ?? "text",
+        trackingPct: el.trackingPct ?? 0,
+        kerning: el.kerning ?? null,
+        curveDeg: el.curveDeg ?? 0,
+        puff: !!el.isPuff,
+        borderMm: el.borderMm ?? 0,
+        leading: el.leading ?? DEFAULT_OPTIONS.leading,
+        motifKey: el.motif?.key ?? null,
+        motifSizeMm: el.motif?.sizeMm ?? DEFAULT_OPTIONS.motifSizeMm,
+        motifHeightMm: el.motif?.heightMm ?? null,
+        motifAspect: vw && vh ? vh / vw : 1,
+      },
+    };
+  });
+  return { elements, activeElementId: elements[0].id };
+}
+
 function euros(cents: number): string {
   return (cents / 100).toFixed(2);
 }
@@ -140,10 +210,12 @@ function noop(): void {}
  * price, stitch count, fit — is computed locally so it moves with the typing,
  * then confirmed by a debounced server quote whose total is the binding one.
  */
-export default function PersonalizationEditor({ locale, config, product, variant, customerItems, back, precedingSteps = [], noteField }: Props) {
+export default function PersonalizationEditor({ locale, config, product, variant, customerItems, back, targetLine, precedingSteps = [], noteField }: Props) {
   const t = getTranslations(locale);
   const c = t.personalize;
-  const { addItem, openDrawer } = useCart();
+  const { addItem, personaliseItem, updateDesign, openDrawer, cart } = useCart();
+  const editing = targetLine?.mode === "edit";
+  const router = useRouter();
 
   // A send-in's positions are its photographed sides and they are already
   // decided, so the editor opens on the design itself.
@@ -277,6 +349,43 @@ export default function PersonalizationEditor({ locale, config, product, variant
     },
     [defaultDesign, commit],
   );
+
+  /**
+   * Changing embroidery already in the basket: reopen the stored design on
+   * the design step, in the full editor (the simple mode would re-fit the
+   * text and lose the customer's own choices).
+   */
+  const [designLoad, setDesignLoad] = useState<"idle" | "loading" | "failed">(editing ? "loading" : "idle");
+  useEffect(() => {
+    if (!editing || !targetLine || !cart?.token) return;
+    let cancelled = false;
+    fetch(`/next-api/public/shop/cart/${cart.token}/items/${targetLine.itemId}/personalise`)
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((rows: { placementKey: string; designJson: unknown }[]) => {
+        if (cancelled) return;
+        const offered = new Set(config.placements.map((p) => p.key));
+        const restored = Object.fromEntries(
+          rows
+            .filter((r) => offered.has(r.placementKey))
+            .map((r) => [r.placementKey, designFromStored(r.designJson, config.threads)] as const)
+            .filter((entry): entry is readonly [string, DesignState] => !!entry[1]),
+        );
+        if (!Object.keys(restored).length) throw new Error("empty");
+        commit(restored);
+        setActiveKey(Object.keys(restored)[0]);
+        setMode("advanced");
+        setStep("design");
+        setDesignLoad("idle");
+      })
+      .catch(() => {
+        if (!cancelled) setDesignLoad("failed");
+      });
+    return () => {
+      cancelled = true;
+    };
+    // Once per line: the cart refreshing must not reload the design over the customer's edits.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editing, targetLine?.itemId, cart?.token]);
 
   // Keep the open tab pointing at something that still exists.
   useEffect(() => {
@@ -924,8 +1033,26 @@ export default function PersonalizationEditor({ locale, config, product, variant
   const canAdd = !blocking && !incompleteKeys.length && quoteState === "ok" && confirmed && !adding;
 
   const handleAdd = useCallback(async () => {
-    setAdding(true);
     setAddError("");
+    if (targetLine) {
+      // The line may have gone since the link was opened (removed in another
+      // tab, or the order completed) — say so rather than failing vaguely.
+      if (cart && !cart.items.some((i) => i.id === targetLine.itemId)) {
+        setAddError(c.lineGone);
+        return;
+      }
+      setAdding(true);
+      const result = editing ? await updateDesign(targetLine.itemId, payload) : await personaliseItem(targetLine.itemId, payload);
+      if (result.ok) {
+        router.push(targetLine.href);
+        if (targetLine.openDrawer) openDrawer();
+        return;
+      }
+      setAdding(false);
+      setAddError(errorCopy(result.code, c) ?? c.errors.addFailed);
+      return;
+    }
+    setAdding(true);
     const result = await addItem(variant.id, 1, undefined, payload);
     setAdding(false);
     if (result.ok) {
@@ -933,7 +1060,7 @@ export default function PersonalizationEditor({ locale, config, product, variant
       return;
     }
     setAddError(errorCopy(result.code, c) ?? c.errors.addFailed);
-  }, [addItem, variant.id, payload, openDrawer, c]);
+  }, [targetLine, editing, cart, personaliseItem, updateDesign, router, addItem, variant.id, payload, openDrawer, c]);
 
   const previewDesign = activeDesign;
 
@@ -1145,6 +1272,11 @@ export default function PersonalizationEditor({ locale, config, product, variant
           <h1 className={styles.title}>{product.title}</h1>
         </div>
       </header>
+      {designLoad !== "idle" && (
+        <p className={`${styles.designLoadNotice} ${designLoad === "failed" ? styles.designLoadFailed : ""}`} role="status">
+          {designLoad === "loading" ? c.loadingDesign : c.loadDesignFailed}
+        </p>
+      )}
 
       {/* "Just add my text" writes and picks a colour on Your design — there is
           nothing to place, so no photograph either: just the form, centred. */}
@@ -2387,7 +2519,7 @@ export default function PersonalizationEditor({ locale, config, product, variant
           ) : (
             <button type="button" className={styles.primaryBtn} onClick={handleAdd} disabled={!canAdd}>
               {adding ? <Loader2 size={15} className={styles.spin} aria-hidden="true" /> : <ShoppingBag size={15} aria-hidden="true" />}
-              {adding ? c.adding : c.addToCart}
+              {adding ? c.adding : editing ? c.saveDesign : targetLine ? c.lineSave : c.addToCart}
             </button>
           )}
         </div>

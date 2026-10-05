@@ -2653,3 +2653,18 @@
   grid-template-columns: minmax(0, 1fr);
   max-width: 720px;
 }
+
+/* Reopening a design that is already in the basket. */
+.designLoadNotice {
+  margin: 0 0 14px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-primary);
+  background: var(--color-surface-tint);
+}
+.designLoadFailed {
+  color: #b45309;
+  background: #fffbeb;
+}

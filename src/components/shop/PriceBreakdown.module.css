@@ -84,3 +84,15 @@
     background-position: -200% 0;
   }
 }
+
+/* A share of the subtotal (embroidery), indented under it and quieter, so it
+   reads as "of which" rather than as one more charge. */
+.rowIncluded {
+  padding-left: 12px;
+  border-left: 2px solid var(--price-border, rgba(0, 0, 0, 0.08));
+  font-size: 13px;
+}
+.rowIncluded .value {
+  font-weight: 500;
+  color: var(--price-text-secondary);
+}

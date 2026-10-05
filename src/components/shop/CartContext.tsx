@@ -6,6 +6,7 @@ import { parseApiError, type CartMutationResult } from "@/lib/shop/stockError";
 import { pixelTrack } from "@/lib/metaPixel";
 import { ttqTrack } from "@/lib/tiktokPixel";
 import { captureTrafficSource, getTrafficSource } from "@/lib/shop/trafficSource";
+import { invalidateCheckoutOrder } from "@/lib/shop/checkoutSession";
 
 export interface CartItemOption {
   attributeId: string;
@@ -107,6 +108,10 @@ export interface CartItem {
   lineTotalCents: number;
   /** This product carries free delivery; one such item frees the whole basket. */
   freeShipping?: boolean;
+  /** Embroidery can still be added to this line (cart, drawer, checkout's first step). */
+  personalizable?: boolean;
+  /** Cheapest embroidery for this product (cents) — the offer's "from €X". */
+  personalizeFromCents?: number | null;
   optionsSnapshot: CartItemOption[] | null;
   compareAtPriceCentsSnapshot?: number | null;
   /** Null on an ordinary line. Its price is already inside unitPriceCents. */
@@ -147,6 +152,12 @@ interface CartContextValue {
     personalizations?: PersonalizationInput[],
   ) => Promise<CartMutationResult>;
   updateItem: (itemId: string, quantity: number) => Promise<CartMutationResult>;
+  /** Embroiders one unit of a plain line already in the basket. */
+  personaliseItem: (itemId: string, personalizations: PersonalizationInput[]) => Promise<CartMutationResult>;
+  /** Swaps the design on an embroidered line. */
+  updateDesign: (itemId: string, personalizations: PersonalizationInput[]) => Promise<CartMutationResult>;
+  /** Takes the embroidery off a line — its units go back to the plain item. */
+  removeDesign: (itemId: string) => Promise<CartMutationResult>;
   removeItem: (itemId: string) => Promise<void>;
   token: string;
   refresh: () => Promise<void>;
@@ -203,6 +214,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setCart(data);
   }
 
+  /** After a change to the basket: a checkout already under way holds a copy of the old one. */
+  function applyMutation(data: Cart) {
+    applyCart(data);
+    invalidateCheckoutOrder(data.token || token);
+  }
+
   const fetchCart = useCallback(async () => {
     if (!token) return;
     setLoading(true);
@@ -240,7 +257,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         });
         if (res.ok) {
           const data: Cart = await res.json();
-          applyCart(data);
+          applyMutation(data);
 
           // Meta/TikTok: value/currency/ids only — never customer PII. Value
           // reflects what was just added (unit price × quantity added), not
@@ -295,6 +312,45 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     [token, locale],
   );
 
+  /**
+   * The three embroidery changes on a line already in the basket — add (POST),
+   * change (PUT), remove (DELETE). No pixel AddToCart for any of them: nothing
+   * new entered the basket (the backend skips its tracking for the same reason).
+   */
+  const designRequest = useCallback(
+    async (method: "POST" | "PUT" | "DELETE", itemId: string, personalizations?: PersonalizationInput[]): Promise<CartMutationResult> => {
+      setMutating(true);
+      try {
+        const res = await fetch(`/next-api/public/shop/cart/${token}/items/${itemId}/personalise?lang=${locale}`, {
+          method,
+          headers: { "Content-Type": "application/json" },
+          ...(personalizations ? { body: JSON.stringify({ personalizations }) } : {}),
+        });
+        if (res.ok) {
+          applyMutation(await res.json());
+          return { ok: true };
+        }
+        return { ok: false, ...parseApiError(await res.json().catch(() => ({}))) };
+      } catch {
+        return { ok: false };
+      } finally {
+        setMutating(false);
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [token, locale],
+  );
+
+  const personaliseItem = useCallback(
+    (itemId: string, personalizations: PersonalizationInput[]) => designRequest("POST", itemId, personalizations),
+    [designRequest],
+  );
+  const updateDesign = useCallback(
+    (itemId: string, personalizations: PersonalizationInput[]) => designRequest("PUT", itemId, personalizations),
+    [designRequest],
+  );
+  const removeDesign = useCallback((itemId: string) => designRequest("DELETE", itemId), [designRequest]);
+
   const updateItem = useCallback(
     async (itemId: string, quantity: number): Promise<CartMutationResult> => {
       const prevCart = cartRef.current;
@@ -321,7 +377,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           body: JSON.stringify({ quantity, ...getTrafficSource() }),
         });
         if (res.ok) {
-          applyCart(await res.json());
+          applyMutation(await res.json());
           return { ok: true };
         }
         setCart(prevCart);
@@ -362,7 +418,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         const res = await fetch(`/next-api/public/shop/cart/${token}/items/${itemId}?lang=${locale}`, {
           method: "DELETE",
         });
-        if (res.ok) applyCart(await res.json());
+        if (res.ok) applyMutation(await res.json());
         else setCart(prevCart);
       } catch {
         setCart(prevCart);
@@ -392,6 +448,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         mutating,
         addItem,
         updateItem,
+        personaliseItem,
+        updateDesign,
+        removeDesign,
         removeItem,
         token,
         refresh: fetchCart,

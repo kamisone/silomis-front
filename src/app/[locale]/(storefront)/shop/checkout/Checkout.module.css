@@ -145,6 +145,22 @@
 .stepLabelActive {
   color: var(--color-primary);
 }
+/* Four steps (with the optional Personalise) do not fit four labels on a
+   phone: only the current step keeps its name, the others are numbered dots. */
+@media (max-width: 560px) {
+  .stepLabel:not(.stepLabelActive) {
+    display: none;
+  }
+  /* Sized from their content, not equal shares: the one step still showing
+     its name needs more room than three bare dots. */
+  .stepItem {
+    flex: 1 1 auto;
+  }
+  .stepLine {
+    min-width: 14px;
+    margin: 0 6px;
+  }
+}
 .stepLabelDone {
   color: var(--color-secondary);
 }
@@ -593,6 +609,13 @@ a.summaryItemLink:focus-visible {
   margin-top: 2px;
   white-space: normal;
 }
+.summaryItemFee {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-primary);
+  margin-top: 3px;
+}
 .summaryItemPrice {
   font-weight: 700;
   white-space: nowrap;
@@ -622,4 +645,80 @@ a.summaryItemLink:focus-visible {
   font-size: 12.5px;
   line-height: 1.4;
   color: var(--color-muted, #6b7280);
+}
+
+/* ── Optional personalise step ── */
+.personaliseIntro {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--co-text-secondary);
+  margin: -4px 0 16px;
+}
+.personaliseList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.personaliseRow {
+  display: flex;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid var(--co-border);
+  border-radius: 12px;
+}
+.personaliseThumb {
+  flex-shrink: 0;
+  width: 64px;
+  height: 64px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--color-surface);
+  border: 1px solid var(--co-border);
+}
+.personaliseThumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.personaliseBody {
+  flex: 1;
+  min-width: 0;
+}
+.personaliseTitle {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+.personaliseQty {
+  font-weight: 600;
+  color: var(--co-text-muted);
+}
+.personaliseOptions {
+  font-size: 12.5px;
+  color: var(--co-text-muted);
+  margin-top: 2px;
+}
+.personaliseDone {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 8px 0 4px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-success, #16a34a);
+  background: color-mix(in srgb, var(--color-success, #16a34a) 12%, transparent);
+}
+@media (max-width: 480px) {
+  .personaliseRow {
+    padding: 12px;
+    gap: 12px;
+  }
+  .personaliseThumb {
+    width: 52px;
+    height: 52px;
+  }
 }

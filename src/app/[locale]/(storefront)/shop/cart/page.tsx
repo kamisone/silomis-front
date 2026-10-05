@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useCart } from "@/components/shop/CartContext";
-import PriceBreakdown from "@/components/shop/PriceBreakdown";
+import PriceBreakdown, { embroideryCentsOf } from "@/components/shop/PriceBreakdown";
 import EmbroideryLine from "@/components/shop/EmbroideryLine";
+import PersonaliseOffer from "@/components/shop/PersonaliseOffer";
 import { formatStockError } from "@/lib/shop/stockError";
 import { getTranslations } from "@/lib/i18n";
 import { useLocale } from "@/lib/i18n/useLocale";
@@ -165,6 +166,7 @@ export default function CartPage() {
                       </span>
                     ) : null}
                   </p>
+                  <PersonaliseOffer item={item} locale={locale} from="cart" />
                 </div>
                 <div className={styles.itemQtyCol}>
                   <div className={styles.itemQty}>
@@ -193,7 +195,7 @@ export default function CartPage() {
         <div className={styles.summary}>
           <h3>{t.shop.orderSummary}</h3>
 
-          <PriceBreakdown locale={locale} subtotalCents={cart.subtotalCents} freeShipping={cart.freeShipping} totalCents={cart.subtotalCents} />
+          <PriceBreakdown locale={locale} subtotalCents={cart.subtotalCents} freeShipping={cart.freeShipping} totalCents={cart.subtotalCents} embroideryCents={embroideryCentsOf(cart.items)} />
 
           {cart.freeShipping && (
             <p className={styles.freeShippingNote}>

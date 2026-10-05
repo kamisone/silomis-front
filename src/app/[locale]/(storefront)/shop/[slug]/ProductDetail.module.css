@@ -1242,6 +1242,26 @@
   color: var(--color-muted, #6b7280);
 }
 
+/* Title and price share a line, the price wrapping under the title when the
+   column is narrow — beside the chevron it squeezed the text on phones. */
+.personalizeCtaHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+/* The price before the click — a customer should know what embroidery costs
+   before opening the editor. */
+.personalizeCtaPrice {
+  flex-shrink: 0;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 12%, var(--background));
+}
 .personalizeCtaChevron {
   color: var(--color-primary);
   flex-shrink: 0;

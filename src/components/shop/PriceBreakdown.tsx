@@ -14,9 +14,16 @@ export interface PriceBreakdownProps {
   couponCode?: string | null;
   totalCents: number;
   loading?: boolean;
+  /** Embroidery inside subtotalCents — shown as its own line, marked as included, never added again. */
+  embroideryCents?: number;
 }
 
-export default function PriceBreakdown({ locale, subtotalCents, shippingCents, freeShipping, discountCents, couponCode, totalCents, loading = false }: PriceBreakdownProps) {
+/** The embroidery inside a basket's subtotal: each line's per-unit designs × its quantity. */
+export function embroideryCentsOf(items: { quantity: number; personalizations?: { priceCents: number }[] | null }[]): number {
+  return items.reduce((sum, i) => sum + (i.personalizations ?? []).reduce((s, d) => s + d.priceCents, 0) * i.quantity, 0);
+}
+
+export default function PriceBreakdown({ locale, subtotalCents, shippingCents, freeShipping, discountCents, couponCode, totalCents, loading = false, embroideryCents = 0 }: PriceBreakdownProps) {
   const t = getTranslations(locale);
   const shippingKnown = shippingCents !== undefined;
   /**
@@ -51,6 +58,19 @@ export default function PriceBreakdown({ locale, subtotalCents, shippingCents, f
         <span className={styles.label}>{t.shop.subtotal}</span>
         <span className={styles.value}>{fmt(subtotalCents)}</span>
       </div>
+
+      {/* Part of the subtotal above, not added to it: the embroidery is priced
+          into each item's unit price. Shown on its own so a customer who
+          personalised a piece sees what the personalisation costs. */}
+      {embroideryCents > 0 && (
+        <div className={`${styles.row} ${styles.rowIncluded}`}>
+          <span className={styles.label}>
+            {t.personalize.summaryEmbroidery}
+            <span className={styles.sub}>{t.personalize.summaryEmbroideryNote}</span>
+          </span>
+          <span className={styles.value}>{fmt(embroideryCents)}</span>
+        </div>
+      )}
 
       <div className={`${styles.row} ${shippingFree ? styles.rowDiscount : styles.rowShipping}`}>
         <span className={styles.label}>{t.shop.shipping}</span>

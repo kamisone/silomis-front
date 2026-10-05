@@ -11,6 +11,7 @@ import { useVariantSelection } from "@/components/shop/useVariantSelection";
 import WishlistButton from "@/components/shop/WishlistButton";
 import ShareButton from "@/components/shop/ShareButton";
 import ReplayRecorderMount from "@/components/shop/ReplayRecorderMount";
+import { embroideryFromLabel } from "@/components/shop/PersonaliseOffer";
 import PromotionBadge, { type PromotionInfo } from "@/components/shop/PromotionBadge";
 import BackToTopButton from "@/components/BackToTopButton";
 import { getTrustBadgeIcon } from "@/lib/shop/trustBadgeIcons";
@@ -121,6 +122,8 @@ export interface Product {
   basePriceCents: number | null;
   /** Non-null means this product can be embroidered — the editor's entry gate. */
   personalizationTemplateId?: string | null;
+  /** Cheapest embroidery for this product (cents), for "from €X" on the Personalise button. */
+  personalizationFromCents?: number | null;
   featuredImageUrl: string | null;
   galleryImageUrls: string[];
   media: ResolvedMediaItem[];
@@ -963,7 +966,12 @@ export default function ShopProductDetail({
                   <Sparkles size={16} />
                 </span>
                 <span className={styles.personalizeCtaBody}>
-                  <span className={styles.personalizeCtaTitle}>{t.personalize.ctaTitle}</span>
+                  <span className={styles.personalizeCtaHead}>
+                    <span className={styles.personalizeCtaTitle}>{t.personalize.ctaTitle}</span>
+                    {embroideryFromLabel(product.personalizationFromCents, locale) && (
+                      <span className={styles.personalizeCtaPrice}>{embroideryFromLabel(product.personalizationFromCents, locale)}</span>
+                    )}
+                  </span>
                   <span className={styles.personalizeCtaSub}>{t.personalize.ctaSub}</span>
                 </span>
                 <ChevronRight size={16} aria-hidden="true" className={styles.personalizeCtaChevron} />
