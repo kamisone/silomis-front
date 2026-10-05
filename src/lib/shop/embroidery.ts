@@ -312,6 +312,8 @@ export interface EditorThread {
 
 export interface EditorConfig {
   productId: string;
+  /** Which editors the product offers — "Just add my text" (simple), "Design it myself" (advanced). Absent on an older backend: both. */
+  modes?: { simple: boolean; advanced: boolean };
   template: { id: string; key: string; name: string; allowText: boolean; allowMonogram: boolean; allowUpload: boolean };
   /** Only positions this product actually has a photograph for. */
   placements: EditorPlacement[];

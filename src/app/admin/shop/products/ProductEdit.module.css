@@ -428,3 +428,49 @@
 }
 .variantSaveBtn:hover:not(:disabled) { opacity: 0.88; transform: translateY(-1px); }
 .variantSaveBtn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+
+/* ── Embroidery modes (under the Custom embroidery switch) ── */
+.embroideryModes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--color-surface);
+}
+.embroideryModesLabel {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--foreground) 55%, transparent);
+}
+.embroideryMode {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--field-border, #e2e6eb);
+  background: var(--background);
+  cursor: pointer;
+}
+.embroideryMode input {
+  width: 15px;
+  height: 15px;
+  margin-top: 2px;
+  accent-color: var(--color-accent);
+  cursor: pointer;
+}
+.embroideryMode input:disabled {
+  cursor: not-allowed;
+}
+.embroideryModeOn {
+  border-color: color-mix(in srgb, var(--color-accent) 55%, transparent);
+}
+.embroideryModeTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--foreground);
+}

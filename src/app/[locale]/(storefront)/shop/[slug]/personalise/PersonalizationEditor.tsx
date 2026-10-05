@@ -225,9 +225,17 @@ export default function PersonalizationEditor({ locale, config, product, variant
 
   // Not on a send-in (its sides need logos, borders, a customer-framed area),
   // and not where the shop offers no text to write.
-  const simpleAvailable = !locked && config.template.allowText && config.fonts.length > 0;
+  // …and only where the admin offers it on this product (admin › product ›
+  // Custom embroidery). "Design it myself" is the fallback whenever the simple
+  // mode cannot run, whatever the setting — the editor must always have a way in.
+  const simpleAvailable = !locked && config.template.allowText && config.fonts.length > 0 && config.modes?.simple !== false;
+  const advancedAllowed = !simpleAvailable || config.modes?.advanced !== false;
+  /** Both editors on offer — only then is "How do you want to personalise it?" asked. */
+  const modeChoice = simpleAvailable && advancedAllowed;
   const [mode, setMode] = useState<EditorMode>(simpleAvailable ? "simple" : "advanced");
   const simple = simpleAvailable && mode === "simple";
+  /** "Just add my text" past Positions: no photograph to place on, so just the form, centred. */
+  const textOnlyLayout = simple && (step === "design" || step === "review");
 
   /**
    * Undo history over the whole design map.
@@ -349,43 +357,6 @@ export default function PersonalizationEditor({ locale, config, product, variant
     },
     [defaultDesign, commit],
   );
-
-  /**
-   * Changing embroidery already in the basket: reopen the stored design on
-   * the design step, in the full editor (the simple mode would re-fit the
-   * text and lose the customer's own choices).
-   */
-  const [designLoad, setDesignLoad] = useState<"idle" | "loading" | "failed">(editing ? "loading" : "idle");
-  useEffect(() => {
-    if (!editing || !targetLine || !cart?.token) return;
-    let cancelled = false;
-    fetch(`/next-api/public/shop/cart/${cart.token}/items/${targetLine.itemId}/personalise`)
-      .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then((rows: { placementKey: string; designJson: unknown }[]) => {
-        if (cancelled) return;
-        const offered = new Set(config.placements.map((p) => p.key));
-        const restored = Object.fromEntries(
-          rows
-            .filter((r) => offered.has(r.placementKey))
-            .map((r) => [r.placementKey, designFromStored(r.designJson, config.threads)] as const)
-            .filter((entry): entry is readonly [string, DesignState] => !!entry[1]),
-        );
-        if (!Object.keys(restored).length) throw new Error("empty");
-        commit(restored);
-        setActiveKey(Object.keys(restored)[0]);
-        setMode("advanced");
-        setStep("design");
-        setDesignLoad("idle");
-      })
-      .catch(() => {
-        if (!cancelled) setDesignLoad("failed");
-      });
-    return () => {
-      cancelled = true;
-    };
-    // Once per line: the cart refreshing must not reload the design over the customer's edits.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editing, targetLine?.itemId, cart?.token]);
 
   // Keep the open tab pointing at something that still exists.
   useEffect(() => {
@@ -579,17 +550,19 @@ export default function PersonalizationEditor({ locale, config, product, variant
   );
   const hasAdvancedWork = useMemo(() => Object.values(designs).some(isAdvancedDesign), [designs, isAdvancedDesign]);
 
+
   /**
    * Switching to "Just add my text" brings every chosen position down to what
    * that mode can show: its first text and spool, in the house style. Switching
    * the other way changes nothing — the full designer opens on the same design.
    */
-  const chooseMode = useCallback(
-    (next: EditorMode) => {
-      setMode(next);
-      if (next !== "simple") return;
-      const current = designsRef.current;
-      if (!Object.values(current).some(isAdvancedDesign)) return;
+  /**
+   * Every chosen position brought down to what "Just add my text" can show:
+   * its first text and spool, in the house style. Positions already within
+   * that shape are kept as they are.
+   */
+  const simplifyDesigns = useCallback(
+    (current: Record<string, DesignState>): Record<string, DesignState> => {
       const converted: Record<string, DesignState> = {};
       for (const [key, d] of Object.entries(current)) {
         const placement = config.placements.find((p) => p.key === key);
@@ -605,10 +578,67 @@ export default function PersonalizationEditor({ locale, config, product, variant
         el.heightMm = fitSimpleHeight(el.raw, placement);
         converted[key] = { elements: [el], activeElementId: el.id };
       }
-      commit(converted);
+      return converted;
     },
-    [config.placements, isAdvancedDesign, newElement, fitSimpleHeight, commit],
+    [config.placements, isAdvancedDesign, newElement, fitSimpleHeight],
   );
+
+  const chooseMode = useCallback(
+    (next: EditorMode) => {
+      setMode(next);
+      if (next !== "simple") return;
+      const current = designsRef.current;
+      if (!Object.values(current).some(isAdvancedDesign)) return;
+      commit(simplifyDesigns(current));
+    },
+    [isAdvancedDesign, simplifyDesigns, commit],
+  );
+
+  /**
+   * Changing embroidery already in the basket: reopen the stored design on
+   * the design step, in the mode it was made in. The design does not record
+   * its mode, but "Just add my text" can only produce one shape — one text in
+   * the house font, centred, unturned — so a design within that shape reopens
+   * there, and anything beyond it in "Design it myself", where none of the
+   * customer's own choices would be lost.
+   */
+  const [designLoad, setDesignLoad] = useState<"idle" | "loading" | "failed">(editing ? "loading" : "idle");
+  useEffect(() => {
+    if (!editing || !targetLine || !cart?.token) return;
+    let cancelled = false;
+    fetch(`/next-api/public/shop/cart/${cart.token}/items/${targetLine.itemId}/personalise`)
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((rows: { placementKey: string; designJson: unknown }[]) => {
+        if (cancelled) return;
+        const offered = new Set(config.placements.map((p) => p.key));
+        const restored = Object.fromEntries(
+          rows
+            .filter((r) => offered.has(r.placementKey))
+            .map((r) => [r.placementKey, designFromStored(r.designJson, config.threads)] as const)
+            .filter((entry): entry is readonly [string, DesignState] => !!entry[1]),
+        );
+        if (!Object.keys(restored).length) throw new Error("empty");
+        // Its own mode where the product still offers it; otherwise the one it
+        // does — a design beyond "Just add my text" is brought down to its text
+        // when that is all this product now offers.
+        const fitsSimple = !Object.values(restored).some(isAdvancedDesign);
+        const asSimple = simpleAvailable && (fitsSimple || !advancedAllowed);
+        commit(asSimple && !fitsSimple ? simplifyDesigns(restored) : restored);
+        setActiveKey(Object.keys(restored)[0]);
+        setMode(asSimple ? "simple" : "advanced");
+        setStep("design");
+        setDesignLoad("idle");
+      })
+      .catch(() => {
+        if (!cancelled) setDesignLoad("failed");
+      });
+    return () => {
+      cancelled = true;
+    };
+    // Once per line: the cart refreshing must not reload the design over the customer's edits.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editing, targetLine?.itemId, cart?.token]);
+
 
   // ── Evaluation, per position ─────────────────────────────────────────
 
@@ -1279,10 +1309,12 @@ export default function PersonalizationEditor({ locale, config, product, variant
       )}
 
       {/* "Just add my text" writes and picks a colour on Your design — there is
-          nothing to place, so no photograph either: just the form, centred. */}
-      <div className={`${styles.layout} ${simple && step === "design" ? styles.layoutSingle : ""}`}>
+          nothing to place, so no photograph either: just the form, centred.
+          The same on Review: the customer never placed anything, so a photo
+          of the house layout would show them a placement they did not choose. */}
+      <div className={`${styles.layout} ${textOnlyLayout ? styles.layoutSingle : ""}`}>
         {/* ── Preview ────────────────────────────────────────────────── */}
-        {!(simple && step === "design") && (
+        {!textOnlyLayout && (
         <section className={styles.previewCol} aria-label={c.previewLabel}>
           <div className={styles.previewSticky}>
             {/* Every chosen position, on screen together.
@@ -1515,7 +1547,7 @@ export default function PersonalizationEditor({ locale, config, product, variant
             </fieldset>
           )}
 
-          {step === "positions" && simpleAvailable && (
+          {step === "positions" && modeChoice && (
             <fieldset className={styles.panel}>
               <legend className={styles.panelTitle}>
                 <PencilLine size={15} aria-hidden="true" /> {c.modeTitle}

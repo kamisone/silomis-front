@@ -10,7 +10,7 @@ import Image from "next/image";
 import { useCart, type CheckoutFields } from "@/components/shop/CartContext";
 import PriceBreakdown, { embroideryCentsOf } from "@/components/shop/PriceBreakdown";
 import EmbroideryLine from "@/components/shop/EmbroideryLine";
-import PersonaliseOffer, { canOfferPersonalisation, PersonalisedLineActions } from "@/components/shop/PersonaliseOffer";
+import PersonaliseOffer, { PersonalisedLineActions } from "@/components/shop/PersonaliseOffer";
 import PromoCodeInput, { type ValidateCouponResult } from "@/components/shop/PromoCodeInput";
 import { getTranslations, type Locale } from "@/lib/i18n";
 import { useLocale } from "@/lib/i18n/useLocale";
@@ -374,9 +374,11 @@ export default function CheckoutPage() {
   }, [step, personaliseInFlow, form, snapshot, selectedMethodId, clientSecret, token, restoring]);
 
   /**
-   * Checkout opens on the personalise step when the basket holds a piece that
-   * could still be embroidered but is not — the customer skipped, or never
-   * saw, "Personalise this piece" on the product page.
+   * Checkout opens on the personalise step whenever the basket holds a piece
+   * that takes embroidery — plain (the customer skipped, or never saw,
+   * "Personalise this piece") or already embroidered, wherever that was done
+   * (product page, drawer, basket): the step is where the design is checked,
+   * changed or removed before the address.
    *
    * Not only on a brand-new checkout: earlier progress saved in this tab (an
    * address typed last visit) used to switch it off for good, and anyone who
@@ -390,7 +392,7 @@ export default function CheckoutPage() {
     const saved = savedSession.current;
     const alreadySeen = !!saved?.personaliseInFlow;
     const resumingLater = saved?.step === "shipping" || saved?.step === "payment";
-    if (!alreadySeen && !resumingLater && step === "address" && cart.items.some(canOfferPersonalisation)) {
+    if (!alreadySeen && !resumingLater && step === "address" && cart.items.some((i) => i.personalizable)) {
       setPersonaliseInFlow(true);
       setStep("personalise");
     }
@@ -828,7 +830,7 @@ export default function CheckoutPage() {
   return (
     <div className={styles.container}>
       <h1 className={styles.heading}>{t.shop.checkoutTitle}</h1>
-      <StepIndicator current={step} onStepClick={handleStepClick} showPersonalise={personaliseInFlow || step === "personalise" || (!snapshot && cart.items.some(canOfferPersonalisation))} t={t} />
+      <StepIndicator current={step} onStepClick={handleStepClick} showPersonalise={personaliseInFlow || step === "personalise" || cart.items.some((i) => i.personalizable)} t={t} />
 
       <div className={styles.layout}>
         {/* ── Left: step form ── */}

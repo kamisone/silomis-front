@@ -140,6 +140,9 @@ interface Product {
   askCompanyName?: boolean;
   askPhone?: boolean;
   askAddressLine2?: boolean;
+  /** Embroidery editors offered — "Just add my text" / "Design it myself". */
+  embroideryModeSimple?: boolean;
+  embroideryModeAdvanced?: boolean;
   isTestProduct: boolean;
   freeShipping: boolean;
   /** Set when the product can be embroidered — the "Custom embroidery" switch. */
@@ -421,6 +424,8 @@ export default function EditProductPage() {
         askCompanyName: !!product.askCompanyName,
         askPhone: !!product.askPhone,
         askAddressLine2: !!product.askAddressLine2,
+        embroideryModeSimple: product.embroideryModeSimple !== false,
+        embroideryModeAdvanced: product.embroideryModeAdvanced !== false,
         isTestProduct: product.isTestProduct,
         freeShipping: product.freeShipping,
         freeShippingDaysMin: product.freeShippingDaysMin,
@@ -1176,6 +1181,56 @@ export default function EditProductPage() {
                     .finally(() => setEmbroideryBusy(false));
                 }}
               />
+              {/* Which editors the customer is offered. Saved on the spot, like
+                  the switch above. At least one stays ticked — the last one is
+                  locked — and with only one, the storefront skips the "How do
+                  you want to personalise it?" question. */}
+              {!!product.personalizationTemplateId && !product.isService && (
+                <div className={styles.embroideryModes}>
+                  <span className={styles.embroideryModesLabel}>Personalisation options</span>
+                  {(
+                    [
+                      { key: "embroideryModeSimple", title: "Just add my text", hint: "Customer types a text and picks a thread colour; it is centred in the house font." },
+                      { key: "embroideryModeAdvanced", title: "Design it myself", hint: "Full designer: fonts, size, curve, spacing, several texts and designs." },
+                    ] as const
+                  ).map((m) => {
+                    const simpleOn = product.embroideryModeSimple !== false;
+                    const advancedOn = product.embroideryModeAdvanced !== false;
+                    const checked = m.key === "embroideryModeSimple" ? simpleOn : advancedOn;
+                    const lastOne = checked && (m.key === "embroideryModeSimple" ? !advancedOn : !simpleOn);
+                    return (
+                      <label key={m.key} className={`${styles.embroideryMode} ${checked ? styles.embroideryModeOn : ""}`} title={lastOne ? "At least one option must stay enabled" : undefined}>
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          disabled={lastOne || embroideryBusy}
+                          onChange={(e) => {
+                            const next = {
+                              embroideryModeSimple: m.key === "embroideryModeSimple" ? e.target.checked : simpleOn,
+                              embroideryModeAdvanced: m.key === "embroideryModeAdvanced" ? e.target.checked : advancedOn,
+                            };
+                            const prev = { embroideryModeSimple: simpleOn, embroideryModeAdvanced: advancedOn };
+                            set(next);
+                            setEmbroideryBusy(true);
+                            api
+                              .patch(`/next-api/admin/shop/products/${product.id}`, next)
+                              .then(() => toast.success("Personalisation options saved."))
+                              .catch(() => {
+                                set(prev);
+                                toast.error("Could not save the personalisation options.");
+                              })
+                              .finally(() => setEmbroideryBusy(false));
+                          }}
+                        />
+                        <span>
+                          <span className={styles.embroideryModeTitle}>{m.title}</span>
+                          <span className={styles.hint} style={{ display: "block", marginTop: 1 }}>{m.hint}</span>
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
               <div className={styles.divider} />
               <Switch
                 label="Test product"
