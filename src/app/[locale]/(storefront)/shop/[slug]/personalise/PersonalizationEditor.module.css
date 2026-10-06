@@ -93,7 +93,8 @@
    within it and stops when the controls run out. */
 .previewCol {
   position: sticky;
-  top: var(--header-offset, 90px);
+  /* Under the item tabs too, when several different items are on show. */
+  top: calc(var(--header-offset, 90px) + var(--item-tabs-height, 0px));
   /* Follows the header rather than jumping ahead of it — see .galleryCol on the
      product page for the whole story. `top` only moves when the header comes or
      goes, so nothing else is animated. */
@@ -138,7 +139,7 @@
   .previewSticky {
     position: sticky;
     /* Clears the fixed site header, whose real height is measured at runtime. */
-    top: calc(var(--header-offset, 90px) + 12px);
+    top: calc(var(--header-offset, 90px) + var(--item-tabs-height, 0px) + 12px);
     transition: top 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
@@ -156,14 +157,14 @@
      size and the loop has nothing to feed on. Position still follows the
      offset, so the block slides up as the header leaves. */
   .previewImageWrap {
-    max-height: calc(100vh - var(--header-height, 112px) - 250px);
+    max-height: calc(100vh - var(--header-height, 112px) - var(--item-tabs-height, 0px) - 250px);
   }
 
   /* With a row of thumbnails under it, the working canvas has to leave room for
      them too — same rule, more to fit. The floor stops it collapsing to a
      sliver on a very short window. */
   .previewCardFeatured .previewImageWrap {
-    max-height: max(150px, calc(100vh - var(--header-height, 112px) - 380px));
+    max-height: max(150px, calc(100vh - var(--header-height, 112px) - var(--item-tabs-height, 0px) - 380px));
   }
 }
 
@@ -2667,4 +2668,149 @@
 .designLoadFailed {
   color: #b45309;
   background: #fffbeb;
+}
+
+/* ── Several different items: the tabs ─────────────────────────────────── */
+/* A full-width bar between the page title and the editor, sticking under the
+   site header. Its height is published as --item-tabs-height so the sticky
+   preview stacks under it instead of sliding beneath it. */
+
+.itemTabs {
+  position: sticky;
+  top: var(--header-offset, 90px);
+  transition: top 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 8;
+  margin: 0 0 14px;
+  /* Brand pink, so "which item am I designing" is the loudest thing on the
+     page: a soft pink band, a solid pink open tab. */
+  background: color-mix(in srgb, var(--brand-base) 90%, var(--color-accent) 10%);
+  border-top: 3px solid var(--color-accent);
+  border-bottom: 1px solid color-mix(in srgb, var(--brand-base) 70%, var(--color-accent) 30%);
+  box-shadow: 0 10px 16px -12px color-mix(in srgb, var(--color-accent) 45%, transparent);
+}
+
+/* Scrolls sideways rather than wrapping: eight items on a phone would
+   otherwise take half the screen. */
+.itemTabsRow {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 10px 20px;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.itemTabsRow::-webkit-scrollbar {
+  display: none;
+}
+
+.itemTab {
+  flex: 0 0 auto;
+  display: grid;
+  gap: 2px;
+  min-width: 128px;
+  max-width: 200px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1.5px solid color-mix(in srgb, var(--brand-base) 60%, var(--color-accent) 40%);
+  background: var(--background);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+.itemTab:hover {
+  border-color: var(--color-accent);
+  box-shadow: 0 2px 8px -2px color-mix(in srgb, var(--color-accent) 40%, transparent);
+}
+.itemTab:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.itemTabOpen,
+.itemTabOpen:hover {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  box-shadow: 0 6px 14px -6px color-mix(in srgb, var(--color-accent) 75%, transparent);
+  transform: translateY(-1px);
+}
+
+.itemTabHead {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.itemTabName {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--color-accent);
+  white-space: nowrap;
+}
+
+.itemTabPrice {
+  margin-left: auto;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--color-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.itemTabWords {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--color-secondary);
+}
+
+.itemTabWordsMuted {
+  font-weight: 600;
+  color: var(--color-muted, #6b7280);
+}
+
+/* On the solid pink tab every label turns white. */
+.itemTabOpen .itemTabName,
+.itemTabOpen .itemTabPrice,
+.itemTabOpen .itemTabWords {
+  color: #fff;
+}
+.itemTabOpen .itemTabWordsMuted {
+  color: rgb(255 255 255 / 85%);
+}
+
+.itemMark {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1.5px solid color-mix(in srgb, var(--brand-base) 50%, var(--color-accent) 50%);
+  color: #fff;
+}
+
+.itemMarkDone {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+}
+
+.itemMarkTodo {
+  border-color: #b45309;
+  background: #b45309;
+}
+
+.itemTabOpen .itemMark {
+  border-color: #fff;
+}
+.itemTabOpen .itemMarkDone {
+  background: #fff;
+  color: var(--color-accent);
+}
+
+.itemsIntro {
+  margin: 0 0 12px;
+  font-size: 12.5px;
+  color: var(--color-muted, #6b7280);
 }

@@ -956,10 +956,18 @@ export default function ShopProductDetail({
                 a different decision from buying, and a second button sharing
                 that row would compete with the primary action instead of
                 leading into it. The chosen variant rides along in `v` so the
-                editor embroiders the cap they were actually looking at. */}
+                editor embroiders the cap they were actually looking at, and
+                the quantity in `qty` — the editor then asks whether the items
+                share one design or each get their own. */}
             {product.personalizationTemplateId && (
               <Link
-                href={`/${locale}/shop/${product.slug}/personalise${activeId ? `?v=${activeId}` : ""}`}
+                href={`/${locale}/shop/${product.slug}/personalise${(() => {
+                  const qs = new URLSearchParams();
+                  if (activeId) qs.set("v", activeId);
+                  if (!inCart && qty > 1) qs.set("qty", String(qty));
+                  const str = qs.toString();
+                  return str ? `?${str}` : "";
+                })()}`}
                 className={styles.personalizeCta}
               >
                 <span className={styles.personalizeCtaIcon} aria-hidden="true">
@@ -967,7 +975,9 @@ export default function ShopProductDetail({
                 </span>
                 <span className={styles.personalizeCtaBody}>
                   <span className={styles.personalizeCtaHead}>
-                    <span className={styles.personalizeCtaTitle}>{t.personalize.ctaTitle}</span>
+                    <span className={styles.personalizeCtaTitle}>
+                      {!inCart && qty > 1 ? t.personalize.ctaTitleMany.replace("{n}", String(qty)) : t.personalize.ctaTitle}
+                    </span>
                     {embroideryFromLabel(product.personalizationFromCents, locale) && (
                       <span className={styles.personalizeCtaPrice}>{embroideryFromLabel(product.personalizationFromCents, locale)}</span>
                     )}

@@ -12,9 +12,11 @@ interface PageProps {
    * `v` carries the variant the customer was already looking at on the PDP.
    * `line` is a plain basket line to embroider instead of adding a new one —
    * the offer in the drawer, the basket and checkout's first step — and
-   * `from`/`return` say where to go back to afterwards.
+   * `from`/`return` say where to go back to afterwards. `qty` is the quantity
+   * chosen on the PDP; whether those items share one design is asked on the
+   * editor's Positions step.
    */
-  searchParams: Promise<{ v?: string; line?: string; from?: string; return?: string; edit?: string }>;
+  searchParams: Promise<{ v?: string; line?: string; from?: string; return?: string; edit?: string; qty?: string }>;
 }
 
 /** Where a basket-line edit returns to. Only same-site paths are honoured. */
@@ -48,6 +50,8 @@ interface EditorProduct {
   basePriceCents: number;
   personalizationTemplateId: string | null;
   variants?: EditorVariant[];
+  upsellingEnabled?: boolean;
+  upsellTiers?: { quantity: number; unitPriceCents: number; active?: boolean }[];
 }
 
 /**
@@ -121,7 +125,7 @@ export default async function PersonalisePage({ params, searchParams }: PageProp
   const { slug, locale } = await params;
   if (!isValidLocale(locale)) notFound();
 
-  const [product, { v, line, from, return: ret, edit }] = await Promise.all([fetchProduct(slug, locale), searchParams]);
+  const [product, { v, line, from, return: ret, edit, qty }] = await Promise.all([fetchProduct(slug, locale), searchParams]);
   if (!product) notFound();
 
   const config = await fetchConfig(product.id, locale);
@@ -138,12 +142,15 @@ export default async function PersonalisePage({ params, searchParams }: PageProp
   // `edit=1`: the line is already embroidered and the editor reopens its design to change it.
   const lineTarget = line ? { itemId: line, mode: edit === "1" ? ("edit" as const) : ("add" as const), ...lineReturn(locale, slug, from, ret) } : undefined;
   const c = getTranslations(locale).personalize;
+  const quantity = Math.max(1, Math.floor(Number(qty)) || 1);
 
   return (
     <PersonalizationEditor
       locale={locale}
       config={config}
       targetLine={lineTarget}
+      quantity={quantity}
+      tiers={product.upsellingEnabled ? product.upsellTiers?.filter((t) => t.active !== false) : undefined}
       back={lineTarget ? { href: lineTarget.href, label: lineTarget.isCheckout ? c.backToCheckout : from === "cart" ? c.backToCart : c.backToProduct } : undefined}
       product={{
         id: product.id,

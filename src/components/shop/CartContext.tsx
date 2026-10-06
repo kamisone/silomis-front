@@ -153,7 +153,8 @@ interface CartContextValue {
   ) => Promise<CartMutationResult>;
   updateItem: (itemId: string, quantity: number) => Promise<CartMutationResult>;
   /** Embroiders one unit of a plain line already in the basket. */
-  personaliseItem: (itemId: string, personalizations: PersonalizationInput[]) => Promise<CartMutationResult>;
+  /** One design per unit to embroider; units left over stay plain. */
+  personaliseItem: (itemId: string, items: PersonalizationInput[][]) => Promise<CartMutationResult>;
   /** Swaps the design on an embroidered line. */
   updateDesign: (itemId: string, personalizations: PersonalizationInput[]) => Promise<CartMutationResult>;
   /** Takes the embroidery off a line — its units go back to the plain item. */
@@ -318,13 +319,13 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
    * new entered the basket (the backend skips its tracking for the same reason).
    */
   const designRequest = useCallback(
-    async (method: "POST" | "PUT" | "DELETE", itemId: string, personalizations?: PersonalizationInput[]): Promise<CartMutationResult> => {
+    async (method: "POST" | "PUT" | "DELETE", itemId: string, body?: { personalizations: PersonalizationInput[] } | { items: PersonalizationInput[][] }): Promise<CartMutationResult> => {
       setMutating(true);
       try {
         const res = await fetch(`/next-api/public/shop/cart/${token}/items/${itemId}/personalise?lang=${locale}`, {
           method,
           headers: { "Content-Type": "application/json" },
-          ...(personalizations ? { body: JSON.stringify({ personalizations }) } : {}),
+          ...(body ? { body: JSON.stringify(body) } : {}),
         });
         if (res.ok) {
           applyMutation(await res.json());
@@ -342,11 +343,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   );
 
   const personaliseItem = useCallback(
-    (itemId: string, personalizations: PersonalizationInput[]) => designRequest("POST", itemId, personalizations),
+    (itemId: string, items: PersonalizationInput[][]) => designRequest("POST", itemId, { items }),
     [designRequest],
   );
   const updateDesign = useCallback(
-    (itemId: string, personalizations: PersonalizationInput[]) => designRequest("PUT", itemId, personalizations),
+    (itemId: string, personalizations: PersonalizationInput[]) => designRequest("PUT", itemId, { personalizations }),
     [designRequest],
   );
   const removeDesign = useCallback((itemId: string) => designRequest("DELETE", itemId), [designRequest]);

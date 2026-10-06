@@ -52,6 +52,13 @@ interface Props {
    * to the shop. Rendered as the last panel, after the design itself.
    */
   noteField?: { title: string; hint: string; placeholder: string; value: string; onChange: (value: string) => void; maxLength?: number };
+  /**
+   * How many items the customer chose on the PDP. Ignored on a basket line
+   * and a send-in, which are always one.
+   */
+  quantity?: number;
+  /** The product's quantity tiers, so the price for several pieces matches the cart. */
+  tiers?: { quantity: number; unitPriceCents: number }[];
 }
 
 const STEPS = ["positions", "design", "review"] as const;
@@ -189,6 +196,51 @@ function designFromStored(designJson: unknown, threads: EditorConfig["threads"])
   return { elements, activeElementId: elements[0].id };
 }
 
+/**
+ * One item of a "different personalisation for each item" order. Only the
+ * open item's design lives in the editor's own state; the others wait here,
+ * with their own undo history, and swap in when their card is opened. An
+ * item with nothing written on it goes to the basket plain.
+ */
+interface UnitState {
+  designs: Record<string, DesignState>;
+  past: Record<string, DesignState>[];
+  future: Record<string, DesignState>[];
+  activeKey: string;
+}
+
+
+/**
+ * An item's starting design, taken from the item the customer just left:
+ * same positions, face, spool, size and placement, with the words cleared —
+ * "JAMES, EMMA, NOAH" in one style is the usual order. Shapes and logos are
+ * dropped; they would make an untouched item look personalised.
+ */
+function styleOnly(designs: Record<string, DesignState>): Record<string, DesignState> {
+  return Object.fromEntries(
+    Object.entries(designs).map(([key, d]) => {
+      const kept = d.elements.filter((el) => el.options.contentType === "text" || el.options.contentType === "monogram");
+      const src = kept.length ? kept : d.elements.slice(0, 1);
+      const elements = src.map((el) => ({
+        ...el,
+        id: nextElementId(),
+        raw: "",
+        options: { ...el.options, contentType: el.options.contentType === "monogram" ? ("monogram" as const) : ("text" as const), kerning: null },
+      }));
+      return [key, { elements, activeElementId: elements[0]?.id ?? "" }];
+    }),
+  );
+}
+
+/** The most items one order can split into — beyond that it is a quote, not a basket. */
+const MAX_ITEMS = 20;
+
+/** The cart's own tier rule: a flat unit price, the highest qualifying quantity wins. */
+function tierUnitPrice(baseCents: number, quantity: number, tiers: Props["tiers"]): number {
+  const best = (tiers ?? []).filter((t) => t.quantity <= quantity).sort((a, b) => b.quantity - a.quantity)[0];
+  return best ? best.unitPriceCents : baseCents;
+}
+
 function euros(cents: number): string {
   return (cents / 100).toFixed(2);
 }
@@ -210,7 +262,7 @@ function noop(): void {}
  * price, stitch count, fit — is computed locally so it moves with the typing,
  * then confirmed by a debounced server quote whose total is the binding one.
  */
-export default function PersonalizationEditor({ locale, config, product, variant, customerItems, back, targetLine, precedingSteps = [], noteField }: Props) {
+export default function PersonalizationEditor({ locale, config, product, variant, customerItems, back, targetLine, precedingSteps = [], noteField, quantity = 1, tiers }: Props) {
   const t = getTranslations(locale);
   const c = t.personalize;
   const { addItem, personaliseItem, updateDesign, openDrawer, cart } = useCart();
@@ -220,8 +272,29 @@ export default function PersonalizationEditor({ locale, config, product, variant
   // A send-in's positions are its photographed sides and they are already
   // decided, so the editor opens on the design itself.
   const locked = !!customerItems;
-  const [step, setStep] = useState<Step>(locked ? "design" : "positions");
+  const itemCount = !editing && !customerItems ? Math.max(1, Math.min(MAX_ITEMS, Math.floor(quantity))) : 1;
+  // Several items pick their positions per item, on the design step.
+  const [step, setStep] = useState<Step>(locked || itemCount > 1 ? "design" : "positions");
   const [designs, setDesigns] = useState<Record<string, DesignState>>({});
+
+  // ── Several items ───────────────────────────────────────────────────
+
+  /**
+   * More than one item: the PDP's quantity, or the units of a plain basket
+   * line being personalised from the drawer, cart or checkout. Not when
+   * editing an embroidered line (its units share one design) nor on a
+   * send-in (one garment).
+   *
+   * Every item is personalised on its own: no Positions step; each item picks
+   * its positions and design in its tab on the design step, and every item
+   * must be finished before Review.
+   */
+  const eachMode = itemCount > 1;
+  const [units, setUnits] = useState<UnitState[]>(() =>
+    Array.from({ length: itemCount }, () => ({ designs: {}, past: [], future: [], activeKey: "" })),
+  );
+  const [unitIndex, setUnitIndex] = useState(0);
+
 
   // Not on a send-in (its sides need logos, borders, a customer-framed area),
   // and not where the shop offers no text to write.
@@ -230,12 +303,12 @@ export default function PersonalizationEditor({ locale, config, product, variant
   // mode cannot run, whatever the setting — the editor must always have a way in.
   const simpleAvailable = !locked && config.template.allowText && config.fonts.length > 0 && config.modes?.simple !== false;
   const advancedAllowed = !simpleAvailable || config.modes?.advanced !== false;
-  /** Both editors on offer — only then is "How do you want to personalise it?" asked. */
-  const modeChoice = simpleAvailable && advancedAllowed;
   const [mode, setMode] = useState<EditorMode>(simpleAvailable ? "simple" : "advanced");
   const simple = simpleAvailable && mode === "simple";
   /** "Just add my text" past Positions: no photograph to place on, so just the form, centred. */
   const textOnlyLayout = simple && (step === "design" || step === "review");
+  /** Positions: nothing written yet, so no text controls, errors or selectable previews. */
+  const choosing = step === "positions";
 
   /**
    * Undo history over the whole design map.
@@ -464,7 +537,7 @@ export default function PersonalizationEditor({ locale, config, product, variant
       const elements = d.elements.filter((el) => el.id !== id);
 
       if (!elements.length) {
-        if (locked) return;
+        if (!canRemoveLastBox) return;
         const next = { ...designsRef.current };
         delete next[activeKey];
         commit(next);
@@ -475,14 +548,16 @@ export default function PersonalizationEditor({ locale, config, product, variant
         // step's whole panel is guarded on having a position — so it would sit
         // blank with no hint of what to do. Back to Positions, where the empty
         // state is the one the customer started from and reads as a choice.
-        if (!Object.keys(next).length) setStep("positions");
+        // (Not for one of several different items: its positions are picked
+        // in its own card on this step, and an item with none goes in plain.)
+        if (!Object.keys(next).length && !eachMode) setStep("positions");
         return;
       }
 
       const nextActive = d.activeElementId === id ? elements[Math.max(0, idx - 1)].id : d.activeElementId;
       commit({ ...designsRef.current, [activeKey]: { ...d, elements, activeElementId: nextActive } });
     },
-    [activeKey, commit, locked],
+    [activeKey, commit, canRemoveLastBox, eachMode],
   );
 
   // ── "Just add my text" ──────────────────────────────────────────────
@@ -550,7 +625,6 @@ export default function PersonalizationEditor({ locale, config, product, variant
   );
   const hasAdvancedWork = useMemo(() => Object.values(designs).some(isAdvancedDesign), [designs, isAdvancedDesign]);
 
-
   /**
    * Switching to "Just add my text" brings every chosen position down to what
    * that mode can show: its first text and spool, in the house style. Switching
@@ -587,12 +661,58 @@ export default function PersonalizationEditor({ locale, config, product, variant
     (next: EditorMode) => {
       setMode(next);
       if (next !== "simple") return;
+      // Every item of a several-item order, not only the open one.
+      setUnits((prev) => prev.map((u) => ({ ...u, designs: simplifyDesigns(u.designs) })));
       const current = designsRef.current;
       if (!Object.values(current).some(isAdvancedDesign)) return;
       commit(simplifyDesigns(current));
     },
     [isAdvancedDesign, simplifyDesigns, commit],
   );
+
+  /** Every item, with the open one's live design written back into its slot. */
+  const snapshotUnits = useCallback(
+    (): UnitState[] =>
+      units.map((u, i) => (i === unitIndex ? { designs: designsRef.current, past: past.current, future: future.current, activeKey } : u)),
+    [units, unitIndex, activeKey],
+  );
+
+  /** Whether a design has anything on it to sew. */
+  const hasContent = useCallback(
+    (ds: Record<string, DesignState>) =>
+      Object.values(ds).some((d) =>
+        d.elements.some((el) =>
+          el.options.contentType === "motif" ? !!el.options.motifKey : el.options.contentType === "artwork" ? !!el.options.artworkKey : el.raw.trim() !== "",
+        ),
+      ),
+    [],
+  );
+
+  /**
+   * Opens an item's card. An item nobody has written on yet starts in the
+   * style of the one just left, so the customer only types the next name.
+   */
+  const openUnit = useCallback(
+    (index: number) => {
+      if (index === unitIndex || !units[index]) return;
+      const list = snapshotUnits();
+      let target = list[index];
+      if (!hasContent(target.designs) && Object.keys(list[unitIndex].designs).length) {
+        target = { designs: styleOnly(list[unitIndex].designs), past: [], future: [], activeKey: list[unitIndex].activeKey };
+        list[index] = target;
+      }
+      setUnits(list);
+      setUnitIndex(index);
+      setDesigns(target.designs);
+      past.current = target.past;
+      future.current = target.future;
+      setHistoryTick((t) => t + 1);
+      setActiveKey(target.activeKey);
+      setAddError("");
+    },
+    [unitIndex, units, snapshotUnits, hasContent],
+  );
+
 
   /**
    * Changing embroidery already in the basket: reopen the stored design on
@@ -642,10 +762,11 @@ export default function PersonalizationEditor({ locale, config, product, variant
 
   // ── Evaluation, per position ─────────────────────────────────────────
 
-  const evaluations = useMemo(() => {
+  /** Any piece's designs, measured — the open one's below, the others' for the order summary. */
+  const evaluateDesigns = useCallback((ds: Record<string, DesignState>) => {
     const out: Record<string, EditorEvaluation> = {};
     for (const placement of config.placements) {
-      const d = designs[placement.key];
+      const d = ds[placement.key];
       if (!d) continue;
       out[placement.key] = evaluateDesign({
         elements: d.elements.map((el) => ({
@@ -665,7 +786,9 @@ export default function PersonalizationEditor({ locale, config, product, variant
       });
     }
     return out;
-  }, [config.placements, config.fonts, config.threads, config.motifs, config.fieldLimits, designs]);
+  }, [config.placements, config.fonts, config.threads, config.motifs, config.fieldLimits]);
+
+  const evaluations = useMemo(() => evaluateDesigns(designs), [evaluateDesigns, designs]);
 
   const activeElement = useMemo(
     () => activeDesign?.elements.find((el) => el.id === activeDesign.activeElementId) ?? activeDesign?.elements[0],
@@ -915,16 +1038,18 @@ export default function PersonalizationEditor({ locale, config, product, variant
 
   // ── Server quote for the whole set ───────────────────────────────────
 
-  const payload: PersonalizationInput[] = useMemo(
-    () =>
-      chosenKeys
-        .filter((k) => !evaluations[k]?.error)
+  /** What the server is sent for one piece: every valid position, in the template's order. */
+  const buildPayload = useCallback(
+    (ds: Record<string, DesignState>, evs: Record<string, EditorEvaluation>): PersonalizationInput[] =>
+      config.placements
+        .filter((p) => ds[p.key] && !evs[p.key]?.error)
+        .map((p) => p.key)
         .map((k) => ({
           placementKey: k,
           ...(customerItems?.[k] ? { customerItem: customerItems[k] } : {}),
-          elements: designs[k].elements.map((el, i) => ({
+          elements: ds[k].elements.map((el, i) => ({
             contentType: el.options.contentType,
-            text: evaluations[k].elements[i]?.text ?? "",
+            text: evs[k].elements[i]?.text ?? "",
             fontKey: el.fontKey,
             heightMm: el.heightMm,
             // A logo carries its own colours — no spool to name.
@@ -947,16 +1072,40 @@ export default function PersonalizationEditor({ locale, config, product, variant
             artworkHeightMm: el.options.artworkHeightMm ?? undefined,
           })),
         })),
-    [chosenKeys, designs, evaluations, customerItems, ownColours],
+    [config.placements, customerItems, ownColours],
   );
+
+  const payload: PersonalizationInput[] = useMemo(() => buildPayload(designs, evaluations), [buildPayload, designs, evaluations]);
 
   const quoteKey = JSON.stringify(payload);
   const latestQuote = useRef(0);
 
+  /**
+   * Every server quote so far, by design. Several pieces share a design ("same
+   * as"), and reopening a piece should not re-ask for a price the server has
+   * already given — so the open piece and the order summary both read here.
+   * An entry with `error` is a design the server refused.
+   */
+  const [quoteCache, setQuoteCache] = useState<Record<string, number | { error: string }>>({});
+  const quoteCacheRef = useRef(quoteCache);
+  // Declared before the quote effect so it has run by the time that one reads it.
   useEffect(() => {
-    if (!payload.length || payload.length !== chosenKeys.length) {
+    quoteCacheRef.current = quoteCache;
+  }, [quoteCache]);
+
+  useEffect(() => {
+    // Several different items are priced per item, below.
+    if (eachMode || !payload.length || payload.length !== chosenKeys.length) {
       setQuote(null);
       setQuoteState("idle");
+      setQuoteError(null);
+      return;
+    }
+    const known = quoteCacheRef.current[quoteKey];
+    if (typeof known === "number") {
+      latestQuote.current += 1;
+      setQuote({ totalCents: known });
+      setQuoteState("ok");
       setQuoteError(null);
       return;
     }
@@ -982,6 +1131,7 @@ export default function PersonalizationEditor({ locale, config, product, variant
         setQuote({ totalCents: body.totalCents });
         setQuoteState("ok");
         setQuoteError(null);
+        setQuoteCache((prev) => ({ ...prev, [quoteKey]: body.totalCents }));
 
       } catch {
         if (ticket !== latestQuote.current) return;
@@ -991,12 +1141,111 @@ export default function PersonalizationEditor({ locale, config, product, variant
     }, 400);
     return () => clearTimeout(timer);
     // quoteKey stands in for every input the quote depends on.
-  }, [quoteKey, product.id, locale, c]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [quoteKey, product.id, locale, c, eachMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
 
+
+  // ── Every item, summarised ───────────────────────────────────────────
+
+  /**
+   * What each item comes to: its design for the basket, what its embroidery
+   * costs, and its words for the card header and the review.
+   *
+   * Every item has to be finished before the order moves on: at least one
+   * position, and every position it has written on. `broken` is a design that
+   * cannot be sewn (or that the server refused); `complete` is ready to price.
+   */
+  const unitSummaries = useMemo(() => {
+    if (!eachMode) return [];
+    return units.map((u, i) => {
+      const live = i === unitIndex;
+      const ds = live ? designs : u.designs;
+      const evs = live ? evaluations : evaluateDesigns(ds);
+      const keys = config.placements.filter((p) => ds[p.key]).map((p) => p.key);
+      const broken = keys.some((k) => {
+        const err = evs[k]?.error;
+        return !!err && err !== "empty";
+      });
+      const complete = keys.length > 0 && keys.every((k) => !evs[k]?.error);
+      const pl = buildPayload(ds, evs);
+      const key = JSON.stringify(pl);
+      const local = pl.reduce((sum, d) => sum + (evs[d.placementKey]?.priceCents ?? 0), 0);
+      const cached = quoteCache[key];
+      const boxes = pl.flatMap((d) =>
+        ds[d.placementKey].elements.map((el, j) => {
+          const motif = el.options.contentType === "motif" ? config.motifs.find((m) => m.key === el.options.motifKey) : null;
+          const font = config.fonts.find((f) => f.key === el.fontKey) ?? config.fonts[0];
+          const thread = config.threads.find((th) => th.id === el.threadId);
+          return {
+            text: (motif?.name ?? (el.options.contentType === "artwork" ? (el.options.artworkName ?? "") : (evs[d.placementKey]?.elements[j]?.text ?? "")))
+              .replace(/\s+/g, " ")
+              .trim(),
+            fontFamily: motif || el.options.contentType === "artwork" ? undefined : font?.webFamily,
+            cssWeight: weightForStep(el.weightStep).cssWeight,
+            hex: motif || el.options.contentType === "artwork" ? undefined : thread?.hex,
+            meta: [config.placements.find((p) => p.key === d.placementKey)?.label, motif ? null : font?.name, thread?.name].filter(Boolean).join(" · "),
+          };
+        }),
+      );
+      return {
+        plain: !pl.length,
+        broken,
+        complete,
+        // Something written, but a position still empty: started, not finished.
+        started: hasContent(ds),
+        payload: pl,
+        key,
+        cents: typeof cached === "number" ? cached : local,
+        quoted: !pl.length || typeof cached === "number",
+        quoteError: cached && typeof cached === "object" ? cached.error : null,
+        boxes: boxes.filter((bx) => bx.text),
+      };
+    });
+  }, [eachMode, units, unitIndex, designs, evaluations, evaluateDesigns, buildPayload, hasContent, config.placements, config.motifs, config.fonts, config.threads, quoteCache]);
+
+  /**
+   * Prices every item's design, debounced like the single quote: each item
+   * carries its own subset of positions, which the open-item quote (all
+   * positions or nothing) cannot price.
+   */
+  const unpricedKey = [...new Set(unitSummaries.filter((u) => u.complete && !(u.key in quoteCache)).map((u) => u.key))].join("\n");
+  const [itemsQuoting, setItemsQuoting] = useState(false);
+  useEffect(() => {
+    if (!unpricedKey) return;
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      setItemsQuoting(true);
+      Promise.all(
+        unpricedKey.split("\n").map((key) =>
+          fetch(`/next-api/public/shop/personalization/quote/${product.id}?lang=${locale}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ designs: JSON.parse(key) }),
+          })
+            .then(async (res) => {
+              const body = await res.json().catch(() => ({}));
+              if (cancelled) return;
+              setQuoteCache((prev) => ({ ...prev, [key]: res.ok ? body.totalCents : { error: errorCopy(body?.code, c) ?? c.errors.generic } }));
+            })
+            // Offline: left unpriced, so the next change asks again.
+            .catch(() => {}),
+        ),
+      ).finally(() => {
+        if (!cancelled) setItemsQuoting(false);
+      });
+    }, 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+      setItemsQuoting(false);
+    };
+  }, [unpricedKey, product.id, locale, c]);
+
+  /** Every item's design in one string — what a confirmation is given for. */
+  const unitsKey = eachMode ? JSON.stringify(unitSummaries.map((u) => u.key)) : quoteKey;
 
   // Any edit invalidates a confirmation given for a different design.
-  useEffect(() => setConfirmed(false), [quoteKey]);
+  useEffect(() => setConfirmed(false), [unitsKey]);
 
   // ── Totals ───────────────────────────────────────────────────────────
 
@@ -1023,6 +1272,15 @@ export default function PersonalizationEditor({ locale, config, product, variant
   const totalCents = variant.priceCents + embroideryCents;
 
   /**
+   * Several items: each at the tier price for the whole quantity, plus the
+   * embroidery — once per item for "same on all", each item's own otherwise.
+   */
+  const itemUnitCents = tierUnitPrice(variant.priceCents, itemCount, tiers);
+  const itemsEmbroideryCents = eachMode ? unitSummaries.reduce((sum, u) => sum + u.cents, 0) : embroideryCents * itemCount;
+  const shownEmbroideryCents = itemCount > 1 ? itemsEmbroideryCents : embroideryCents;
+  const shownTotalCents = itemCount > 1 ? itemUnitCents * itemCount + itemsEmbroideryCents : totalCents;
+
+  /**
    * "Nothing written yet" is not a mistake — it is the next thing to do, and on
    * the Positions step the customer has not even been offered a field to write
    * in. Treating it as an error put a red alert on screen the moment a position
@@ -1047,7 +1305,7 @@ export default function PersonalizationEditor({ locale, config, product, variant
     : null;
   // Errors are only shown where they can be acted on. On the Positions step
   // there is no text field, so a complaint about the text is just noise.
-  const blocking = step === "positions" ? null : (localError ?? quoteError);
+  const blocking = choosing ? null : (localError ?? quoteError);
 
   // Read through the tick so the buttons re-render when the stacks change —
   // a ref's contents are invisible to React on their own.
@@ -1055,24 +1313,57 @@ export default function PersonalizationEditor({ locale, config, product, variant
   const canUndo = past.current.length > 0;
   const canRedo = future.current.length > 0;
 
-  /** The steps this session walks: a send-in skips Positions. */
-  const steps = useMemo(() => STEPS.filter((s) => !(locked && s === "positions")), [locked]);
+  /**
+   * The steps this session walks: a send-in skips Positions, and so do several
+   * items — each picks its own positions in its tab on the design step.
+   */
+  const steps = useMemo(() => STEPS.filter((s) => !(s === "positions" && (locked || eachMode))), [locked, eachMode]);
   const stepIndex = steps.indexOf(step);
   const canLeavePositions = chosenKeys.length > 0;
-  const canLeaveDesign = chosenKeys.length > 0 && !firstBroken && !incompleteKeys.length;
-  const canAdd = !blocking && !incompleteKeys.length && quoteState === "ok" && confirmed && !adding;
+  // Several different items: every one of them finished, none refused.
+  const unfinishedItems = unitSummaries.map((u, i) => (!u.complete || u.quoteError ? i : -1)).filter((i) => i >= 0);
+  /**
+   * The item "Next item" opens: the next unfinished one after the
+   * open item, wrapping round — so an item skipped earlier is not forgotten.
+   * -1 once every other item is finished, when the button becomes Continue.
+   */
+  const otherUnfinished = unfinishedItems.filter((i) => i !== unitIndex);
+  const nextItem = eachMode ? (otherUnfinished.find((i) => i > unitIndex) ?? otherUnfinished[0] ?? -1) : -1;
+  const openItemDone = !unfinishedItems.includes(unitIndex);
+  const canLeaveDesign = eachMode ? !unfinishedItems.length : chosenKeys.length > 0 && !firstBroken && !incompleteKeys.length;
+  const itemsReady = !unfinishedItems.length && unitSummaries.every((u) => u.quoted) && !itemsQuoting;
+  const canAdd = eachMode
+    ? itemsReady && confirmed && !adding
+    : !blocking && !incompleteKeys.length && quoteState === "ok" && confirmed && !adding;
+
+  /**
+   * Groups of items already in the basket from an add that failed part-way,
+   * so a retry does not add them twice. Cleared by any change to the pieces.
+   */
+  const addedGroups = useRef(new Set<string>());
+  useEffect(() => {
+    addedGroups.current.clear();
+  }, [unitsKey]);
 
   const handleAdd = useCallback(async () => {
     setAddError("");
     if (targetLine) {
       // The line may have gone since the link was opened (removed in another
       // tab, or the order completed) — say so rather than failing vaguely.
-      if (cart && !cart.items.some((i) => i.id === targetLine.itemId)) {
+      const line = cart?.items.find((i) => i.id === targetLine.itemId);
+      if (cart && !line) {
         setAddError(c.lineGone);
         return;
       }
+      // Fewer units than designs: the quantity was lowered in another tab.
+      if (line && !editing && line.quantity < itemCount) {
+        setAddError(c.lineChanged);
+        return;
+      }
       setAdding(true);
-      const result = editing ? await updateDesign(targetLine.itemId, payload) : await personaliseItem(targetLine.itemId, payload);
+      const result = editing
+        ? await updateDesign(targetLine.itemId, payload)
+        : await personaliseItem(targetLine.itemId, eachMode ? unitSummaries.map((u) => u.payload) : [payload]);
       if (result.ok) {
         router.push(targetLine.href);
         if (targetLine.openDrawer) openDrawer();
@@ -1082,15 +1373,47 @@ export default function PersonalizationEditor({ locale, config, product, variant
       setAddError(errorCopy(result.code, c) ?? c.errors.addFailed);
       return;
     }
+    if (eachMode) {
+      // One basket line per distinct design (two items both reading "JAMES"
+      // are one line of two). Sequential: every add re-prices the product's
+      // other lines for its quantity tier.
+      const groups = new Map<string, { count: number; payload: PersonalizationInput[] }>();
+      for (const u of unitSummaries) {
+        const g = groups.get(u.key) ?? { count: 0, payload: u.payload };
+        g.count += 1;
+        groups.set(u.key, g);
+      }
+      const ordered = [...groups.entries()];
+      setAdding(true);
+      let added = 0;
+      for (const [key, g] of ordered) {
+        if (!addedGroups.current.has(key)) {
+          const result = await addItem(variant.id, g.count, undefined, g.payload);
+          if (!result.ok) {
+            setAdding(false);
+            const reason = errorCopy(result.code, c) ?? c.errors.addFailed;
+            setAddError(added ? `${c.itemsPartial.replace("{added}", String(added)).replace("{total}", String(itemCount))} ${reason}` : reason);
+            return;
+          }
+          addedGroups.current.add(key);
+        }
+        added += g.count;
+      }
+      addedGroups.current.clear();
+      setAdding(false);
+      openDrawer();
+      return;
+    }
     setAdding(true);
-    const result = await addItem(variant.id, 1, undefined, payload);
+    // "Same personalisation on all": one line, the whole quantity.
+    const result = await addItem(variant.id, itemCount, undefined, payload);
     setAdding(false);
     if (result.ok) {
       openDrawer();
       return;
     }
     setAddError(errorCopy(result.code, c) ?? c.errors.addFailed);
-  }, [targetLine, editing, cart, personaliseItem, updateDesign, router, addItem, variant.id, payload, openDrawer, c]);
+  }, [targetLine, editing, cart, personaliseItem, updateDesign, router, addItem, variant.id, payload, openDrawer, c, eachMode, unitSummaries, itemCount]);
 
   const previewDesign = activeDesign;
 
@@ -1174,7 +1497,7 @@ export default function PersonalizationEditor({ locale, config, product, variant
      * The panels are chosen on the cards below; up here the photographs are the
      * answer to "what is a front panel", nothing more.
      */
-    const selectable = step !== "positions" && previewKeys.length > 1;
+    const selectable = !choosing && previewKeys.length > 1;
     return (
       <div
         key={key}
@@ -1283,8 +1606,206 @@ export default function PersonalizationEditor({ locale, config, product, variant
     );
   };
 
+  // ── Several different items: the cards and the review ────────────────
+
+  const pageRef = useRef<HTMLDivElement>(null);
+  const layoutRef = useRef<HTMLDivElement>(null);
+  const itemTabsRef = useRef<HTMLDivElement>(null);
+  const itemTabsRowRef = useRef<HTMLDivElement>(null);
+  const showItemTabs = step === "design" && eachMode;
+
+  // The tab bar's height, for everything that sticks below it.
+  useEffect(() => {
+    const page = pageRef.current;
+    const bar = itemTabsRef.current;
+    if (!page) return;
+    if (!showItemTabs || !bar) {
+      page.style.removeProperty("--item-tabs-height");
+      return;
+    }
+    const publish = () => page.style.setProperty("--item-tabs-height", `${bar.offsetHeight}px`);
+    publish();
+    const ro = new ResizeObserver(publish);
+    ro.observe(bar);
+    return () => {
+      ro.disconnect();
+      page.style.removeProperty("--item-tabs-height");
+    };
+  }, [showItemTabs]);
+
+  // The open tab scrolled into the row — the fifth of eight is off a phone's edge.
+  useEffect(() => {
+    const row = itemTabsRowRef.current;
+    const tab = row?.querySelector<HTMLElement>("[data-open]");
+    if (!row || !tab) return;
+    const left = tab.offsetLeft - row.offsetLeft;
+    if (left < row.scrollLeft || left + tab.offsetWidth > row.scrollLeft + row.clientWidth) {
+      row.scrollTo({ left: Math.max(0, left - 16), behavior: "smooth" });
+    }
+  }, [unitIndex, showItemTabs]);
+
+  /**
+   * Opens another item from the tabs. If the page is scrolled past the top of
+   * the editor, it is brought back to it: the new item's positions are the
+   * first thing to see, not the middle of its design panel.
+   */
+  const switchItem = (i: number) => {
+    openUnit(i);
+    const layout = layoutRef.current;
+    if (!layout) return;
+    const offset = (parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--header-offset")) || 0) + (itemTabsRef.current?.offsetHeight ?? 0);
+    const top = layout.getBoundingClientRect().top - offset;
+    if (top < 0) window.scrollTo({ top: window.scrollY + top - 8, behavior: "smooth" });
+  };
+
+  const itemLabel = (i: number) => c.itemOf.replace("{i}", String(i + 1)).replace("{n}", String(itemCount));
+
+  /**
+   * One item's tab on the design step: which item, and what it carries so
+   * far — its words, "Add personalization", or a mark when it needs fixing.
+   */
+  const itemTab = (i: number) => {
+    const u = unitSummaries[i];
+    if (!u) return null;
+    const open = i === unitIndex;
+    const words = u.boxes.map((bx) => bx.text).join(" · ");
+    const state = u.broken || u.quoteError ? "todo" : u.complete ? "done" : u.started ? "partial" : "empty";
+    return (
+      <button
+        key={i}
+        type="button"
+        role="tab"
+        aria-selected={open}
+        data-open={open || undefined}
+        className={`${styles.itemTab} ${open ? styles.itemTabOpen : ""}`}
+        onClick={() => switchItem(i)}
+      >
+        <span className={styles.itemTabHead}>
+          <span className={`${styles.itemMark} ${state === "done" ? styles.itemMarkDone : state === "todo" ? styles.itemMarkTodo : ""}`} aria-hidden="true">
+            {state === "done" ? <Check size={10} /> : state === "todo" ? <AlertTriangle size={9} /> : null}
+          </span>
+          <span className={styles.itemTabName}>{c.itemTab.replace("{i}", String(i + 1)).replace("{n}", String(itemCount))}</span>
+          {!u.plain && <span className={styles.itemTabPrice}>+€{euros(u.cents)}</span>}
+        </span>
+        <span className={`${styles.itemTabWords} ${state !== "done" ? styles.itemTabWordsMuted : ""}`}>
+          {state === "todo" ? (u.quoteError ?? c.itemFix) : state === "empty" ? c.itemAdd : state === "partial" ? c.itemFinish : words}
+        </span>
+      </button>
+    );
+  };
+
+  /** Every item set large, as on the single review: a typo in a name has to be visible. */
+  const itemsReview = eachMode && (
+    <>
+      {unitSummaries.map((u, i) => (
+        <div key={i} className={styles.reviewCard}>
+          <div className={styles.reviewHead}>
+            <span className={styles.reviewPlacement}>{itemLabel(i)}</span>
+            <span className={styles.reviewPrice}>€{euros(u.cents)}</span>
+          </div>
+          {u.boxes.map((bx, j) => (
+            <div key={j} className={styles.reviewBox}>
+              <strong className={styles.spellCheckText} style={{ fontFamily: bx.fontFamily, fontWeight: bx.cssWeight, color: bx.hex }}>
+                {bx.text}
+              </strong>
+              <p className={styles.reviewMeta}>{bx.meta}</p>
+            </div>
+          ))}
+          <button
+            type="button"
+            className={styles.reviewEdit}
+            onClick={() => {
+              openUnit(i);
+              setStep("design");
+            }}
+          >
+            {c.edit}
+          </button>
+        </div>
+      ))}
+      <dl className={styles.summary}>
+        <div>
+          <dt>{c.summaryItem}</dt>
+          <dd>
+            {product.title} — {variant.label}
+          </dd>
+        </div>
+        <div>
+          <dt>{c.itemsLabel}</dt>
+          <dd>
+            {itemCount} × €{euros(itemUnitCents)}
+          </dd>
+        </div>
+        <div>
+          <dt>{c.summaryEmbroidery}</dt>
+          <dd>€{euros(itemsEmbroideryCents)}</dd>
+        </div>
+      </dl>
+    </>
+  );
+
+  /**
+   * "Where should it go?" — on the Positions step for one design, and inside
+   * the open item's card for several different items, since each item can be
+   * embroidered in different places.
+   */
+  const positionsPanel = (
+    <fieldset className={styles.panel}>
+      <legend className={styles.panelTitle}>
+        <MapPin size={15} aria-hidden="true" /> {c.positionsTitle}
+      </legend>
+      <p className={styles.panelHint}>{c.positionsHint}</p>
+      <div className={styles.optionCards}>
+        {config.placements.map((p) => {
+          const chosen = !!designs[p.key];
+          return (
+            <button
+              key={p.key}
+              type="button"
+              className={`${styles.optionCard} ${chosen ? styles.optionCardActive : ""}`}
+              onClick={() => togglePosition(p)}
+              aria-pressed={chosen}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={p.imageUrl ?? undefined} alt="" className={styles.optionCardThumb} />
+              <span className={styles.optionCardBody}>
+                <span className={styles.optionCardTitle}>{p.label}</span>
+                {p.hint && <span className={styles.optionCardHint}>{p.hint}</span>}
+              </span>
+              <span className={styles.optionCardRight}>
+                {p.priceCents > 0 && <span className={styles.optionCardPrice}>+€{euros(p.priceCents)}</span>}
+                <span className={`${styles.optionCardCheck} ${chosen ? styles.optionCardCheckOn : ""}`} aria-hidden="true">
+                  {chosen ? <Check size={13} /> : <Plus size={13} />}
+                </span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      {chosenKeys.length > 1 && <p className={styles.multiNote}>{c.multiNote}</p>}
+    </fieldset>
+  );
+
+  const consentBlock = (
+    <>
+      <label className={styles.consent}>
+        <input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} />
+        {/* A send-in is someone else's garment: the consent also covers
+            ownership, condition and the wear it already has. */}
+        <span>{customerItems ? t.sendIn.consentItem : c.consent}</span>
+      </label>
+      <p className={styles.consentNote}>{c.consentNote}</p>
+
+      {addError && (
+        <p className={styles.errorBox} role="alert">
+          <AlertTriangle size={14} aria-hidden="true" /> {addError}
+        </p>
+      )}
+    </>
+  );
+
   return (
-    <div className={styles.page}>
+    <div ref={pageRef} className={styles.page}>
       <header className={styles.topBar}>
         {back?.onClick ? (
           <button type="button" className={styles.backLink} onClick={back.onClick}>
@@ -1312,7 +1833,18 @@ export default function PersonalizationEditor({ locale, config, product, variant
           nothing to place, so no photograph either: just the form, centred.
           The same on Review: the customer never placed anything, so a photo
           of the house layout would show them a placement they did not choose. */}
-      <div className={`${styles.layout} ${textOnlyLayout ? styles.layoutSingle : ""}`}>
+      {/* Several different items: which one is being designed, always in
+          reach. Sticks under the site header; the preview below sticks under
+          it in turn, by the height published as --item-tabs-height. */}
+      {step === "design" && eachMode && (
+        <div ref={itemTabsRef} className={styles.itemTabs}>
+          <div ref={itemTabsRowRef} className={styles.itemTabsRow} role="tablist" aria-label={c.itemsTitle.replace("{n}", String(itemCount))}>
+            {unitSummaries.map((_, i) => itemTab(i))}
+          </div>
+        </div>
+      )}
+
+      <div ref={layoutRef} className={`${styles.layout} ${textOnlyLayout ? styles.layoutSingle : ""}`}>
         {/* ── Preview ────────────────────────────────────────────────── */}
         {!textOnlyLayout && (
         <section className={styles.previewCol} aria-label={c.previewLabel}>
@@ -1429,7 +1961,7 @@ export default function PersonalizationEditor({ locale, config, product, variant
                 lettering could be any height. The limit that is real — the hoop
                 against the machine's frame — is checked locally and says so
                 immediately, in words, under these controls. */}
-            {step !== "positions" && !simple && (
+            {!choosing && !simple && (
               <>
                 {previewDesign && activeElement && (
                   <div className={styles.orientationRow}>
@@ -1510,76 +2042,13 @@ export default function PersonalizationEditor({ locale, config, product, variant
             ))}
           </ol>
 
-          {step === "positions" && (
-            <fieldset className={styles.panel}>
-              <legend className={styles.panelTitle}>
-                <MapPin size={15} aria-hidden="true" /> {c.positionsTitle}
-              </legend>
-              <p className={styles.panelHint}>{c.positionsHint}</p>
-              <div className={styles.optionCards}>
-                {config.placements.map((p) => {
-                  const chosen = !!designs[p.key];
-                  return (
-                    <button
-                      key={p.key}
-                      type="button"
-                      className={`${styles.optionCard} ${chosen ? styles.optionCardActive : ""}`}
-                      onClick={() => togglePosition(p)}
-                      aria-pressed={chosen}
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={p.imageUrl ?? undefined} alt="" className={styles.optionCardThumb} />
-                      <span className={styles.optionCardBody}>
-                        <span className={styles.optionCardTitle}>{p.label}</span>
-                        {p.hint && <span className={styles.optionCardHint}>{p.hint}</span>}
-                      </span>
-                      <span className={styles.optionCardRight}>
-                        {p.priceCents > 0 && <span className={styles.optionCardPrice}>+€{euros(p.priceCents)}</span>}
-                        <span className={`${styles.optionCardCheck} ${chosen ? styles.optionCardCheckOn : ""}`} aria-hidden="true">
-                          {chosen ? <Check size={13} /> : <Plus size={13} />}
-                        </span>
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-              {chosenKeys.length > 1 && <p className={styles.multiNote}>{c.multiNote}</p>}
-            </fieldset>
-          )}
+          {step === "positions" && positionsPanel}
 
-          {step === "positions" && modeChoice && (
-            <fieldset className={styles.panel}>
-              <legend className={styles.panelTitle}>
-                <PencilLine size={15} aria-hidden="true" /> {c.modeTitle}
-              </legend>
-              <div className={styles.optionCards} role="radiogroup" aria-label={c.modeTitle}>
-                {(["simple", "advanced"] as const).map((m) => {
-                  const on = mode === m;
-                  return (
-                    <button
-                      key={m}
-                      type="button"
-                      role="radio"
-                      aria-checked={on}
-                      className={`${styles.optionCard} ${on ? styles.optionCardActive : ""}`}
-                      onClick={() => chooseMode(m)}
-                    >
-                      <span className={styles.modeIcon} aria-hidden="true">
-                        {m === "simple" ? <Type size={20} /> : <SlidersHorizontal size={20} />}
-                      </span>
-                      <span className={styles.optionCardBody}>
-                        <span className={styles.optionCardTitle}>{m === "simple" ? c.modeSimple : c.modeAdvanced}</span>
-                        <span className={styles.optionCardHint}>{m === "simple" ? c.modeSimpleHint : c.modeAdvancedHint}</span>
-                      </span>
-                      <span className={`${styles.modeRadio} ${on ? styles.modeRadioOn : ""}`} aria-hidden="true" />
-                    </button>
-                  );
-                })}
-              </div>
-              {/* Said before the switch, not after: choosing the simple mode
-                  resets what it cannot show. */}
-              {mode === "advanced" && hasAdvancedWork && <p className={styles.multiNote}>{c.simpleSwitchNote}</p>}
-            </fieldset>
+          {step === "design" && eachMode && (
+            <>
+              <p className={styles.itemsIntro}>{c.itemsAllNote}</p>
+              {positionsPanel}
+            </>
           )}
 
           {step === "design" && simple && (
@@ -1656,10 +2125,13 @@ export default function PersonalizationEditor({ locale, config, product, variant
               <p className={styles.simpleNote}>
                 <Sparkles size={13} aria-hidden="true" /> {c.simpleNote}
               </p>
-              {/* Lossless: the full designer opens on exactly this design. */}
-              <button type="button" className={styles.toolBtn} onClick={() => chooseMode("advanced")}>
-                <SlidersHorizontal size={13} aria-hidden="true" /> {c.openDesigner}
-              </button>
+              {/* Lossless: the full designer opens on exactly this design.
+                  Only where the admin offers "Design it myself" on this product. */}
+              {advancedAllowed && (
+                <button type="button" className={styles.toolBtn} onClick={() => chooseMode("advanced")}>
+                  <SlidersHorizontal size={13} aria-hidden="true" /> {c.openDesigner}
+                </button>
+              )}
             </>
           )}
 
@@ -2379,6 +2851,18 @@ export default function PersonalizationEditor({ locale, config, product, variant
                   />
                 </fieldset>
               )}
+
+              {/* The way back to "Just add my text", where the admin offers both.
+                  It keeps each position's first text and colour — said here,
+                  before the click, since the rest is dropped. */}
+              {simpleAvailable && advancedAllowed && (
+                <>
+                  <button type="button" className={styles.toolBtn} onClick={() => chooseMode("simple")}>
+                    <Type size={13} aria-hidden="true" /> {c.openSimple}
+                  </button>
+                  {hasAdvancedWork && <p className={styles.simpleNote}>{c.simpleSwitchNote}</p>}
+                </>
+              )}
             </>
           )}
 
@@ -2389,7 +2873,8 @@ export default function PersonalizationEditor({ locale, config, product, variant
               </legend>
 
               <p className={styles.spellCheckLabel}>{c.spellCheckLabel}</p>
-              {chosenKeys.map((k) => {
+              {itemsReview}
+              {!eachMode && chosenKeys.map((k) => {
                 const p = config.placements.find((pl) => pl.key === k)!;
                 const d = designs[k];
                 const e = evaluations[k];
@@ -2455,36 +2940,37 @@ export default function PersonalizationEditor({ locale, config, product, variant
                 );
               })}
 
-              <dl className={styles.summary}>
-                <div>
-                  <dt>{c.summaryItem}</dt>
-                  <dd>
-                    {product.title} — {variant.label}
-                  </dd>
-                </div>
-                <div>
-                  <dt>{c.summaryPositions}</dt>
-                  <dd>{chosenKeys.length}</dd>
-                </div>
-                <div>
-                  <dt>{c.summaryEmbroidery}</dt>
-                  <dd>€{euros(embroideryCents)}</dd>
-                </div>
-              </dl>
-
-              <label className={styles.consent}>
-                <input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} />
-                {/* A send-in is someone else's garment: the consent also covers
-                    ownership, condition and the wear it already has. */}
-                <span>{customerItems ? t.sendIn.consentItem : c.consent}</span>
-              </label>
-              <p className={styles.consentNote}>{c.consentNote}</p>
-
-              {addError && (
-                <p className={styles.errorBox} role="alert">
-                  <AlertTriangle size={14} aria-hidden="true" /> {addError}
-                </p>
+              {eachMode ? null : (
+                <dl className={styles.summary}>
+                  <div>
+                    <dt>{c.summaryItem}</dt>
+                    <dd>
+                      {product.title} — {variant.label}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>{c.summaryPositions}</dt>
+                    <dd>{chosenKeys.length}</dd>
+                  </div>
+                  {itemCount > 1 && (
+                    <div>
+                      <dt>{c.itemsLabel}</dt>
+                      <dd>
+                        {itemCount} × €{euros(itemUnitCents)}
+                      </dd>
+                    </div>
+                  )}
+                  <div>
+                    <dt>{c.summaryEmbroidery}</dt>
+                    <dd>
+                      €{euros(embroideryCents)}
+                      {itemCount > 1 && ` ${c.itemsTimes.replace("{n}", String(itemCount))}`}
+                    </dd>
+                  </div>
+                </dl>
               )}
+
+              {consentBlock}
             </fieldset>
           )}
 
@@ -2497,7 +2983,15 @@ export default function PersonalizationEditor({ locale, config, product, variant
             </p>
           )}
 
-          {step === "design" && incompleteKeys.length > 0 && (
+          {/* What still stands between the customer and Continue, by item. */}
+          {step === "design" && eachMode && unfinishedItems.length > 0 && (
+            <p className={styles.noteBox}>
+              <PencilLine size={14} aria-hidden="true" />
+              {c.itemsRemaining.replace("{list}", unfinishedItems.map((i) => c.itemTab.replace("{i}", String(i + 1)).replace("{n}", String(itemCount))).join(", "))}
+            </p>
+          )}
+
+          {step === "design" && !eachMode && incompleteKeys.length > 0 && (
             <p className={styles.noteBox}>
               <PencilLine size={14} aria-hidden="true" />
               {c.needsText.replace(
@@ -2522,14 +3016,22 @@ export default function PersonalizationEditor({ locale, config, product, variant
             {c.priceLabel}
             {quoteState === "loading" && <Loader2 size={12} className={styles.spin} aria-hidden="true" />}
           </span>
-          <span className={styles.priceValue}>€{euros(totalCents)}</span>
+          <span className={styles.priceValue}>€{euros(shownTotalCents)}</span>
           {/* On a customer's own item the whole figure is the sides' flat fees —
               "includes €X embroidery" would just repeat the total. */}
-          {embroideryCents > 0 && (customerItems ? chosenKeys.length > 1 : true) && (
+          {itemCount > 1 ? (
             <span className={styles.priceBreakdown}>
-              {!customerItems && c.includesEmbroidery.replace("{price}", `€${euros(embroideryCents)}`)}
-              {chosenKeys.length > 1 && `${customerItems ? "" : " · "}${c.acrossPositions.replace("{n}", String(chosenKeys.length))}`}
+              {c.itemsTimes.replace("{n}", String(itemCount))}
+              {shownEmbroideryCents > 0 && ` · ${c.includesEmbroidery.replace("{price}", `€${euros(shownEmbroideryCents)}`)}`}
             </span>
+          ) : (
+            embroideryCents > 0 &&
+            (customerItems ? chosenKeys.length > 1 : true) && (
+              <span className={styles.priceBreakdown}>
+                {!customerItems && c.includesEmbroidery.replace("{price}", `€${euros(embroideryCents)}`)}
+                {chosenKeys.length > 1 && `${customerItems ? "" : " · "}${c.acrossPositions.replace("{n}", String(chosenKeys.length))}`}
+              </span>
+            )
           )}
         </div>
 
@@ -2539,7 +3041,14 @@ export default function PersonalizationEditor({ locale, config, product, variant
               {c.back}
             </button>
           )}
-          {step !== "review" ? (
+          {step === "design" && nextItem >= 0 ? (
+            // Several different items, others still to do: finish this one,
+            // then on to the next — Review only once every item is done.
+            <button type="button" className={styles.primaryBtn} onClick={() => switchItem(nextItem)} disabled={!openItemDone}>
+              {c.nextItem}
+              <ArrowRight size={15} aria-hidden="true" />
+            </button>
+          ) : step !== "review" ? (
             <button
               type="button"
               className={styles.primaryBtn}
@@ -2551,7 +3060,15 @@ export default function PersonalizationEditor({ locale, config, product, variant
           ) : (
             <button type="button" className={styles.primaryBtn} onClick={handleAdd} disabled={!canAdd}>
               {adding ? <Loader2 size={15} className={styles.spin} aria-hidden="true" /> : <ShoppingBag size={15} aria-hidden="true" />}
-              {adding ? c.adding : editing ? c.saveDesign : targetLine ? c.lineSave : c.addToCart}
+              {adding
+                ? c.adding
+                : editing
+                  ? c.saveDesign
+                  : targetLine
+                    ? c.lineSave
+                    : eachMode
+                      ? c.continueToCart
+                      : c.addToCart}
             </button>
           )}
         </div>
@@ -2597,6 +3114,8 @@ function errorCopyForCode(code: string, placement: EditorPlacement, c: Copy, nam
 
 function errorCopy(code: string | undefined, c: Copy): string | null {
   switch (code) {
+    case "LINE_QUANTITY_CHANGED":
+      return c.lineChanged;
     case "PERSONALIZATION_TEXT_EMPTY":
       return c.errors.empty;
     case "PERSONALIZATION_TEXT_UNSTITCHABLE":

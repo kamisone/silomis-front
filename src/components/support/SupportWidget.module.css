@@ -508,7 +508,8 @@
 /* ── Mobile: full-screen chat ── */
 @media (max-width: 540px) {
   .root {
-    bottom: 70px;
+    /* Above a pinned buy/checkout bar when one is on screen (--buy-bar-height). */
+    bottom: max(70px, calc(var(--buy-bar-height, 0px) + 12px));
     right: 16px;
   }
 

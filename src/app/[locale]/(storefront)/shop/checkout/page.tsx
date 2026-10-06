@@ -245,10 +245,52 @@ function StripePaymentForm({ orderNumber, orderId, total, trackingToken, form, l
           {error}
         </p>
       )}
-      <button type="submit" disabled={paying || !stripe} className={styles.payBtn}>
-        {paying ? t.shop.processing : `${t.shop.payPrefix}${centsToEuros(total)}`}
-      </button>
+      <StickyActionBar>
+        <button type="submit" disabled={paying || !stripe} className={styles.payBtn}>
+          {paying ? t.shop.processing : `${t.shop.payPrefix}${centsToEuros(total)}`}
+        </button>
+      </StickyActionBar>
     </form>
+  );
+}
+
+// ── Sticky action bar ───────────────────────────────────────────────
+
+/** The phone breakpoint the checkout layout collapses to one column at. */
+const MOBILE_QUERY = "(max-width: 768px)";
+
+/**
+ * The step's main button, pinned to the bottom of the screen on a phone.
+ *
+ * On a phone the order summary sits above the form, so the button for the
+ * step is often a long scroll away — or below the keyboard. Fixed rather than
+ * sticky for that reason: sticky only pins while its own form is on screen.
+ * Its height is published as --buy-bar-height (the PDP's buy bar uses the
+ * same variable) so the back-to-top button and the chat bubble rise above it,
+ * and the page reserves the same room at its foot.
+ */
+function StickyActionBar({ children }: { children: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const root = document.documentElement;
+    const mq = window.matchMedia(MOBILE_QUERY);
+    const publish = () => root.style.setProperty("--buy-bar-height", mq.matches ? `${el.offsetHeight}px` : "0px");
+    publish();
+    const ro = new ResizeObserver(publish);
+    ro.observe(el);
+    mq.addEventListener("change", publish);
+    return () => {
+      ro.disconnect();
+      mq.removeEventListener("change", publish);
+      root.style.setProperty("--buy-bar-height", "0px");
+    };
+  }, []);
+  return (
+    <div ref={ref} className={styles.stickyAction}>
+      {children}
+    </div>
   );
 }
 
@@ -881,9 +923,11 @@ export default function CheckoutPage() {
                     </div>
                   ))}
               </div>
-              <button type="button" className={styles.continueBtn} onClick={() => goToStep("address")}>
-                {t.personalize.stepContinue}
-              </button>
+              <StickyActionBar>
+                <button type="button" className={styles.continueBtn} onClick={() => goToStep("address")}>
+                  {t.personalize.stepContinue}
+                </button>
+              </StickyActionBar>
             </div>
           )}
 
@@ -1007,9 +1051,11 @@ export default function CheckoutPage() {
                   {formError}
                 </p>
               )}
-              <button type="submit" disabled={submitting} className={styles.continueBtn}>
-                {submitting ? t.shop.processing : t.shop.continueToShipping}
-              </button>
+              <StickyActionBar>
+                <button type="submit" disabled={submitting} className={styles.continueBtn}>
+                  {submitting ? t.shop.processing : t.shop.continueToShipping}
+                </button>
+              </StickyActionBar>
             </form>
           )}
 
@@ -1145,19 +1191,21 @@ export default function CheckoutPage() {
                 </div>
               )}
 
-              <div className={styles.actionRow}>
-                <button type="button" onClick={() => handleStepClick("address")} className={styles.backBtn}>
-                  {t.shop.back}
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting || shippingUpdating || !selectedMethodId || (needsPickupPoint && !pickupPoint)}
-                  className={styles.continueBtn}
-                  style={{ flex: 1 }}
-                >
-                  {submitting ? t.shop.processing : t.shop.continueToPayment}
-                </button>
-              </div>
+              <StickyActionBar>
+                <div className={styles.actionRow}>
+                  <button type="button" onClick={() => handleStepClick("address")} className={styles.backBtn}>
+                    {t.shop.back}
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submitting || shippingUpdating || !selectedMethodId || (needsPickupPoint && !pickupPoint)}
+                    className={styles.continueBtn}
+                    style={{ flex: 1 }}
+                  >
+                    {submitting ? t.shop.processing : t.shop.continueToPayment}
+                  </button>
+                </div>
+              </StickyActionBar>
               {formError && (
                 <p className={styles.error} role="alert">
                   {formError}

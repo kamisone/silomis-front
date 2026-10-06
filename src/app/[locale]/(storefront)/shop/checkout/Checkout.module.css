@@ -722,3 +722,49 @@ a.summaryItemLink:focus-visible {
     height: 52px;
   }
 }
+
+/* ── Phones: the steps and the step's button stay on screen ──
+   The step bar sticks just under the header, following --header-offset as
+   the header hides on scroll down and returns on scroll up. The action bar is
+   fixed to the foot of the screen (see StickyActionBar for why not sticky);
+   the container reserves its height so the last field is never under it. */
+.stickyAction {
+  display: flex;
+  flex-direction: column;
+}
+.stickyAction .actionRow {
+  margin-top: 0;
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding-bottom: calc(40px + var(--buy-bar-height, 0px));
+  }
+
+  .steps {
+    position: sticky;
+    top: var(--header-offset, 0px);
+    z-index: 50;
+    margin: 0 -20px 24px;
+    padding: 10px 20px;
+    background: var(--background);
+    border-bottom: 1px solid var(--co-border);
+    transition: top 0.25s ease;
+  }
+
+  .stickyAction {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 60;
+    padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
+    background: var(--background);
+    border-top: 1px solid var(--co-border);
+    box-shadow: 0 -6px 18px rgb(16 24 40 / 8%);
+  }
+  .stickyAction .continueBtn,
+  .stickyAction .backBtn {
+    margin-top: 0;
+  }
+}

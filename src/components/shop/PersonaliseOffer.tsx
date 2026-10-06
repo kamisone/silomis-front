@@ -30,8 +30,9 @@ export function canOfferPersonalisation(item: CartItem): boolean {
 }
 
 /**
- * Opens the editor on one unit of this line. `line` makes the editor replace
- * that unit instead of adding a new one; `from` decides where it returns.
+ * Opens the editor on this line. `line` makes the editor personalise the
+ * line's units instead of adding new ones — every unit, one design each, as
+ * on the product page (`qty`); `from` decides where it returns.
  * The drawer has no page of its own, so it also hands over the page it was
  * opened on.
  */
@@ -39,6 +40,7 @@ export function personaliseHref(item: CartItem, locale: Locale, from: Personalis
   const qs = new URLSearchParams({ v: item.variantId, line: item.id, from });
   if (from === "drawer" && returnPath) qs.set("return", returnPath);
   if (edit) qs.set("edit", "1");
+  else if (item.quantity > 1) qs.set("qty", String(item.quantity));
   return `/${locale}/shop/${item.productSlug}/personalise?${qs.toString()}`;
 }
 

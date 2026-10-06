@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { proxyRequest } from "@/lib/proxy";
 
-/** Embroider one unit of a plain line already in the basket. */
+/** Embroider the units of a plain line already in the basket, one design per unit. */
 export const POST = async (req: NextRequest, { params }: { params: Promise<{ token: string; itemId: string }> }) => {
   const { token, itemId } = await params;
   return proxyRequest(req, "POST", `/shop/cart/${token}/items/${itemId}/personalise`, { auth: false });
