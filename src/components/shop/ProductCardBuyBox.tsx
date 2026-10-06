@@ -97,7 +97,6 @@ export default function ProductCardBuyBox({ href }: { href: string }) {
             })}
           </span>
           <span className={styles.triggerText}>
-            <span className={styles.triggerLabel}>{t.shop.optionsLabel}</span>
             <span className={styles.triggerValue}>{comboLabel}</span>
           </span>
           <ChevronDown size={14} strokeWidth={2.25} className={styles.chevron} aria-hidden="true" />

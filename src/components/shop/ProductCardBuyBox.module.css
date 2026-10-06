@@ -63,14 +63,6 @@
   flex: 1;
   min-width: 0;
 }
-.triggerLabel {
-  flex-shrink: 0;
-  font-size: 0.64rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--color-secondary);
-}
 .triggerValue {
   flex: 1;
   min-width: 0;
