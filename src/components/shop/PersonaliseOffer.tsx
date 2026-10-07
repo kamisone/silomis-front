@@ -2,22 +2,65 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Sparkles, ChevronRight, Pencil, Trash2 } from "lucide-react";
+import { Sparkles, ChevronRight, Pencil, Trash2, Gift } from "lucide-react";
 import { useCart, type CartItem } from "./CartContext";
 import { getTranslations, type Locale } from "@/lib/i18n";
 import styles from "./PersonaliseOffer.module.css";
 
 export type PersonaliseOrigin = "drawer" | "cart" | "checkout";
 
+/** What a product says about embroidery price before the editor opens. */
+export interface EmbroideryPricing {
+  fromCents?: number | null;
+  /** Positions the shop embroiders for free, already in the page's language. */
+  freePositions?: string[] | null;
+  /** Every position is free. */
+  allFree?: boolean | null;
+}
+
 /**
- * "from €10.00" for an embroidery button, or null when the price is unknown
- * (a backend that predates the field) — the button then shows no price rather
- * than a wrong one. A cheapest position priced at zero reads as "Free".
+ * The price line for an embroidery button.
+ *
+ * - `price`: "from €10.00", or null when nothing is charged up front or the
+ *   price is unknown (a backend that predates the field) — the button then
+ *   shows no price rather than a wrong one.
+ * - `freeLine`: when at least one position is free, the sentence that says
+ *   so — naming the positions unless every one of them is free, because a
+ *   bare "Free" on a product whose back panel costs €8 reads as a promise
+ *   the editor would then break.
  */
-export function embroideryFromLabel(cents: number | null | undefined, locale: Locale): string | null {
-  if (cents === null || cents === undefined) return null;
+export function embroideryPricing({ fromCents, freePositions, allFree }: EmbroideryPricing, locale: Locale): { price: string | null; freeLine: string | null } {
   const c = getTranslations(locale).personalize;
-  return cents === 0 ? c.priceFree : c.fromPrice.replace("{price}", `€${(cents / 100).toFixed(2)}`);
+  const names = freePositions?.filter(Boolean) ?? [];
+  if (allFree) return { price: null, freeLine: c.freeAll };
+  if (names.length) return { price: null, freeLine: c.freeOn.replace("{positions}", listOf(names, locale)) };
+  if (fromCents === null || fromCents === undefined) return { price: null, freeLine: null };
+  // A zero minimum with no names: a backend that predates freePositions.
+  if (fromCents === 0) return { price: null, freeLine: c.freeAll };
+  return { price: c.fromPrice.replace("{price}", `€${(fromCents / 100).toFixed(2)}`), freeLine: null };
+}
+
+/** "Front panel, Side and Back" in the page's own language. */
+function listOf(items: string[], locale: Locale): string {
+  try {
+    return new Intl.ListFormat(locale, { style: "long", type: "conjunction" }).format(items);
+  } catch {
+    return items.join(", ");
+  }
+}
+
+/**
+ * The "Free" pill — brand pink, so a free position is the first thing seen on
+ * any embroidery button or position card. `size="sm"` for tight spots (the
+ * editor's item tabs and position captions).
+ */
+export function FreeEmbroideryBadge({ locale, size = "md", className }: { locale: Locale; size?: "sm" | "md"; className?: string }) {
+  return (
+    <span className={`${styles.freeBadge} ${size === "sm" ? styles.freeBadgeSm : ""} ${className ?? ""}`}>
+      <Gift size={size === "sm" ? 10 : 12} strokeWidth={2.5} aria-hidden="true" />
+      {getTranslations(locale).personalize.priceFree}
+    </span>
+  );
 }
 
 /**
@@ -64,19 +107,26 @@ export default function PersonaliseOffer({
 }) {
   if (!canOfferPersonalisation(item)) return null;
   const c = getTranslations(locale).personalize;
-  const price = embroideryFromLabel(item.personalizeFromCents, locale);
+  const { price, freeLine } = embroideryPricing(
+    { fromCents: item.personalizeFromCents, freePositions: item.personalizeFreePositions, allFree: item.personalizeAllFree },
+    locale,
+  );
 
   return (
-    <Link href={personaliseHref(item, locale, from, returnPath)} className={styles.offer} onClick={onNavigate}>
+    <Link
+      href={personaliseHref(item, locale, from, returnPath)}
+      className={`${styles.offer} ${freeLine ? styles.offerFree : ""}`}
+      onClick={onNavigate}
+    >
       <span className={styles.icon} aria-hidden="true">
         <Sparkles size={14} />
       </span>
       <span className={styles.body}>
         <span className={styles.head}>
           <span className={styles.title}>{c.offerTitle}</span>
-          {price && <span className={styles.price}>{price}</span>}
+          {freeLine ? <FreeEmbroideryBadge locale={locale} size="sm" /> : price && <span className={styles.price}>{price}</span>}
         </span>
-        <span className={styles.sub}>{c.offerSub}</span>
+        {freeLine ? <span className={styles.freeLine}>{freeLine}</span> : <span className={styles.sub}>{c.offerSub}</span>}
       </span>
       <ChevronRight size={15} className={styles.chevron} aria-hidden="true" />
     </Link>

@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import DesignPreview, { type PreviewElement } from "./DesignPreview";
 import ScrollRail from "@/components/shop/ScrollRail";
+import { FreeEmbroideryBadge } from "@/components/shop/PersonaliseOffer";
 import { useCart, type CustomerItemInput, type PersonalizationInput } from "@/components/shop/CartContext";
 import { getTranslations, type Locale } from "@/lib/i18n";
 import {
@@ -290,6 +291,10 @@ export default function PersonalizationEditor({ locale, config, product, variant
    * must be finished before Review.
    */
   const eachMode = itemCount > 1;
+  // A position priced at zero is flagged "Free" wherever its price would sit.
+  // Not on a send-in: there the customer pays the item type's flat fee, and a
+  // position's own price means nothing.
+  const showFree = !customerItems;
   const [units, setUnits] = useState<UnitState[]>(() =>
     Array.from({ length: itemCount }, () => ({ designs: {}, past: [], future: [], activeKey: "" })),
   );
@@ -1582,7 +1587,11 @@ export default function PersonalizationEditor({ locale, config, product, variant
                     aria-hidden="true"
                   />
                 ) : (
-                  placement.priceCents > 0 && <span className={styles.previewCaptionPrice}>+€{euros(placement.priceCents)}</span>
+                  placement.priceCents > 0 ? (
+                    <span className={styles.previewCaptionPrice}>+€{euros(placement.priceCents)}</span>
+                  ) : (
+                    showFree && <FreeEmbroideryBadge locale={locale} size="sm" />
+                  )
                 )}
               </>
             );
@@ -1685,7 +1694,12 @@ export default function PersonalizationEditor({ locale, config, product, variant
             {state === "done" ? <Check size={10} /> : state === "todo" ? <AlertTriangle size={9} /> : null}
           </span>
           <span className={styles.itemTabName}>{c.itemTab.replace("{i}", String(i + 1)).replace("{n}", String(itemCount))}</span>
-          {!u.plain && <span className={styles.itemTabPrice}>+€{euros(u.cents)}</span>}
+          {!u.plain &&
+            (u.cents > 0 || !showFree ? (
+              <span className={styles.itemTabPrice}>+€{euros(u.cents)}</span>
+            ) : (
+              <FreeEmbroideryBadge locale={locale} size="sm" className={styles.itemTabFree} />
+            ))}
         </span>
         <span className={`${styles.itemTabWords} ${state !== "done" ? styles.itemTabWordsMuted : ""}`}>
           {state === "todo" ? (u.quoteError ?? c.itemFix) : state === "empty" ? c.itemAdd : state === "partial" ? c.itemFinish : words}
@@ -1773,7 +1787,11 @@ export default function PersonalizationEditor({ locale, config, product, variant
                 {p.hint && <span className={styles.optionCardHint}>{p.hint}</span>}
               </span>
               <span className={styles.optionCardRight}>
-                {p.priceCents > 0 && <span className={styles.optionCardPrice}>+€{euros(p.priceCents)}</span>}
+                {p.priceCents > 0 ? (
+                  <span className={styles.optionCardPrice}>+€{euros(p.priceCents)}</span>
+                ) : (
+                  showFree && <FreeEmbroideryBadge locale={locale} size="sm" />
+                )}
                 <span className={`${styles.optionCardCheck} ${chosen ? styles.optionCardCheckOn : ""}`} aria-hidden="true">
                   {chosen ? <Check size={13} /> : <Plus size={13} />}
                 </span>
@@ -2069,7 +2087,11 @@ export default function PersonalizationEditor({ locale, config, product, variant
                   >
                     <legend className={styles.panelTitle}>
                       <MapPin size={15} aria-hidden="true" /> {p.label}
-                      {p.priceCents > 0 && <span className={styles.simplePrice}>+€{euros(p.priceCents)}</span>}
+                      {p.priceCents > 0 ? (
+                        <span className={styles.simplePrice}>+€{euros(p.priceCents)}</span>
+                      ) : (
+                        showFree && <FreeEmbroideryBadge locale={locale} size="sm" className={styles.simpleFree} />
+                      )}
                     </legend>
                     <label className={styles.field}>
                       <span className={styles.fieldLabel}>{c.textLabel}</span>

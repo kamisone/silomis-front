@@ -112,6 +112,10 @@ export interface CartItem {
   personalizable?: boolean;
   /** Cheapest embroidery for this product (cents) — the offer's "from €X". */
   personalizeFromCents?: number | null;
+  /** Positions embroidered for free, in the cart's language — the offer names them. */
+  personalizeFreePositions?: string[];
+  /** Every position on this product is free. */
+  personalizeAllFree?: boolean;
   optionsSnapshot: CartItemOption[] | null;
   compareAtPriceCentsSnapshot?: number | null;
   /** Null on an ordinary line. Its price is already inside unitPriceCents. */

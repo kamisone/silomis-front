@@ -11,7 +11,7 @@ import { useVariantSelection } from "@/components/shop/useVariantSelection";
 import WishlistButton from "@/components/shop/WishlistButton";
 import ShareButton from "@/components/shop/ShareButton";
 import ReplayRecorderMount from "@/components/shop/ReplayRecorderMount";
-import { embroideryFromLabel } from "@/components/shop/PersonaliseOffer";
+import { embroideryPricing, FreeEmbroideryBadge } from "@/components/shop/PersonaliseOffer";
 import PromotionBadge, { type PromotionInfo } from "@/components/shop/PromotionBadge";
 import BackToTopButton from "@/components/BackToTopButton";
 import { getTrustBadgeIcon } from "@/lib/shop/trustBadgeIcons";
@@ -124,6 +124,10 @@ export interface Product {
   personalizationTemplateId?: string | null;
   /** Cheapest embroidery for this product (cents), for "from €X" on the Personalise button. */
   personalizationFromCents?: number | null;
+  /** Positions embroidered for free, in the page's language — the button names them. */
+  personalizationFreePositions?: string[];
+  /** Every position on this product is free. */
+  personalizationAllFree?: boolean;
   featuredImageUrl: string | null;
   galleryImageUrls: string[];
   media: ResolvedMediaItem[];
@@ -493,6 +497,11 @@ export default function ShopProductDetail({
   );
   const inCart = !!cartLine;
   const cartQty = cartLine?.quantity ?? 0;
+  // "from €X", or "Free" + which positions — see embroideryPricing.
+  const embroideryPrice = embroideryPricing(
+    { fromCents: product.personalizationFromCents, freePositions: product.personalizationFreePositions, allFree: product.personalizationAllFree },
+    locale,
+  );
 
   /**
    * How many of the selected combination to add. A plain number: one line, one
@@ -968,7 +977,7 @@ export default function ShopProductDetail({
                   const str = qs.toString();
                   return str ? `?${str}` : "";
                 })()}`}
-                className={styles.personalizeCta}
+                className={`${styles.personalizeCta} ${embroideryPrice.freeLine ? styles.personalizeCtaFree : ""}`}
               >
                 <span className={styles.personalizeCtaIcon} aria-hidden="true">
                   <Sparkles size={16} />
@@ -978,10 +987,13 @@ export default function ShopProductDetail({
                     <span className={styles.personalizeCtaTitle}>
                       {!inCart && qty > 1 ? t.personalize.ctaTitleMany.replace("{n}", String(qty)) : t.personalize.ctaTitle}
                     </span>
-                    {embroideryFromLabel(product.personalizationFromCents, locale) && (
-                      <span className={styles.personalizeCtaPrice}>{embroideryFromLabel(product.personalizationFromCents, locale)}</span>
+                    {embroideryPrice.freeLine ? (
+                      <FreeEmbroideryBadge locale={locale} />
+                    ) : (
+                      embroideryPrice.price && <span className={styles.personalizeCtaPrice}>{embroideryPrice.price}</span>
                     )}
                   </span>
+                  {embroideryPrice.freeLine && <span className={styles.personalizeCtaFreeLine}>{embroideryPrice.freeLine}</span>}
                   <span className={styles.personalizeCtaSub}>{t.personalize.ctaSub}</span>
                 </span>
                 <ChevronRight size={16} aria-hidden="true" className={styles.personalizeCtaChevron} />
