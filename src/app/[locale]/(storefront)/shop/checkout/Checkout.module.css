@@ -785,3 +785,94 @@ a.summaryItemLink:focus-visible {
   margin-top: 2px;
   color: var(--color-success, #16a34a);
 }
+
+/* ── Address-step validation ─────────────────────────────────────────── */
+/* A field needing attention: red border and a faint red wash, kept while it
+   has focus (a red focus ring, not the brand one) so the problem stays
+   visible exactly while it is being fixed. */
+.fieldInvalid input {
+  border-color: var(--color-error, #dc2626);
+  background: color-mix(in srgb, var(--color-error, #dc2626) 3%, var(--background));
+}
+.fieldInvalid input:focus {
+  border-color: var(--color-error, #dc2626);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-error, #dc2626) 18%, transparent);
+}
+.fieldInvalid label {
+  color: var(--color-error, #dc2626);
+}
+
+/* The line under the field. #b91c1c rather than the border red: it is text,
+   and needs the contrast at 12.5px. */
+.fieldError {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 6px 0 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: #b91c1c;
+  animation: fieldErrorIn 0.18s ease-out;
+}
+.fieldError svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+@keyframes fieldErrorIn {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+}
+
+/* Above the button: every problem at once, each a link back to its field. */
+.errorSummary {
+  margin: 4px 0 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--color-error-border, #fecaca);
+  border-left: 4px solid var(--color-error, #dc2626);
+  border-radius: 9px;
+  background: var(--color-error-bg, #fef2f2);
+}
+.errorSummaryTitle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 6px;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #991b1b;
+}
+.errorSummaryList {
+  margin: 0;
+  padding: 0 0 0 23px;
+  display: grid;
+  gap: 2px;
+}
+.errorSummaryLink {
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  color: #b91c1c;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.errorSummaryLink:hover {
+  color: #7f1d1d;
+}
+.errorSummaryLink:focus-visible {
+  outline: 2px solid #b91c1c;
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fieldError {
+    animation: none;
+  }
+}

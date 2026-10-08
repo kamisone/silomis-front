@@ -181,3 +181,15 @@
     transition: none;
   }
 }
+
+/* Same red as the checkout's other invalid fields; focus keeps the red ring
+   rather than the brand one, so the problem stays visible while it is fixed. */
+.triggerInvalid,
+.triggerInvalid:hover:not(:disabled) {
+  border-color: var(--color-error, #dc2626);
+  background: color-mix(in srgb, var(--color-error, #dc2626) 3%, var(--background));
+}
+.triggerInvalid:focus-visible {
+  border-color: var(--color-error, #dc2626);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-error, #dc2626) 18%, transparent);
+}

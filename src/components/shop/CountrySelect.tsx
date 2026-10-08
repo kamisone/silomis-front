@@ -37,6 +37,10 @@ interface Props {
   /** Labels the trigger for assistive tech — the visible <label> is the caller's. */
   ariaLabel: string;
   id?: string;
+  /** Marks the picker as needing attention (red border, aria-invalid). */
+  invalid?: boolean;
+  /** Id of the element that says what is wrong, read out with the picker. */
+  describedBy?: string;
 }
 
 /**
@@ -59,6 +63,8 @@ export default function CountrySelect({
   noResultsLabel,
   ariaLabel,
   id,
+  invalid = false,
+  describedBy,
 }: Props) {
   const reactId = useId();
   const baseId = id ?? reactId;
@@ -187,7 +193,7 @@ export default function CountrySelect({
         type="button"
         ref={triggerRef}
         id={baseId}
-        className={`${styles.trigger} ${open ? styles.triggerOpen : ""}`}
+        className={`${styles.trigger} ${open ? styles.triggerOpen : ""} ${invalid ? styles.triggerInvalid : ""}`}
         onClick={() => (open ? close() : setOpen(true))}
         disabled={disabled}
         role="combobox"
@@ -195,6 +201,8 @@ export default function CountrySelect({
         aria-controls={open ? listboxId : undefined}
         aria-haspopup="listbox"
         aria-label={ariaLabel}
+        aria-invalid={invalid || undefined}
+        aria-describedby={describedBy}
       >
         {selected ? (
           <span className={styles.value}>

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowUpRight, Check, Lock } from "lucide-react";
+import { AlertCircle, ArrowUpRight, Check, Lock } from "lucide-react";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import type { StripeElementLocale, StripePaymentElementOptions } from "@stripe/stripe-js";
@@ -19,6 +19,7 @@ import { pixelTrack, getMetaCookies } from "@/lib/metaPixel";
 import { ttqTrack, getTikTokCookies } from "@/lib/tiktokPixel";
 import styles from "./Checkout.module.css";
 import { recordPaymentMarker } from "@/lib/shop/replayRecorder";
+import { orderedErrors, validateAddress, type AddressErrors, type AddressField } from "./addressValidation";
 import PickupPointSelector, { type PickupPoint } from "@/components/shop/PickupPointSelector";
 
 type T = ReturnType<typeof getTranslations>;
@@ -287,6 +288,19 @@ function StripePaymentForm({ orderNumber, orderId, total, trackingToken, form, l
   );
 }
 
+// ── Field errors ────────────────────────────────────────────────────
+
+/** The line under a field saying what is wrong with it; nothing when fine. */
+function FieldError({ id, message }: { id: string; message: string | null | undefined }) {
+  if (!message) return null;
+  return (
+    <p id={id} className={styles.fieldError}>
+      <AlertCircle size={14} aria-hidden="true" />
+      {message}
+    </p>
+  );
+}
+
 // ── Sticky action bar ───────────────────────────────────────────────
 
 /** The phone breakpoint the checkout layout collapses to one column at. */
@@ -433,7 +447,10 @@ export default function CheckoutPage() {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState("");
-  const [nameGroupError, setNameGroupError] = useState("");
+  // Errors are shown only once the customer has tried to continue — never
+  // while they are still typing a field for the first time — and from then on
+  // they follow the form live, so each one clears the moment it is fixed.
+  const [addressAttempted, setAddressAttempted] = useState(false);
   const [restoring, setRestoring] = useState(true);
 
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
@@ -616,7 +633,6 @@ export default function CheckoutPage() {
 
   function handleStepClick(s: Step) {
     setFormError("");
-    setNameGroupError("");
     if (s === "personalise") {
       setClientSecret(null);
       goToStep("personalise");
@@ -629,18 +645,43 @@ export default function CheckoutPage() {
     }
   }
 
+  const addressErrors: AddressErrors = addressAttempted ? validateAddress(visibleForm(form, ask), { companyAllowed: ask.companyName }, t.shop) : {};
+  const addressProblems = orderedErrors(addressErrors);
+
+  /**
+   * Takes the customer to a field that needs fixing: scrolled to the middle
+   * of the screen (clear of the fixed header and, on a phone, the sticky
+   * button bar) and focused, so they can type straight away.
+   */
+  function focusAddressField(field: AddressField) {
+    const el = document.getElementById(`co-${field}`);
+    if (!el) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    el.scrollIntoView({ block: "center", behavior: reduce ? "auto" : "smooth" });
+    el.focus({ preventScroll: true });
+  }
+
+  /** Everything an input needs to be tied to its label and its error. */
+  function addressFieldProps(field: AddressField) {
+    const error = addressErrors[field];
+    return {
+      id: `co-${field}`,
+      "aria-invalid": error ? true : undefined,
+      "aria-describedby": error?.message ? `co-${field}-error` : undefined,
+    };
+  }
+
   async function handleSubmitAddress(e: React.FormEvent) {
     e.preventDefault();
     if (!cart?.items.length) return;
 
     const sent = visibleForm(form, ask);
-    const hasName = sent.firstName.trim() && sent.lastName.trim();
-    const hasCompany = sent.companyName.trim();
-    if (!hasName && !hasCompany) {
-      setNameGroupError(ask.companyName ? t.shop.nameOrCompanyRequired : t.shop.nameRequired);
+    setAddressAttempted(true);
+    const problems = orderedErrors(validateAddress(sent, { companyAllowed: ask.companyName }, t.shop));
+    if (problems.length) {
+      focusAddressField(problems[0].field);
       return;
     }
-    setNameGroupError("");
 
     setSubmitting(true);
     setFormError("");
@@ -650,7 +691,7 @@ export default function CheckoutPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         cartToken: token,
-        email: form.email,
+        email: form.email.trim(),
         firstName: form.firstName || null,
         lastName: form.lastName || null,
         companyName: sent.companyName || null,
@@ -993,118 +1034,161 @@ export default function CheckoutPage() {
 
           {/* STEP 1 — Address */}
           {step === "address" && (
-            <form onSubmit={handleSubmitAddress}>
+            // noValidate: the browser's bubbles show one field at a time, in
+            // the browser's language, and skipped the name fields — see
+            // addressValidation.ts. `required` stays on the inputs for what it
+            // tells assistive tech.
+            <form onSubmit={handleSubmitAddress} noValidate>
               <h2 className={styles.sectionTitle}>{t.shop.contactInfo}</h2>
               <div className={styles.row}>
-                <div className={styles.field}>
-                  <label>
+                <div className={`${styles.field} ${addressErrors.firstName ? styles.fieldInvalid : ""}`}>
+                  <label htmlFor="co-firstName">
                     {t.shop.firstName}
                     <span className={styles.requiredMark}> *</span>
                   </label>
                   <input
+                    {...addressFieldProps("firstName")}
+                    autoComplete="given-name"
+                    required={!ask.companyName}
                     value={form.firstName}
-                    onChange={(e) => {
-                      setForm((f) => ({ ...f, firstName: e.target.value }));
-                      setNameGroupError("");
-                    }}
+                    onChange={(e) => setForm((f) => ({ ...f, firstName: e.target.value }))}
                   />
+                  <FieldError id="co-firstName-error" message={addressErrors.firstName?.message} />
                 </div>
-                <div className={styles.field}>
-                  <label>
+                <div className={`${styles.field} ${addressErrors.lastName ? styles.fieldInvalid : ""}`}>
+                  <label htmlFor="co-lastName">
                     {t.shop.lastName}
                     <span className={styles.requiredMark}> *</span>
                   </label>
                   <input
+                    {...addressFieldProps("lastName")}
+                    autoComplete="family-name"
+                    required={!ask.companyName}
                     value={form.lastName}
-                    onChange={(e) => {
-                      setForm((f) => ({ ...f, lastName: e.target.value }));
-                      setNameGroupError("");
-                    }}
+                    onChange={(e) => setForm((f) => ({ ...f, lastName: e.target.value }))}
                   />
+                  <FieldError id="co-lastName-error" message={addressErrors.lastName?.message} />
                 </div>
               </div>
               {ask.companyName && (
                 <div className={styles.field}>
-                  <label>{t.shop.companyNameOptional}</label>
+                  <label htmlFor="co-companyName">{t.shop.companyNameOptional}</label>
                   <input
+                    id="co-companyName"
+                    autoComplete="organization"
                     value={form.companyName}
-                    onChange={(e) => {
-                      setForm((f) => ({ ...f, companyName: e.target.value }));
-                      setNameGroupError("");
-                    }}
+                    onChange={(e) => setForm((f) => ({ ...f, companyName: e.target.value }))}
                   />
                 </div>
               )}
               <p className={styles.requiredNote}>{ask.companyName ? t.shop.requiredNote : t.shop.requiredNoteNameOnly}</p>
-              {nameGroupError && (
-                <p className={styles.error} role="alert">
-                  {nameGroupError}
-                </p>
-              )}
-              <div className={styles.field}>
-                <label>
+              <div className={`${styles.field} ${addressErrors.email ? styles.fieldInvalid : ""}`}>
+                <label htmlFor="co-email">
                   {t.shop.emailLabel}
                   <span className={styles.requiredMark}> *</span>
                 </label>
-                <input type="email" required value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} />
+                <input
+                  {...addressFieldProps("email")}
+                  type="email"
+                  inputMode="email"
+                  autoComplete="email"
+                  autoCapitalize="off"
+                  spellCheck={false}
+                  required
+                  value={form.email}
+                  onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                />
+                <FieldError id="co-email-error" message={addressErrors.email?.message} />
               </div>
               {ask.phone && (
                 <div className={styles.field}>
-                  <label>{t.shop.phoneOptional}</label>
-                  <input type="tel" autoComplete="tel" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
+                  <label htmlFor="co-phone">{t.shop.phoneOptional}</label>
+                  <input id="co-phone" type="tel" autoComplete="tel" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
                 </div>
               )}
 
               <h2 className={styles.sectionTitle}>{t.shop.shippingAddressTitle}</h2>
-              <div className={styles.field}>
-                <label>
+              <div className={`${styles.field} ${addressErrors.country ? styles.fieldInvalid : ""}`}>
+                <label htmlFor="co-country">
                   {t.shop.countryLabel}
                   <span className={styles.requiredMark}> *</span>
                 </label>
                 <CountrySelect
+                  id="co-country"
                   countries={countries}
                   value={form.country}
                   onChange={(isoCode) => setForm((f) => ({ ...f, country: isoCode }))}
                   disabled={countriesLoading}
                   required
+                  invalid={!!addressErrors.country}
+                  describedBy={addressErrors.country ? "co-country-error" : undefined}
                   placeholder={countriesLoading ? t.shop.loading : t.shop.selectCountryPlaceholder}
                   searchPlaceholder={t.shop.countrySearchPlaceholder}
                   noResultsLabel={t.shop.countryNoResults}
                   ariaLabel={t.shop.countryLabel}
                 />
+                <FieldError id="co-country-error" message={addressErrors.country?.message} />
                 {/* Said at the first field it applies to, so a visitor outside
                     the EU finds out before typing a whole address. */}
                 <p className={styles.countryNote}>{t.shop.shipsWithinEu}</p>
               </div>
-              <div className={styles.field}>
-                <label>
+              <div className={`${styles.field} ${addressErrors.line1 ? styles.fieldInvalid : ""}`}>
+                <label htmlFor="co-line1">
                   {t.shop.addressLine1}
                   <span className={styles.requiredMark}> *</span>
                 </label>
-                <input required value={form.line1} onChange={(e) => setForm((f) => ({ ...f, line1: e.target.value }))} />
+                <input {...addressFieldProps("line1")} autoComplete="address-line1" required value={form.line1} onChange={(e) => setForm((f) => ({ ...f, line1: e.target.value }))} />
+                <FieldError id="co-line1-error" message={addressErrors.line1?.message} />
               </div>
               {ask.addressLine2 && (
                 <div className={styles.field}>
-                  <label>{t.shop.addressLine2}</label>
-                  <input value={form.line2} onChange={(e) => setForm((f) => ({ ...f, line2: e.target.value }))} />
+                  <label htmlFor="co-line2">{t.shop.addressLine2}</label>
+                  <input id="co-line2" autoComplete="address-line2" value={form.line2} onChange={(e) => setForm((f) => ({ ...f, line2: e.target.value }))} />
                 </div>
               )}
               <div className={styles.row}>
-                <div className={styles.field}>
-                  <label>
+                <div className={`${styles.field} ${addressErrors.city ? styles.fieldInvalid : ""}`}>
+                  <label htmlFor="co-city">
                     {t.shop.cityLabel}
                     <span className={styles.requiredMark}> *</span>
                   </label>
-                  <input required value={form.city} onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))} />
+                  <input {...addressFieldProps("city")} autoComplete="address-level2" required value={form.city} onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))} />
+                  <FieldError id="co-city-error" message={addressErrors.city?.message} />
                 </div>
-                <div className={styles.field}>
-                  <label>
+                <div className={`${styles.field} ${addressErrors.zip ? styles.fieldInvalid : ""}`}>
+                  <label htmlFor="co-zip">
                     {t.shop.zipLabel}
                     <span className={styles.requiredMark}> *</span>
                   </label>
-                  <input required value={form.zip} onChange={(e) => setForm((f) => ({ ...f, zip: e.target.value }))} />
+                  <input {...addressFieldProps("zip")} autoComplete="postal-code" required value={form.zip} onChange={(e) => setForm((f) => ({ ...f, zip: e.target.value }))} />
+                  <FieldError id="co-zip-error" message={addressErrors.zip?.message} />
                 </div>
               </div>
+
+              {/* Every problem at once, in screen order, each one a way back to
+                  its field — the customer pressed the button at the bottom of
+                  the form, and on a phone the first problem may be a long
+                  scroll above it. Polite, not assertive: focus has already
+                  moved to the first field, which announces its own error. */}
+              {addressProblems.some((p) => p.message) && (
+                <div className={styles.errorSummary} aria-live="polite">
+                  <p className={styles.errorSummaryTitle}>
+                    <AlertCircle size={16} aria-hidden="true" />
+                    {t.shop.addrErrSummary}
+                  </p>
+                  <ul className={styles.errorSummaryList}>
+                    {addressProblems
+                      .filter((p) => p.message)
+                      .map((p) => (
+                        <li key={p.field}>
+                          <button type="button" className={styles.errorSummaryLink} onClick={() => focusAddressField(p.field)}>
+                            {p.message}
+                          </button>
+                        </li>
+                      ))}
+                  </ul>
+                </div>
+              )}
 
               {formError && (
                 <p className={styles.error} role="alert">
