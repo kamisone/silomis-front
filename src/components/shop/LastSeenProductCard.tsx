@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { History, X } from "lucide-react";
 import { useCookieConsent } from "@/components/consent/CookieConsentContext";
+import { useCart } from "./CartContext";
 import { getTranslations, type Locale } from "@/lib/i18n";
 import { centsToAmount } from "./ProductCard";
 import { dismissLastSeen, readLastSeen, LAST_SEEN_EVENT, LAST_SEEN_KEY, type LastSeenProduct } from "@/lib/lastSeenProduct";
@@ -20,9 +21,10 @@ const MUTED_PATHS = ["/shop/checkout"];
  *
  * Rendered once by the storefront layout rather than per page, so it survives
  * client-side navigation instead of animating in again on every route change.
- * It stays out of the way in four cases: nothing viewed yet, the shopper closed
+ * It stays out of the way when nothing has been viewed yet, the shopper closed
  * it, they are already on that product's page (or one of its sub-routes, such
- * as the personalisation editor), or they are in checkout.
+ * as the personalisation editor), they are in checkout, or they are on the
+ * basket page with that product already in it.
  */
 export default function LastSeenProductCard({ locale }: { locale: Locale }) {
   const t = getTranslations(locale);
@@ -31,6 +33,7 @@ export default function LastSeenProductCard({ locale }: { locale: Locale }) {
   // until it has been answered there is nowhere for this to sit that would not
   // be either covered by it or stacked awkwardly above it.
   const { consent } = useCookieConsent();
+  const { cart } = useCart();
 
   const [product, setProduct] = useState<LastSeenProduct | null>(null);
   // Both are keyed by the product's href rather than being plain booleans, so a
@@ -70,7 +73,12 @@ export default function LastSeenProductCard({ locale }: { locale: Locale }) {
     // working on. A trailing slash keeps the test exact — /shop/cap-pro does
     // not start with /shop/cap/.
     !pathname.startsWith(`${href}/`) &&
-    !MUTED_PATHS.some((p) => pathname.startsWith(`/${locale}${p}`));
+    !MUTED_PATHS.some((p) => pathname.startsWith(`/${locale}${p}`)) &&
+    // On the basket page the card only earns its place for a product that is
+    // NOT in the basket — one that is would be offering what is already on
+    // the screen. Until the basket has loaded the answer is unknown, so the
+    // card waits rather than sliding in and straight back out.
+    !(pathname === `/${locale}/shop/cart` && (!cart || cart.items.some((i) => i.productId === product.id)));
 
   useEffect(() => {
     if (!eligible) return;
