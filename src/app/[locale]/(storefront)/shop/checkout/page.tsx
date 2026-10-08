@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowUpRight, Check } from "lucide-react";
+import { ArrowUpRight, Check, Lock } from "lucide-react";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import type { StripeElementLocale, StripePaymentElementOptions } from "@stripe/stripe-js";
@@ -18,6 +18,7 @@ import CountrySelect from "@/components/shop/CountrySelect";
 import { pixelTrack, getMetaCookies } from "@/lib/metaPixel";
 import { ttqTrack, getTikTokCookies } from "@/lib/tiktokPixel";
 import styles from "./Checkout.module.css";
+import { recordPaymentMarker } from "@/lib/shop/replayRecorder";
 import PickupPointSelector, { type PickupPoint } from "@/components/shop/PickupPointSelector";
 
 type T = ReturnType<typeof getTranslations>;
@@ -140,19 +141,23 @@ const STRIPE_LOCALE: Record<Locale, StripeElementLocale> = {
 };
 
 /**
- * The card form asks for the card and nothing else. The address step already
- * has the name, email and address, so those are handed to Stripe at confirm
- * time instead of being asked a second time; Link, wallets and the terms line
- * are switched off. A detail the address step did not capture (a resumed
- * checkout with an empty form, say) is left for the form to ask, because a
- * field set to "never" must then be supplied.
+ * The payment form offers whatever Stripe offers this customer — cards,
+ * Apple Pay / Google Pay, and the local methods the dashboard enables (iDEAL,
+ * Bancontact, PayPal, Klarna…) — and asks for nothing the address step
+ * already has: name, email and address are handed to Stripe at confirm time.
+ * Link is switched off (it asks for a phone code, which reads as signing up
+ * for something), and so is the card terms line. A detail the address step
+ * did not capture (a resumed checkout with an empty form, say) is left for
+ * the form to ask, because a field set to "never" must then be supplied.
  */
 function paymentElementOptions(form: FormState): StripePaymentElementOptions {
   const hasName = Boolean(form.firstName.trim() || form.lastName.trim() || form.companyName.trim());
   const hasAddress = Boolean(form.line1.trim() && form.city.trim() && form.zip.trim() && form.country);
   return {
     layout: "tabs",
-    wallets: { applePay: "never", googlePay: "never", link: "never" },
+    // Apple Pay also needs the domain registered in the Stripe dashboard
+    // (Settings → Payment method domains) or it silently never appears.
+    wallets: { applePay: "auto", googlePay: "auto", link: "never" },
     terms: { card: "never" },
     fields: {
       billingDetails: {
@@ -205,20 +210,28 @@ function visibleForm(form: FormState, ask: CheckoutFields): FormState {
   };
 }
 
-function StripePaymentForm({ orderNumber, orderId, total, trackingToken, form, locale, t }: { orderNumber: string; orderId: string; total: number; trackingToken?: string | null; form: FormState; locale: Locale; t: T }) {
+function StripePaymentForm({ orderNumber, orderId, total, trackingToken, form, locale, t, notice }: { orderNumber: string; orderId: string; total: number; trackingToken?: string | null; form: FormState; locale: Locale; t: T; notice?: string }) {
   const stripe = useStripe();
   const elements = useElements();
   const [paying, setPaying] = useState(false);
   const [error, setError] = useState("");
+  // A customer back from a bank / PayPal page they left without paying sees
+  // why they are here again, until they try once more.
+  const [tried, setTried] = useState(false);
+  const shownError = error || (!tried && notice) || "";
+  const methodRef = useRef<string | null>(null);
 
   async function handlePay(e: React.FormEvent) {
     e.preventDefault();
     if (!stripe || !elements || paying) return;
     setPaying(true);
+    setTried(true);
     setError("");
+    recordPaymentMarker("submitted", methodRef.current);
 
     const { error: submitError } = await elements.submit();
     if (submitError) {
+      recordPaymentMarker("error", submitError.code ?? submitError.message ?? null);
       setError(submitError.message ?? t.shop.paymentFailed);
       setPaying(false);
       return;
@@ -232,6 +245,9 @@ function StripePaymentForm({ orderNumber, orderId, total, trackingToken, form, l
       },
     });
     if (confirmError) {
+      // Stripe's code and message, never anything typed: decline codes are
+      // exactly what tells a declined card from a confusing form.
+      recordPaymentMarker("error", [confirmError.code, confirmError.decline_code, confirmError.message].filter(Boolean).join(" · ") || null);
       setError(confirmError.message ?? t.shop.paymentFailed);
       setPaying(false);
     }
@@ -239,10 +255,27 @@ function StripePaymentForm({ orderNumber, orderId, total, trackingToken, form, l
 
   return (
     <form onSubmit={handlePay} className={styles.stripeForm}>
-      <PaymentElement options={paymentElementOptions(form)} />
-      {error && (
+      <PaymentElement
+        options={paymentElementOptions(form)}
+        onReady={() => recordPaymentMarker("form_ready")}
+        onLoadError={(e) => recordPaymentMarker("form_load_error", e.error?.message ?? e.error?.type ?? null)}
+        onChange={(e) => {
+          const method = e.value?.type ?? null;
+          if (method && method !== methodRef.current) {
+            methodRef.current = method;
+            recordPaymentMarker("method_selected", method);
+          }
+        }}
+      />
+      {/* Said in our own words, not just Stripe's: an unknown shop asking for
+          payment is exactly where people hesitate. */}
+      <p className={styles.secureNote}>
+        <Lock size={13} aria-hidden="true" />
+        {t.shop.securePaymentNote}
+      </p>
+      {shownError && (
         <p className={styles.error} role="alert">
-          {error}
+          {shownError}
         </p>
       )}
       <StickyActionBar>
@@ -492,6 +525,31 @@ export default function CheckoutPage() {
     return () => clearTimeout(tid);
   }, [form, step, snapshot?.orderId, token, restoring]);
 
+  /**
+   * The stock hold's real end, as the payment-intent call reports it: a new
+   * intent or a failed attempt restarts it server-side, and a countdown kept
+   * from the order's creation would run out early and throw the customer
+   * back to the address step while their order is still open.
+   */
+  function syncReservation(expiresAt: string | null | undefined) {
+    if (!expiresAt) return;
+    setSnapshot((prev) => (prev ? { ...prev, reservationExpiresAt: expiresAt } : prev));
+  }
+
+  // Back from a bank / PayPal / Klarna page the customer left without paying:
+  // the success page sends them here with ?payment=failed. Said once, above
+  // the form, and dropped from the address bar so a reload does not repeat it.
+  const [paymentNotice, setPaymentNotice] = useState("");
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("payment") !== "failed") return;
+    const tid = setTimeout(() => setPaymentNotice(getTranslations(locale).shop.paymentNotCompleted), 0);
+    params.delete("payment");
+    const qs = params.toString();
+    window.history.replaceState(window.history.state, "", `${window.location.pathname}${qs ? `?${qs}` : ""}`);
+    return () => clearTimeout(tid);
+  }, [locale]);
+
   // Restore persisted state on mount
   useEffect(() => {
     const t = setTimeout(() => {
@@ -512,6 +570,7 @@ export default function CheckoutPage() {
             .then((data) => {
               if (data?.clientSecret) {
                 setClientSecret(data.clientSecret);
+                syncReservation(data.reservationExpiresAt);
                 setStep("payment");
               } else {
                 setStep("shipping");
@@ -784,8 +843,9 @@ export default function CheckoutPage() {
       return;
     }
 
-    const { clientSecret: cs, metaAddPaymentInfoEventId, tiktokAddPaymentInfoEventId } = await intentRes.json();
+    const { clientSecret: cs, reservationExpiresAt, metaAddPaymentInfoEventId, tiktokAddPaymentInfoEventId } = await intentRes.json();
     setClientSecret(cs);
+    syncReservation(reservationExpiresAt);
 
     // Same event IDs the backend's own AddPaymentInfo call used (fired from
     // ShopPaymentService.createPaymentIntent) — matches the browser+server
@@ -1221,7 +1281,7 @@ export default function CheckoutPage() {
               {snapshot.reservationExpiresAt && <ReservationTimer expiresAt={snapshot.reservationExpiresAt} onExpire={handleReservationExpired} t={t} />}
               {clientSecret && (
                 <Elements key={locale} stripe={stripePromise} options={{ clientSecret, locale: STRIPE_LOCALE[locale], appearance: { theme: "stripe" } }}>
-                  <StripePaymentForm orderId={snapshot.orderId} orderNumber={snapshot.orderNumber} total={snapshot.totalCents} trackingToken={snapshot.trackingToken} form={visibleForm(form, ask)} locale={locale} t={t} />
+                  <StripePaymentForm orderId={snapshot.orderId} orderNumber={snapshot.orderNumber} total={snapshot.totalCents} trackingToken={snapshot.trackingToken} form={visibleForm(form, ask)} locale={locale} t={t} notice={paymentNotice || undefined} />
                 </Elements>
               )}
             </div>

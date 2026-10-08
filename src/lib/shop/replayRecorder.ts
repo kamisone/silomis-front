@@ -19,7 +19,7 @@ const SCROLL_MIN_DELTA_PCT = 5;
 interface Marker {
   // Mirrors the backend's marker enum (replay.dto.ts) exactly — an unknown
   // type fails zod validation and drops the whole batch, markers and events.
-  type: "session_start" | "session_end" | "click" | "scroll" | "navigation";
+  type: "session_start" | "session_end" | "click" | "scroll" | "navigation" | "payment";
   timestampMs: number;
   label?: string | null;
   meta?: Record<string, unknown> | null;
@@ -70,6 +70,22 @@ let activeRecording: ReplayRecordingHandle | null = null;
 // in the same tick can't each open a session — `activeRecording` alone is only
 // assigned after the await and would let both through.
 let starting = false;
+
+/** Feeds the running recording's marker buffer; null when nothing is recording. */
+let pushMarker: ((marker: Omit<Marker, "timestampMs">) => void) | null = null;
+
+/** The moments of the payment step a replay cannot see — Stripe's form is a cross-origin iframe. */
+export type PaymentStage = "form_ready" | "form_load_error" | "method_selected" | "submitted" | "error";
+
+/**
+ * Notes a payment-step moment on the replay timeline (form ready, method
+ * picked, Pay pressed, the error shown). A no-op when this visitor is not
+ * being recorded. `detail` must never carry card data — it is a method name
+ * ("card", "ideal") or Stripe's own error message/code, nothing typed.
+ */
+export function recordPaymentMarker(stage: PaymentStage, detail?: string | null): void {
+  pushMarker?.({ type: "payment", label: detail ? `${stage}: ${detail}`.slice(0, 500) : stage, meta: { stage, ...(detail ? { detail: detail.slice(0, 300) } : {}) } });
+}
 
 export async function startReplayRecording(productId: string): Promise<ReplayRecordingHandle | null> {
   if (activeRecording) return activeRecording;
@@ -154,6 +170,8 @@ export async function startReplayRecording(productId: string): Promise<ReplayRec
       sampling: { scroll: SCROLL_THROTTLE_MS, input: "last" },
     }) as unknown as (() => void) | undefined;
 
+    pushMarker = (marker) => markerBuffer.push({ ...marker, timestampMs: elapsedMs() });
+
     const onClick = (e: MouseEvent) => {
       const target = e.target instanceof Element ? e.target : null;
       markerBuffer.push({
@@ -220,6 +238,7 @@ export async function startReplayRecording(productId: string): Promise<ReplayRec
       if (stopped) return;
       stopped = true;
       if (activeRecording === handle) activeRecording = null;
+      pushMarker = null;
 
       window.clearInterval(flushTimer);
       document.removeEventListener("click", onClick, { capture: true } as EventListenerOptions);

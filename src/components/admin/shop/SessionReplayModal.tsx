@@ -59,7 +59,7 @@ const ORDER_STATUS_LABEL: Record<string, string> = {
 
 interface Marker {
   id: string;
-  type: "session_start" | "session_end" | "click" | "scroll" | "navigation";
+  type: "session_start" | "session_end" | "click" | "scroll" | "navigation" | "payment";
   timestampMs: number;
   label: string | null;
 }
@@ -70,6 +70,8 @@ const MARKER_COLOR: Record<Marker["type"], string> = {
   click: "#2563eb",
   scroll: "#f59e0b",
   navigation: "#16a34a",
+  // Brand pink: the payment step is the one this timeline exists to explain.
+  payment: "#d9548c",
 };
 
 const MARKER_LABEL: Record<Marker["type"], string> = {
@@ -78,6 +80,9 @@ const MARKER_LABEL: Record<Marker["type"], string> = {
   click: "Click",
   scroll: "Scroll",
   navigation: "Navigation",
+  // The card form is Stripe's iframe and records as an empty box; these say
+  // what happened inside it (form ready, method chosen, Pay pressed, error).
+  payment: "Payment",
 };
 
 interface Props {

@@ -768,3 +768,20 @@ a.summaryItemLink:focus-visible {
     margin-top: 0;
   }
 }
+
+/* Under the payment form: who handles the card, in our own words. Quiet —
+   reassurance, not a banner. */
+.secureNote {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin: 12px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--color-muted, #6b7280);
+}
+.secureNote svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--color-success, #16a34a);
+}

@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useCart } from "@/components/shop/CartContext";
 import { getTranslations } from "@/lib/i18n";
 import EmbroideryLine, { slipLines, type EmbroideryLineDesign } from "@/components/shop/EmbroideryLine";
@@ -50,15 +50,27 @@ function SuccessContent() {
   const token = searchParams.get("token");
   const orderId = searchParams.get("id");
   const clearedRef = useRef(false);
+  const router = useRouter();
+  // A redirect method (iDEAL, Bancontact, PayPal, Klarna…) always comes back
+  // here, paid or not. `failed` means the customer backed out on the bank's
+  // page or was declined there: nothing was charged and the order is still
+  // open, so they go straight back to the payment step — basket untouched —
+  // rather than to a "thank you" for an order they did not pay for.
+  const paymentFailed = searchParams.get("redirect_status") === "failed";
 
   useEffect(() => {
-    if (clearedRef.current) return;
+    if (paymentFailed) router.replace(`/${locale}/shop/checkout?payment=failed`);
+  }, [paymentFailed, router, locale]);
+
+  useEffect(() => {
+    if (clearedRef.current || paymentFailed) return;
     clearedRef.current = true;
     clearCart();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
+    if (paymentFailed) return;
     if (!orderNumber) {
       const t = setTimeout(() => {
         setLoading(false);
@@ -87,9 +99,9 @@ function SuccessContent() {
       .then((data) => setOrder(data))
       .catch(() => setError(true))
       .finally(() => setLoading(false));
-  }, [orderNumber, token, orderId, locale]);
+  }, [orderNumber, token, orderId, locale, paymentFailed]);
 
-  if (loading) {
+  if (loading || paymentFailed) {
     return (
       <div className={styles.page}>
         <div className={styles.card} style={{ textAlign: "center", padding: 60 }}>
