@@ -465,11 +465,38 @@
   color: color-mix(in srgb, var(--foreground) 55%, var(--background));
 }
 
-/* Below this the three badges no longer fit abreast and auto-fit would settle
-   on a lopsided 2-then-1. Collapse straight to one centred column instead. */
-@media (max-width: 460px) {
+/* Small screens: every badge stays on one row, side by side, however many
+   the admin configured — one equal column each (auto-flow, so the count is
+   never hard-coded) — and everything shrinks to make room rather than
+   stacking into a tall list that pushes the description down. minmax(0, 1fr)
+   lets a long German word wrap inside its cell instead of widening it. */
+@media (max-width: 640px) {
   .trustRow {
-    grid-template-columns: 1fr;
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    gap: 8px 6px;
+    padding: 12px 0;
+  }
+  .trustItem {
+    gap: 4px;
+    min-width: 0;
+  }
+  .trustIcon {
+    width: 20px;
+    height: 20px;
+  }
+  .trustTitle {
+    font-size: 9.5px;
+    letter-spacing: 0.02em;
+    overflow-wrap: anywhere;
+    hyphens: auto;
+  }
+  .trustSubtitle {
+    font-size: 10px;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+    hyphens: auto;
   }
 }
 
