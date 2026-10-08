@@ -20,6 +20,7 @@ import { ttqTrack, getTikTokCookies } from "@/lib/tiktokPixel";
 import styles from "./Checkout.module.css";
 import { recordPaymentMarker } from "@/lib/shop/replayRecorder";
 import { orderedErrors, validateAddress, type AddressErrors, type AddressField } from "./addressValidation";
+import PhoneVerificationPanel from "./PhoneVerificationPanel";
 import PickupPointSelector, { type PickupPoint } from "@/components/shop/PickupPointSelector";
 
 type T = ReturnType<typeof getTranslations>;
@@ -75,8 +76,8 @@ type Step = "personalise" | "address" | "shipping" | "payment";
 
 interface FormState {
   email: string;
-  firstName: string;
-  lastName: string;
+  /** The customer's full name, one field. */
+  name: string;
   companyName: string;
   phone: string;
   line1: string;
@@ -85,12 +86,13 @@ interface FormState {
   zip: string;
   country: string;
   couponCode: string | null;
+  /** "Text me a reminder if I don't finish my order" — unticked by default; consent for the abandoned-cart SMS. */
+  smsOptIn: boolean;
 }
 
 const EMPTY_FORM: FormState = {
   email: "",
-  firstName: "",
-  lastName: "",
+  name: "",
   companyName: "",
   phone: "",
   line1: "",
@@ -99,6 +101,7 @@ const EMPTY_FORM: FormState = {
   zip: "",
   country: "",
   couponCode: null,
+  smsOptIn: false,
 };
 
 // ── Reservation countdown ──────────────────────────────────────────────
@@ -152,7 +155,7 @@ const STRIPE_LOCALE: Record<Locale, StripeElementLocale> = {
  * the form to ask, because a field set to "never" must then be supplied.
  */
 function paymentElementOptions(form: FormState): StripePaymentElementOptions {
-  const hasName = Boolean(form.firstName.trim() || form.lastName.trim() || form.companyName.trim());
+  const hasName = Boolean(form.name.trim() || form.companyName.trim());
   const hasAddress = Boolean(form.line1.trim() && form.city.trim() && form.zip.trim() && form.country);
   return {
     layout: "tabs",
@@ -172,7 +175,7 @@ function paymentElementOptions(form: FormState): StripePaymentElementOptions {
 }
 
 function billingDetails(form: FormState) {
-  const name = [form.firstName, form.lastName].map((p) => p.trim()).filter(Boolean).join(" ") || form.companyName.trim();
+  const name = form.name.trim() || form.companyName.trim();
   const hasAddress = Boolean(form.line1.trim() && form.city.trim() && form.zip.trim() && form.country);
   return {
     ...(name ? { name } : {}),
@@ -206,7 +209,6 @@ function visibleForm(form: FormState, ask: CheckoutFields): FormState {
   return {
     ...form,
     companyName: ask.companyName ? form.companyName : "",
-    phone: ask.phone ? form.phone : "",
     line2: ask.addressLine2 ? form.line2 : "",
   };
 }
@@ -407,11 +409,24 @@ export function saveCheckoutSession(cartToken: string | null, state: CheckoutPer
   }
 }
 
+/**
+ * A form saved before the checkout asked for one name carries `firstName` and
+ * `lastName` instead — from this tab's sessionStorage, or from a resume link's
+ * server snapshot. Joined into `name`, so it resumes filled in.
+ */
+function withSingleName(form: FormState & { firstName?: string; lastName?: string }): FormState {
+  const { firstName, lastName, ...rest } = form;
+  const joined = [firstName, lastName].map((p) => (p ?? "").trim()).filter(Boolean).join(" ");
+  return { ...EMPTY_FORM, ...rest, name: rest.name?.trim() ? rest.name : joined };
+}
+
 function loadCheckoutSession(cartToken: string | null): CheckoutPersistedState | null {
   if (!cartToken) return null;
   try {
     const raw = sessionStorage.getItem(persistKey(cartToken));
-    return raw ? (JSON.parse(raw) as CheckoutPersistedState) : null;
+    if (!raw) return null;
+    const state = JSON.parse(raw) as CheckoutPersistedState;
+    return { ...state, form: withSingleName(state.form) };
   } catch {
     return null;
   }
@@ -432,7 +447,7 @@ export default function CheckoutPage() {
   const locale = useLocale();
   const t = getTranslations(locale);
   const { cart, token } = useCart();
-  // Company, phone and address line 2 are hidden unless a product in the
+  // Company and address line 2 are hidden unless a product in the
   // basket asks for them (admin › product › Checkout fields).
   const ask = cart?.checkoutFields ?? NO_OPTIONAL_FIELDS;
 
@@ -447,6 +462,13 @@ export default function CheckoutPage() {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState("");
+  /**
+   * The phone and country the shop asked to confirm by code, or null. Keyed
+   * on both: a customer who edits either after the code went out needs a
+   * code for the new number, so the panel closes and the next submit asks
+   * again.
+   */
+  const [verifyFor, setVerifyFor] = useState<{ phone: string; country: string } | null>(null);
   // Errors are shown only once the customer has tried to continue — never
   // while they are still typing a field for the first time — and from then on
   // they follow the form live, so each one clears the moment it is fixed.
@@ -673,6 +695,10 @@ export default function CheckoutPage() {
 
   async function handleSubmitAddress(e: React.FormEvent) {
     e.preventDefault();
+    await submitAddress();
+  }
+
+  async function submitAddress() {
     if (!cart?.items.length) return;
 
     const sent = visibleForm(form, ask);
@@ -691,11 +717,12 @@ export default function CheckoutPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         cartToken: token,
-        email: form.email.trim(),
-        firstName: form.firstName || null,
-        lastName: form.lastName || null,
+        email: form.email.trim() || null,
+        name: form.name.trim() || null,
         companyName: sent.companyName || null,
-        phone: sent.phone || null,
+        phone: sent.phone.trim() || null,
+        // Consent is only meaningful with a number to text.
+        smsOptIn: Boolean(sent.phone.trim()) && form.smsOptIn,
         line1: form.line1,
         line2: sent.line2 || null,
         city: form.city,
@@ -715,6 +742,13 @@ export default function CheckoutPage() {
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
+      // A phone-only checkout with verification switched on: open the code
+      // step instead of an error. Confirming it calls submitAddress again.
+      if (err?.code === "PHONE_VERIFICATION_REQUIRED") {
+        setVerifyFor({ phone: sent.phone.trim(), country: form.country });
+        setSubmitting(false);
+        return;
+      }
       const msg = typeof err?.message === "string" ? err.message : t.shop.checkoutStartError;
       setFormError(msg);
       setSubmitting(false);
@@ -1040,35 +1074,20 @@ export default function CheckoutPage() {
             // tells assistive tech.
             <form onSubmit={handleSubmitAddress} noValidate>
               <h2 className={styles.sectionTitle}>{t.shop.contactInfo}</h2>
-              <div className={styles.row}>
-                <div className={`${styles.field} ${addressErrors.firstName ? styles.fieldInvalid : ""}`}>
-                  <label htmlFor="co-firstName">
-                    {t.shop.firstName}
-                    <span className={styles.requiredMark}> *</span>
-                  </label>
-                  <input
-                    {...addressFieldProps("firstName")}
-                    autoComplete="given-name"
-                    required={!ask.companyName}
-                    value={form.firstName}
-                    onChange={(e) => setForm((f) => ({ ...f, firstName: e.target.value }))}
-                  />
-                  <FieldError id="co-firstName-error" message={addressErrors.firstName?.message} />
-                </div>
-                <div className={`${styles.field} ${addressErrors.lastName ? styles.fieldInvalid : ""}`}>
-                  <label htmlFor="co-lastName">
-                    {t.shop.lastName}
-                    <span className={styles.requiredMark}> *</span>
-                  </label>
-                  <input
-                    {...addressFieldProps("lastName")}
-                    autoComplete="family-name"
-                    required={!ask.companyName}
-                    value={form.lastName}
-                    onChange={(e) => setForm((f) => ({ ...f, lastName: e.target.value }))}
-                  />
-                  <FieldError id="co-lastName-error" message={addressErrors.lastName?.message} />
-                </div>
+              <div className={`${styles.field} ${addressErrors.name ? styles.fieldInvalid : ""}`}>
+                <label htmlFor="co-name">
+                  {t.shop.fullName}
+                  <span className={styles.requiredMark}> *</span>
+                </label>
+                <input
+                  {...addressFieldProps("name")}
+                  autoComplete="name"
+                  autoCapitalize="words"
+                  required={!ask.companyName}
+                  value={form.name}
+                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                />
+                <FieldError id="co-name-error" message={addressErrors.name?.message} />
               </div>
               {ask.companyName && (
                 <div className={styles.field}>
@@ -1082,29 +1101,42 @@ export default function CheckoutPage() {
                 </div>
               )}
               <p className={styles.requiredNote}>{ask.companyName ? t.shop.requiredNote : t.shop.requiredNoteNameOnly}</p>
-              <div className={`${styles.field} ${addressErrors.email ? styles.fieldInvalid : ""}`}>
-                <label htmlFor="co-email">
-                  {t.shop.emailLabel}
-                  <span className={styles.requiredMark}> *</span>
-                </label>
-                <input
-                  {...addressFieldProps("email")}
-                  type="email"
-                  inputMode="email"
-                  autoComplete="email"
-                  autoCapitalize="off"
-                  spellCheck={false}
-                  required
-                  value={form.email}
-                  onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-                />
-                <FieldError id="co-email-error" message={addressErrors.email?.message} />
-              </div>
-              {ask.phone && (
-                <div className={styles.field}>
-                  <label htmlFor="co-phone">{t.shop.phoneOptional}</label>
-                  <input id="co-phone" type="tel" autoComplete="tel" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
+              {/* Email OR phone: some customers have no email address at all.
+                  Neither is marked required on its own; the note says the rule. */}
+              <div className={styles.row}>
+                <div className={`${styles.field} ${addressErrors.email ? styles.fieldInvalid : ""}`}>
+                  <label htmlFor="co-email">{t.shop.emailLabel}</label>
+                  <input
+                    {...addressFieldProps("email")}
+                    type="email"
+                    inputMode="email"
+                    autoComplete="email"
+                    autoCapitalize="off"
+                    spellCheck={false}
+                    value={form.email}
+                    onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                  />
+                  <FieldError id="co-email-error" message={addressErrors.email?.message} />
                 </div>
+                <div className={`${styles.field} ${addressErrors.phone ? styles.fieldInvalid : ""}`}>
+                  <label htmlFor="co-phone">{t.shop.phoneLabel}</label>
+                  <input
+                    {...addressFieldProps("phone")}
+                    type="tel"
+                    inputMode="tel"
+                    autoComplete="tel"
+                    value={form.phone}
+                    onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+                  />
+                  <FieldError id="co-phone-error" message={addressErrors.phone?.message} />
+                </div>
+              </div>
+              <p className={styles.requiredNote}>{t.shop.contactEitherNote}</p>
+              {form.phone.trim() && (
+                <label className={styles.consentRow}>
+                  <input type="checkbox" checked={!!form.smsOptIn} onChange={(e) => setForm((f) => ({ ...f, smsOptIn: e.target.checked }))} />
+                  <span>{t.shop.smsOptInLabel}</span>
+                </label>
               )}
 
               <h2 className={styles.sectionTitle}>{t.shop.shippingAddressTitle}</h2>
@@ -1188,6 +1220,21 @@ export default function CheckoutPage() {
                       ))}
                   </ul>
                 </div>
+              )}
+
+              {verifyFor && token && verifyFor.phone === form.phone.trim() && verifyFor.country === form.country && !form.email.trim() && (
+                <PhoneVerificationPanel
+                  key={`${verifyFor.country}:${verifyFor.phone}`}
+                  cartToken={token}
+                  phone={verifyFor.phone}
+                  country={verifyFor.country}
+                  locale={locale}
+                  t={t}
+                  onVerified={() => {
+                    setVerifyFor(null);
+                    void submitAddress();
+                  }}
+                />
               )}
 
               {formError && (

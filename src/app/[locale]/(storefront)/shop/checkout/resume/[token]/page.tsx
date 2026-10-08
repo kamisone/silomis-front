@@ -11,13 +11,12 @@ interface CheckoutSession {
   cartToken: string;
   orderId: string | null;
   step: "address" | "shipping" | "payment" | "complete";
-  formSnapshot: Record<string, string> | null;
+  formSnapshot: Record<string, string | boolean | null> | null;
 }
 
 const EMPTY_FORM = {
   email: "",
-  firstName: "",
-  lastName: "",
+  name: "",
   companyName: "",
   phone: "",
   line1: "",
@@ -25,6 +24,7 @@ const EMPTY_FORM = {
   city: "",
   zip: "",
   country: "",
+  smsOptIn: false,
 };
 
 function persistKey(cartToken: string) {

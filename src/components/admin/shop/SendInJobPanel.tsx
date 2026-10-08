@@ -38,7 +38,8 @@ export interface SendInJob {
   orderStatus: string;
   orderedAt: string;
   customerName: string | null;
-  customerEmail: string;
+  customerEmail: string | null;
+  customerPhone: string | null;
   itemType: string;
   itemLabel: string;
   note: string | null;

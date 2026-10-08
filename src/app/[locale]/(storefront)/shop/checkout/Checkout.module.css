@@ -876,3 +876,98 @@ a.summaryItemLink:focus-visible {
     animation: none;
   }
 }
+
+/* ── SMS reminder consent, under the phone field ── */
+.consentRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: -6px 0 16px;
+  font-size: 13px;
+  color: var(--co-text-secondary);
+  cursor: pointer;
+}
+.consentRow input {
+  margin-top: 2px;
+  accent-color: var(--color-primary);
+}
+
+/* ── Phone verification code (phone-only checkout, when switched on) ── */
+.verifyPanel {
+  margin: 4px 0 18px;
+  padding: 16px;
+  border: 1.5px solid var(--color-primary);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-primary) 6%, var(--background));
+}
+.verifyTitle {
+  margin: 0 0 4px;
+  font-weight: 700;
+  font-size: 14.5px;
+  color: var(--foreground);
+}
+.verifyText {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: var(--co-text-secondary);
+}
+.verifyRow {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+}
+.verifyRow .field {
+  flex: 1;
+}
+.field input.verifyInput {
+  font-size: 18px;
+  letter-spacing: 0.3em;
+  font-variant-numeric: tabular-nums;
+}
+.verifyBtn {
+  padding: 12px 18px;
+  border: none;
+  border-radius: 9px;
+  background: var(--color-primary);
+  color: #fff;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.verifyBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.verifyError {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: #b91c1c;
+}
+.verifyFoot {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 12px;
+}
+.verifyLink {
+  align-self: flex-start;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--color-primary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.verifyLink:disabled {
+  color: var(--co-text-muted);
+  text-decoration: none;
+  cursor: default;
+}
+.verifyHint {
+  font-size: 12px;
+  color: var(--co-text-muted);
+}

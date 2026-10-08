@@ -88,6 +88,30 @@
   font-size: 0.85rem;
 }
 
+/* Call / WhatsApp under the customer's phone. */
+.contactActions {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.25rem;
+}
+
+.contactBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.3rem 0.6rem;
+  border: 1px solid var(--field-border, var(--color-border));
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: inherit;
+  text-decoration: none;
+}
+
+.contactBtn:hover {
+  background: var(--color-surface-tint, rgba(0, 0, 0, 0.04));
+}
+
 /* ── Totals ── */
 .totals {
   display: flex;

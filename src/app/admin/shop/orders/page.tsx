@@ -10,7 +10,9 @@ interface OrderListItem {
   id: string;
   orderNumber: string;
   status: string;
-  customerEmail: string;
+  /** Null when the customer checked out with a phone only. */
+  customerEmail: string | null;
+  customerPhone: string | null;
   customerName: string | null;
   totalCents: number;
   createdAt: string;
@@ -137,7 +139,16 @@ export default function OrdersListPage() {
                   </td>
                   <td>
                     {o.customerName ?? "—"}
-                    <div style={{ fontSize: "0.78rem", color: "var(--color-secondary)" }}>{o.customerEmail}</div>
+                    <div style={{ fontSize: "0.78rem", color: "var(--color-secondary)" }}>
+                      {o.customerEmail ?? (
+                        <>
+                          {o.customerPhone}
+                          <span className={ui.badge} style={{ marginLeft: "0.4rem" }} title="No email on this order — contact the customer by phone">
+                            Phone only
+                          </span>
+                        </>
+                      )}
+                    </div>
                   </td>
                   <td>
                     {o.items.reduce((n, i) => n + i.quantity, 0)}

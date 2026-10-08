@@ -12,20 +12,22 @@ export default function OrderTrackLookupPage() {
   const t = getTranslations(locale);
   const router = useRouter();
   const [orderNumber, setOrderNumber] = useState("");
-  const [email, setEmail] = useState("");
+  /** The email or the phone given at checkout — one field, told apart by the "@". */
+  const [contact, setContact] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const num = orderNumber.trim().toUpperCase();
-    const em = email.trim().toLowerCase();
-    if (!num || !em) return;
+    const value = contact.trim();
+    if (!num || !value) return;
+    const credential = value.includes("@") ? { email: value.toLowerCase() } : { phone: value };
 
     setLoading(true);
     setError("");
 
-    // The address is exchanged for an httpOnly grant cookie and then dropped.
+    // The email or phone is exchanged for an httpOnly grant cookie and then dropped.
     // It used to be pushed onto the next URL and re-sent on every navigation,
     // which put a customer's email in browser history, in the `Referer` sent
     // to every third party the page loads, and in this shop's own session
@@ -33,7 +35,7 @@ export default function OrderTrackLookupPage() {
     const res = await fetch(`/next-api/public/shop/orders/${encodeURIComponent(num)}/session`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: em }),
+      body: JSON.stringify(credential),
     });
 
     if (res.ok) {
@@ -71,8 +73,18 @@ export default function OrderTrackLookupPage() {
             <input className={styles.input} placeholder="ORD-000001" value={orderNumber} onChange={(e) => setOrderNumber(e.target.value)} required />
           </div>
           <div className={styles.field}>
-            <label className={styles.label}>{t.shop.emailLabel}</label>
-            <input className={styles.input} type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
+            <label className={styles.label} htmlFor="track-contact">{t.shop.trackContactLabel}</label>
+            <input
+              id="track-contact"
+              className={styles.input}
+              type="text"
+              autoComplete="email"
+              autoCapitalize="off"
+              spellCheck={false}
+              value={contact}
+              onChange={(e) => setContact(e.target.value)}
+              required
+            />
           </div>
 
           {error && <p className={styles.error}>{error}</p>}

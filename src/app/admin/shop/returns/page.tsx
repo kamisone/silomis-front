@@ -18,7 +18,9 @@ interface OrderItemLite {
 interface OrderLite {
   id: string;
   orderNumber: string;
-  customerEmail: string;
+  customerEmail: string | null;
+  customerName: string | null;
+  customerPhone: string | null;
   items: OrderItemLite[];
 }
 
@@ -33,7 +35,7 @@ interface ReturnRequestItem {
 interface ReturnRequest {
   id: string;
   orderId: string;
-  customerEmail: string;
+  customerEmail: string | null;
   status: ReturnStatus;
   reason: string | null;
   adminNote: string | null;
@@ -194,7 +196,7 @@ export default function ReturnsPage() {
               {returns.map((r) => (
                 <tr key={r.id}>
                   <td>{r.order?.orderNumber ?? r.orderId}</td>
-                  <td>{r.customerEmail}</td>
+                  <td>{r.customerEmail ?? "—"}</td>
                   <td>{r.items.reduce((sum, i) => sum + i.quantity, 0)}</td>
                   <td>
                     <span className={ui.badge}>{STATUS_LABEL[r.status]}</span>
@@ -251,7 +253,7 @@ export default function ReturnsPage() {
                   <div className={ui.chipList}>
                     {orderResults.map((o) => (
                       <button key={o.id} type="button" className={ui.chip} onClick={() => pickOrder(o)} style={{ cursor: "pointer" }}>
-                        {o.orderNumber} — {o.customerEmail}
+                        {o.orderNumber} — {o.customerEmail ?? o.customerPhone ?? o.customerName ?? "—"}
                       </button>
                     ))}
                   </div>
@@ -260,7 +262,7 @@ export default function ReturnsPage() {
             ) : (
               <>
                 <p style={{ fontSize: "0.85rem" }}>
-                  Order <strong>{selectedOrder.orderNumber}</strong> — {selectedOrder.customerEmail}{" "}
+                  Order <strong>{selectedOrder.orderNumber}</strong> — {selectedOrder.customerEmail ?? selectedOrder.customerPhone ?? selectedOrder.customerName ?? "—"}{" "}
                   <button type="button" onClick={() => setSelectedOrder(null)} style={{ marginLeft: "0.5rem", fontSize: "0.8rem" }}>
                     change
                   </button>

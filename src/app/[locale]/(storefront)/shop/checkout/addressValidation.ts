@@ -10,16 +10,16 @@
  * and only then learned about the name.
  */
 
-export type AddressField = "firstName" | "lastName" | "email" | "country" | "line1" | "city" | "zip";
+export type AddressField = "name" | "email" | "phone" | "country" | "line1" | "city" | "zip";
 
 /** Screen order — the order errors are listed in and the first one focused. */
-export const ADDRESS_FIELD_ORDER: readonly AddressField[] = ["firstName", "lastName", "email", "country", "line1", "city", "zip"];
+export const ADDRESS_FIELD_ORDER: readonly AddressField[] = ["name", "email", "phone", "country", "line1", "city", "zip"];
 
 export interface AddressValues {
-  firstName: string;
-  lastName: string;
+  name: string;
   companyName: string;
   email: string;
+  phone: string;
   country: string;
   line1: string;
   city: string;
@@ -27,11 +27,11 @@ export interface AddressValues {
 }
 
 export interface AddressMessages {
-  addrErrFirstName: string;
-  addrErrLastName: string;
+  addrErrName: string;
   addrErrNameOrCompany: string;
-  addrErrEmail: string;
   addrErrEmailInvalid: string;
+  addrErrContact: string;
+  addrErrPhoneInvalid: string;
   addrErrCountry: string;
   addrErrLine1: string;
   addrErrCity: string;
@@ -40,9 +40,8 @@ export interface AddressMessages {
 
 /**
  * A field's problem: `message` is what is said under it. A field can be
- * marked wrong without a message of its own — when the company option is
- * offered, an empty first AND last name is one problem ("a name or a
- * company"), said once, on the first of them.
+ * marked wrong without a message of its own — an empty email AND phone is one
+ * problem ("an email or a phone"), said once, under the email.
  */
 export interface FieldError {
   message: string | null;
@@ -57,30 +56,39 @@ export type AddressErrors = Partial<Record<AddressField, FieldError>>;
  */
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
+/**
+ * Just as loose, and the same rule the API applies: an optional + or 00, then
+ * 6 to 15 digits, with spaces, dots, dashes, slashes and brackets allowed
+ * between them. The country code is added on the server from the shipping
+ * country, so "06 12 34 56 78" is fine as typed.
+ */
+export function isPlausiblePhone(raw: string): boolean {
+  const s = raw.trim().replace(/[\s.\-/()]/g, "");
+  if (!/^(\+|00)?\d+$/.test(s)) return false;
+  const digits = s.replace(/^\+|^00/, "");
+  return digits.length >= 6 && digits.length <= 15;
+}
+
 export function validateAddress(v: AddressValues, opts: { companyAllowed: boolean }, m: AddressMessages): AddressErrors {
   const errors: AddressErrors = {};
-  const first = v.firstName.trim();
-  const last = v.lastName.trim();
-
-  if (opts.companyAllowed && !v.companyName.trim()) {
-    // No company: the name is required in full. One message for the pair,
-    // under whichever of the two is empty first.
-    if (!first || !last) {
-      let said = false;
-      for (const [key, value] of [["firstName", first], ["lastName", last]] as const) {
-        if (value) continue;
-        errors[key] = { message: said ? null : m.addrErrNameOrCompany };
-        said = true;
-      }
-    }
-  } else if (!opts.companyAllowed) {
-    if (!first) errors.firstName = { message: m.addrErrFirstName };
-    if (!last) errors.lastName = { message: m.addrErrLastName };
+  // One name field: at least two characters, one word is fine (not everyone
+  // has two names). With the company option, a company name can stand in.
+  const hasName = v.name.trim().length >= 2;
+  if (!hasName && !(opts.companyAllowed && v.companyName.trim())) {
+    errors.name = { message: opts.companyAllowed ? m.addrErrNameOrCompany : m.addrErrName };
   }
 
+  // Email OR phone. Both empty is one problem, said once under the email and
+  // marked on both; whichever is filled in must then be well-formed.
   const email = v.email.trim();
-  if (!email) errors.email = { message: m.addrErrEmail };
-  else if (!EMAIL_PATTERN.test(email)) errors.email = { message: m.addrErrEmailInvalid };
+  const phone = v.phone.trim();
+  if (!email && !phone) {
+    errors.email = { message: m.addrErrContact };
+    errors.phone = { message: null };
+  } else {
+    if (email && !EMAIL_PATTERN.test(email)) errors.email = { message: m.addrErrEmailInvalid };
+    if (phone && !isPlausiblePhone(phone)) errors.phone = { message: m.addrErrPhoneInvalid };
+  }
 
   if (!v.country) errors.country = { message: m.addrErrCountry };
   if (!v.line1.trim()) errors.line1 = { message: m.addrErrLine1 };

@@ -1422,20 +1422,13 @@ export default function EditProductPage() {
             </div>
             <div className={styles.sidebarCardBody}>
               <p className={styles.hint} style={{ marginTop: 0 }}>
-                Optional fields on the address step, hidden by default. A field is shown when <strong>any</strong> product in the basket switches it on.
+                Optional fields on the address step, hidden by default. A field is shown when <strong>any</strong> product in the basket switches it on. (The phone is always asked: the customer gives an email or a phone.)
               </p>
               <Switch
                 label="Company name"
                 hint="For business orders. A company name can then stand in for the customer’s first and last name."
                 checked={!!product.askCompanyName}
                 onChange={(v) => set({ askCompanyName: v })}
-              />
-              <div className={styles.divider} />
-              <Switch
-                label="Phone"
-                hint="Optional for the customer. Useful when the carrier needs to call ahead of delivery."
-                checked={!!product.askPhone}
-                onChange={(v) => set({ askPhone: v })}
               />
               <div className={styles.divider} />
               <Switch

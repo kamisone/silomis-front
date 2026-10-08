@@ -9,7 +9,8 @@ interface OrderListItem {
   id: string;
   orderNumber: string;
   status: string;
-  customerEmail: string;
+  customerEmail: string | null;
+  customerPhone: string | null;
   customerName: string | null;
   totalCents: number;
   createdAt: string;
@@ -72,7 +73,7 @@ export default function DraftOrdersPage() {
                   </td>
                   <td>
                     {o.customerName ?? "—"}
-                    <div style={{ fontSize: "0.78rem", color: "var(--color-secondary)" }}>{o.customerEmail}</div>
+                    <div style={{ fontSize: "0.78rem", color: "var(--color-secondary)" }}>{o.customerEmail ?? o.customerPhone}</div>
                   </td>
                   <td>{o.items.reduce((n, i) => n + i.quantity, 0)}</td>
                   <td>{eur(o.totalCents)}</td>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Copy, Check, Truck, Package, MapPin, Scissors } from "lucide-react";
+import { Copy, Check, Truck, Package, MapPin, Scissors, Phone, MessageCircle } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
@@ -83,9 +83,14 @@ interface Order {
   id: string;
   orderNumber: string;
   status: string;
-  customerEmail: string;
+  /** Null when the customer checked out with a phone only. */
+  customerEmail: string | null;
   customerName: string | null;
   customerPhone: string | null;
+  /** Consent to the abandoned-cart SMS, ticked at checkout. */
+  smsMarketingOptIn?: boolean;
+  /** When the customer typed back the code texted to the phone (phone verification on). */
+  phoneVerifiedAt?: string | null;
   shippingAddressSnapshot: OrderAddress;
   pickupPointSnapshot: OrderPickupPoint | null;
   shippingMethodId: string | null;
@@ -467,8 +472,39 @@ export default function OrderDetailPage() {
             <h2 className={s.panelTitle}>Customer</h2>
             <div className={s.lines}>
               <span className={s.lineStrong}>{order.customerName ?? "—"}</span>
-              <span className={s.lineMuted}>{order.customerEmail}</span>
-              {order.customerPhone && <span className={s.lineMuted}>{order.customerPhone}</span>}
+              {order.customerEmail ? (
+                <span className={s.lineMuted}>{order.customerEmail}</span>
+              ) : (
+                // No email: nothing the shop sends by mail reaches this
+                // customer. They get the key moments by SMS; anything else
+                // (a question about the design) is a call or a WhatsApp.
+                <span className={ui.badgeAlert} style={{ alignSelf: "flex-start" }}>
+                  No email — contact by phone
+                </span>
+              )}
+              {order.customerPhone && (
+                <span className={s.lineMuted}>
+                  {order.customerPhone}
+                  {order.phoneVerifiedAt && (
+                    <span className={ui.badgeActive} style={{ marginLeft: "0.4rem" }} title={`Confirmed by SMS code on ${new Date(order.phoneVerifiedAt).toLocaleString()}`}>
+                      Verified
+                    </span>
+                  )}
+                </span>
+              )}
+              {order.customerPhone && order.smsMarketingOptIn && <span className={s.lineMuted}>Agreed to SMS reminders</span>}
+              {order.customerPhone && (
+                <span className={s.contactActions}>
+                  <a className={s.contactBtn} href={`tel:${order.customerPhone.replace(/[^\d+]/g, "")}`}>
+                    <Phone size={13} aria-hidden="true" /> Call
+                  </a>
+                  {order.customerPhone.startsWith("+") && (
+                    <a className={s.contactBtn} href={`https://wa.me/${order.customerPhone.replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer">
+                      <MessageCircle size={13} aria-hidden="true" /> WhatsApp
+                    </a>
+                  )}
+                </span>
+              )}
             </div>
           </div>
 

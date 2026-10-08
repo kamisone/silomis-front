@@ -11,6 +11,10 @@ interface Settings {
   emailEnabled: boolean;
   emailAddresses: string[];
   events: string[];
+  /** Texts to customers about their own order — every order with a phone. */
+  customerSmsEnabled: boolean;
+  /** A customer who gives no email confirms their phone with a texted code. */
+  checkoutPhoneVerification: boolean;
 }
 
 interface LogEntry {
@@ -36,7 +40,27 @@ const EVENT_OPTIONS: { key: string; label: string; desc: string }[] = [
   { key: "order_message", label: "Order Message", desc: "When a customer writes on one of their orders" },
 ];
 
-const EVENT_LABELS: Record<string, string> = Object.fromEntries(EVENT_OPTIONS.map((e) => [e.key, e.label]));
+/**
+ * What customers are texted about their own order (CustomerSmsService). Not
+ * selectable one by one — one switch covers them — but they share the log,
+ * so they need names there.
+ */
+const CUSTOMER_SMS_EVENTS: { key: string; label: string }[] = [
+  { key: "customer_order_confirmed", label: "Customer: order confirmed" },
+  { key: "customer_payment_failed", label: "Customer: payment failed" },
+  { key: "customer_order_shipped", label: "Customer: order shipped" },
+  { key: "customer_order_cancelled", label: "Customer: order cancelled" },
+  { key: "customer_send_in_received", label: "Customer: send-in item received" },
+  { key: "customer_send_in_returned", label: "Customer: send-in item returned" },
+  { key: "customer_send_in_problem", label: "Customer: send-in needs them" },
+  { key: "customer_order_message", label: "Customer: shop replied" },
+  { key: "customer_access_link", label: "Customer: tracking link" },
+  { key: "customer_cart_abandoned", label: "Customer: abandoned-cart reminder" },
+  { key: "customer_phone_code", label: "Customer: checkout verification code" },
+  { key: "customer_sms_opt_out", label: "Customer: replied STOP" },
+];
+
+const EVENT_LABELS: Record<string, string> = Object.fromEntries([...EVENT_OPTIONS, ...CUSTOMER_SMS_EVENTS].map((e) => [e.key, e.label]));
 
 interface SupportSettings {
   /** One conversation pages at most this often, however chatty the guest is. */
@@ -344,6 +368,52 @@ export default function AdminNotificationsPage() {
             </div>
           </div>
 
+          {/* ── Customer SMS ── */}
+          <div className={styles.card} style={{ marginTop: 24 }}>
+            <div className={styles.cardHeader}>
+              <h2 className={styles.cardTitle}>SMS to customers</h2>
+              <button
+                type="button"
+                className={`${styles.toggle} ${settings.customerSmsEnabled ? styles.toggleOn : ""}`}
+                onClick={() => patch({ customerSmsEnabled: !settings.customerSmsEnabled })}
+                aria-label="Toggle SMS to customers"
+                aria-pressed={settings.customerSmsEnabled}
+              />
+            </div>
+            <div className={styles.cardBody}>
+              <p className={styles.cardNote} style={{ marginTop: 0 }}>
+                Every order with a phone number gets a text at the moments that matter: order confirmed, payment
+                failed, shipped, cancelled, a send-in item received / sent back / needing the customer, and the shop
+                replying on the order. Each text carries the order&rsquo;s tracking link. For a customer who checked
+                out with a phone only, this is the only news they get. Sent through the same SMS gateway as the alerts
+                above; every text appears in the log as &ldquo;Customer: …&rdquo;.
+              </p>
+              <p className={styles.cardNote}>
+                <strong>Abandoned-cart reminder:</strong> only to customers who ticked &ldquo;Text me a reminder if I
+                don&rsquo;t finish my order&rdquo; at checkout, one hour after their last change to the basket. It
+                tells them to reply STOP; a number that does is never sent another reminder (order updates still go
+                out).
+              </p>
+              <label className={styles.numberRow}>
+                <span className={styles.eventText}>
+                  <span className={styles.eventLabel}>Verify the phone of customers without an email</span>
+                  <span className={styles.eventDesc}>
+                    Before the order is created, a customer who gave only a phone number types back a 6-digit code
+                    texted to it. Catches wrong numbers, at the cost of a wait for the gateway phone to send the
+                    code. The customer can always enter an email instead.
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  className={`${styles.toggle} ${settings.checkoutPhoneVerification ? styles.toggleOn : ""}`}
+                  onClick={() => patch({ checkoutPhoneVerification: !settings.checkoutPhoneVerification })}
+                  aria-label="Toggle phone verification at checkout"
+                  aria-pressed={settings.checkoutPhoneVerification}
+                />
+              </label>
+            </div>
+          </div>
+
           {/* ── Support behaviour ── */}
           {support && (
             <div className={styles.card} style={{ marginTop: 24 }}>
@@ -408,7 +478,7 @@ export default function AdminNotificationsPage() {
                 onChange={(e) => changeFilter({ event: e.target.value })}
               >
                 <option value="">All events</option>
-                {EVENT_OPTIONS.map((ev) => (
+                {[...EVENT_OPTIONS, ...CUSTOMER_SMS_EVENTS].map((ev) => (
                   <option key={ev.key} value={ev.key}>
                     {ev.label}
                   </option>

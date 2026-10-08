@@ -31,6 +31,8 @@ interface OrderTracking {
   createdAt: string;
   items: TrackingItem[];
   sendIn?: SendInTrackingData | null;
+  /** False for a phone-only order: no email will follow this page. */
+  hasEmail?: boolean;
 }
 
 function centsToEuros(c: number) {
@@ -45,6 +47,7 @@ function SuccessContent() {
   const [order, setOrder] = useState<OrderTracking | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const orderNumber = searchParams.get("order");
   const token = searchParams.get("token");
@@ -136,6 +139,29 @@ function SuccessContent() {
         <p className={styles.subtitle}>
           {t.shop.orderPrefix} <strong>{order.orderNumber}</strong> {t.shop.orderConfirmedSuffix}
         </p>
+
+        {/* A phone-only order gets no confirmation email, so this page is the
+            receipt: say that updates come by SMS, and hand over the tracking
+            link — it carries the token, so it opens the order on any device. */}
+        {order.hasEmail === false && token && (
+          <div className={styles.sendInNext}>
+            <strong>{t.shop.successNoEmailTitle}</strong>
+            <p>{t.shop.successNoEmailBody}</p>
+            <button
+              type="button"
+              className={styles.copyLinkBtn}
+              onClick={() => {
+                const url = `${window.location.origin}/${locale}/shop/orders/track/${order.orderNumber}?token=${token}`;
+                navigator.clipboard?.writeText(url).then(
+                  () => setCopied(true),
+                  () => undefined,
+                );
+              }}
+            >
+              {copied ? t.shop.trackingLinkCopied : t.shop.copyTrackingLink}
+            </button>
+          </div>
+        )}
 
         {/* A send-in order is not finished at payment: the item still has to
             be posted. Said here, first, with the address and the note to
