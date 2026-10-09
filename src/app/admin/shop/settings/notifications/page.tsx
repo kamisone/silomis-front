@@ -389,10 +389,9 @@ export default function AdminNotificationsPage() {
                 above; every text appears in the log as &ldquo;Customer: …&rdquo;.
               </p>
               <p className={styles.cardNote}>
-                <strong>Abandoned-cart reminder:</strong> only to customers who ticked &ldquo;Text me a reminder if I
-                don&rsquo;t finish my order&rdquo; at checkout, one hour after their last change to the basket. It
-                tells them to reply STOP; a number that does is never sent another reminder (order updates still go
-                out).
+                <strong>Abandoned-cart reminder:</strong> only to customers who ticked &ldquo;Send me reminders by
+                SMS&rdquo; at checkout, one hour after their last change to the basket. It tells them to
+                reply STOP; a number that does is never sent another marketing text (order updates still go out).
               </p>
               <label className={styles.numberRow}>
                 <span className={styles.eventText}>

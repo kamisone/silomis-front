@@ -91,7 +91,15 @@ export default function CountrySelect({
     return [...starts, ...contains];
   }, [countries, query]);
 
+  /**
+   * Set the moment the panel closes, ahead of the re-render: Tab closes it in
+   * the key handler and then fires a blur from the same render, which still
+   * sees it open and would pick a second time, the top row over the arrowed one.
+   */
+  const closedRef = useRef(true);
+
   function close(refocus = true) {
+    closedRef.current = true;
     setOpen(false);
     setQuery("");
     if (refocus) triggerRef.current?.focus();
@@ -102,10 +110,31 @@ export default function CountrySelect({
     close();
   }
 
+  /**
+   * Focus is leaving the picker without a choice. A customer who typed "fra"
+   * and moved on to the next field meant France, so the match they were
+   * looking at is taken: the highlighted row for Tab (the top one unless they
+   * arrowed down), the top row for a click or tap elsewhere. Without a search
+   * typed, nothing changes — they opened the list and left it.
+   */
+  function leave(pickIndex: number) {
+    if (closedRef.current) return;
+    const pick = query.trim() ? (filtered[pickIndex] ?? filtered[0]) : undefined;
+    if (pick && pick.isoCode !== value) onChange(pick.isoCode);
+    close(false);
+  }
+  // The outside-click listener is registered once per opening; this keeps it
+  // reading the current search instead of the one it was registered with.
+  const leaveRef = useRef(leave);
+  useEffect(() => {
+    leaveRef.current = leave;
+  });
+
   // Opening: start the highlight on the current selection, and move focus into
   // the filter when there is one.
   useEffect(() => {
     if (!open) return;
+    closedRef.current = false;
     const idx = Math.max(0, filtered.findIndex((c) => c.isoCode === value));
     const t = setTimeout(() => {
       setActiveIndex(idx);
@@ -125,7 +154,7 @@ export default function CountrySelect({
   useEffect(() => {
     if (!open) return;
     const onPointerDown = (e: PointerEvent) => {
-      if (!rootRef.current?.contains(e.target as Node)) close(false);
+      if (!rootRef.current?.contains(e.target as Node)) leaveRef.current(0);
     };
     document.addEventListener("pointerdown", onPointerDown);
     return () => document.removeEventListener("pointerdown", onPointerDown);
@@ -171,13 +200,24 @@ export default function CountrySelect({
         close();
         break;
       case "Tab":
-        close(false);
+        leave(activeIndex);
         break;
     }
   }
 
   return (
-    <div className={styles.root} ref={rootRef} onKeyDown={onKeyDown}>
+    <div
+      className={styles.root}
+      ref={rootRef}
+      onKeyDown={onKeyDown}
+      onBlur={(e) => {
+        // Focus moved to another field by some other route than a click or
+        // Tab (a phone's "next" key, autofill). Only when it lands somewhere
+        // real: a click on an option blurs the search box with no target
+        // first, and acting on that would pick the top row over the clicked one.
+        if (open && e.relatedTarget && !rootRef.current?.contains(e.relatedTarget as Node)) leave(0);
+      }}
+    >
       {/* Mirrors the selection so native form validation still applies. */}
       <input
         className={styles.validationProxy}

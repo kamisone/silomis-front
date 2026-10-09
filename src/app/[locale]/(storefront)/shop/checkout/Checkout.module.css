@@ -877,12 +877,12 @@ a.summaryItemLink:focus-visible {
   }
 }
 
-/* ── SMS reminder consent, under the phone field ── */
+/* ── SMS marketing consent, just above the Continue button ── */
 .consentRow {
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  margin: -6px 0 16px;
+  margin: 4px 0 16px;
   font-size: 13px;
   color: var(--co-text-secondary);
   cursor: pointer;

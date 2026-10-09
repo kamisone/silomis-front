@@ -86,7 +86,7 @@ interface FormState {
   zip: string;
   country: string;
   couponCode: string | null;
-  /** "Text me a reminder if I don't finish my order" — unticked by default; consent for the abandoned-cart SMS. */
+  /** "Send me reminders by SMS" — unticked by default; consent for reminder texts (the abandoned-cart reminder), not offers. */
   smsOptIn: boolean;
 }
 
@@ -1113,6 +1113,7 @@ export default function CheckoutPage() {
                     autoComplete="email"
                     autoCapitalize="off"
                     spellCheck={false}
+                    placeholder="your@email.com"
                     value={form.email}
                     onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
                   />
@@ -1125,6 +1126,9 @@ export default function CheckoutPage() {
                     type="tel"
                     inputMode="tel"
                     autoComplete="tel"
+                    // Shows the international shape. A number typed without the
+                    // code still works: the server adds the shipping country's.
+                    placeholder="+33 6 12 34 56 78"
                     value={form.phone}
                     onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
                   />
@@ -1132,12 +1136,6 @@ export default function CheckoutPage() {
                 </div>
               </div>
               <p className={styles.requiredNote}>{t.shop.contactEitherNote}</p>
-              {form.phone.trim() && (
-                <label className={styles.consentRow}>
-                  <input type="checkbox" checked={!!form.smsOptIn} onChange={(e) => setForm((f) => ({ ...f, smsOptIn: e.target.checked }))} />
-                  <span>{t.shop.smsOptInLabel}</span>
-                </label>
-              )}
 
               <h2 className={styles.sectionTitle}>{t.shop.shippingAddressTitle}</h2>
               <div className={`${styles.field} ${addressErrors.country ? styles.fieldInvalid : ""}`}>
@@ -1166,7 +1164,8 @@ export default function CheckoutPage() {
               </div>
               <div className={`${styles.field} ${addressErrors.line1 ? styles.fieldInvalid : ""}`}>
                 <label htmlFor="co-line1">
-                  {t.shop.addressLine1}
+                  {/* "Line 1" only when a line 2 follows it. */}
+                  {ask.addressLine2 ? t.shop.addressLine1 : t.shop.addressLabel}
                   <span className={styles.requiredMark}> *</span>
                 </label>
                 <input {...addressFieldProps("line1")} autoComplete="address-line1" required value={form.line1} onChange={(e) => setForm((f) => ({ ...f, line1: e.target.value }))} />
@@ -1241,6 +1240,15 @@ export default function CheckoutPage() {
                 <p className={styles.error} role="alert">
                   {formError}
                 </p>
+              )}
+              {/* SMS marketing consent: unticked, shown once there is a number
+                  to text, and the last thing before the button so it reads as
+                  an extra, not part of the contact details. */}
+              {form.phone.trim() && (
+                <label className={styles.consentRow}>
+                  <input type="checkbox" checked={!!form.smsOptIn} onChange={(e) => setForm((f) => ({ ...f, smsOptIn: e.target.checked }))} />
+                  <span>{t.shop.smsOptInLabel}</span>
+                </label>
               )}
               <StickyActionBar>
                 <button type="submit" disabled={submitting} className={styles.continueBtn}>
