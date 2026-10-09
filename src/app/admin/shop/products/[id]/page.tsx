@@ -237,6 +237,15 @@ export default function EditProductPage() {
 
   // ── Per-product images for "image" swatch option values ─────────────────
   const [optionImages, setOptionImages] = useState<OptionImage[]>([]);
+  /**
+   * Gallery photos a swatch uses, with what to tell the admin: picking that
+   * swatch switches the photo in every language, so the photo has to stay in
+   * all of them (the API refuses otherwise).
+   */
+  const swatchPhotoLocks = useMemo(() => {
+    const names = new Map(productAttrs.flatMap((pa) => pa.attribute.optionValues.map((ov) => [ov.id, ov.displayValue ?? ov.value] as const)));
+    return new Map(optionImages.map((oi) => [oi.mediaKey, `Swatch photo for “${names.get(oi.optionValueId) ?? "an option"}” — shown in all languages.`]));
+  }, [productAttrs, optionImages]);
   const [optInMethods, setOptInMethods] = useState<OptInMethod[]>([]);
   const [optionImagePickerTarget, setOptionImagePickerTarget] = useState<string | null>(null);
 
@@ -401,7 +410,7 @@ export default function EditProductPage() {
         brand: product.brand || null,
         basePriceCents: product.basePriceCents,
         compareAtPriceCents: (product.variants.find((v) => v.isDefault) ?? product.variants[0])?.compareAtPriceCents ?? null,
-        media: product.media.map((m) => ({ key: m.key, type: m.type, posterKey: m.posterKey, altText: m.altText, isFeatured: m.isFeatured })),
+        media: product.media.map((m) => ({ key: m.key, type: m.type, posterKey: m.posterKey, altText: m.altText, isFeatured: m.isFeatured, locales: m.locales ?? null })),
         infoSections: product.infoSections,
         trustBadges: product.trustBadges,
         faqs: product.faqs,
@@ -789,7 +798,7 @@ export default function EditProductPage() {
               <span className={styles.sectionTitle}>Media</span>
             </div>
             <div className={styles.sectionBody}>
-              <ProductMediaManager initialMedia={product.media} onChange={(media) => set({ media: media as ResolvedProductMediaItem[] })} />
+              <ProductMediaManager initialMedia={product.media} lockedKeys={swatchPhotoLocks} onChange={(media) => set({ media: media as ResolvedProductMediaItem[] })} />
             </div>
           </div>
 
@@ -1613,7 +1622,8 @@ export default function EditProductPage() {
       <ProductImagePicker
         open={optionImagePickerTarget !== null}
         onClose={() => setOptionImagePickerTarget(null)}
-        images={product.media.filter((m) => m.type === "image")}
+        // Shared photos only: a swatch photo shows in every language.
+        images={product.media.filter((m) => m.type === "image" && !m.locales?.length)}
         onSelect={(item) => setOptionImage(optionImagePickerTarget!, item.key)}
         title="Select option image"
       />

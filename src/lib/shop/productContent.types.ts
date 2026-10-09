@@ -9,6 +9,8 @@ export interface ProductMediaItem {
   posterKey?: string | null;
   altText?: string | null;
   isFeatured?: boolean;
+  /** Storefront languages this item is limited to; absent or empty = every language. */
+  locales?: string[] | null;
 }
 
 /** ProductMediaItem with resolved URLs, returned by the API. */

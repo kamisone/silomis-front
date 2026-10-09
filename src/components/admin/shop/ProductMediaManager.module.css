@@ -135,3 +135,180 @@
   color: color-mix(in srgb, var(--foreground) 45%, transparent);
   margin-bottom: 12px;
 }
+
+/* ── Languages ── */
+
+/* "Preview as" — what one language's product page shows. */
+.previewBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--field-border, var(--color-surface));
+  border-radius: 10px;
+  background: var(--background);
+}
+.previewLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--foreground) 60%, transparent);
+}
+.previewChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.previewChip {
+  min-width: 34px;
+  padding: 3px 8px;
+  border: 1px solid var(--field-border, var(--color-surface));
+  border-radius: 999px;
+  background: transparent;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: color-mix(in srgb, var(--foreground) 70%, transparent);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.previewChip:hover { border-color: var(--color-accent); }
+.previewChipActive {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: #fff;
+}
+.previewSummary {
+  font-size: 11.5px;
+  color: color-mix(in srgb, var(--foreground) 55%, transparent);
+}
+
+/* A photo the previewed language does not get. */
+.cardHidden .thumbImg { opacity: 0.25; filter: grayscale(1); }
+.cardHidden .cardBody { opacity: 0.55; }
+.hiddenOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--foreground);
+  pointer-events: none;
+}
+
+/* On the photo: which languages it is limited to, readable at a glance. */
+.localeBadge {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  z-index: 2;
+  max-width: calc(100% - 12px);
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--color-accent);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+
+.starBtn:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+.starBtn:disabled:hover { color: color-mix(in srgb, var(--foreground) 45%, transparent); }
+
+/* The chip under the alt text that opens the language panel. */
+.langChip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  padding: 4px 8px;
+  border: 1.5px solid var(--field-border, var(--color-surface));
+  border-radius: 6px;
+  background: var(--background);
+  font-size: 11px;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--foreground) 65%, transparent);
+  cursor: pointer;
+  transition: border-color 0.12s, color 0.12s;
+}
+.langChip:hover { border-color: var(--color-accent); }
+.langChipLimited {
+  border-color: color-mix(in srgb, var(--color-accent) 55%, transparent);
+  color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 7%, var(--background));
+}
+.langChipText {
+  flex: 1;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.chevronOpen { transform: rotate(180deg); }
+
+/* Opens in the card's own flow, so nothing is clipped by the card's edges. */
+.langPanel {
+  margin-top: 6px;
+  padding: 8px;
+  border: 1px solid var(--field-border, var(--color-surface));
+  border-radius: 8px;
+  background: var(--background);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  cursor: default;
+}
+.langAll,
+.langOption {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 4px 0;
+  border: 1px solid var(--field-border, var(--color-surface));
+  border-radius: 6px;
+  background: transparent;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: color-mix(in srgb, var(--foreground) 70%, transparent);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.langAll { width: 100%; }
+.langAll:hover,
+.langOption:hover { border-color: var(--color-accent); }
+.langOptionOn {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: #fff;
+}
+.langGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+}
+.langNote {
+  margin: 0;
+  font-size: 10.5px;
+  line-height: 1.35;
+  color: color-mix(in srgb, var(--foreground) 55%, transparent);
+}

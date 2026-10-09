@@ -155,7 +155,7 @@ export default function NewProductPage() {
         shortDescription: form.shortDescription || null,
         description: form.description || null,
         featuredImageKey,
-        media: media.map((m) => ({ key: m.key, type: m.type, posterKey: m.posterKey, altText: m.altText, isFeatured: m.isFeatured })),
+        media: media.map((m) => ({ key: m.key, type: m.type, posterKey: m.posterKey, altText: m.altText, isFeatured: m.isFeatured, locales: m.locales ?? null })),
         infoSections,
         trustBadges,
         faqs,
