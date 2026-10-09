@@ -10,6 +10,7 @@ import StickyVariantSelector from "@/components/shop/StickyVariantSelector";
 import { useVariantSelection } from "@/components/shop/useVariantSelection";
 import WishlistButton from "@/components/shop/WishlistButton";
 import ShareButton from "@/components/shop/ShareButton";
+import CartDrawerButton from "@/components/shop/CartDrawerButton";
 import ReplayRecorderMount from "@/components/shop/ReplayRecorderMount";
 import { embroideryPricing, FreeEmbroideryBadge } from "@/components/shop/PersonaliseOffer";
 import PromotionBadge, { type PromotionInfo } from "@/components/shop/PromotionBadge";
@@ -1024,6 +1025,8 @@ export default function ShopProductDetail({
                 url={`/${locale}/shop/${product.slug}`}
                 imageUrl={activeHeroUrl ?? product.featuredImageUrl}
               />
+              {/* The basket, one tap from where it was just filled. */}
+              <CartDrawerButton />
             </div>
 
             {!noMatch && !isBlocked && (
