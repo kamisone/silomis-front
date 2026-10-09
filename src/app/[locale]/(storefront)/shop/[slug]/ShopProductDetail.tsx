@@ -11,6 +11,7 @@ import { useVariantSelection } from "@/components/shop/useVariantSelection";
 import WishlistButton from "@/components/shop/WishlistButton";
 import ShareButton from "@/components/shop/ShareButton";
 import CartDrawerButton from "@/components/shop/CartDrawerButton";
+import PaymentIcons from "@/components/shop/PaymentIcons";
 import ReplayRecorderMount from "@/components/shop/ReplayRecorderMount";
 import { embroideryPricing, FreeEmbroideryBadge } from "@/components/shop/PersonaliseOffer";
 import PromotionBadge, { type PromotionInfo } from "@/components/shop/PromotionBadge";
@@ -305,10 +306,20 @@ function DocumentsSection({
  * same TRUST_BADGE_ICON_MAP the admin picker offers. */
 function defaultTrustBadges(t: T): TrustBadge[] {
   return [
-    { id: "default-secure", icon: "Lock", title: t.shop.trustSecureTitle, subtitle: t.shop.trustSecureText, sortOrder: 0 },
+    // No subtitle: the payment marks take its place (see TrustBadgesRow).
+    { id: "default-secure", icon: "Lock", title: t.shop.trustSecureTitle, sortOrder: 0 },
     { id: "default-shipping", icon: "Truck", title: t.shop.trustShippingTitle, subtitle: t.shop.trustShippingText, sortOrder: 1 },
     { id: "default-support", icon: "Headset", title: t.shop.trustSupportTitle, subtitle: t.shop.trustSupportText, sortOrder: 2 },
   ];
+}
+
+/**
+ * The secure-payment badge: the built-in one, or one an admin made with the
+ * lock or card icon. It shows the accepted payment marks instead of a line of
+ * text — "you can pay with these" says more than "your payment is protected".
+ */
+function isSecurePaymentBadge(b: TrustBadge): boolean {
+  return b.id === "default-secure" || b.icon === "Lock" || b.icon === "CreditCard";
 }
 
 function TrustBadgesRow({ badges, t }: { badges: TrustBadge[]; t: T }) {
@@ -318,12 +329,17 @@ function TrustBadgesRow({ badges, t }: { badges: TrustBadge[]; t: T }) {
     <div className={styles.trustRow}>
       {sorted.map((b) => {
         const Icon = getTrustBadgeIcon(b.icon);
-        // Three stacked lines per badge: icon, then title, then subtitle.
+        // Three stacked lines per badge: icon, then title, then subtitle —
+        // or, for secure payment, the payment marks in the subtitle's place.
         const content = (
           <>
             <Icon size={26} strokeWidth={1.75} className={styles.trustIcon} aria-hidden="true" />
             <span className={styles.trustTitle}>{b.title}</span>
-            {b.subtitle && <span className={styles.trustSubtitle}>{b.subtitle}</span>}
+            {isSecurePaymentBadge(b) ? (
+              <PaymentIcons label={t.shop.acceptedPayments} />
+            ) : (
+              b.subtitle && <span className={styles.trustSubtitle}>{b.subtitle}</span>
+            )}
           </>
         );
         return b.link ? (

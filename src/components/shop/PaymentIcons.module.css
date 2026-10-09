@@ -1,0 +1,23 @@
+/* Wraps onto a second line rather than overflowing a narrow trust-badge cell. */
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 3px;
+  max-width: 100%;
+}
+.icon {
+  width: 30px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+  .row {
+    gap: 2px;
+  }
+  .icon {
+    width: 24px;
+    height: 16px;
+  }
+}
