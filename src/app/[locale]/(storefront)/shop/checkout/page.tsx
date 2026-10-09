@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { AlertCircle, ArrowUpRight, Check, Lock } from "lucide-react";
 import { loadStripe } from "@stripe/stripe-js";
@@ -317,6 +317,14 @@ const MOBILE_QUERY = "(max-width: 768px)";
  * Its height is published as --buy-bar-height (the PDP's buy bar uses the
  * same variable) so the back-to-top button and the chat bubble rise above it,
  * and the page reserves the same room at its foot.
+ *
+ * On a phone the same button is also rendered in place at the end of the
+ * step, so a customer who scrolls to the bottom finds it where a form's
+ * button usually is. Both copies stay: the pinned one is always in reach.
+ * On a desktop the bar is not pinned — it already sits at the end of the
+ * step — so the in-place copy is hidden there (.inlineAction). Rendering the
+ * children twice is safe because they are plain buttons: no ids, no refs,
+ * and a submit button submits its form from either copy.
  */
 function StickyActionBar({ children }: { children: React.ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -337,9 +345,12 @@ function StickyActionBar({ children }: { children: React.ReactNode }) {
     };
   }, []);
   return (
-    <div ref={ref} className={styles.stickyAction}>
-      {children}
-    </div>
+    <>
+      <div className={styles.inlineAction}>{children}</div>
+      <div ref={ref} className={styles.stickyAction}>
+        {children}
+      </div>
+    </>
   );
 }
 
@@ -641,8 +652,29 @@ export default function CheckoutPage() {
 
   function goToStep(s: Step) {
     setStep(s);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    scrollOnStepChange.current = true;
   }
+
+  /**
+   * Back to the top of the page once the new step is on screen.
+   *
+   * This used to be a smooth scroll started in goToStep, before React had
+   * rendered the new step. The customer is usually at the very bottom of a
+   * long step when they press Continue; the shorter step then shrank the page
+   * under the running animation, phones (Safari especially) cancelled it, and
+   * the customer was left looking at the footer. Run here instead — after the
+   * new step is in the page, before it is painted — and instant, so there is
+   * no frame with the footer and nothing to interrupt.
+   *
+   * Only for moves made through goToStep: restoring a saved session on load
+   * sets the step too, and must not yank a page the visitor is reading.
+   */
+  const scrollOnStepChange = useRef(false);
+  useLayoutEffect(() => {
+    if (!scrollOnStepChange.current) return;
+    scrollOnStepChange.current = false;
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }, [step]);
 
   function handleReservationExpired() {
     clearCheckoutSession(token);

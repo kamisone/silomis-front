@@ -735,6 +735,12 @@ a.summaryItemLink:focus-visible {
 .stickyAction .actionRow {
   margin-top: 0;
 }
+/* The in-place copy of the step's button, at the end of the step. Phones
+   only: on a desktop the bar above is already in place, so a copy would show
+   the button twice. */
+.inlineAction {
+  display: none;
+}
 
 @media (max-width: 768px) {
   .container {
@@ -766,6 +772,11 @@ a.summaryItemLink:focus-visible {
   .stickyAction .continueBtn,
   .stickyAction .backBtn {
     margin-top: 0;
+  }
+
+  .inlineAction {
+    display: flex;
+    flex-direction: column;
   }
 }
 
