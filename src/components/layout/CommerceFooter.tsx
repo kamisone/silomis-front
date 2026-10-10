@@ -108,9 +108,6 @@ export default function CommerceFooter({ locale }: { locale: Locale }) {
               <Link href={`/${locale}/shop/orders/track`} className={styles.footerLink}>
                 {t.nav.trackMyOrder}
               </Link>
-              <Link href="/admin" className={styles.footerLink}>
-                {t.footer.admin}
-              </Link>
             </nav>
           </div>
 

@@ -12,6 +12,21 @@ import { getTrafficSource } from "./trafficSource";
 
 const MAX_BUFFERED_EVENTS = 50;
 const MAX_BUFFERED_BYTES = 200_000; // soft cap, well under the backend's hard per-batch cap
+/** Under the backend's MAX_BATCH_EVENTS (500): a buffer that grew while a send was slow goes as several batches. */
+const MAX_EVENTS_PER_BATCH = 300;
+/**
+ * A fresh full snapshot this long after a client-side navigation, once the
+ * new page has rendered, and every CHECKOUT_EVERY_MS regardless. A replay is
+ * a chain of DOM changes on top of the last snapshot: one batch that never
+ * arrives breaks every change after it, and the replay freezes on the old
+ * page while scrolls and clicks carry on. A recent snapshot is the point it
+ * picks up from again.
+ */
+const NAVIGATION_SNAPSHOT_DELAY_MS = 1200;
+const CHECKOUT_EVERY_MS = 2 * 60_000;
+/** rrweb's event types whose payload can be large: the full snapshot, and incremental snapshots (DOM mutations). */
+const FULL_SNAPSHOT = 2;
+const INCREMENTAL_SNAPSHOT = 3;
 const FLUSH_INTERVAL_MS = 5000;
 const SCROLL_THROTTLE_MS = 300;
 const SCROLL_MIN_DELTA_PCT = 5;
@@ -117,6 +132,7 @@ export async function startReplayRecording(productId: string): Promise<ReplayRec
     const elapsedMs = () => Math.round(performance.now() - startedAtPerf);
 
     let eventBuffer: eventWithTime[] = [];
+    let eventBytes = 0;
     // Seeded so the admin timeline opens on an explicit start marker rather
     // than on whatever the visitor happened to do first.
     let markerBuffer: Marker[] = [{ type: "session_start", timestampMs: 0 }];
@@ -124,24 +140,52 @@ export async function startReplayRecording(productId: string): Promise<ReplayRec
     let lastScrollPct = -1;
     let lastScrollAt = 0;
 
-    // Cheap estimate — avoids JSON.stringify on every single event push.
-    const bufferedBytes = () => eventBuffer.length * 400 + markerBuffer.length * 120;
+    // Measured for the events that can be big (a page's worth of DOM), a flat
+    // guess for the rest — a navigation's mutations counted as 400 bytes let
+    // one batch grow far past what the backend accepts.
+    const sizeOf = (event: eventWithTime) => (event.type === FULL_SNAPSHOT || event.type === INCREMENTAL_SNAPSHOT ? JSON.stringify(event).length : 200);
+    const bufferedBytes = () => eventBytes + markerBuffer.length * 120;
+
+    const url = `/next-api/public/shop/replay/sessions/${sessionId}/events`;
+    // Batches go one at a time, in order. Sent in parallel (a timed flush and
+    // a full buffer, typically right after a page change) they could reach the
+    // server the wrong way round or race each other there.
+    const queue: string[] = [];
+    let sending = false;
+    const pump = async () => {
+      if (sending) return;
+      sending = true;
+      while (queue.length) {
+        const body = queue.shift()!;
+        await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body }).catch(() => {});
+      }
+      sending = false;
+    };
 
     const flush = (useBeacon = false) => {
-      if (eventBuffer.length === 0 && markerBuffer.length === 0) return;
-      const payload = JSON.stringify({ events: eventBuffer, markers: markerBuffer });
-      eventBuffer = [];
-      markerBuffer = [];
-
-      const url = `/next-api/public/shop/replay/sessions/${sessionId}/events`;
-      if (useBeacon && navigator.sendBeacon) {
-        navigator.sendBeacon(url, new Blob([payload], { type: "application/json" }));
-      } else {
-        // keepalive must only be set on the unload-time beacon fallback: Chromium caps
-        // keepalive request bodies at 64KB, and rrweb's initial full-snapshot event alone
-        // can exceed that, so setting it unconditionally here silently fails every flush.
-        fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: payload, keepalive: useBeacon }).catch(() => {});
+      if (eventBuffer.length > 0 || markerBuffer.length > 0) {
+        // Markers ride with the first batch; a long buffer is split so no
+        // batch is over the backend's per-batch cap.
+        for (let i = 0; i === 0 || i < eventBuffer.length; i += MAX_EVENTS_PER_BATCH) {
+          queue.push(JSON.stringify({ events: eventBuffer.slice(i, i + MAX_EVENTS_PER_BATCH), markers: i === 0 ? markerBuffer : [] }));
+        }
+        eventBuffer = [];
+        eventBytes = 0;
+        markerBuffer = [];
       }
+      if (useBeacon) {
+        // The page is going away: what is still queued cannot wait its turn.
+        // keepalive stays off the normal path — Chromium caps keepalive
+        // bodies at 64KB, and a full snapshot alone can be larger.
+        while (queue.length) {
+          const body = queue.shift()!;
+          if (!navigator.sendBeacon?.(url, new Blob([body], { type: "application/json" }))) {
+            fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body, keepalive: true }).catch(() => {});
+          }
+        }
+        return;
+      }
+      void pump();
     };
 
     const flushTimer = window.setInterval(() => flush(), FLUSH_INTERVAL_MS);
@@ -149,6 +193,7 @@ export async function startReplayRecording(productId: string): Promise<ReplayRec
     const stopRrweb = record({
       emit: (event) => {
         eventBuffer.push(event);
+        eventBytes += sizeOf(event);
         if (eventBuffer.length >= MAX_BUFFERED_EVENTS || bufferedBytes() >= MAX_BUFFERED_BYTES) flush();
       },
       // ── Privacy: never capture sensitive form data ──
@@ -168,6 +213,7 @@ export async function startReplayRecording(productId: string): Promise<ReplayRec
       blockClass: "rr-block",
       maskTextClass: "rr-mask",
       sampling: { scroll: SCROLL_THROTTLE_MS, input: "last" },
+      checkoutEveryNms: CHECKOUT_EVERY_MS,
     }) as unknown as (() => void) | undefined;
 
     pushMarker = (marker) => markerBuffer.push({ ...marker, timestampMs: elapsedMs() });
@@ -199,6 +245,7 @@ export async function startReplayRecording(productId: string): Promise<ReplayRec
 
     // Read location *after* the navigation has happened, so the marker names
     // the page being entered rather than the one being left.
+    let snapshotTimer: number | undefined;
     const onNavigate = () => {
       markerBuffer.push({
         type: "navigation",
@@ -206,6 +253,16 @@ export async function startReplayRecording(productId: string): Promise<ReplayRec
         label: window.location.pathname,
         meta: { path: window.location.pathname },
       });
+      // Re-based on the new page once it has rendered — see NAVIGATION_SNAPSHOT_DELAY_MS.
+      window.clearTimeout(snapshotTimer);
+      snapshotTimer = window.setTimeout(() => {
+        if (stopped) return;
+        try {
+          record.takeFullSnapshot();
+        } catch {
+          // Never into the host page.
+        }
+      }, NAVIGATION_SNAPSHOT_DELAY_MS);
     };
 
     // SPA route changes never fire popstate on their own (App Router calls
@@ -241,6 +298,7 @@ export async function startReplayRecording(productId: string): Promise<ReplayRec
       pushMarker = null;
 
       window.clearInterval(flushTimer);
+      window.clearTimeout(snapshotTimer);
       document.removeEventListener("click", onClick, { capture: true } as EventListenerOptions);
       document.removeEventListener("scroll", onScroll);
       window.removeEventListener("popstate", onNavigate);
