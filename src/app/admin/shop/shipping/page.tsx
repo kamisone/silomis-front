@@ -12,6 +12,7 @@ import { useEntityTranslations, type OverlayLang } from "@/hooks/useEntityTransl
 import { useSectionGenerate } from "@/hooks/useSectionGenerate";
 import { summarizeGenerateErrors, type SectionTranslationOutcome } from "@/lib/sectionTranslate";
 import ui from "@/components/admin/ui/admin-ui.module.css";
+import EmbroideryProductionSetting from "@/components/admin/shop/EmbroideryProductionSetting";
 
 /** Must match ET_SHIPPING_ZONE / ET_SHIPPING_METHOD in the backend's
  *  translation-entities.ts — a mismatch writes rows no reader ever looks up,
@@ -485,6 +486,11 @@ export default function ShippingPage() {
           </table>
         )}
       </div>
+
+      <div className={ui.pageHeader}>
+        <h1 className={ui.pageTitle}>Delivery dates</h1>
+      </div>
+      <EmbroideryProductionSetting />
 
       {zoneForm && (
         <Modal

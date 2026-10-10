@@ -1,0 +1,154 @@
+/* ── Checkout reassurance block ──────────────────────────────────────────
+   Two placements of the same block, toggled by width (see the page): inside
+   the sticky order summary on a desktop, and as its own card under the step
+   on a phone, where the summary sits above the form. */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Desktop: the summary card's last section, under the total. */
+.inSummary {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--co-border);
+}
+@media (max-width: 768px) {
+  .inSummary {
+    display: none;
+  }
+}
+
+/* Phone: a card of its own after the step. */
+.card {
+  display: none;
+  margin-top: 22px;
+  padding: 18px;
+  border: 1px solid var(--co-border);
+  border-radius: 16px;
+  background: var(--color-surface-tint);
+}
+@media (max-width: 768px) {
+  .card {
+    display: flex;
+  }
+}
+
+.title {
+  margin: 0;
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--co-text-muted);
+}
+
+/* ★ 4.8 · 120 reviews */
+.rating {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.2;
+}
+.star {
+  flex-shrink: 0;
+  color: #f5a623;
+}
+.ratingValue {
+  font-weight: 800;
+  color: var(--foreground);
+  font-variant-numeric: tabular-nums;
+}
+.ratingCount {
+  color: var(--co-text-secondary);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.item {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  min-width: 0;
+}
+.icon {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--background);
+  border: 1px solid var(--co-border);
+  color: var(--color-primary);
+}
+.body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+  padding-top: 1px;
+}
+.itemTitle {
+  font-size: 13.5px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--foreground);
+}
+.itemText {
+  font-size: 12.5px;
+  line-height: 1.35;
+  color: var(--co-text-secondary);
+}
+
+/* The card marks, start-aligned under their title instead of centred. */
+.payments {
+  justify-content: flex-start;
+}
+
+.chatBtn {
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--color-primary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  /* A comfortable target on touch without shifting the layout. */
+  margin: -6px -4px;
+  padding: 6px 4px;
+}
+.chatBtn:hover {
+  text-decoration-thickness: 2px;
+}
+.chatBtn:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}

@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { AlertCircle, ArrowUpRight, Check, Lock } from "lucide-react";
+import { AlertCircle, ArrowUpRight, Check, Lock, Truck } from "lucide-react";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import type { StripeElementLocale, StripePaymentElementOptions } from "@stripe/stripe-js";
@@ -21,6 +21,8 @@ import styles from "./Checkout.module.css";
 import { recordPaymentMarker } from "@/lib/shop/replayRecorder";
 import { orderedErrors, validateAddress, type AddressErrors, type AddressField } from "./addressValidation";
 import PhoneVerificationPanel from "./PhoneVerificationPanel";
+import CheckoutTrust, { type ReviewSummary } from "./CheckoutTrust";
+import { deliveryWindow, formatArrival } from "@/lib/shop/deliveryDates";
 import PickupPointSelector, { type PickupPoint } from "@/components/shop/PickupPointSelector";
 
 type T = ReturnType<typeof getTranslations>;
@@ -196,6 +198,17 @@ function billingDetails(form: FormState) {
 function carrierLogo(m: { code: string | null; carrier: string | null }): string | null {
   if (m.code === "mondial_relay" || /mondial\s*relay/i.test(m.carrier ?? "")) return "/assets/carriers/mondial-relay.svg";
   return null;
+}
+
+/**
+ * The shipping step asks nothing when the only way to ship is free and needs
+ * no pickup point: the customer would be shown one card and asked to press
+ * Continue. Such a quote goes straight from the address to payment; the
+ * method and its delivery dates are shown on the payment step instead.
+ */
+function shippingStepSkippable(snap: CheckoutSnapshot): boolean {
+  const methods = snap.shippingMethods;
+  return methods.length === 1 && methods[0].isFree && methods[0].priceCents === 0 && !methods[0].requiresPickupPoint;
 }
 
 const NO_OPTIONAL_FIELDS: CheckoutFields = { companyName: false, phone: false, addressLine2: false };
@@ -491,6 +504,43 @@ export default function CheckoutPage() {
 
   const [shippingUpdating, setShippingUpdating] = useState(false);
   const [selectedMethodId, setSelectedMethodId] = useState<string | null>(null);
+
+  /** Business days to stitch an embroidered order before it ships; null until known. */
+  const [productionDays, setProductionDays] = useState<number | null>(null);
+  const [reviewSummary, setReviewSummary] = useState<ReviewSummary | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/next-api/public/platform-settings")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((cfg: { embroidery?: { productionDays?: number } } | null) => {
+        if (cancelled) return;
+        const days = cfg?.embroidery?.productionDays;
+        setProductionDays(typeof days === "number" && days >= 0 ? days : 0);
+      })
+      .catch(() => {
+        if (!cancelled) setProductionDays(0);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // The rating of what is being bought — the figures its product pages show.
+  const reviewProductKey = [...new Set((cart?.items ?? []).map((i) => i.productId))].sort().join(",");
+  useEffect(() => {
+    if (!reviewProductKey) return;
+    let cancelled = false;
+    fetch(`/next-api/public/shop/reviews/summary?products=${encodeURIComponent(reviewProductKey)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((summary: ReviewSummary | null) => {
+        if (!cancelled) setReviewSummary(summary);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [reviewProductKey]);
 
   // Persist state to sessionStorage whenever key values change
   useEffect(() => {
@@ -827,10 +877,16 @@ export default function CheckoutPage() {
     if (snap.shippingMethods.length > 0) {
       const firstId = snap.shippingMethods[0].id;
       setSelectedMethodId(firstId);
-      await applyShippingMethod(snap.orderId, firstId, snap);
-    } else {
-      goToStep("shipping");
+      const applied = await applyShippingMethod(snap.orderId, firstId);
+      // One free method and nothing to choose: straight on to payment. Should
+      // payment fail to start, the shipping step is where the error is shown
+      // and Continue retries it.
+      if (applied && shippingStepSkippable(applied) && (await startPayment(applied, firstId))) {
+        setSubmitting(false);
+        return;
+      }
     }
+    goToStep("shipping");
     setSubmitting(false);
   }
 
@@ -856,20 +912,25 @@ export default function CheckoutPage() {
     setCouponPreviewCents(null);
   }
 
-  async function applyShippingMethod(orderId: string, methodId: string, currentSnap?: CheckoutSnapshot) {
+  /** Applies a method to the order; the updated quote, or null when the server refused it. */
+  async function applyShippingMethod(orderId: string, methodId: string): Promise<CheckoutSnapshot | null> {
     setShippingUpdating(true);
-    const res = await fetch(`/next-api/public/shop/checkout/${orderId}/shipping`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ shippingMethodId: methodId }),
-    });
-    if (res.ok) {
+    try {
+      const res = await fetch(`/next-api/public/shop/checkout/${orderId}/shipping`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ shippingMethodId: methodId }),
+      });
+      if (!res.ok) return null;
       const updated: CheckoutSnapshot = await res.json();
       setSnapshot(updated);
       setSelectedMethodId(updated.shippingMethodId ?? methodId);
-      if (currentSnap) goToStep("shipping");
+      return updated;
+    } catch {
+      return null;
+    } finally {
+      setShippingUpdating(false);
     }
-    setShippingUpdating(false);
   }
 
   /**
@@ -926,28 +987,37 @@ export default function CheckoutPage() {
       return;
     }
     setSubmitting(true);
+    await startPayment(snapshot, selectedMethodId);
+    setSubmitting(false);
+  }
+
+  /**
+   * Readies the order for payment and opens the payment step: from the
+   * shipping step's Continue, or straight from the address when there was no
+   * shipping choice to make. False, with the reason in formError, when it
+   * could not — the caller leaves the customer on the shipping step.
+   */
+  async function startPayment(snap: CheckoutSnapshot, methodId: string): Promise<boolean> {
     setFormError("");
 
-    if (snapshot.shippingMethodId !== selectedMethodId) {
-      await applyShippingMethod(snapshot.orderId, selectedMethodId);
+    if (snap.shippingMethodId !== methodId) {
+      await applyShippingMethod(snap.orderId, methodId);
     }
 
-    const readyRes = await fetch(`/next-api/public/shop/checkout/${snapshot.orderId}/ready-for-payment`, { method: "POST" });
-    if (!readyRes.ok) {
+    const readyRes = await fetch(`/next-api/public/shop/checkout/${snap.orderId}/ready-for-payment`, { method: "POST" }).catch(() => null);
+    if (!readyRes?.ok) {
       setFormError(t.shop.shippingPrepError);
-      setSubmitting(false);
-      return;
+      return false;
     }
 
     const intentRes = await fetch("/next-api/public/shop/payment/intent", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ orderId: snapshot.orderId }),
-    });
-    if (!intentRes.ok) {
+      body: JSON.stringify({ orderId: snap.orderId }),
+    }).catch(() => null);
+    if (!intentRes?.ok) {
       setFormError(t.shop.paymentStartError);
-      setSubmitting(false);
-      return;
+      return false;
     }
 
     const { clientSecret: cs, reservationExpiresAt, metaAddPaymentInfoEventId, tiktokAddPaymentInfoEventId } = await intentRes.json();
@@ -961,7 +1031,7 @@ export default function CheckoutPage() {
       pixelTrack(
         "AddPaymentInfo",
         {
-          value: snapshot.totalCents / 100,
+          value: snap.totalCents / 100,
           currency: "EUR",
           content_type: "product",
           content_ids: cart?.items.map((i) => i.variantId) ?? [],
@@ -980,7 +1050,7 @@ export default function CheckoutPage() {
             quantity: i.quantity,
             price: i.unitPriceCents / 100,
           })),
-          value: snapshot.totalCents / 100,
+          value: snap.totalCents / 100,
           currency: "EUR",
         },
         tiktokAddPaymentInfoEventId,
@@ -988,7 +1058,7 @@ export default function CheckoutPage() {
     }
 
     goToStep("payment");
-    setSubmitting(false);
+    return true;
   }
 
   if (!cart || cart.items.length === 0) {
@@ -1032,6 +1102,16 @@ export default function CheckoutPage() {
   // so re-quoting after an address change turns the selector off by itself.
   const needsPickupPoint = selectedMethod?.requiresPickupPoint === true;
   const pickupPoint = snapshot?.pickupPoint ?? null;
+
+  // Embroidery is made before it ships, so its production time comes before
+  // the carrier's — the date promised has to include both. Until the
+  // production time is known, the plain "3–5 days" stands in.
+  const embroidered = cart.items.some((i) => (i.personalizations?.length ?? 0) > 0);
+  const leadDays = embroidered ? productionDays : 0;
+  const arrival = (m: Pick<ShippingMethod, "estimatedDaysMin" | "estimatedDaysMax">) =>
+    leadDays === null ? `${m.estimatedDaysMin}–${m.estimatedDaysMax} ${t.shop.days}` : formatArrival(deliveryWindow(m, leadDays), locale, t.shop);
+  const shipsBy = embroidered && productionDays ? deliveryWindow({ estimatedDaysMin: 0, estimatedDaysMax: 0 }, productionDays).ships : null;
+  const trustProps = { locale, reviews: reviewSummary, embroidered, shipsBy };
 
   const freeShippingUpgrades = snapshot?.freeShipping ? shippingMethods.filter((m) => !m.isFree) : [];
   const freeShippingMethod = snapshot?.freeShipping ? (shippingMethods.find((m) => m.isFree) ?? null) : null;
@@ -1284,7 +1364,7 @@ export default function CheckoutPage() {
               )}
               <StickyActionBar>
                 <button type="submit" disabled={submitting} className={styles.continueBtn}>
-                  {submitting ? t.shop.processing : t.shop.continueToShipping}
+                  {submitting ? t.shop.processing : cart.freeShipping ? t.shop.continueToPayment : t.shop.continueToShipping}
                 </button>
               </StickyActionBar>
             </form>
@@ -1323,7 +1403,7 @@ export default function CheckoutPage() {
                     <span className={styles.freeShippingCardBody}>
                       <span className={styles.freeShippingCardTitle}>{t.shop.freeShippingBadge}</span>
                       <span className={styles.freeShippingCardMeta}>
-                        {freeShippingMethod.estimatedDaysMin}–{freeShippingMethod.estimatedDaysMax} {t.shop.days}
+                        {arrival(freeShippingMethod)}
                       </span>
                     </span>
                   </label>
@@ -1345,7 +1425,7 @@ export default function CheckoutPage() {
                         {up.name}
                       </span>
                       <span className={styles.shippingDays}>
-                        {up.estimatedDaysMin}–{up.estimatedDaysMax} {t.shop.days}
+                        {arrival(up)}
                       </span>
                       <span className={styles.shippingPrice}>€{centsToEuros(up.priceCents)}</span>
                     </label>
@@ -1370,7 +1450,7 @@ export default function CheckoutPage() {
                         {m.name}
                       </span>
                       <span className={styles.shippingDays}>
-                        {m.estimatedDaysMin}–{m.estimatedDaysMax} {t.shop.days}
+                        {arrival(m)}
                       </span>
                       <span className={styles.shippingPrice}>
                         {m.isFree ? (
@@ -1449,6 +1529,27 @@ export default function CheckoutPage() {
           {step === "payment" && snapshot && (
             <div>
               <h2 className={styles.sectionTitle}>{t.shop.paymentTitle}</h2>
+              {/* What was settled on the way here, with its dates — the only
+                  place they show when the shipping step was skipped. */}
+              {selectedMethod && (
+                <div className={styles.deliveryLine}>
+                  <span className={styles.deliveryLineIcon} aria-hidden="true">
+                    <Truck size={17} strokeWidth={1.8} />
+                  </span>
+                  <span className={styles.deliveryLineBody}>
+                    <span className={styles.deliveryLineTitle}>
+                      {selectedMethod.isFree ? t.shop.freeShippingBadge : selectedMethod.name}
+                      {!selectedMethod.isFree && <span className={styles.deliveryLinePrice}> · €{centsToEuros(selectedMethod.priceCents)}</span>}
+                    </span>
+                    <span className={styles.deliveryLineDate}>{arrival(selectedMethod)}</span>
+                  </span>
+                  {!shippingStepSkippable(snapshot) && (
+                    <button type="button" className={styles.deliveryLineChange} onClick={() => handleStepClick("shipping")}>
+                      {t.shop.pickupChange}
+                    </button>
+                  )}
+                </div>
+              )}
               {snapshot.reservationExpiresAt && <ReservationTimer expiresAt={snapshot.reservationExpiresAt} onExpire={handleReservationExpired} t={t} />}
               {clientSecret && (
                 <Elements key={locale} stripe={stripePromise} options={{ clientSecret, locale: STRIPE_LOCALE[locale], appearance: { theme: "stripe" } }}>
@@ -1457,6 +1558,11 @@ export default function CheckoutPage() {
               )}
             </div>
           )}
+
+          {/* On a phone the summary is above the form, so the reassurance
+              comes after the step instead — where a hesitating customer
+              scrolls to. Hidden on a desktop, where the summary carries it. */}
+          <CheckoutTrust {...trustProps} variant="card" />
         </div>
 
         {/* ── Right: order summary ── */}
@@ -1545,6 +1651,8 @@ export default function CheckoutPage() {
               embroideryCents={embroideryCentsOf(cart.items)}
             />
           </div>
+
+          <CheckoutTrust {...trustProps} variant="summary" />
         </div>
       </div>
     </div>

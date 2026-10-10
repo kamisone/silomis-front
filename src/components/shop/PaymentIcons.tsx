@@ -70,9 +70,9 @@ const METHODS: { name: string; mark: React.ReactNode }[] = [
   },
 ];
 
-export default function PaymentIcons({ label }: { label: string }) {
+export default function PaymentIcons({ label, className }: { label: string; className?: string }) {
   return (
-    <span className={styles.row} role="img" aria-label={`${label}: ${METHODS.map((m) => m.name).join(", ")}`}>
+    <span className={className ? `${styles.row} ${className}` : styles.row} role="img" aria-label={`${label}: ${METHODS.map((m) => m.name).join(", ")}`}>
       {METHODS.map((m) => (
         <svg key={m.name} className={styles.icon} viewBox="0 0 34 22" aria-hidden="true" focusable="false">
           <rect x="0.5" y="0.5" width="33" height="21" rx="3.5" fill="#fff" stroke="#D9DCE1" />

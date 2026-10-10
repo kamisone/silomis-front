@@ -6,6 +6,7 @@ import { useSupportChat, type SupportMessage } from "@/hooks/useSupportChat";
 import { useCart } from "@/components/shop/CartContext";
 import { getTranslations } from "@/lib/i18n";
 import styles from "./SupportWidget.module.css";
+import { OPEN_SUPPORT_CHAT_EVENT } from "@/lib/support/openSupportChat";
 
 interface Props { locale: string }
 
@@ -113,6 +114,13 @@ export default function SupportWidget({ locale }: Props) {
 
   // Capture the page title once on mount so we can restore it later
   useEffect(() => { originalTitleRef.current = document.title; }, []);
+
+  // "Chat with us" links elsewhere on the page (the checkout's) open the widget.
+  useEffect(() => {
+    const openFromPage = () => setOpen(true);
+    window.addEventListener(OPEN_SUPPORT_CHAT_EVENT, openFromPage);
+    return () => window.removeEventListener(OPEN_SUPPORT_CHAT_EVENT, openFromPage);
+  }, []);
 
   // popKey increments each time a new unread message arrives while the widget
   // is closed. A new key remounts the ripple span, re-triggering its animation.
