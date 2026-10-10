@@ -9,7 +9,7 @@
   flex-shrink: 0;
 }
 
-/* ── Origin strip: French brand, EU shipping ── */
+/* ── Origin strip: French flag, EU shipping ── */
 .originStrip {
   /* Above the woven ground on .header::before, like .inner. */
   position: relative;
