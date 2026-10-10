@@ -11,8 +11,6 @@ interface Props {
   /** The product's gallery, already resolved with URLs (as returned by GET .../products/{id}). */
   initialMedia: ResolvedProductMediaItem[];
   onChange: (media: ProductMediaItem[]) => void;
-  /** Max gallery items. Default 12. */
-  maxItems?: number;
   label?: string;
   /**
    * Photos that must stay in every language, keyed by storage key, with the
@@ -45,7 +43,7 @@ function strip(item: ResolvedProductMediaItem): ProductMediaItem {
   };
 }
 
-export default function ProductMediaManager({ initialMedia, onChange, maxItems = 12, label = "Product media", lockedKeys, requiredLocales }: Props) {
+export default function ProductMediaManager({ initialMedia, onChange, label = "Product media", lockedKeys, requiredLocales }: Props) {
   const [items, setItems] = useState<ResolvedProductMediaItem[]>(initialMedia);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   /** The card whose language panel is open. */
@@ -79,11 +77,9 @@ export default function ProductMediaManager({ initialMedia, onChange, maxItems =
   }
 
   function addItems(assets: Array<{ storageKey: string; url: string; mediaType: "image" | "video" | "other" }>) {
-    const remaining = maxItems - items.length;
     const newItems: ResolvedProductMediaItem[] = assets
       .filter((a) => a.mediaType === "image" || a.mediaType === "video")
       .filter((a) => !items.some((i) => i.key === a.storageKey))
-      .slice(0, remaining)
       .map((a) => ({
         key: a.storageKey,
         type: a.mediaType === "video" ? "video" : "image",
@@ -128,7 +124,6 @@ export default function ProductMediaManager({ initialMedia, onChange, maxItems =
     notify(next);
   }
 
-  const canAdd = items.length < maxItems;
   const hasExplicitFeatured = items.some((i) => i.isFeatured);
   // With no star set, the first shared photo is the face of the product —
   // the same rule the API applies (deriveLegacyImageFields).
@@ -320,13 +315,12 @@ export default function ProductMediaManager({ initialMedia, onChange, maxItems =
           );
         })}
 
-        {canAdd && <MediaPicker value={null} label="Add media" multi onSelectMulti={addItems} asAddTile />}
+        <MediaPicker value={null} label="Add media" multi onSelectMulti={addItems} asAddTile />
       </div>
 
       <p className={styles.hint}>
-        {items.length}/{maxItems} items · drag to reorder · the star sets the featured media · the globe limits a photo to some languages
+        {items.length} {items.length === 1 ? "item" : "items"} · drag to reorder · the star sets the featured media · the globe limits a photo to some languages
       </p>
-      {!canAdd && <p className={styles.maxReached}>Maximum of {maxItems} items reached.</p>}
     </div>
   );
 }

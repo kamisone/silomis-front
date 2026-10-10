@@ -404,6 +404,7 @@
   transition: background .18s, transform .18s;
 }
 .dotActive { background: var(--color-primary); transform: scale(1.3); }
+.dotsCounter { display: none; }
 
 /* Mobile horizontal thumbnail row — arrow-paged, shown ≤640px */
 .mobileStripWrap {
@@ -771,6 +772,21 @@
     pointer-events: none;
   }
   .dot { pointer-events: all; }
+  .dotsCounter {
+    display: block;
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: color-mix(in srgb, #000 55%, transparent);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    pointer-events: none;
+  }
   /* Horizontal thumbnail strip — visible below galleryWrap in normal flow */
   .mobileStripWrap {
     display: flex;

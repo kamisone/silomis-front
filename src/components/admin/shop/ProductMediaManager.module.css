@@ -125,11 +125,6 @@
   letter-spacing: 0.04em;
 }
 
-.maxReached {
-  font-size: 12px;
-  color: color-mix(in srgb, var(--foreground) 45%, transparent);
-}
-
 .hint {
   font-size: 11px;
   color: color-mix(in srgb, var(--foreground) 45%, transparent);

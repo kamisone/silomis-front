@@ -7,6 +7,9 @@ import { Play, Maximize2, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } fr
 import GalleryVideo from "./GalleryVideo";
 import styles from "./ProductGallery.module.css";
 
+/** Most dots the mobile indicator shows (7px + 6px gap each fits a 320px phone). */
+const MAX_DOTS = 12;
+
 export interface GalleryMediaItem {
   type:             "image" | "video";
   url:              string;
@@ -524,8 +527,15 @@ const ProductGallery = forwardRef<ProductGalleryHandle, Props>(function ProductG
           </div>
         )}
 
-        {/* Dot indicators — mobile only (via CSS) */}
-        {hasMany && (
+        {/* Dot indicators — mobile only (via CSS). Past MAX_DOTS a row of
+            dots no longer fits a phone's width, so a "3 / 24" pill takes
+            their place; the thumbnail strip below still reaches every item. */}
+        {hasMany && media.length > MAX_DOTS && (
+          <span className={styles.dotsCounter} aria-hidden="true">
+            {current + 1} / {media.length}
+          </span>
+        )}
+        {hasMany && media.length <= MAX_DOTS && (
           <div className={styles.dots} aria-hidden="true">
             {media.map((_, i) => (
               <button
