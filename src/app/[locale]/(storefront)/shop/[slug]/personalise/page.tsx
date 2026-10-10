@@ -88,11 +88,15 @@ async function fetchProduct(slug: string, locale: string): Promise<EditorProduct
   }
 }
 
-async function fetchConfig(productId: string, locale: string): Promise<EditorConfig | null> {
+async function fetchConfig(productId: string, locale: string, variantId: string): Promise<EditorConfig | null> {
   try {
     // The locale matters here: position names are admin-written localized maps,
     // and without it every shopper sees the English the admin typed first.
-    const res = await fetch(`${API_BASE_URL}/shop/personalization/config/${productId}${langParam(locale)}`, {
+    // The variant picks each position's photo for its colour, so a customer
+    // embroidering a black cap is never shown a red one.
+    const qs = new URLSearchParams({ variant: variantId });
+    if (locale !== DEFAULT_LOCALE) qs.set("lang", locale);
+    const res = await fetch(`${API_BASE_URL}/shop/personalization/config/${productId}?${qs.toString()}`, {
       cache: "no-store",
     });
     if (!res.ok) return null;
@@ -128,16 +132,16 @@ export default async function PersonalisePage({ params, searchParams }: PageProp
   const [product, { v, line, from, return: ret, edit, qty }] = await Promise.all([fetchProduct(slug, locale), searchParams]);
   if (!product) notFound();
 
-  const config = await fetchConfig(product.id, locale);
-  // A product with no template, or a template a shop has since emptied, is not
-  // an error — it simply has nothing to personalise, and the PDP is where the
-  // customer wanted to be anyway.
-  if (!config) notFound();
-
   const variant = resolveVariant(product, v);
   // Nothing to add to a basket without one, and an editor that cannot finish
   // is worse than never offering it.
   if (!variant) notFound();
+
+  const config = await fetchConfig(product.id, locale, variant.id);
+  // A product with no template, or a template a shop has since emptied, is not
+  // an error — it simply has nothing to personalise, and the PDP is where the
+  // customer wanted to be anyway.
+  if (!config) notFound();
 
   // `edit=1`: the line is already embroidered and the editor reopens its design to change it.
   const lineTarget = line ? { itemId: line, mode: edit === "1" ? ("edit" as const) : ("add" as const), ...lineReturn(locale, slug, from, ret) } : undefined;

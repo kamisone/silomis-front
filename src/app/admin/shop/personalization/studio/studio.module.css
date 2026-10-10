@@ -218,3 +218,108 @@
     transition: none;
   }
 }
+
+/* ── Photo per option ─────────────────────────────────────────────────────
+   Set apart from the position's own fields by a rule: it is a second layer of
+   photos on top of the one above, not more settings for it. */
+.optionPhotos {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-top: 16px;
+  border-top: 1px solid var(--field-border, #e2e6eb);
+}
+.optionPhotosHead {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.optionPhotosTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--foreground);
+}
+.optionPhotosHint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: color-mix(in srgb, var(--foreground) 58%, transparent);
+  max-width: 640px;
+}
+
+.optionGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.optionGroupName {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: color-mix(in srgb, var(--foreground) 72%, transparent);
+}
+.optionGroupAdmin {
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.optionGroupCount {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+  color: color-mix(in srgb, var(--foreground) 50%, transparent);
+}
+
+.optionGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+  gap: 12px;
+}
+.optionTile {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+/* Saving reloads the list; a second click in that moment would race it. */
+.optionTileBusy {
+  pointer-events: none;
+  opacity: 0.6;
+}
+.optionName {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--foreground);
+}
+.optionSwatch {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--foreground) 22%, transparent);
+}
+.optionNameText {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.optionFallback {
+  margin-top: -3px;
+  font-size: 11px;
+  color: color-mix(in srgb, var(--foreground) 48%, transparent);
+}
