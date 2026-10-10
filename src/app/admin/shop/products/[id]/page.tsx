@@ -34,7 +34,8 @@ import type {
   ProductUpsellTier,
 } from "@/lib/shop/productContent.types";
 import { Pencil, DollarSign, Image as ImageIcon, ClipboardList, Shield, HelpCircle, FileText, GalleryHorizontalEnd, Clapperboard, Layers, ZoomIn, Lock, Package, Palette, ImagePlus, Newspaper } from "lucide-react";
-import ProductImagePicker from "@/components/admin/shop/ProductImagePicker";
+import SwatchPhotosDialog from "@/components/admin/shop/SwatchPhotosDialog";
+import type { StorefrontLocale } from "@/components/admin/shop/storefrontLanguages";
 import styles from "../ProductEdit.module.css";
 import Switch from "@/components/admin/ui/Switch";
 
@@ -83,8 +84,10 @@ interface ProductAttr {
   defaultOptionValueId: string | null;
   attribute: VariantAttribute;
 }
+/** A swatch photo: the default (`locale` null) or one language's. */
 interface OptionImage {
   optionValueId: string;
+  locale: string | null;
   mediaKey: string;
   url: string | null;
 }
@@ -238,16 +241,31 @@ export default function EditProductPage() {
   // ── Per-product images for "image" swatch option values ─────────────────
   const [optionImages, setOptionImages] = useState<OptionImage[]>([]);
   /**
-   * Gallery photos a swatch uses, with what to tell the admin: picking that
-   * swatch switches the photo in every language, so the photo has to stay in
-   * all of them (the API refuses otherwise).
+   * What swatch photos ask of the gallery, for the media manager: a default
+   * swatch photo is every language's fallback, so it stays in all languages;
+   * a language's own swatch photo must stay shown in that language. The API
+   * refuses a gallery save that breaks either; this says so before saving.
    */
-  const swatchPhotoLocks = useMemo(() => {
+  const swatchPhotoRules = useMemo(() => {
     const names = new Map(productAttrs.flatMap((pa) => pa.attribute.optionValues.map((ov) => [ov.id, ov.displayValue ?? ov.value] as const)));
-    return new Map(optionImages.map((oi) => [oi.mediaKey, `Swatch photo for “${names.get(oi.optionValueId) ?? "an option"}” — shown in all languages.`]));
+    const name = (id: string) => names.get(id) ?? "an option";
+    const locked = new Map<string, string>();
+    const required = new Map<string, { locales: StorefrontLocale[]; reason: string }>();
+    for (const oi of optionImages) {
+      if (!oi.locale) {
+        locked.set(oi.mediaKey, `Default swatch photo for “${name(oi.optionValueId)}” — shown in all languages.`);
+        continue;
+      }
+      const entry = required.get(oi.mediaKey) ?? { locales: [], reason: "" };
+      entry.locales.push(oi.locale as StorefrontLocale);
+      entry.reason = `${entry.locales.map((l) => l.toUpperCase()).join(", ")} swatch photo for “${name(oi.optionValueId)}” — keeps ${entry.locales.length === 1 ? "that language" : "those languages"}.`;
+      required.set(oi.mediaKey, entry);
+    }
+    return { locked, required };
   }, [productAttrs, optionImages]);
   const [optInMethods, setOptInMethods] = useState<OptInMethod[]>([]);
-  const [optionImagePickerTarget, setOptionImagePickerTarget] = useState<string | null>(null);
+  /** The image swatch whose photos dialog is open. */
+  const [swatchDialogFor, setSwatchDialogFor] = useState<{ id: string; name: string } | null>(null);
 
   // ── Category filters ──────────────────────────────────────────────────
   // One entry per leaf category this product is linked to, fetched lazily as
@@ -624,22 +642,25 @@ export default function EditProductPage() {
 
   // ── Per-product option images ────────────────────────────────────────────
 
-  async function setOptionImage(optionValueId: string, mediaKey: string) {
+  /** Sets an option's swatch photo: the default (`locale` null) or one language's. */
+  async function setOptionImage(optionValueId: string, locale: StorefrontLocale | null, mediaKey: string) {
+    const qs = locale ? `?locale=${locale}` : "";
     try {
-      const saved = await api.put<OptionImage>(`/next-api/admin/shop/products/${id}/option-images/${optionValueId}`, { mediaKey });
-      setOptionImages((prev) => [...prev.filter((oi) => oi.optionValueId !== optionValueId), saved]);
-      toast.success("Image updated");
+      const saved = await api.put<OptionImage>(`/next-api/admin/shop/products/${id}/option-images/${optionValueId}${qs}`, { mediaKey });
+      setOptionImages((prev) => [...prev.filter((oi) => !(oi.optionValueId === optionValueId && (oi.locale ?? null) === locale)), saved]);
+      toast.success(locale ? `${locale.toUpperCase()} photo updated` : "Default photo updated");
     } catch (err) {
       toast.error(errMessage(err, "Failed to set image"));
     }
-    setOptionImagePickerTarget(null);
   }
 
-  async function removeOptionImage(optionValueId: string) {
+  /** Removes one language's photo, or the default — which takes the language photos with it. */
+  async function removeOptionImage(optionValueId: string, locale: StorefrontLocale | null) {
+    const qs = locale ? `?locale=${locale}` : "";
     try {
-      await api.delete(`/next-api/admin/shop/products/${id}/option-images/${optionValueId}`);
-      setOptionImages((prev) => prev.filter((oi) => oi.optionValueId !== optionValueId));
-      toast.success("Image removed");
+      await api.delete(`/next-api/admin/shop/products/${id}/option-images/${optionValueId}${qs}`);
+      setOptionImages((prev) => prev.filter((oi) => oi.optionValueId !== optionValueId || (locale !== null && oi.locale !== locale)));
+      toast.success(locale ? `${locale.toUpperCase()} now uses the default photo` : "Swatch photos removed");
     } catch (err) {
       toast.error(errMessage(err, "Failed to remove image"));
     }
@@ -798,7 +819,7 @@ export default function EditProductPage() {
               <span className={styles.sectionTitle}>Media</span>
             </div>
             <div className={styles.sectionBody}>
-              <ProductMediaManager initialMedia={product.media} lockedKeys={swatchPhotoLocks} onChange={(media) => set({ media: media as ResolvedProductMediaItem[] })} />
+              <ProductMediaManager initialMedia={product.media} lockedKeys={swatchPhotoRules.locked} requiredLocales={swatchPhotoRules.required} onChange={(media) => set({ media: media as ResolvedProductMediaItem[] })} />
             </div>
           </div>
 
@@ -987,7 +1008,8 @@ export default function EditProductPage() {
                             <span className={styles.optionChipNone}>No option values defined</span>
                           ) : (
                             activeOvs.map((ov) => {
-                              const optImg = ov.swatchType === "image" ? optionImages.find((oi) => oi.optionValueId === ov.id) : undefined;
+                              const optImg = ov.swatchType === "image" ? optionImages.find((oi) => oi.optionValueId === ov.id && !oi.locale) : undefined;
+                              const ownLanguages = ov.swatchType === "image" ? optionImages.filter((oi) => oi.optionValueId === ov.id && oi.locale).length : 0;
                               const isDefault = pa.defaultOptionValueId === ov.id;
                               return (
                                 <span
@@ -1036,15 +1058,22 @@ export default function EditProductPage() {
                                     </span>
                                   )}
                                   {ov.swatchType === "image" && (
-                                    <span style={{ display: "inline-flex", gap: 4 }}>
-                                      <button type="button" onClick={() => setOptionImagePickerTarget(ov.id)} style={{ fontSize: 10, fontWeight: 600, color: "var(--color-primary)", background: "none", border: "none", cursor: "pointer", padding: 0 }}>
-                                        {optImg ? "Change" : "Set image"}
-                                      </button>
-                                      {optImg && (
-                                        <button type="button" onClick={() => removeOptionImage(ov.id)} style={{ fontSize: 10, fontWeight: 600, color: "#dc2626", background: "none", border: "none", cursor: "pointer", padding: 0 }}>
-                                          Remove
-                                        </button>
+                                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                                      {ownLanguages > 0 && (
+                                        <span
+                                          title={`${ownLanguages} ${ownLanguages === 1 ? "language has" : "languages have"} their own photo`}
+                                          style={{ fontSize: 9.5, fontWeight: 700, color: "#fff", background: "var(--color-accent)", borderRadius: 4, padding: "1px 4px" }}
+                                        >
+                                          +{ownLanguages} lang
+                                        </span>
                                       )}
+                                      <button
+                                        type="button"
+                                        onClick={() => setSwatchDialogFor({ id: ov.id, name: ov.displayValue ?? ov.value })}
+                                        style={{ fontSize: 10, fontWeight: 600, color: "var(--color-primary)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+                                      >
+                                        {optImg ? "Photos" : "Set image"}
+                                      </button>
                                     </span>
                                   )}
                                 </span>
@@ -1619,14 +1648,16 @@ export default function EditProductPage() {
         </div>
       </form>
 
-      <ProductImagePicker
-        open={optionImagePickerTarget !== null}
-        onClose={() => setOptionImagePickerTarget(null)}
-        // Shared photos only: a swatch photo shows in every language.
-        images={product.media.filter((m) => m.type === "image" && !m.locales?.length)}
-        onSelect={(item) => setOptionImage(optionImagePickerTarget!, item.key)}
-        title="Select option image"
-      />
+      {swatchDialogFor && (
+        <SwatchPhotosDialog
+          optionName={swatchDialogFor.name}
+          photos={optionImages.filter((oi) => oi.optionValueId === swatchDialogFor.id)}
+          gallery={product.media}
+          onSet={(locale, mediaKey) => setOptionImage(swatchDialogFor.id, locale, mediaKey)}
+          onRemove={(locale) => removeOptionImage(swatchDialogFor.id, locale)}
+          onClose={() => setSwatchDialogFor(null)}
+        />
+      )}
     </div>
   );
 }

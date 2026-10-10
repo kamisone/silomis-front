@@ -312,3 +312,9 @@
   line-height: 1.35;
   color: color-mix(in srgb, var(--foreground) 55%, transparent);
 }
+
+/* A language this photo has to keep (it is that language's swatch photo). */
+.langOption:disabled {
+  cursor: not-allowed;
+  opacity: 0.75;
+}

@@ -3,23 +3,9 @@
 import { Check, ChevronDown, EyeOff, Globe, GripVertical, Lock, Star, Trash2, Video as VideoIcon } from "lucide-react";
 import MediaPicker from "@/components/admin/ui/MediaPicker";
 import type { ProductMediaItem, ResolvedProductMediaItem } from "@/lib/shop/productContent.types";
-import { LOCALES } from "@/lib/i18n";
 import { useEffect, useRef, useState } from "react";
+import { LANGUAGE_NAMES, STOREFRONT_LOCALES as LOCALES, type StorefrontLocale as Locale } from "./storefrontLanguages";
 import styles from "./ProductMediaManager.module.css";
-
-type Locale = (typeof LOCALES)[number];
-
-/** How the admin names each storefront language. */
-const LANGUAGE_NAMES: Record<Locale, string> = {
-  en: "English",
-  fr: "French",
-  es: "Spanish",
-  it: "Italian",
-  de: "German",
-  nl: "Dutch",
-  pl: "Polish",
-  pt: "Portuguese",
-};
 
 interface Props {
   /** The product's gallery, already resolved with URLs (as returned by GET .../products/{id}). */
@@ -34,6 +20,12 @@ interface Props {
    * switches the photo in every language, so it has to exist in all of them.
    */
   lockedKeys?: Map<string, string>;
+  /**
+   * Photos that must stay shown in some languages — a language's own swatch
+   * photo — with the reason. Such a photo can still be limited, but never
+   * to a set without those languages: they are kept ticked.
+   */
+  requiredLocales?: Map<string, { locales: Locale[]; reason: string }>;
 }
 
 function limitedTo(item: ProductMediaItem): Locale[] {
@@ -53,7 +45,7 @@ function strip(item: ResolvedProductMediaItem): ProductMediaItem {
   };
 }
 
-export default function ProductMediaManager({ initialMedia, onChange, maxItems = 12, label = "Product media", lockedKeys }: Props) {
+export default function ProductMediaManager({ initialMedia, onChange, maxItems = 12, label = "Product media", lockedKeys, requiredLocales }: Props) {
   const [items, setItems] = useState<ResolvedProductMediaItem[]>(initialMedia);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   /** The card whose language panel is open. */
@@ -113,9 +105,12 @@ export default function ProductMediaManager({ initialMedia, onChange, maxItems =
   }
 
   function toggleLanguage(index: number, locale: Locale) {
+    const required = requiredLocales?.get(items[index].key)?.locales ?? [];
     const current = new Set(limitedTo(items[index]));
     if (current.has(locale)) current.delete(locale);
     else current.add(locale);
+    // Limiting a photo some language needs keeps that language in the set.
+    if (current.size) for (const l of required) current.add(l);
     const next = LOCALES.filter((l) => current.has(l));
     // Ticking the last missing language is "all languages" again.
     updateItem(index, { locales: next.length === LOCALES.length ? null : next });
@@ -284,6 +279,7 @@ export default function ProductMediaManager({ initialMedia, onChange, maxItems =
                           <div className={styles.langGrid}>
                             {LOCALES.map((l) => {
                               const on = locales.includes(l);
+                              const needed = on && !!requiredLocales?.get(item.key)?.locales.includes(l);
                               return (
                                 <button
                                   key={l}
@@ -291,7 +287,8 @@ export default function ProductMediaManager({ initialMedia, onChange, maxItems =
                                   className={`${styles.langOption} ${on ? styles.langOptionOn : ""}`}
                                   onClick={() => toggleLanguage(i, l)}
                                   aria-pressed={on}
-                                  title={LANGUAGE_NAMES[l]}
+                                  disabled={needed}
+                                  title={needed ? requiredLocales!.get(item.key)!.reason : LANGUAGE_NAMES[l]}
                                 >
                                   {l.toUpperCase()}
                                 </button>
@@ -299,6 +296,7 @@ export default function ProductMediaManager({ initialMedia, onChange, maxItems =
                             })}
                           </div>
                           <p className={styles.langNote}>{limited ? "Shown only on these languages’ product pages." : "Pick languages to show this photo only on their product pages."}</p>
+                          {requiredLocales?.get(item.key) && <p className={styles.langNote}>{requiredLocales.get(item.key)!.reason}</p>}
                         </>
                       )}
                     </div>
