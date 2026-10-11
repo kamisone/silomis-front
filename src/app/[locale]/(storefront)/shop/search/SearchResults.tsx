@@ -59,7 +59,8 @@ export default function SearchResults() {
   const fetchResults = useCallback(async () => {
     setLoading(true);
     try {
-      const qs = new URLSearchParams({ q, page: String(page), limit: String(PAGE_SIZE) });
+      // The shopper's language: matched against its titles and category names, and the hits come back translated.
+      const qs = new URLSearchParams({ q, page: String(page), limit: String(PAGE_SIZE), lang: locale });
       if (brand) qs.set("brand", brand);
       if (minPrice) qs.set("minPrice", minPrice);
       if (maxPrice) qs.set("maxPrice", maxPrice);
@@ -68,7 +69,7 @@ export default function SearchResults() {
     } finally {
       setLoading(false);
     }
-  }, [q, brand, minPrice, maxPrice, page]);
+  }, [q, brand, minPrice, maxPrice, page, locale]);
 
   useEffect(() => {
     const timer = setTimeout(fetchResults, 0);

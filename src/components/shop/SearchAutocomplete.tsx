@@ -94,7 +94,7 @@ export default function SearchAutocomplete({ locale }: { locale: Locale }) {
       setLoading(true);
       setOpen(true);
       try {
-        const res = await fetch(`/next-api/public/shop/search/autocomplete?q=${encodeURIComponent(query)}&limit=12`);
+        const res = await fetch(`/next-api/public/shop/search/autocomplete?q=${encodeURIComponent(query)}&limit=12&lang=${locale}`);
         if (res.ok) {
           const data = await res.json();
           setSuggestions(Array.isArray(data) ? data : []);
@@ -109,7 +109,7 @@ export default function SearchAutocomplete({ locale }: { locale: Locale }) {
     }, 180);
 
     return () => clearTimeout(debounceRef.current);
-  }, [query]);
+  }, [query, locale]);
 
   useEffect(() => {
     function onClickOutside(e: MouseEvent) {
