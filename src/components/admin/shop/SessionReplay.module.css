@@ -127,6 +127,8 @@
   max-height: 400px;
   overflow-y: auto;
   font-size: 0.85rem;
+  /* The offset parent for the items, so the auto-scroll can centre one. */
+  position: relative;
 }
 
 .eventList li {
@@ -136,8 +138,21 @@
   border-radius: 6px;
 }
 
-.eventActive {
-  background: var(--color-surface-tint, #f8fafc);
+/* The step playing now — held until the next one starts. */
+.eventList li {
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.eventList li.eventActive {
+  background: color-mix(in srgb, var(--foreground) 9%, transparent);
+  box-shadow: inset 3px 0 0 var(--foreground);
+  font-weight: 600;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .eventList li {
+    transition: none;
+  }
 }
 
 .eventTime {

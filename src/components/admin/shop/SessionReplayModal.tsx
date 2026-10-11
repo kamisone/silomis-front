@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { Check, CheckCheck, ExternalLink, Play, RotateCcw } from "lucide-react";
@@ -106,6 +106,37 @@ export default function SessionReplayModal({ onClose, productId, productTitle, w
   const [events, setEvents] = useState<unknown[]>([]);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [currentMs, setCurrentMs] = useState(0);
+  const eventListRef = useRef<HTMLUListElement>(null);
+
+  /**
+   * The step being watched is the last one that has started: it stays current
+   * until the next one begins, however long the visitor lingers on it (a long
+   * scroll, a pause on the payment form). Markers are sorted here rather than
+   * trusted to arrive in order, since "the last one before now" depends on it.
+   */
+  const sortedMarkers = useMemo(() => [...markers].sort((a, b) => a.timestampMs - b.timestampMs), [markers]);
+  const activeIndex = useMemo(() => {
+    let found = -1;
+    for (let i = 0; i < sortedMarkers.length && sortedMarkers[i].timestampMs <= currentMs; i++) found = i;
+    return found;
+  }, [sortedMarkers, currentMs]);
+
+  /**
+   * Keeps the current step in the middle of the list as playback moves on.
+   * Scrolls the list itself rather than calling scrollIntoView, which would
+   * also scroll the modal body and pull the player out of view. Only runs when
+   * the step changes, so someone scrolling the list by hand is not fought on
+   * every frame.
+   */
+  useEffect(() => {
+    const list = eventListRef.current;
+    if (!list || activeIndex < 0) return;
+    const item = list.children[activeIndex] as HTMLElement | undefined;
+    if (!item) return;
+    const top = item.offsetTop - list.clientHeight / 2 + item.offsetHeight / 2;
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    list.scrollTo({ top: Math.max(0, top), behavior: reduceMotion ? "auto" : "smooth" });
+  }, [activeIndex]);
 
   // windowParams is a fresh object literal on every parent render, so it is
   // compared by value here rather than by identity — otherwise the list refetches
@@ -304,9 +335,9 @@ export default function SessionReplayModal({ onClose, productId, productTitle, w
                     return <span key={m.id} className={styles.timelineDot} style={{ left: `${pct}%`, background: MARKER_COLOR[m.type] }} title={`${MARKER_LABEL[m.type] ?? m.type}${m.label ? `: ${m.label}` : ""}`} />;
                   })}
                 </div>
-                <ul className={styles.eventList}>
-                  {markers.map((m) => (
-                    <li key={m.id} className={Math.abs(m.timestampMs - currentMs) < 500 ? styles.eventActive : ""}>
+                <ul ref={eventListRef} className={styles.eventList}>
+                  {sortedMarkers.map((m, i) => (
+                    <li key={m.id} className={i === activeIndex ? styles.eventActive : ""} aria-current={i === activeIndex ? "step" : undefined}>
                       <span style={{ color: MARKER_COLOR[m.type] }}>●</span> {MARKER_LABEL[m.type] ?? m.type}
                       {m.label ? ` — ${m.label}` : ""}
                       <span className={styles.eventTime}>{(m.timestampMs / 1000).toFixed(1)}s</span>
