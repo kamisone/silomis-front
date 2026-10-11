@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { SITE_NAME } from "@/lib/seo";
+import { en } from "@/lib/i18n/translations";
 
 /**
  * Web app manifest, served at /manifest.webmanifest and linked automatically.
@@ -10,9 +11,9 @@ import { SITE_NAME } from "@/lib/seo";
  */
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: `${SITE_NAME} — personalised headwear`,
+    name: `${SITE_NAME} — ${en.shop.seoSiteTagline}`,
     short_name: SITE_NAME,
-    description: "Caps, bucket hats, beanies, headbands and visors — each one personalisable with custom embroidery.",
+    description: en.shop.seoSiteDescription,
     start_url: "/",
     display: "standalone",
     background_color: "#ffffff",

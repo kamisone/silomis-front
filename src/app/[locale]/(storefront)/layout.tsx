@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { CartProvider } from "@/components/shop/CartContext";
@@ -11,10 +12,28 @@ import LastSeenProductCard from "@/components/shop/LastSeenProductCard";
 import MetaPixelLoader from "@/components/tracking/MetaPixelLoader";
 import TikTokPixelLoader from "@/components/tracking/TikTokPixelLoader";
 import { getMetaPixelConfig, getTikTokPixelConfig } from "@/lib/platformSettings";
-import { isValidLocale, DEFAULT_LOCALE, LOCALES } from "@/lib/i18n";
+import { isValidLocale, getTranslations, DEFAULT_LOCALE, LOCALES } from "@/lib/i18n";
+import { SITE_NAME } from "@/lib/seo";
 
 export function generateStaticParams() {
   return LOCALES.map((locale) => ({ locale }));
+}
+
+/**
+ * The storefront's defaults, in the page's own language. Without this every
+ * page that sets no description of its own (sale, new arrivals, contact…)
+ * inherited the root layout's English one in all eight languages.
+ */
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+  const { locale: raw } = await params;
+  const t = getTranslations(isValidLocale(raw) ? raw : DEFAULT_LOCALE).shop;
+  return {
+    // The subject only: the root layout's template appends "| Silomis" to a
+    // segment default too, so naming the brand here would print it twice.
+    title: { default: t.seoShopTitle, template: `%s | ${SITE_NAME}` },
+    description: t.seoSiteDescription,
+    openGraph: { siteName: SITE_NAME, type: "website", description: t.seoSiteDescription },
+  };
 }
 
 // Plain-props fallback (matches src/app/admin/layout.tsx): Next.js 16's typed

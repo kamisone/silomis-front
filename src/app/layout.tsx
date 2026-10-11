@@ -5,6 +5,7 @@ import NextTopLoader from "nextjs-toploader";
 import { ToastProvider } from "@/components/toast/ToastContext";
 import Toaster from "@/components/toast/Toaster";
 import { SITE_NAME, SITE_URL } from "@/lib/seo";
+import { en } from "@/lib/i18n/translations";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -61,11 +62,13 @@ export const metadata: Metadata = {
    */
   metadataBase: new URL(SITE_URL),
   title: {
-    default: `${SITE_NAME} — personalised headwear`,
+    // English fallback for routes outside a locale (admin, login); every
+    // storefront page gets its own language from the [locale] layout.
+    default: `${SITE_NAME} — ${en.shop.seoSiteTagline}`,
     /** Pages set only their own subject; the brand is appended once, here. */
     template: `%s | ${SITE_NAME}`,
   },
-  description: "A curated universe of headwear — caps, bucket hats, beanies, headbands and visors — made personal with custom embroidery. Fast delivery and easy returns.",
+  description: en.shop.seoSiteDescription,
   applicationName: SITE_NAME,
   openGraph: {
     siteName: SITE_NAME,

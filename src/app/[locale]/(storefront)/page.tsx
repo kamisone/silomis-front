@@ -39,12 +39,13 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
   const locale: Locale = isValidLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE;
   const t = getTranslations(locale).shop;
   return {
-    // `absolute` so the home page is "Headwear, made personal |
-    // Silomis" rather than repeating the brand through the template.
-    title: { absolute: `${t.homeTitle} | ${SITE_NAME}` },
-    description: t.homeSubtitle,
+    // `absolute` so the brand is appended once here rather than again through
+    // the layout's template. Its own SEO title, not the hero headline: "Your
+    // ideas, embroidered" says nothing a search query would match.
+    title: { absolute: `${t.seoHomeTitle} | ${SITE_NAME}` },
+    description: t.seoSiteDescription,
     alternates: localeAlternates(locale),
-    openGraph: { title: t.homeTitle, description: t.homeSubtitle, type: "website" },
+    openGraph: { title: t.seoHomeTitle, description: t.seoSiteDescription, type: "website" },
   };
 }
 
@@ -248,6 +249,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
         "@id": `${SITE_URL}/#organization`,
         name: SITE_NAME,
         url: SITE_URL,
+        description: t.shop.seoSiteDescription,
         // The real asset the header uses — a logo URL that 404s is worse
         // than none at all.
         // The generated 512 PNG, not the WebP source. Structured-data
@@ -267,6 +269,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
         "@id": `${SITE_URL}/#website`,
         name: SITE_NAME,
         url: SITE_URL,
+        description: t.shop.seoSiteDescription,
         publisher: { "@id": `${SITE_URL}/#organization` },
         inLanguage: locale,
         potentialAction: {

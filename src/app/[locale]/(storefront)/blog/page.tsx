@@ -3,7 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import styles from "./blog.module.css";
 import { localeAlternates } from "@/lib/seo";
-import type { Locale } from "@/lib/i18n";
+import { getTranslations, type Locale } from "@/lib/i18n";
 
 const API_BASE_URL = process.env.API_BASE_URL_SERVER ?? "http://127.0.0.1:4000";
 
@@ -38,7 +38,7 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
   const { locale } = await params;
   return {
     title: "Blog",
-    description: "Guides, care tips and news from Silomis.",
+    description: getTranslations(locale).shop.seoBlogDescription,
     alternates: localeAlternates(locale as Locale, "/blog"),
   };
 }
