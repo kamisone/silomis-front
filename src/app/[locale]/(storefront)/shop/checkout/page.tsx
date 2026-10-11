@@ -23,6 +23,7 @@ import { orderedErrors, validateAddress, type AddressErrors, type AddressField }
 import PhoneVerificationPanel from "./PhoneVerificationPanel";
 import CheckoutTrust, { type ReviewSummary } from "./CheckoutTrust";
 import { deliveryWindow, formatArrival } from "@/lib/shop/deliveryDates";
+import { writeShipCountryHint } from "@/lib/shop/shipCountryHint";
 import PickupPointSelector, { type PickupPoint } from "@/components/shop/PickupPointSelector";
 
 type T = ReturnType<typeof getTranslations>;
@@ -541,6 +542,11 @@ export default function CheckoutPage() {
       cancelled = true;
     };
   }, [reviewProductKey]);
+
+  // The header strip names this country from now on instead of the IP's guess.
+  useEffect(() => {
+    if (form.country) writeShipCountryHint(form.country);
+  }, [form.country]);
 
   // Persist state to sessionStorage whenever key values change
   useEffect(() => {

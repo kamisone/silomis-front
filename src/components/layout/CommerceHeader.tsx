@@ -8,6 +8,7 @@ import ScrollAwareHeader from "./ScrollAwareHeader";
 import SearchAutocomplete from "../shop/SearchAutocomplete";
 import CommerceCategoryNav from "../shop/CommerceCategoryNav";
 import HeaderQuickLinks from "./HeaderQuickLinks";
+import ShippingStrip from "./ShippingStrip";
 import { getTranslations, type Locale } from "@/lib/i18n";
 import styles from "./CommerceHeader.module.css";
 import iconStyles from "./HeaderIconButton.module.css";
@@ -21,15 +22,9 @@ export default function CommerceHeader({ locale }: { locale: Locale }) {
       <div className={styles.headerSpacer} aria-hidden="true" />
       <ScrollAwareHeader>
         {/* Where the shop is and where it ships — the first thing a visitor
-            from an ad wants settled before trusting a shop they do not know. */}
-        <div className={styles.originStrip}>
-          <svg className={styles.originFlag} viewBox="0 0 3 2" aria-hidden="true">
-            <rect width="3" height="2" fill="#ED2939" />
-            <rect width="2" height="2" fill="#fff" />
-            <rect width="1" height="2" fill="#002395" />
-          </svg>
-          <span>{t.nav.originStrip}</span>
-        </div>
+            from an ad wants settled before trusting a shop they do not know.
+            Names the visitor's own country client-side; see ShippingStrip. */}
+        <ShippingStrip locale={locale} generic={t.nav.originStrip} originBased={t.nav.originBased} shipToCountry={t.nav.shipToCountry} />
         <div className={styles.inner}>
           {/* ── Row 1: logo, search, account/wishlist/cart ── */}
           <div className={styles.topRow}>
