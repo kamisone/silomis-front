@@ -3115,8 +3115,6 @@ function errorCopyForCode(code: string, placement: EditorPlacement, c: Copy, nam
   };
   switch (code) {
     // No `empty` case: nothing written yet is handled as a nudge, not an error.
-    case "unstitchable":
-      return where(c.errors.unstitchable);
     case "monogramLength":
       return where(c.errors.monogramLength);
     case "tooWide":
@@ -3140,8 +3138,6 @@ function errorCopy(code: string | undefined, c: Copy): string | null {
       return c.lineChanged;
     case "PERSONALIZATION_TEXT_EMPTY":
       return c.errors.empty;
-    case "PERSONALIZATION_TEXT_UNSTITCHABLE":
-      return c.errors.unstitchable;
     case "PERSONALIZATION_TEXT_BLOCKED":
       return c.errors.blocked;
     case "PERSONALIZATION_MONOGRAM_LENGTH":

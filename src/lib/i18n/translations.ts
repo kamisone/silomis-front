@@ -856,7 +856,6 @@ export const en = {
     adding: "Adding…",
     errors: {
       empty: "Enter the text you would like embroidered.",
-      unstitchable: "Some of those characters cannot be embroidered — emoji and symbols have no thread.",
       blocked: "We are not able to embroider that text.",
       monogramLength: "A monogram is two or three letters.",
       tooWide: "That is too wide for this position. Shorten the text or reduce the height.",
@@ -1740,7 +1739,6 @@ export const fr: Translations = {
     adding: "Ajout…",
     errors: {
       empty: "Saisissez le texte à broder.",
-      unstitchable: "Certains de ces caractères ne peuvent pas être brodés — les emoji et les symboles n’ont pas de fil.",
       blocked: "Nous ne pouvons pas broder ce texte.",
       monogramLength: "Un monogramme comporte deux ou trois lettres.",
       tooWide: "C'est trop large pour cette position. Raccourcissez le texte ou réduisez la hauteur.",
@@ -2624,7 +2622,6 @@ export const es: Translations = {
     adding: "Añadiendo…",
     errors: {
       empty: "Escribe el texto que quieres bordar.",
-      unstitchable: "Algunos de esos caracteres no se pueden bordar — los emoji y los símbolos no tienen hilo.",
       blocked: "No podemos bordar ese texto.",
       monogramLength: "Un monograma son dos o tres letras.",
       tooWide: "Es demasiado ancho para esta posición. Acorta el texto o reduce la altura.",
@@ -3508,7 +3505,6 @@ export const it: Translations = {
     adding: "Aggiunta…",
     errors: {
       empty: "Inserisci il testo da ricamare.",
-      unstitchable: "Alcuni di quei caratteri non si possono ricamare — emoji e simboli non hanno filo.",
       blocked: "Non possiamo ricamare questo testo.",
       monogramLength: "Un monogramma è di due o tre lettere.",
       tooWide: "È troppo largo per questa posizione. Accorcia il testo o riduci l'altezza.",
@@ -4392,7 +4388,6 @@ export const de: Translations = {
     adding: "Wird hinzugefügt…",
     errors: {
       empty: "Gib den Text ein, der gestickt werden soll.",
-      unstitchable: "Einige dieser Zeichen lassen sich nicht sticken — für Emoji und Symbole gibt es kein Garn.",
       blocked: "Diesen Text können wir nicht sticken.",
       monogramLength: "Ein Monogramm besteht aus zwei oder drei Buchstaben.",
       tooWide: "Das ist zu breit für diese Position. Kürze den Text oder verringere die Höhe.",
@@ -5276,7 +5271,6 @@ export const nl: Translations = {
     adding: "Toevoegen…",
     errors: {
       empty: "Vul de tekst in die geborduurd moet worden.",
-      unstitchable: "Sommige van die tekens kunnen niet geborduurd worden — emoji en symbolen hebben geen draad.",
       blocked: "Deze tekst kunnen we niet borduren.",
       monogramLength: "Een monogram bestaat uit twee of drie letters.",
       tooWide: "Dat is te breed voor deze positie. Maak de tekst korter of verlaag de hoogte.",
@@ -6160,7 +6154,6 @@ export const pl: Translations = {
     adding: "Dodawanie…",
     errors: {
       empty: "Wpisz tekst, który mamy wyhaftować.",
-      unstitchable: "Niektórych z tych znaków nie da się wyszyć — emoji i symbole nie mają nici.",
       blocked: "Nie możemy wyhaftować tego tekstu.",
       monogramLength: "Monogram to dwie lub trzy litery.",
       tooWide: "To za szerokie na tę pozycję. Skróć tekst lub zmniejsz wysokość.",
@@ -7059,7 +7052,6 @@ export const pt: Translations = {
     adding: "A adicionar…",
     errors: {
       empty: "Introduza o texto que gostaria de bordar.",
-      unstitchable: "Alguns desses caracteres não podem ser bordados — emojis e símbolos não têm linha.",
       blocked: "Não podemos bordar esse texto.",
       monogramLength: "Um monograma tem duas ou três letras.",
       tooWide: "É demasiado largo para esta posição. Encurte o texto ou reduza a altura.",

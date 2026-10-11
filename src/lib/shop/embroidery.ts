@@ -336,7 +336,7 @@ export interface EditorConfig {
  * overrun the limit and reach the face as a glyph it does not have.
  */
 export function normalizeText(raw: string, contentType: ContentKind, uppercaseOnly: boolean): string {
-  let text = raw.normalize("NFC").replace(/\s+/g, " ").trim();
+  let text = raw.normalize("NFC").replace(/\p{Cc}/gu, "").replace(/\s+/g, " ").trim();
   if (contentType === "monogram") text = text.replace(/\s/g, "").toUpperCase();
   else if (uppercaseOnly) text = text.toUpperCase();
   return text;
@@ -486,7 +486,6 @@ export function stackHeightMm(args: {
 
 export type ValidationCode =
   | "empty"
-  | "unstitchable"
   | "monogramLength"
   | "tooWide"
   | "tooTall"
@@ -521,14 +520,26 @@ export interface EditorEvaluation {
 }
 
 /**
- * Mirrors STITCHABLE_TEXT / STITCHABLE_MONOGRAM on the server.
- *
- * Any script — `\p{L}` is every letter Unicode knows and `\p{M}` the combining
- * marks Arabic and Indic scripts need to spell anything. What stays refused is
- * what no machine lays in thread: emoji, arrows, control characters.
+ * Letters of any script, digits and everyday punctuation — curly quotes and
+ * dashes included, since phone keyboards send them. NOT a validation rule:
+ * customers may write anything. It only decides what the admin job card
+ * highlights as worth a second look before the machine runs.
  */
-const STITCHABLE_TEXT = /^[\p{L}\p{M}\p{N} '&.\-]+$/u;
-const STITCHABLE_MONOGRAM = /^[\p{L}\p{M}]+$/u;
+const EVERYDAY_CHAR = /^[\p{L}\p{M}\p{N}\s'"&.,:;!?/+()#@\-\u2018\u2019\u201A\u201C\u201D\u201E\u00AB\u00BB\u2013\u2014\u2026]$/u;
+
+/**
+ * Characters in `text` outside letters, digits and everyday punctuation —
+ * emoji, ♥, arrows… — each once, in the order typed. Grapheme-aware, so an
+ * emoji built from several code points comes back whole.
+ */
+export function unusualChars(text: string): string[] {
+  const segmenter = typeof Intl !== "undefined" && "Segmenter" in Intl ? new Intl.Segmenter() : null;
+  const graphemes = segmenter ? Array.from(segmenter.segment(text), (g) => g.segment) : [...text];
+  const found = new Set<string>();
+  // A letter with its combining marks is one grapheme; judge it by its code points.
+  for (const g of graphemes) if (![...g].every((ch) => EVERYDAY_CHAR.test(ch))) found.add(g);
+  return [...found];
+}
 const COMBINING_MARK = /\p{M}/u;
 
 /** Mirrors MAX_ELEMENTS on the server. */
@@ -612,12 +623,9 @@ export function evaluateElement(args: {
     if (!lines.length) return invalid("empty");
     if (lines.length > MAX_TEXT_LINES) return invalid("tooManyLines");
 
-    for (const line of lines) {
-      if (contentType === "monogram") {
+    if (contentType === "monogram") {
+      for (const line of lines) {
         if (line.length < MONOGRAM_MIN_CHARS || line.length > MONOGRAM_MAX_CHARS) return invalid("monogramLength");
-        if (!STITCHABLE_MONOGRAM.test(line)) return invalid("unstitchable");
-      } else {
-        if (!STITCHABLE_TEXT.test(line)) return invalid("unstitchable");
       }
     }
   }

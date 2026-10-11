@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Check, Download, FileDown, Loader2, Printer, RotateCcw } from "lucide-react";
+import { AlertTriangle, Check, Download, FileDown, Loader2, Printer, RotateCcw } from "lucide-react";
+import { unusualChars } from "@/lib/shop/embroidery";
 import { api } from "@/lib/api";
 import { useToast } from "@/components/toast/ToastContext";
 import Select from "@/components/admin/ui/Select";
@@ -222,6 +223,9 @@ export function EmbroideryJobCard({
           ]
             .filter(Boolean)
             .join(" · ");
+          // Customers may type anything; what may not stitch as typed is
+          // flagged here so the workshop contacts them before production.
+          const unusual = isMotifBox || isArtworkBox ? [] : unusualChars(el.text);
           return (
             <li key={i} className={styles.boxItem}>
               <span className={styles.boxIndex}>{i + 1}</span>
@@ -229,6 +233,14 @@ export function EmbroideryJobCard({
                 <strong className={`${styles.stitchTextValue} ${isMotifBox || isArtworkBox ? styles.stitchTextMotif : ""}`}>
                   {isArtworkBox ? `Customer artwork — ${el.artwork?.name ?? "file"}` : isMotifBox ? (el.motifName ?? "shape") : el.text}
                 </strong>
+                {unusual.length > 0 && (
+                  <span className={styles.unusualChars} role="note">
+                    <AlertTriangle size={14} aria-hidden="true" />
+                    <span>
+                      May not stitch as typed: <strong>{unusual.join(" ")}</strong> — check with the customer before producing.
+                    </span>
+                  </span>
+                )}
                 {isArtworkBox ? (
                   <span className={styles.thread}>
                     <span className={styles.threadName}>Own colours — digitise from the original file (on the send-in panel)</span>
