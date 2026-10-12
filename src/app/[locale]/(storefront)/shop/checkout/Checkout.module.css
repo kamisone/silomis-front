@@ -266,6 +266,9 @@
   flex-direction: column;
   gap: 10px;
   margin-bottom: 24px;
+  /* The cards answer to their own width, not the screen's: the form column is
+     narrow on a phone, but also beside the order summary on a small laptop. */
+  container-type: inline-size;
 }
 .shippingOption {
   display: grid;
@@ -323,6 +326,38 @@
 .freeLabel {
   color: #16a34a;
   font-weight: 700;
+}
+
+/* Narrow cards: name and price share the first line, the delivery dates get
+   a line of their own under the name. On one row the dates column kept its
+   full width and squeezed the name until the two read as one sentence. */
+@container (max-width: 520px) {
+  .shippingOption {
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas:
+      "radio name price"
+      "radio days days";
+    column-gap: 12px;
+    row-gap: 4px;
+  }
+  .shippingOption input[type="radio"] {
+    grid-area: radio;
+  }
+  .shippingName {
+    grid-area: name;
+  }
+  .shippingDays {
+    grid-area: days;
+    line-height: 1.35;
+  }
+  .shippingPrice {
+    grid-area: price;
+    justify-self: end;
+  }
+  /* With a carrier logo, line the dates up under the name, not the logo. */
+  .shippingName:has(.carrierLogo) + .shippingDays {
+    padding-left: 38px;
+  }
 }
 
 .freeShippingCard {
