@@ -33,6 +33,7 @@ interface PickedAsset {
   storageKey: string;
   url: string;
   mediaType: "image" | "video" | "other";
+  originalFilename: string;
 }
 
 interface MediaPickerProps {
@@ -180,7 +181,7 @@ export default function MediaPicker({ value, previewUrl, onChange, label = "Imag
 
   function confirmMulti() {
     if (!pickedAssets.length) return;
-    onSelectMulti?.(pickedAssets.map((a) => ({ storageKey: a.storageKey, url: a.url, mediaType: a.mediaType })));
+    onSelectMulti?.(pickedAssets.map((a) => ({ storageKey: a.storageKey, url: a.url, mediaType: a.mediaType, originalFilename: a.originalFilename })));
     setOpen(false);
   }
 

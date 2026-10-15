@@ -76,7 +76,7 @@ export default function ProductMediaManager({ initialMedia, onChange, label = "P
     notify(items.map((item, i) => (i === index ? { ...item, ...patch } : item)));
   }
 
-  function addItems(assets: Array<{ storageKey: string; url: string; mediaType: "image" | "video" | "other" }>) {
+  function addItems(assets: Array<{ storageKey: string; url: string; mediaType: "image" | "video" | "other"; originalFilename: string }>) {
     const newItems: ResolvedProductMediaItem[] = assets
       .filter((a) => a.mediaType === "image" || a.mediaType === "video")
       .filter((a) => !items.some((i) => i.key === a.storageKey))
@@ -88,6 +88,7 @@ export default function ProductMediaManager({ initialMedia, onChange, label = "P
         altText: null,
         isFeatured: false,
         url: a.url,
+        originalFilename: a.originalFilename,
       }));
     if (newItems.length) notify([...items, ...newItems]);
   }
@@ -235,6 +236,12 @@ export default function ProductMediaManager({ initialMedia, onChange, label = "P
               </button>
 
               <div className={styles.cardBody}>
+                {item.originalFilename && (
+                  <p className={styles.fileName} title={item.originalFilename}>
+                    {item.originalFilename}
+                  </p>
+                )}
+
                 <input
                   type="text"
                   className={styles.altInput}

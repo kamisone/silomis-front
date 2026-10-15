@@ -17,6 +17,8 @@ export interface ProductMediaItem {
 export interface ResolvedProductMediaItem extends ProductMediaItem {
   url: string;
   posterUrl: string | null;
+  /** The uploaded file's name — admin product endpoint only. */
+  originalFilename?: string | null;
 }
 
 /** A structured, translatable text block shown on the product page (Composition, Care, ...). */

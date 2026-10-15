@@ -102,6 +102,15 @@
   gap: 6px;
 }
 
+.fileName {
+  margin: 0;
+  font-size: 10.5px;
+  color: color-mix(in srgb, var(--foreground) 55%, transparent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .altInput {
   padding: 5px 8px;
   border: 1.5px solid var(--color-surface);
