@@ -371,7 +371,7 @@ export default function InventoryPage() {
         </div>
       )}
 
-      <div className={ui.card}>
+      <div className={`${ui.card} ${ui.tableScroll}`}>
         {loading ? (
           <table className={ui.table}>
             <thead>

@@ -41,6 +41,12 @@
   overflow: hidden;
 }
 
+/* For a card holding a table wider than the content column: .card's
+   overflow:hidden would clip the right-hand columns with no way to reach them. */
+.tableScroll {
+  overflow-x: auto;
+}
+
 .table {
   width: 100%;
   border-collapse: collapse;
