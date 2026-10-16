@@ -1055,10 +1055,7 @@ export default function ShopProductDetail({
 
             <TrustBadgesRow badges={product.trustBadges} t={t} />
 
-            <DeliveryDetails
-              locale={locale}
-              freeShipping={product.freeShipping}
-            />
+            <DeliveryDetails locale={locale} productId={product.id} priceCents={priceCents} />
 
             <PackageContents locale={locale} items={product.packageContents ?? []} />
 

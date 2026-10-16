@@ -23,6 +23,7 @@ import { orderedErrors, validateAddress, type AddressErrors, type AddressField }
 import PhoneVerificationPanel from "./PhoneVerificationPanel";
 import CheckoutTrust, { type ReviewSummary } from "./CheckoutTrust";
 import { deliveryWindow, formatArrival } from "@/lib/shop/deliveryDates";
+import { carrierLogo } from "@/lib/shop/carrierLogo";
 import { writeShipCountryHint } from "@/lib/shop/shipCountryHint";
 import PickupPointSelector, { type PickupPoint } from "@/components/shop/PickupPointSelector";
 
@@ -188,17 +189,6 @@ function billingDetails(form: FormState) {
       ? { address: { line1: form.line1.trim(), line2: form.line2.trim(), city: form.city.trim(), postal_code: form.zip.trim(), state: "", country: form.country } }
       : {}),
   };
-}
-
-/**
- * A carrier's brand mark beside its method name, so a customer who knows the
- * relay-point network recognises it at a glance. Matched on the method code
- * the backend seeds (MONDIAL_RELAY_METHOD_CODE), with the carrier name as a
- * fallback for a method the admin created by hand.
- */
-function carrierLogo(m: { code: string | null; carrier: string | null }): string | null {
-  if (m.code === "mondial_relay" || /mondial\s*relay/i.test(m.carrier ?? "")) return "/assets/carriers/mondial-relay.svg";
-  return null;
 }
 
 /**
