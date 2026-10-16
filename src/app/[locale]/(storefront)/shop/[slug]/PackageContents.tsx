@@ -18,19 +18,21 @@ interface Props {
   items: PackageContentItem[];
 }
 
-/** "What's in the box" — a collapsible section right after Delivery details,
+/** "What's in the box" — a collapsible section right after Delivery details, open by default,
  *  showing one thumbnail per included item. Clicking a thumbnail opens it
  *  full-size in the shared ImageLightbox. */
 export default function PackageContents({ locale, items }: Props) {
   const t = getTranslations(locale).shop;
   const [openIndex, setOpenIndex] = useState<number | null>(null);
+  // Open on arrival; the customer can fold it away.
+  const [open, setOpen] = useState(true);
   const active = items.filter((i) => i.isActive !== false && i.url);
 
   if (!active.length) return null;
 
   return (
     <>
-      <details className={styles.packageSection}>
+      <details className={styles.packageSection} open={open} onToggle={(e) => setOpen(e.currentTarget.open)}>
         <summary className={styles.packageToggle}>
           <span className={styles.packageToggleLabel}>
             <Package size={16} className={styles.packageToggleIcon} aria-hidden="true" />
