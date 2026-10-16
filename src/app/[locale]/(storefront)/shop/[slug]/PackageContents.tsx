@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Package } from "lucide-react";
+import { Fragment, useState } from "react";
+import { Package, Plus } from "lucide-react";
 import ImageLightbox from "@/components/shop/ImageLightbox";
 import { getTranslations, type Locale } from "@/lib/i18n";
 import styles from "./ProductDetail.module.css";
@@ -41,20 +41,27 @@ export default function PackageContents({ locale, items }: Props) {
 
         <div className={styles.packageBody}>
           <div className={styles.packageGrid}>
+            {/* A plus between items: what's in the box adds up to one package. */}
             {active.map((item, i) => (
-              <button
-                key={item.id}
-                type="button"
-                className={styles.packageItem}
-                onClick={() => setOpenIndex(i)}
-                aria-label={item.label?.trim() || t.packageContentsTitle}
-              >
-                <span className={styles.packageThumb}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={item.url} alt="" loading="lazy" decoding="async" draggable={false} className={styles.packageThumbImg} />
-                </span>
-                {item.label?.trim() && <span className={styles.packageLabel}>{item.label}</span>}
-              </button>
+              <Fragment key={item.id}>
+                {i > 0 && (
+                  <span className={styles.packagePlus} aria-hidden="true">
+                    <Plus size={14} strokeWidth={3} />
+                  </span>
+                )}
+                <button
+                  type="button"
+                  className={styles.packageItem}
+                  onClick={() => setOpenIndex(i)}
+                  aria-label={item.label?.trim() || t.packageContentsTitle}
+                >
+                  <span className={styles.packageThumb}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={item.url} alt="" loading="lazy" decoding="async" draggable={false} className={styles.packageThumbImg} />
+                  </span>
+                  {item.label?.trim() && <span className={styles.packageLabel}>{item.label}</span>}
+                </button>
+              </Fragment>
             ))}
           </div>
         </div>
