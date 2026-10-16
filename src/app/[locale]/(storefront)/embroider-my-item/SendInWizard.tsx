@@ -178,6 +178,14 @@ export default function SendInWizard({ locale, config, editorConfig }: Props) {
     );
   }
 
+  // Rendered twice, like the checkout's StickyActionBar: in the fixed bar and
+  // again at the end of the step, where a customer who scrolls down looks.
+  const toDesignButton = (
+    <button type="button" className={styles.primaryBtn} disabled={!designConfig || uploading} onClick={() => setStep("design")}>
+      {c.toDesign} <ArrowRight size={15} aria-hidden="true" />
+    </button>
+  );
+
   return (
     <div className={styles.page}>
       <header className={styles.topBar}>
@@ -296,6 +304,8 @@ export default function SendInWizard({ locale, config, editorConfig }: Props) {
               </p>
             )}
           </fieldset>
+
+          <div className={styles.inlineActions}>{toDesignButton}</div>
         </div>
 
         <aside className={styles.column}>
@@ -326,11 +336,7 @@ export default function SendInWizard({ locale, config, editorConfig }: Props) {
             </>
           )}
         </div>
-        <div className={styles.actions}>
-          <button type="button" className={styles.primaryBtn} disabled={!designConfig || uploading} onClick={() => setStep("design")}>
-            {c.toDesign} <ArrowRight size={15} aria-hidden="true" />
-          </button>
-        </div>
+        <div className={styles.actions}>{toDesignButton}</div>
       </div>
     </div>
   );

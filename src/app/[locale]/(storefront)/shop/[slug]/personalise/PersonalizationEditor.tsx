@@ -1822,6 +1822,52 @@ export default function PersonalizationEditor({ locale, config, product, variant
     </>
   );
 
+  /**
+   * The step's buttons, rendered twice like the checkout's StickyActionBar:
+   * in the fixed bar, always in reach, and again at the end of the controls,
+   * where a customer who scrolls to the bottom expects a form's button. Safe
+   * to render twice: plain buttons, no ids or refs.
+   */
+  const actionButtons = (
+    <>
+      {stepIndex > 0 && (
+        <button type="button" className={styles.secondaryBtn} onClick={() => setStep(steps[stepIndex - 1])}>
+          {c.back}
+        </button>
+      )}
+      {step === "design" && nextItem >= 0 ? (
+        // Several different items, others still to do: finish this one,
+        // then on to the next — Review only once every item is done.
+        <button type="button" className={styles.primaryBtn} onClick={() => switchItem(nextItem)} disabled={!openItemDone}>
+          {c.nextItem}
+          <ArrowRight size={15} aria-hidden="true" />
+        </button>
+      ) : step !== "review" ? (
+        <button
+          type="button"
+          className={styles.primaryBtn}
+          onClick={() => setStep(steps[stepIndex + 1])}
+          disabled={step === "positions" ? !canLeavePositions : !canLeaveDesign}
+        >
+          {c.continue}
+        </button>
+      ) : (
+        <button type="button" className={styles.primaryBtn} onClick={handleAdd} disabled={!canAdd}>
+          {adding ? <Loader2 size={15} className={styles.spin} aria-hidden="true" /> : <ShoppingBag size={15} aria-hidden="true" />}
+          {adding
+            ? c.adding
+            : editing
+              ? c.saveDesign
+              : targetLine
+                ? c.lineSave
+                : eachMode
+                  ? c.continueToCart
+                  : c.addToCart}
+        </button>
+      )}
+    </>
+  );
+
   return (
     <div ref={pageRef} className={styles.page}>
       <header className={styles.topBar}>
@@ -3028,6 +3074,8 @@ export default function PersonalizationEditor({ locale, config, product, variant
               <AlertTriangle size={14} aria-hidden="true" /> {blocking}
             </p>
           )}
+
+          <div className={styles.inlineActions}>{actionButtons}</div>
         </section>
       </div>
 
@@ -3057,43 +3105,7 @@ export default function PersonalizationEditor({ locale, config, product, variant
           )}
         </div>
 
-        <div className={styles.actions}>
-          {stepIndex > 0 && (
-            <button type="button" className={styles.secondaryBtn} onClick={() => setStep(steps[stepIndex - 1])}>
-              {c.back}
-            </button>
-          )}
-          {step === "design" && nextItem >= 0 ? (
-            // Several different items, others still to do: finish this one,
-            // then on to the next — Review only once every item is done.
-            <button type="button" className={styles.primaryBtn} onClick={() => switchItem(nextItem)} disabled={!openItemDone}>
-              {c.nextItem}
-              <ArrowRight size={15} aria-hidden="true" />
-            </button>
-          ) : step !== "review" ? (
-            <button
-              type="button"
-              className={styles.primaryBtn}
-              onClick={() => setStep(steps[stepIndex + 1])}
-              disabled={step === "positions" ? !canLeavePositions : !canLeaveDesign}
-            >
-              {c.continue}
-            </button>
-          ) : (
-            <button type="button" className={styles.primaryBtn} onClick={handleAdd} disabled={!canAdd}>
-              {adding ? <Loader2 size={15} className={styles.spin} aria-hidden="true" /> : <ShoppingBag size={15} aria-hidden="true" />}
-              {adding
-                ? c.adding
-                : editing
-                  ? c.saveDesign
-                  : targetLine
-                    ? c.lineSave
-                    : eachMode
-                      ? c.continueToCart
-                      : c.addToCart}
-            </button>
-          )}
-        </div>
+        <div className={styles.actions}>{actionButtons}</div>
       </div>
     </div>
   );

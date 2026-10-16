@@ -1004,6 +1004,18 @@
 
 /* ── Action bar ───────────────────────────────────────────────────────── */
 
+/* The same buttons at the end of the controls — a customer who scrolls to the
+   bottom finds them where a form's button usually is (the checkout does the
+   same). The fixed bar below keeps its copy, always in reach. */
+.inlineActions {
+  display: flex;
+  gap: 9px;
+  margin-top: 18px;
+}
+.inlineActions .primaryBtn {
+  flex: 1;
+}
+
 .actionBar {
   position: fixed;
   left: 0;

@@ -250,6 +250,15 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* The step's button again at the end of the form, where a customer who
+   scrolls down looks — the fixed bar keeps its copy (as the checkout does). */
+.inlineActions {
+  display: flex;
+}
+.inlineActions .primaryBtn {
+  flex: 1;
+}
+
 .actions {
   display: flex;
   gap: 9px;
