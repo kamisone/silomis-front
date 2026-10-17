@@ -24,6 +24,7 @@ import ReviewsSummaryCard from "./ReviewsSummaryCard";
 import ZoomedImagesGallery, { type ZoomedImageItem } from "./ZoomedImagesGallery";
 import ReturnsGuarantee from "./ReturnsGuarantee";
 import DeliveryDetails from "./DeliveryDetails";
+import DeliveryHighlights from "./DeliveryHighlights";
 import PackageContents from "./PackageContents";
 import StorySideGallery from "./StorySideGallery";
 import StoryNarrativeGallery from "./StoryNarrativeGallery";
@@ -146,6 +147,8 @@ export interface Product {
   isNew?: boolean;
   /** The admin's per-product switch for the returns block — off unless set. */
   showReturnsGuarantee?: boolean;
+  fastDelivery?: boolean;
+  trackedDelivery?: boolean;
   storyNarrativeTitle?: string | null;
   freeShipping?: boolean;
   freeShippingDaysMin?: number | null;
@@ -1054,6 +1057,8 @@ export default function ShopProductDetail({
             {buyError && <p className={styles.addError}>{buyError}</p>}
 
             <TrustBadgesRow badges={product.trustBadges} t={t} />
+
+            <DeliveryHighlights locale={locale} fastDelivery={product.fastDelivery} trackedDelivery={product.trackedDelivery} />
 
             <DeliveryDetails locale={locale} productId={product.id} priceCents={priceCents} />
 

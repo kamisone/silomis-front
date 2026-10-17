@@ -140,6 +140,8 @@ interface Product {
   featured: boolean;
   isNew: boolean;
   showReturnsGuarantee?: boolean;
+  fastDelivery?: boolean;
+  trackedDelivery?: boolean;
   askCompanyName?: boolean;
   askPhone?: boolean;
   askAddressLine2?: boolean;
@@ -448,6 +450,8 @@ export default function EditProductPage() {
         featured: product.featured,
         isNew: product.isNew,
         showReturnsGuarantee: !!product.showReturnsGuarantee,
+        fastDelivery: !!product.fastDelivery,
+        trackedDelivery: !!product.trackedDelivery,
         askCompanyName: !!product.askCompanyName,
         askPhone: !!product.askPhone,
         askAddressLine2: !!product.askAddressLine2,
@@ -1192,6 +1196,20 @@ export default function EditProductPage() {
                 hint="Shows the returns & exchange block on this product’s page. Off by default — switch it on only where an exchange is really offered (not on personalised pieces)."
                 checked={!!product.showReturnsGuarantee}
                 onChange={(v) => set({ showReturnsGuarantee: v })}
+              />
+              <div className={styles.divider} />
+              <Switch
+                label="Fast delivery"
+                hint="Highlights “Fast delivery” on this product’s page, translated per language. Switch it on only where orders really leave quickly."
+                checked={!!product.fastDelivery}
+                onChange={(v) => set({ fastDelivery: v })}
+              />
+              <div className={styles.divider} />
+              <Switch
+                label="Order tracking included"
+                hint="Highlights “Order tracking included — a tracking number is sent as soon as your order ships” on this product’s page, translated per language."
+                checked={!!product.trackedDelivery}
+                onChange={(v) => set({ trackedDelivery: v })}
               />
               <div className={styles.divider} />
               {/* Saved on the spot rather than with the form: it is its own

@@ -565,6 +565,65 @@
 }
 
 /* ── Package contents (collapsible) ── */
+/* ── Delivery highlights ("Fast delivery", "Order tracking included") ──
+   Each promise in its own tinted card with a filled brand-colour badge: teal
+   for speed, pink for tracking, so two side by side never read as one. A
+   thin accent rule on the leading edge carries the colour without shouting. */
+.highlights {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+  margin: 0 0 14px;
+  padding: 0;
+  list-style: none;
+}
+.highlight {
+  --hl: var(--color-primary);
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--hl) 28%, transparent);
+  border-left: 3px solid var(--hl);
+  background: color-mix(in srgb, var(--hl) 8%, var(--background));
+}
+.highlightFast {
+  --hl: var(--color-primary);
+}
+.highlightTracked {
+  --hl: var(--color-accent);
+}
+.highlightIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  background: var(--hl);
+  color: #fff;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--hl) 35%, transparent);
+}
+.highlightText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.highlightTitle {
+  font-size: 13.5px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--foreground);
+}
+.highlightBody {
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: color-mix(in srgb, var(--foreground) 65%, var(--background));
+}
+
 .packageSection {
   display: block;
   flex-shrink: 0;
