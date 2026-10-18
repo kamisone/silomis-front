@@ -252,8 +252,8 @@
 
 /* Uniform framed card: every row sits in the same rounded frame (aspect-ratio
    set inline per image) regardless of the source image's own aspect ratio.
-   object-fit is "contain", so the whole image stays visible, letterboxed on
-   the frame's own background rather than cropped. */
+   object-fit is "cover", so the image fills the whole frame, cropped to its
+   ratio (the side gallery keeps "contain" for its cut-outs). */
 .narrativeMedia .imgShell {
   position: relative;
   z-index: 1;
@@ -262,6 +262,7 @@
   background: var(--background);
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08), 0 24px 48px rgba(0, 0, 0, 0.14);
 }
+.narrativeMedia .img { object-fit: cover; }
 
 /* When a row has no copy, let the image span the full width, capped */
 .narrativeRow > .narrativeMedia:only-child {
