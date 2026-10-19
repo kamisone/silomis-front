@@ -6,28 +6,8 @@ import { Truck } from "lucide-react";
 import { getTranslations, toBcp47, type Locale } from "@/lib/i18n";
 import { carrierLogo } from "@/lib/shop/carrierLogo";
 import { deliveryWindow, formatArrival } from "@/lib/shop/deliveryDates";
-import { readShipCountryHint } from "@/lib/shop/shipCountryHint";
+import { fetchProductDeliveryOptions, type ProductDeliveryOptions as DeliveryOptions, type QuotedMethod } from "@/lib/shop/productDeliveryOptions";
 import styles from "./ProductDetail.module.css";
-
-/** A method as the checkout's delivery step quotes it. */
-interface QuotedMethod {
-  id: string;
-  code: string | null;
-  name: string;
-  carrier: string | null;
-  priceCents: number;
-  originalPriceCents: number;
-  isFree: boolean;
-  estimatedDaysMin: number;
-  estimatedDaysMax: number;
-}
-
-interface DeliveryOptions {
-  /** The visitor's country when the shop ships there; null = `methods` is every option any shipping country gets. */
-  country: string | null;
-  freeShipping: boolean;
-  methods: QuotedMethod[];
-}
 
 function centsToEuros(cents: number) {
   return (cents / 100).toFixed(2);
@@ -74,28 +54,24 @@ export default function DeliveryDetails({ locale, productId, priceCents }: Props
     if (!open) return;
     const key = `${productId}:${priceCents}`;
     if (loadedFor.current === key) return;
-    const ac = new AbortController();
-    const qs = new URLSearchParams({ subtotal: String(priceCents), lang: locale });
-    const hint = readShipCountryHint();
-    if (hint) qs.set("country", hint);
+    let cancelled = false;
     setLoading(true);
     setError(false);
-    fetch(`/next-api/public/shop/shipping/product/${encodeURIComponent(productId)}?${qs}`, { signal: ac.signal })
-      .then((r) => {
-        if (!r.ok) throw new Error("delivery options fetch failed");
-        return r.json() as Promise<DeliveryOptions>;
-      })
+    fetchProductDeliveryOptions(productId, priceCents, locale)
       .then((data) => {
+        if (cancelled) return;
         loadedFor.current = key;
         setOptions(data);
         setLoading(false);
       })
       .catch(() => {
-        if (ac.signal.aborted) return;
+        if (cancelled) return;
         setError(true);
         setLoading(false);
       });
-    return () => ac.abort();
+    return () => {
+      cancelled = true;
+    };
   }, [open, productId, priceCents, locale]);
 
   // A plain item: dated exactly as the checkout dates a basket without embroidery.

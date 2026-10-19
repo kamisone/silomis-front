@@ -268,6 +268,17 @@
   line-height: 1.3;
   color: color-mix(in srgb, var(--foreground) 65%, var(--background));
 }
+.freeShippingDays strong {
+  font-weight: 700;
+  color: var(--foreground);
+}
+/* Fixed-width digits so the ticking countdown does not jiggle the line */
+.freeShippingCountdown {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.freeShippingDays strong.freeShippingCountdown { color: var(--color-accent); }
+.freeShippingCountry { white-space: nowrap; }
 @media (max-width: 640px) {
   .freeShippingBanner {
     width: 100%;
