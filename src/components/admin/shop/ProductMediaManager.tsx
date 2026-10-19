@@ -43,6 +43,24 @@ function strip(item: ResolvedProductMediaItem): ProductMediaItem {
   };
 }
 
+/**
+ * Whether two items compete for the same star: one shared star (the product's
+ * face everywhere), plus one per language among the photos limited to it.
+ */
+function starsClash(a: ProductMediaItem, b: ProductMediaItem): boolean {
+  const la = limitedTo(a);
+  const lb = limitedTo(b);
+  if (!la.length || !lb.length) return !la.length && !lb.length;
+  return la.some((l) => lb.includes(l));
+}
+
+/** Clears the stars that clash with item `index`'s, when it has one — the API applies the same rule. */
+function settleStars(items: ResolvedProductMediaItem[], index: number): ResolvedProductMediaItem[] {
+  const kept = items[index];
+  if (!kept.isFeatured) return items;
+  return items.map((item, i) => (i !== index && item.isFeatured && starsClash(item, kept) ? { ...item, isFeatured: false } : item));
+}
+
 export default function ProductMediaManager({ initialMedia, onChange, label = "Product media", lockedKeys, requiredLocales }: Props) {
   const [items, setItems] = useState<ResolvedProductMediaItem[]>(initialMedia);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
@@ -73,7 +91,9 @@ export default function ProductMediaManager({ initialMedia, onChange, label = "P
   }
 
   function updateItem(index: number, patch: Partial<ResolvedProductMediaItem>) {
-    notify(items.map((item, i) => (i === index ? { ...item, ...patch } : item)));
+    const next = items.map((item, i) => (i === index ? { ...item, ...patch } : item));
+    // A starred photo moved to other languages takes the star there.
+    notify("locales" in patch ? settleStars(next, index) : next);
   }
 
   function addItems(assets: Array<{ storageKey: string; url: string; mediaType: "image" | "video" | "other"; originalFilename: string }>) {
@@ -97,8 +117,9 @@ export default function ProductMediaManager({ initialMedia, onChange, label = "P
     notify(items.filter((_, i) => i !== index));
   }
 
-  function setFeatured(index: number) {
-    notify(items.map((item, i) => ({ ...item, isFeatured: i === index })));
+  /** Stars (or unstars) a media: it then shows first in its languages — every language for a shared one. */
+  function toggleFeatured(index: number) {
+    notify(settleStars(items.map((item, i) => (i === index ? { ...item, isFeatured: !item.isFeatured } : item)), index));
   }
 
   function toggleLanguage(index: number, locale: Locale) {
@@ -125,9 +146,9 @@ export default function ProductMediaManager({ initialMedia, onChange, label = "P
     notify(next);
   }
 
-  const hasExplicitFeatured = items.some((i) => i.isFeatured);
-  // With no star set, the first shared photo is the face of the product —
-  // the same rule the API applies (deriveLegacyImageFields).
+  const hasExplicitFeatured = items.some((i) => i.isFeatured && limitedTo(i).length === 0);
+  // With no shared star set, the first shared photo is the face of the
+  // product — the same rule the API applies (deriveLegacyImageFields).
   const implicitFeaturedIndex = items.findIndex((i) => i.type === "image" && limitedTo(i).length === 0);
   const anyLimited = items.some((i) => limitedTo(i).length > 0);
 
@@ -178,7 +199,8 @@ export default function ProductMediaManager({ initialMedia, onChange, label = "P
           const locales = limitedTo(item);
           const limited = locales.length > 0;
           const isFeatured = !!item.isFeatured || (!hasExplicitFeatured && i === implicitFeaturedIndex);
-          const lockReason = isFeatured ? "The featured photo is shown in all languages." : lockedKeys?.get(item.key);
+          const lockReason = lockedKeys?.get(item.key);
+          const langList = locales.map((l) => l.toUpperCase()).join(", ");
           const hiddenInPreview = preview !== "all" && previewCount > 0 && !visibleIn(item, preview);
           const panelOpen = languagesFor === item.key;
           return (
@@ -224,9 +246,17 @@ export default function ProductMediaManager({ initialMedia, onChange, label = "P
               <button
                 type="button"
                 className={`${styles.starBtn} ${isFeatured ? styles.starBtnActive : ""}`}
-                onClick={() => setFeatured(i)}
-                disabled={limited}
-                title={limited ? "Only a photo shown in all languages can be featured" : isFeatured ? "Featured media" : "Set as featured"}
+                onClick={() => toggleFeatured(i)}
+                aria-pressed={isFeatured}
+                title={
+                  limited
+                    ? isFeatured
+                      ? `Shown first on the ${langList} product page — click to unstar`
+                      : `Show first on the ${langList} product page (replaces that language’s star)`
+                    : isFeatured
+                      ? "Shown first in every language without its own star, and on product cards"
+                      : "Show first in every language, and on product cards"
+                }
               >
                 <Star size={13} fill={isFeatured ? "currentColor" : "none"} />
               </button>
@@ -326,7 +356,7 @@ export default function ProductMediaManager({ initialMedia, onChange, label = "P
       </div>
 
       <p className={styles.hint}>
-        {items.length} {items.length === 1 ? "item" : "items"} · drag to reorder · the star sets the featured media · the globe limits a photo to some languages
+        {items.length} {items.length === 1 ? "item" : "items"} · drag to reorder · the star sets what shows first — one for all languages, plus one per language on its own photos · the globe limits a photo to some languages
       </p>
     </div>
   );
