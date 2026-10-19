@@ -44,6 +44,8 @@ interface ResolvedMediaItem {
   type: "image" | "video";
   posterKey?: string | null;
   altText?: string | null;
+  /** The admin's star: the media the gallery opens on. */
+  isFeatured?: boolean;
   url: string;
   posterUrl: string | null;
   hlsUrl: string | null;
@@ -212,7 +214,10 @@ function buildGallery(product: Product): GalleryMediaItem[] {
   if (product.media?.length) {
     const seen = new Set<string>();
     const out: GalleryMediaItem[] = [];
-    for (const m of product.media) {
+    // The starred media is the one the admin chose to show first; the rest
+    // keep their admin order behind it.
+    const ordered = [...product.media.filter((m) => m.isFeatured), ...product.media.filter((m) => !m.isFeatured)];
+    for (const m of ordered) {
       if (!m.url || seen.has(m.url)) continue;
       seen.add(m.url);
       out.push({ type: m.type, url: m.url, hlsUrl: m.hlsUrl ?? null, posterUrl: m.posterUrl ?? null, alt: m.altText ?? undefined, durationSeconds: m.durationSeconds ?? null });
@@ -460,7 +465,18 @@ export default function ShopProductDetail({
   // changes the picture even for products that never got per-variant media.
   // Image swatches are per-product, so their URL is swatchUrl — swatchValue
   // only ever holds the global hex of a colour swatch.
+  //
+  // When the admin starred a media to show first, the page opens on it: the
+  // pre-selected default variant does not take the picture over on load. Only
+  // once the customer changes the variation does the gallery follow it — and
+  // keeps following it from then on, even back to the starting choice.
+  const hasFeaturedMedia = useMemo(() => product.media?.some((m) => m.isFeatured) ?? false, [product.media]);
+  const [initialSelKey] = useState(selKey);
+  const [variationPicked, setVariationPicked] = useState(false);
+  if (!variationPicked && selKey !== initialSelKey) setVariationPicked(true);
+  const followVariation = !hasFeaturedMedia || variationPicked;
   const activeHeroUrl = useMemo(() => {
+    if (!followVariation) return null;
     if (resolvedVariant?.featuredMediaUrl) return resolvedVariant.featuredMediaUrl;
     for (const attr of variantSelection.attributes) {
       const selectedKey = variantSelection.sel[attr.id];
@@ -468,7 +484,7 @@ export default function ShopProductDetail({
       if (opt?.swatchType === "image" && opt.swatchUrl) return opt.swatchUrl;
     }
     return null;
-  }, [resolvedVariant, variantSelection]);
+  }, [followVariation, resolvedVariant, variantSelection]);
 
   // ProductGallery navigates to whichever slide matches focusUrl, so the strip
   // keeps its order on every pick. It only gets re-spliced when the hero isn't
