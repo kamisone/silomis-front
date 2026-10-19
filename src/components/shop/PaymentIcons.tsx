@@ -6,9 +6,10 @@ import styles from "./PaymentIcons.module.css";
  *
  * Only what is accepted on every order: card payments through Stripe take
  * Visa, Mastercard and American Express, and the payment form switches Apple
- * Pay and Google Pay on (they appear on devices that support them). PayPal,
- * Klarna and other local methods depend on what the Stripe dashboard enables,
- * so they are not promised here — add them to METHODS once they are.
+ * Pay and Google Pay on (they appear on devices that support them), and
+ * Klarna is enabled on the Stripe account. PayPal and other local methods
+ * depend on what the Stripe dashboard enables, so they are not promised
+ * here — add them to METHODS once they are.
  *
  * Drawn inline rather than loaded: five tiny SVGs, no requests, no package.
  * They are simplified marks sized for ~20px, not the brands' artwork files.
@@ -66,6 +67,17 @@ const METHODS: { name: string; mark: React.ReactNode }[] = [
         <tspan fill="#4285F4">G</tspan>
         <tspan fill="#5F6368"> Pay</tspan>
       </text>
+    ),
+  },
+  {
+    name: "Klarna",
+    mark: (
+      <>
+        <rect x="1" y="1" width="32" height="20" rx="3" fill="#FFB3C7" />
+        <text x="17" y="14.4" textAnchor="middle" fontFamily="Arial, Helvetica, sans-serif" fontSize="7.4" fontWeight="800" fill="#0B051D">
+          Klarna.
+        </text>
+      </>
     ),
   },
 ];

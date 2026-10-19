@@ -26,6 +26,7 @@ import ReturnsGuarantee from "./ReturnsGuarantee";
 import DeliveryDetails from "./DeliveryDetails";
 import DeliveryHighlights from "./DeliveryHighlights";
 import FreeShippingBanner from "./FreeShippingBanner";
+import KlarnaInstalments from "./KlarnaInstalments";
 import PackageContents from "./PackageContents";
 import StorySideGallery from "./StorySideGallery";
 import StoryNarrativeGallery from "./StoryNarrativeGallery";
@@ -899,6 +900,10 @@ export default function ShopProductDetail({
                 discount !== null && <span className={styles.discountBadge}>−{discount}%</span>
               )}
             </div>
+
+            {/* Klarna is enabled on the Stripe account: the split of what this
+                selection costs, right where the price is read. */}
+            <KlarnaInstalments locale={locale} totalCents={totalPriceCents} />
 
             {/* Right under the price, where the buying decision is made — inside
                 the collapsed "Delivery details" panel nobody saw it. */}

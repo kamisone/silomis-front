@@ -295,6 +295,84 @@
   color: color-mix(in srgb, var(--foreground) 80%, var(--background));
   margin-bottom: 18px;
 }
+/* ── Klarna instalments line + explainer ── */
+.klarnaLine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  margin: -6px 0 16px;
+  font-size: 13.5px;
+  line-height: 1.4;
+  color: color-mix(in srgb, var(--foreground) 78%, var(--background));
+}
+.klarnaLine strong { font-weight: 700; color: var(--foreground); }
+.klarnaMark { width: 46px; height: 19px; flex-shrink: 0; display: block; }
+.klarnaLearnMore {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  color: var(--foreground);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.klarnaLearnMore:hover { color: var(--color-primary); }
+.klarnaOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: color-mix(in srgb, var(--foreground) 45%, transparent);
+}
+.klarnaDialog {
+  position: relative;
+  width: 100%;
+  max-width: 420px;
+  padding: 28px 24px 22px;
+  border-radius: 18px;
+  background: var(--background);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.22);
+}
+.klarnaClose {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--color-surface);
+  color: var(--foreground);
+  cursor: pointer;
+}
+.klarnaDialogMark { width: 64px; height: 27px; display: block; margin-bottom: 14px; }
+.klarnaDialogTitle { margin: 0 0 16px; font-size: 19px; font-weight: 700; color: var(--foreground); }
+.klarnaSteps { list-style: none; margin: 0 0 16px; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.klarnaSteps li { display: flex; gap: 12px; align-items: flex-start; font-size: 14px; line-height: 1.45; color: var(--foreground); }
+.klarnaStepNum {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #FFB3C7;
+  color: #0B051D;
+  font-size: 12.5px;
+  font-weight: 700;
+}
+.klarnaNote { margin: 0; font-size: 12px; line-height: 1.45; color: color-mix(in srgb, var(--foreground) 60%, var(--background)); }
+
 p.shortDesc { white-space: pre-line; }
 .shortDescRich > :first-child { margin-top: 0; }
 .shortDescRich > :last-child { margin-bottom: 0; }
