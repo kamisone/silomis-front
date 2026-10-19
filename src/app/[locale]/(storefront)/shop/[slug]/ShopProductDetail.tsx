@@ -37,6 +37,7 @@ import { ttqTrack, trackTikTokServerEvent } from "@/lib/tiktokPixel";
 import { formatStockError, stockCheckMessage } from "@/lib/shop/stockError";
 import { getTranslations, type Locale } from "@/lib/i18n";
 import styles from "./ProductDetail.module.css";
+import { stripHtml } from "@/lib/html";
 
 type T = ReturnType<typeof getTranslations>;
 
@@ -934,7 +935,14 @@ export default function ShopProductDetail({
 
             {activePromotion && <p className={styles.promoAppliedNote}>{t.shop.promotionAutoApplied.replace("{name}", activePromotion.name)}</p>}
 
-            {product.shortDescription && <p className={styles.shortDesc}>{product.shortDescription}</p>}
+            {/* Written in the admin's WYSIWYG, like the description. Older ones
+                are plain text, kept as text (and their line breaks with it). */}
+            {stripHtml(product.shortDescription) &&
+              (/<[a-z][^>]*>/i.test(product.shortDescription!) ? (
+                <div className={`${styles.shortDesc} ${styles.shortDescRich}`} dangerouslySetInnerHTML={{ __html: product.shortDescription! }} />
+              ) : (
+                <p className={styles.shortDesc}>{product.shortDescription}</p>
+              ))}
 
             <ProductVariantSelector selection={variantSelection} />
 

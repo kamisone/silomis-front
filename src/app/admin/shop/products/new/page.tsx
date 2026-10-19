@@ -249,9 +249,8 @@ export default function NewProductPage() {
                   baseOnChange={(v) => set({ shortDescription: v })}
                   translations={translations}
                   onTranslationChange={setTranslation}
-                  multiline
-                  rows={2}
-                  onGenerate={() => applyPlainGenerate(shortDescGen, form.shortDescription, "shortDescription")}
+                  richText
+                  onGenerate={() => applyPlainGenerate(shortDescGen, form.shortDescription, "shortDescription", "html")}
                   generating={shortDescGen.generating}
                   generateError={shortDescGen.error ?? genErrors.shortDescription ?? null}
                 />

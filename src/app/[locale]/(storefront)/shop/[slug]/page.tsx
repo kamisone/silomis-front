@@ -11,6 +11,7 @@ import type { PromotionInfo } from "@/components/shop/PromotionBadge";
 import { isValidLocale, DEFAULT_LOCALE, getTranslations } from "@/lib/i18n";
 import { localeAlternates } from "@/lib/seo";
 import { definedRegions, fetchEuShippingCountries } from "@/lib/shop/shippingRegions";
+import { stripHtml } from "@/lib/html";
 
 const API_BASE_URL = process.env.API_BASE_URL_SERVER ?? "http://127.0.0.1:4000";
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://silomis.com";
@@ -123,7 +124,7 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
     }
   }
 
-  const description = product.shortDescription || undefined;
+  const description = stripHtml(product.shortDescription) || undefined;
   const alternates = localeAlternates(locale, `/shop/${slug}`);
 
   return {
@@ -172,7 +173,7 @@ export default async function ProductPage({ params }: PageProps) {
     "@context": "https://schema.org",
     "@type": "Product",
     name: product.title,
-    description: product.shortDescription ?? product.description ?? undefined,
+    description: stripHtml(product.shortDescription) || stripHtml(product.description) || undefined,
     image: images.length > 0 ? images : undefined,
     sku: defaultVariant?.sku ?? undefined,
     ...(product.brand ? { brand: { "@type": "Brand", name: product.brand } } : {}),

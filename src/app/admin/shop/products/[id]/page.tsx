@@ -744,9 +744,8 @@ export default function EditProductPage() {
                   baseOnChange={(v) => set({ shortDescription: v })}
                   translations={translations}
                   onTranslationChange={setTranslation}
-                  multiline
-                  rows={2}
-                  onGenerate={() => applyPlainGenerate(shortDescGen, product.shortDescription ?? "", "shortDescription")}
+                  richText
+                  onGenerate={() => applyPlainGenerate(shortDescGen, product.shortDescription ?? "", "shortDescription", "html")}
                   generating={shortDescGen.generating}
                   generateError={shortDescGen.error ?? genErrors.shortDescription ?? null}
                 />
