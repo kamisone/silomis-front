@@ -200,6 +200,20 @@ export default function SupportWidget({ locale }: Props) {
     }
   }, [open]);
 
+  // Escape closes the chat; on phones, where it is a drawer over the page,
+  // the page behind stops scrolling while it is open.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    window.addEventListener("keydown", onKey);
+    const isDrawer = window.matchMedia("(max-width: 540px)").matches;
+    if (isDrawer) document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      if (isDrawer) document.body.style.overflow = "";
+    };
+  }, [open]);
+
   // `stage`/`showWaiting` are dependencies too: the waiting card grows when it
   // reaches the long-wait hint, which would otherwise push the newest message
   // out of view.
@@ -236,6 +250,9 @@ export default function SupportWidget({ locale }: Props) {
 
   return (
     <div className={styles.root}>
+      {/* Phones only (hidden by CSS above 540px): the strip of page left
+          beside the drawer, dimmed — tapping it closes the chat. */}
+      {open && <div className={styles.overlay} onClick={() => setOpen(false)} aria-hidden="true" />}
       {open && (
         <div className={styles.window} role="dialog" aria-label={t.title}>
 

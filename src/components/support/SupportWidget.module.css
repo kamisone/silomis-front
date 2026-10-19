@@ -10,6 +10,9 @@
   gap: 12px;
 }
 
+/* Phones only — see the mobile drawer rules below. */
+.overlay { display: none; }
+
 /* ── Chat window ── */
 .window {
   width: 368px;
@@ -505,7 +508,10 @@
   100% { transform: scale(1);    }
 }
 
-/* ── Mobile: full-screen chat ── */
+/* ── Mobile: side drawer ──
+   The chat slides in from the right over 80% of the width; the remaining 20%
+   keeps the page visible under a dim overlay that closes the chat on tap, so
+   a customer always sees how to get back. */
 @media (max-width: 540px) {
   .root {
     /* Above a pinned buy/checkout bar when one is on screen (--buy-bar-height). */
@@ -518,19 +524,40 @@
     height: 56px;
   }
 
-  /* Window escapes the root container and covers the entire viewport */
-  .window {
+  .overlay {
+    display: block;
     position: fixed;
     inset: 0;
-    width: 100%;
+    z-index: 9001;
+    background: color-mix(in srgb, var(--color-secondary) 45%, transparent);
+    cursor: pointer;
+    animation: overlayIn 0.25s ease both;
+  }
+
+  /* Window escapes the root container and docks to the right edge */
+  .window {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: auto;
+    width: 80vw;
     max-width: none;
     height: 100dvh; /* dynamic viewport height — shrinks when keyboard is up */
     max-height: none;
-    border-radius: 0;
-    box-shadow: none;
-    z-index: 9001;
-    animation: slideMobileUp 0.28s cubic-bezier(0.32, 0.72, 0, 1) both;
-    transform-origin: bottom center;
+    border-radius: 20px 0 0 20px;
+    box-shadow: -12px 0 40px color-mix(in srgb, var(--color-secondary) 25%, transparent);
+    z-index: 9002;
+    animation: slideMobileIn 0.3s cubic-bezier(0.32, 0.72, 0, 1) both;
+    transform-origin: center right;
+  }
+
+  /* A bigger, clearer close target on touch screens */
+  .closeBtn {
+    width: 36px;
+    height: 36px;
+    background: rgba(255,255,255,0.16);
+    color: #fff;
   }
 
   /* Respect device safe areas (notch, home indicator) */
@@ -547,14 +574,19 @@
   }
 }
 
-@keyframes slideMobileUp {
-  from { opacity: 0.7; transform: translateY(100%); }
-  to   { opacity: 1;   transform: translateY(0); }
+@keyframes slideMobileIn {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+
+@keyframes overlayIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 /* ── Reduced motion ── */
 @media (prefers-reduced-motion: reduce) {
-  .window, .bubble, .ripple, .unreadBadge,
+  .window, .overlay, .bubble, .ripple, .unreadBadge,
   .dotGreen, .bubble_btn, .bubble_btn_unread,
   .connectingMsg, .typingDot { animation: none !important; }
   .bubble_btn, .sendBtn, .unreadBadge { transition: none !important; }
