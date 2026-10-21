@@ -1,0 +1,20 @@
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
+  gap: 2rem 3rem;
+  align-items: start;
+}
+
+/* The links run as a wrapped row, not a tall column of six */
+.grid > nav {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.4rem;
+  align-content: flex-start;
+}
+
+@media (max-width: 768px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}

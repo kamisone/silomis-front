@@ -45,7 +45,7 @@ const HIDE_AFTER_PX = 48;
  */
 const SHOW_WITHIN_PX = 100;
 
-export default function ScrollAwareHeader({ children }: { children: React.ReactNode }) {
+export default function ScrollAwareHeader({ children, plain = false }: { children: React.ReactNode; /** No woven embroidery ground — the neutral header. */ plain?: boolean }) {
   const [hidden, setHidden] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const lastY = useRef(0);
@@ -101,7 +101,11 @@ export default function ScrollAwareHeader({ children }: { children: React.ReactN
     if (!el) return;
 
     const setOffset = () => {
-      const height = el.offsetHeight || 64;
+      // The storefront keeps both headers in the page and CSS hides one (see
+      // lib/shop/neutralChrome.ts): the hidden one measures 0 and must not
+      // overwrite what the shown one reported.
+      if (!el.offsetHeight) return;
+      const height = el.offsetHeight;
       document.documentElement.style.setProperty("--header-offset", hidden ? "0px" : `${height}px`);
       document.documentElement.style.setProperty("--header-height", `${height}px`);
     };
@@ -115,7 +119,7 @@ export default function ScrollAwareHeader({ children }: { children: React.ReactN
   return (
     <header
       ref={headerRef}
-      className={[styles.header, hidden ? styles.headerHidden : "", scrolled ? styles.scrolled : ""].filter(Boolean).join(" ")}
+      className={[styles.header, plain ? styles.plain : "", hidden ? styles.headerHidden : "", scrolled ? styles.scrolled : ""].filter(Boolean).join(" ")}
     >
       <HeaderHiddenContext.Provider value={hidden}>{children}</HeaderHiddenContext.Provider>
     </header>

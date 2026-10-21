@@ -88,3 +88,17 @@ input[type="checkbox"],
 input[type="radio"] {
   accent-color: var(--color-primary);
 }
+
+/* ── Neutral header/footer (lib/shop/neutralChrome.ts) ──
+   Both chromes are in every storefront page; one is shown. The neutral one
+   when <html data-chrome="neutral"> (set before paint by the inline script)
+   or when the page is a neutral product (its marker), and the full one back
+   on a standard product page even if the attribute is still set. */
+.chrome-full { display: contents; }
+.chrome-neutral { display: none; }
+html[data-chrome="neutral"] .chrome-full { display: none; }
+html[data-chrome="neutral"] .chrome-neutral { display: contents; }
+:root:has([data-chrome-mark="neutral"]) .chrome-full { display: none; }
+:root:has([data-chrome-mark="neutral"]) .chrome-neutral { display: contents; }
+:root:has([data-chrome-mark="full"]) .chrome-full { display: contents; }
+:root:has([data-chrome-mark="full"]) .chrome-neutral { display: none; }

@@ -93,7 +93,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   const locale = (await headers()).get("x-locale") ?? "en";
 
   return (
-    <html lang={locale} className={`${geistSans.variable} ${geistMono.variable} ${brandFont.variable} ${displayFont.variable}`}>
+    <html lang={locale} suppressHydrationWarning className={`${geistSans.variable} ${geistMono.variable} ${brandFont.variable} ${displayFont.variable}`}>
       <body>
         {/* Global nav-in-progress feedback — mounted once here so it covers
             every route (storefront + admin) instead of each section rolling

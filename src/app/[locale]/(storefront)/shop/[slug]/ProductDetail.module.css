@@ -8,21 +8,6 @@
   padding: 20px 20px 72px;
 }
 
-.breadcrumbs {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  color: color-mix(in srgb, var(--foreground) 65%, var(--background));
-  margin-bottom: 16px;
-}
-.breadcrumbs a:hover {
-  color: var(--color-primary);
-}
-.breadcrumbSep {
-  opacity: 0.5;
-}
-
 .layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);

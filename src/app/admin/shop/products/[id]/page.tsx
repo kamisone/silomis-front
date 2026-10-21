@@ -142,6 +142,7 @@ interface Product {
   showReturnsGuarantee?: boolean;
   fastDelivery?: boolean;
   trackedDelivery?: boolean;
+  neutralLayout?: boolean;
   askCompanyName?: boolean;
   askPhone?: boolean;
   askAddressLine2?: boolean;
@@ -452,6 +453,7 @@ export default function EditProductPage() {
         showReturnsGuarantee: !!product.showReturnsGuarantee,
         fastDelivery: !!product.fastDelivery,
         trackedDelivery: !!product.trackedDelivery,
+        neutralLayout: !!product.neutralLayout,
         askCompanyName: !!product.askCompanyName,
         askPhone: !!product.askPhone,
         askAddressLine2: !!product.askAddressLine2,
@@ -1209,6 +1211,13 @@ export default function EditProductPage() {
                 hint="Highlights “Order tracking included — a tracking number is sent as soon as your order ships” on this product’s page, translated per language."
                 checked={!!product.trackedDelivery}
                 onChange={(v) => set({ trackedDelivery: v })}
+              />
+              <div className={styles.divider} />
+              <Switch
+                label="Neutral page"
+                hint="For a product outside the embroidery range: its page shows a simple header (logo, languages, order tracking, cart) and a simple footer, with no embroidery wording, menu or social links. A customer who arrives on it keeps that header and footer through the cart, checkout and order tracking."
+                checked={!!product.neutralLayout}
+                onChange={(v) => set({ neutralLayout: v })}
               />
               <div className={styles.divider} />
               {/* Saved on the spot rather than with the form: it is its own

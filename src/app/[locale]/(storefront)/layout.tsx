@@ -6,6 +6,10 @@ import { WishlistProvider } from "@/components/shop/WishlistContext";
 import CartDrawer from "@/components/shop/CartDrawer";
 import CommerceHeader from "@/components/layout/CommerceHeader";
 import CommerceFooter from "@/components/layout/CommerceFooter";
+import NeutralHeader from "@/components/layout/NeutralHeader";
+import NeutralFooter from "@/components/layout/NeutralFooter";
+import { NeutralChromeController } from "@/components/layout/NeutralChrome";
+import { NEUTRAL_CHROME_SCRIPT } from "@/lib/shop/neutralChrome";
 import CookieConsentProvider from "@/components/consent/CookieConsentProvider";
 import SupportWidget from "@/components/support/SupportWidget";
 import LastSeenProductCard from "@/components/shop/LastSeenProductCard";
@@ -54,9 +58,23 @@ export default async function StorefrontLayout({ children, params }: { children:
       </Suspense>
       <CartProvider>
         <WishlistProvider>
-          <CommerceHeader locale={locale} />
+          {/* Full or neutral header/footer — both rendered, CSS shows one; see
+              lib/shop/neutralChrome.ts. The script picks before first paint. */}
+          <script dangerouslySetInnerHTML={{ __html: NEUTRAL_CHROME_SCRIPT }} />
+          <NeutralChromeController />
+          <div className="chrome-full">
+            <CommerceHeader locale={locale} />
+          </div>
+          <div className="chrome-neutral">
+            <NeutralHeader locale={locale} />
+          </div>
           {children}
-          <CommerceFooter locale={locale} />
+          <div className="chrome-full">
+            <CommerceFooter locale={locale} />
+          </div>
+          <div className="chrome-neutral">
+            <NeutralFooter locale={locale} />
+          </div>
           <CartDrawer locale={locale} />
           <SupportWidget locale={locale} />
           <LastSeenProductCard locale={locale} />

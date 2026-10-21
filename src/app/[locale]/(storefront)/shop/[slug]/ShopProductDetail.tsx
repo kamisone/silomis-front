@@ -27,6 +27,7 @@ import DeliveryDetails from "./DeliveryDetails";
 import DeliveryHighlights from "./DeliveryHighlights";
 import FreeShippingBanner from "./FreeShippingBanner";
 import KlarnaInstalments from "./KlarnaInstalments";
+import { ProductChromeMark } from "@/components/layout/NeutralChrome";
 import PackageContents from "./PackageContents";
 import StorySideGallery from "./StorySideGallery";
 import StoryNarrativeGallery from "./StoryNarrativeGallery";
@@ -154,6 +155,8 @@ export interface Product {
   showReturnsGuarantee?: boolean;
   fastDelivery?: boolean;
   trackedDelivery?: boolean;
+  /** Outside the embroidery range: shown with the neutral header/footer. */
+  neutralLayout?: boolean;
   storyNarrativeTitle?: string | null;
   freeShipping?: boolean;
   freeShippingDaysMin?: number | null;
@@ -695,7 +698,6 @@ export default function ShopProductDetail({
     }
   }
 
-  const breadcrumbCategory = product.primaryCategory ?? product.categories?.[0] ?? null;
 
   useEffect(() => {
     trackProductView(product.id);
@@ -817,6 +819,8 @@ export default function ShopProductDetail({
       {/* ── Session-replay recorder — consent-gated here, product-verified and
           sampled server-side, see ReplayRecorderMount ── */}
       <ReplayRecorderMount productId={product.id} />
+      {/* Neutral or full header/footer, from here through cart and checkout */}
+      <ProductChromeMark neutral={!!product.neutralLayout} slug={product.slug} />
 
       {allOutOfStock && (
         <div className={styles.oosStickyNotice} role="status">
@@ -831,14 +835,6 @@ export default function ShopProductDetail({
       )}
 
       <div className={styles.container}>
-        {breadcrumbCategory && (
-          <nav className={styles.breadcrumbs} aria-label="Breadcrumb">
-            <Link href={`/${locale}`}>{t.shop.homeBreadcrumb}</Link>
-            <span className={styles.breadcrumbSep}>/</span>
-            <Link href={`/${locale}/shop?categoryId=${breadcrumbCategory.id}`}>{breadcrumbCategory.name}</Link>
-          </nav>
-        )}
-
         <div className={styles.layout}>
           <div className={styles.galleryCol}>
             <ProductGallery media={gallery} title={product.title} focusUrl={activeHeroUrl} />

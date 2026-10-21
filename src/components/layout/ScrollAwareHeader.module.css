@@ -75,3 +75,6 @@
 .headerHidden {
   transform: translateY(-100%);
 }
+
+/* The neutral header: no woven ground — that cloth is the embroidery shop's */
+.plain::before { display: none; }

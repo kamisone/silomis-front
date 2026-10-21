@@ -13,6 +13,8 @@ interface Destination {
   country: string | null;
   deliveryDaysMin: number | null;
   deliveryDaysMax: number | null;
+  /** Embroidery production days included in deliveryDaysMax. */
+  productionDays?: number | null;
 }
 
 interface CachedDestination {
@@ -25,7 +27,7 @@ interface CachedDestination {
  * edits shipping or the visitor changes country, and the header is on every
  * page — a request per navigation would be all cost.
  */
-const CACHE_KEY = "silomis:ship-destination:v1";
+const CACHE_KEY = "silomis:ship-destination:v2";
 
 function readCache(hint: string | null): Destination | null {
   try {
@@ -76,11 +78,14 @@ export default function ShippingStrip({
   generic,
   originBased,
   shipToCountry,
+  withoutProduction = false,
 }: {
   locale: Locale;
   generic: string;
   originBased: string;
   shipToCountry: string;
+  /** The neutral header: nothing sold there is embroidered, so production time is left out of the window. */
+  withoutProduction?: boolean;
 }) {
   const [destination, setDestination] = useState<Destination | null>(null);
 
@@ -130,7 +135,7 @@ export default function ShippingStrip({
   const code = destination?.country ?? null;
   const name = code ? countryName(code, locale) : null;
   const min = destination?.deliveryDaysMin;
-  const max = destination?.deliveryDaysMax;
+  const max = destination?.deliveryDaysMax != null && withoutProduction ? Math.max(min ?? 0, destination.deliveryDaysMax - (destination.productionDays ?? 0)) : destination?.deliveryDaysMax;
 
   if (!code || !name || !min || !max) {
     return (
