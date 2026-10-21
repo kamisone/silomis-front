@@ -1048,6 +1048,7 @@ export default function ShopProductDetail({
                 selectedOptionValueIds={selectedOptionValueIds.length ? selectedOptionValueIds : undefined}
                 disabled={verifying || !activeId || noMatch}
                 blockedLabel={noMatch ? t.shop.selectOption : isUnavailable ? t.shop.stockUnavailable : isOos ? t.shop.stockOutOfStock : !activeId ? t.shop.addToCart : null}
+                totalLabel={centsToAmount(totalPriceCents)}
               />
               <WishlistButton productId={product.id} variantId={selectedVariant?.id} />
               {/* Beside wishlist rather than up by the title: sharing a product
@@ -1203,6 +1204,7 @@ export default function ShopProductDetail({
             selectedOptionValueIds={selectedOptionValueIds.length ? selectedOptionValueIds : undefined}
             disabled={verifying || !activeId || noMatch}
             blockedLabel={noMatch ? t.shop.selectOption : isUnavailable ? t.shop.stockUnavailable : isOos ? t.shop.stockOutOfStock : !activeId ? t.shop.addToCart : null}
+            totalLabel={centsToAmount(totalPriceCents)}
           />
           {!noMatch && !isBlocked && (
             <button type="button" onClick={handleBuyNow} disabled={mutating || buyingNow || verifying} className={styles.stickyBuyBtn}>

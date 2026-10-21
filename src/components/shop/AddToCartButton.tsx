@@ -16,9 +16,15 @@ interface Props {
   disabled?: boolean;
   /** When set, renders a disabled button with this label instead of the normal add-to-cart UI. */
   blockedLabel?: string | null;
+  /**
+   * The formatted total for what this button adds or holds ("46,00 €"),
+   * shown beside the label — and beside the quantity once it is a stepper.
+   * The caller recomputes it on every quantity, variant or tier change.
+   */
+  totalLabel?: string | null;
 }
 
-export default function AddToCartButton({ variantId, initialQty = 1, size = "lg", className, selectedOptionValueIds, disabled: externalDisabled, blockedLabel }: Props) {
+export default function AddToCartButton({ variantId, initialQty = 1, size = "lg", className, selectedOptionValueIds, disabled: externalDisabled, blockedLabel, totalLabel }: Props) {
   const locale = useLocale();
   const t = getTranslations(locale);
   const { cart, addItem, updateItem, removeItem, mutating, openDrawer } = useCart();
@@ -131,7 +137,10 @@ export default function AddToCartButton({ variantId, initialQty = 1, size = "lg"
               "−"
             )}
           </button>
-          <span className={styles.qty}>{displayQty}</span>
+          <span className={`${styles.qty} ${totalLabel ? styles.qtyWithTotal : ""}`}>
+            {displayQty}
+            {totalLabel && <span className={styles.qtyTotal}>{totalLabel}</span>}
+          </span>
           <button onClick={() => handleStepperChange(1)} disabled={mutating || atMax} className={styles.stepBtn} aria-label={t.shop.increaseQty}>
             +
           </button>
@@ -143,7 +152,7 @@ export default function AddToCartButton({ variantId, initialQty = 1, size = "lg"
 
   return (
     <div className={`${styles.addWrap} ${className ?? ""}`}>
-      <button onClick={handleAdd} disabled={adding || mutating || externalDisabled} className={`${styles.addBtn} ${styles[size]} ${justAdded ? styles.justAdded : ""}`} aria-label={t.shop.addToCart}>
+      <button onClick={handleAdd} disabled={adding || mutating || externalDisabled} className={`${styles.addBtn} ${styles[size]} ${justAdded ? styles.justAdded : ""}`} aria-label={totalLabel ? `${t.shop.addToCart} — ${totalLabel}` : t.shop.addToCart}>
         {adding ? (
           <span className={styles.addingLabel}>
             <span className={styles.spinner} aria-hidden="true" />
@@ -156,6 +165,12 @@ export default function AddToCartButton({ variantId, initialQty = 1, size = "lg"
             </svg>
             {t.shop.addedToCart}
           </span>
+        ) : totalLabel ? (
+          <>
+            {t.shop.addToCart}
+            <span className={styles.totalSep} aria-hidden="true" />
+            <span className={styles.total}>{totalLabel}</span>
+          </>
         ) : (
           t.shop.addToCart
         )}
