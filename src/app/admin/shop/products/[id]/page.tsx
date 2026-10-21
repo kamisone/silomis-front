@@ -13,6 +13,7 @@ import ProductTrustBadgesManager from "@/components/admin/shop/ProductTrustBadge
 import ProductFaqsManager from "@/components/admin/shop/ProductFaqsManager";
 import ProductZoomedImagesManager, { type ResolvedProductZoomedImage } from "@/components/admin/shop/ProductZoomedImagesManager";
 import ProductPackageContentsManager, { type ResolvedProductPackageContentItem } from "@/components/admin/shop/ProductPackageContentsManager";
+import ProductFreeGiftsManager, { type ResolvedProductFreeGift } from "@/components/admin/shop/ProductFreeGiftsManager";
 import ProductDocumentsManager from "@/components/admin/shop/ProductDocumentsManager";
 import ProductPrivateLinksManager from "@/components/admin/shop/ProductPrivateLinksManager";
 import ProductStoryGalleryManager from "@/components/admin/shop/ProductStoryGalleryManager";
@@ -33,7 +34,7 @@ import type {
   ProductSocialVideo,
   ProductUpsellTier,
 } from "@/lib/shop/productContent.types";
-import { Pencil, DollarSign, Image as ImageIcon, ClipboardList, Shield, HelpCircle, FileText, GalleryHorizontalEnd, Clapperboard, Layers, ZoomIn, Lock, Package, Palette, ImagePlus, Newspaper } from "lucide-react";
+import { Pencil, DollarSign, Image as ImageIcon, ClipboardList, Shield, HelpCircle, FileText, GalleryHorizontalEnd, Clapperboard, Layers, ZoomIn, Lock, Package, Gift, Palette, ImagePlus, Newspaper } from "lucide-react";
 import SwatchPhotosDialog from "@/components/admin/shop/SwatchPhotosDialog";
 import type { StorefrontLocale } from "@/components/admin/shop/storefrontLanguages";
 import styles from "../ProductEdit.module.css";
@@ -167,6 +168,7 @@ interface Product {
   faqs: ProductFaq[];
   zoomedImages: ResolvedProductZoomedImage[];
   packageContents: ResolvedProductPackageContentItem[];
+  freeGifts?: ResolvedProductFreeGift[];
   documents: ProductDocument[];
   privateLinks: ProductPrivateLink[];
   storyGallery: ProductStoryItem[];
@@ -437,6 +439,7 @@ export default function EditProductPage() {
         faqs: product.faqs,
         zoomedImages: product.zoomedImages.map((z) => ({ id: z.id, key: z.key, altText: z.altText, sortOrder: z.sortOrder, isActive: z.isActive })),
         packageContents: product.packageContents.map((p) => ({ id: p.id, key: p.key, label: p.label, sortOrder: p.sortOrder, isActive: p.isActive })),
+        freeGifts: (product.freeGifts ?? []).map((g) => ({ id: g.id, key: g.key, label: g.label?.trim() || null, valueCents: g.valueCents ?? null, sortOrder: g.sortOrder, isActive: g.isActive })),
         documents: product.documents,
         privateLinks: product.privateLinks,
         storyGallery: product.storyGallery,
@@ -488,6 +491,7 @@ export default function EditProductPage() {
         ...product.storyGallery.flatMap((s) => [`storyItem:${s.id}:title`, `storyItem:${s.id}:description`]),
         ...product.documents.map((d) => `document:${d.id}:title`),
         ...product.socialVideos.map((v) => `socialVideo:${v.id}:title`),
+        ...(product.freeGifts ?? []).map((g) => `freeGift:${g.id}:label`),
       ];
       await saveTranslations(id, fields);
 
@@ -848,6 +852,16 @@ export default function EditProductPage() {
             <ProductPackageContentsManager
               initialItems={product.packageContents}
               onChange={(packageContents) => set({ packageContents: packageContents as ResolvedProductPackageContentItem[] })}
+            />
+          </CollapsibleSection>
+
+          {/* Free gifts */}
+          <CollapsibleSection icon={<Gift size={15} />} title="Free gifts">
+            <ProductFreeGiftsManager
+              initialItems={product.freeGifts ?? []}
+              translations={translations}
+              onTranslationChange={setTranslation}
+              onChange={(freeGifts) => set({ freeGifts: freeGifts as ResolvedProductFreeGift[] })}
             />
           </CollapsibleSection>
 

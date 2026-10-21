@@ -27,6 +27,7 @@ import DeliveryDetails from "./DeliveryDetails";
 import DeliveryHighlights from "./DeliveryHighlights";
 import FreeShippingBanner from "./FreeShippingBanner";
 import KlarnaInstalments from "./KlarnaInstalments";
+import FreeGifts from "./FreeGifts";
 import StickyFreeShipping from "./StickyFreeShipping";
 import { ProductChromeMark } from "@/components/layout/NeutralChrome";
 import PackageContents from "./PackageContents";
@@ -146,6 +147,7 @@ export interface Product {
   trustBadges: TrustBadge[];
   faqs: Faq[];
   packageContents: PackageContentItem[];
+  freeGifts?: Array<{ id: string; label?: string | null; valueCents?: number | null; url: string; isActive?: boolean }>;
   storyGallery: StoryItem[];
   socialVideos: SocialVideo[];
   socialVideosTitle?: string | null;
@@ -905,6 +907,9 @@ export default function ShopProductDetail({
             {/* Klarna is enabled on the Stripe account: the split of what this
                 selection costs, right where the price is read. */}
             <KlarnaInstalments locale={locale} totalCents={totalPriceCents} />
+
+            {/* What comes free with it, right under the price — on once the admin adds a gift photo. */}
+            <FreeGifts locale={locale} items={product.freeGifts ?? []} />
 
             {/* Right under the price, where the buying decision is made — inside
                 the collapsed "Delivery details" panel nobody saw it. */}

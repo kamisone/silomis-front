@@ -1,0 +1,164 @@
+.note {
+  font-size: 12.5px;
+  color: color-mix(in srgb, var(--foreground) 55%, transparent);
+  margin: 0 0 10px;
+  line-height: 1.5;
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 14px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--color-surface-tint);
+  color: color-mix(in srgb, var(--foreground) 60%, transparent);
+}
+.statusOn {
+  background: color-mix(in srgb, var(--color-success) 12%, transparent);
+  color: var(--color-success);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.card {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: start;
+  padding: 12px;
+  border: 1.5px solid var(--color-surface);
+  border-radius: 12px;
+  background: var(--background);
+  transition: opacity 0.12s, border-color 0.12s;
+}
+.card:hover { border-color: color-mix(in srgb, var(--color-accent) 40%, var(--color-surface)); }
+.cardDragging { opacity: 0.4; }
+.cardInactive { opacity: 0.6; }
+
+.thumb {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1.5px solid var(--color-surface);
+  background: var(--color-surface-tint);
+  cursor: grab;
+}
+
+.thumbImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.dragBadge {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.85);
+  color: color-mix(in srgb, var(--foreground) 55%, transparent);
+}
+
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.valueField {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.valueLabel {
+  font-size: 12px;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--foreground) 70%, transparent);
+}
+
+.valueInputWrap {
+  position: relative;
+  max-width: 160px;
+}
+
+.valueInput {
+  width: 100%;
+  padding: 7px 28px 7px 10px;
+  font-size: 13px;
+  border: 1.5px solid var(--field-border, var(--color-surface));
+  border-radius: 8px;
+  background: var(--background);
+  color: var(--foreground);
+}
+.valueInput:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 10%, transparent);
+}
+
+.valueSuffix {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 13px;
+  color: color-mix(in srgb, var(--foreground) 50%, transparent);
+  pointer-events: none;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.iconBtn {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  border: 1.5px solid var(--color-surface);
+  background: var(--background);
+  color: var(--foreground);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.iconBtn:hover { color: var(--color-primary); border-color: var(--color-primary); }
+
+.removeBtn { color: #b91c1c; }
+.removeBtn:hover { color: #b91c1c; border-color: #fca5a5; background: #fef2f2; }
+
+.addRow {
+  width: 140px;
+}
+
+.hint {
+  font-size: 12px;
+  color: color-mix(in srgb, var(--foreground) 45%, transparent);
+  margin-top: 8px;
+}
+
+@media (max-width: 640px) {
+  .card { grid-template-columns: 80px minmax(0, 1fr); }
+  .actions { grid-column: 1 / -1; flex-direction: row; justify-content: flex-end; }
+}
