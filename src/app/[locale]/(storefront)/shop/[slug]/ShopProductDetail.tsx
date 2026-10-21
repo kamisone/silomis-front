@@ -27,6 +27,7 @@ import DeliveryDetails from "./DeliveryDetails";
 import DeliveryHighlights from "./DeliveryHighlights";
 import FreeShippingBanner from "./FreeShippingBanner";
 import KlarnaInstalments from "./KlarnaInstalments";
+import StickyFreeShipping from "./StickyFreeShipping";
 import { ProductChromeMark } from "@/components/layout/NeutralChrome";
 import PackageContents from "./PackageContents";
 import StorySideGallery from "./StorySideGallery";
@@ -814,6 +815,10 @@ export default function ShopProductDetail({
     };
   }, []);
 
+  const freeShippingPill = (
+    <StickyFreeShipping locale={locale} productId={product.id} priceCents={priceCents} daysMin={product.freeShippingDaysMin} daysMax={product.freeShippingDaysMax} />
+  );
+
   return (
     <div className={styles.page}>
       {/* ── Session-replay recorder — consent-gated here, product-verified and
@@ -1169,7 +1174,18 @@ export default function ShopProductDetail({
         {resolveStatus === "available" && <span className={`${styles.stickyStock} ${styles.stickyStockAvail}`}>{t.shop.stockAvailable}</span>}
         {resolveStatus === "out_of_stock" && <span className={`${styles.stickyStock} ${styles.stickyStockOos}`}>{t.shop.stockOutOfStock}</span>}
 
-        <StickyVariantSelector selection={variantSelection} visible={showStickyBar && !allOutOfStock} />
+        {/* The banner under the price is scrolled away by now — free shipping
+            is a reason to buy, so it rides along with the buttons: on the
+            right, centred against the variation options (or in the price row
+            when there are none), with its delivery days under it. */}
+        {product.freeShipping && variantSelection.hasVariations ? (
+          <div className={styles.stickyOptionsRow}>
+            <StickyVariantSelector selection={variantSelection} visible={showStickyBar && !allOutOfStock} />
+            {freeShippingPill}
+          </div>
+        ) : (
+          <StickyVariantSelector selection={variantSelection} visible={showStickyBar && !allOutOfStock} />
+        )}
 
         <div className={styles.stickyMeta}>
           <span className={styles.stickyPrice}>{effectiveQty > 1 ? centsToAmount(totalPriceCents) : centsToAmount(displayUnitPriceCents)}</span>
@@ -1177,6 +1193,7 @@ export default function ShopProductDetail({
           {/* The chosen combination, named — the selector itself is scrolled out
               of view by the time this bar appears. */}
           {stickyVariantLabel && <span className={styles.stickyVariant}>{stickyVariantLabel}</span>}
+          {product.freeShipping && !variantSelection.hasVariations && freeShippingPill}
         </div>
         <div className={styles.stickyActions}>
           <AddToCartButton

@@ -987,6 +987,48 @@ p.shortDesc { white-space: pre-line; }
   text-decoration: line-through;
   color: color-mix(in srgb, var(--foreground) 55%, var(--background));
 }
+/* Variation options on the left, the free-shipping pill (and its delivery
+   days) beside them on the right, centred against them. The row starts below
+   the stock badge pinned in the card's top-right corner so the two never
+   overlap. */
+.stickyOptionsRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+.stickyStock + .stickyOptionsRow > .stickyFreeShipping {
+  margin-top: 26px;
+}
+.stickyFreeShipping {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  margin-left: auto;
+  align-self: center;
+}
+.stickyFreeShippingPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: var(--color-success);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.stickyFreeShippingDays {
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  color: var(--color-success);
+}
 .stickyVariant {
   font-size: 12px;
   color: color-mix(in srgb, var(--foreground) 55%, var(--background));
