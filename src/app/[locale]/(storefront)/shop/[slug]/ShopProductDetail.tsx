@@ -1083,8 +1083,6 @@ export default function ShopProductDetail({
                 the description is where attention starts to drop. */}
             <ReviewsSummaryCard
               stats={reviewStats ?? { average: 0, count: 0 }}
-              reviews={initialReviews?.items ?? []}
-              locale={locale}
               t={t}
             />
 
