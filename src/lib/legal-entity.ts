@@ -39,4 +39,8 @@ export const LEGAL = {
   /** When the policies were last revised, e.g. "September 2026". Shown as-is,
    *  so write it in a form that reads correctly for your main market. */
   updatedAt: value(process.env.LEGAL_UPDATED_AT, "Month Year"),
+  /** Where returned items are sent. */
+  returnAddress: value(process.env.RETURN_ADDRESS, "Return address"),
+  /** Consumer mediator (name and website) for disputes — required on French terms of sale. */
+  consumerMediator: value(process.env.CONSUMER_MEDIATOR, "Consumer mediator name and website"),
 } as const;

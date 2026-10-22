@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Mail, MapPin } from "lucide-react";
 import { getTranslations, type Locale } from "@/lib/i18n";
+import { getSalesPolicies } from "@/lib/i18n/salesPolicies";
 import CookieSettingsButton from "@/components/consent/CookieSettingsButton";
 import { VisaIcon, MastercardIcon, AmexIcon } from "./PaymentIcons";
 import LangSwitcher from "./LangSwitcher";
@@ -16,6 +17,7 @@ import neutral from "./NeutralFooter.module.css";
  */
 export default function NeutralFooter({ locale }: { locale: Locale }) {
   const t = getTranslations(locale);
+  const policies = getSalesPolicies(locale);
   const year = new Date().getFullYear();
 
   return (
@@ -46,8 +48,15 @@ export default function NeutralFooter({ locale }: { locale: Locale }) {
               <Link href={`/${locale}/shop/orders/track`} className={styles.footerLink}>
                 {t.nav.trackMyOrder}
               </Link>
-              <Link href={`/${locale}/contact`} className={styles.footerLink}>
+              {/* The neutral versions (/info/…): no embroidery copy, neutral header kept. */}
+              <Link href={`/${locale}/info/contact`} className={styles.footerLink}>
                 {t.nav.contactLabel}
+              </Link>
+              <Link href={`/${locale}/info/terms`} className={styles.footerLink}>
+                {policies.termsLink}
+              </Link>
+              <Link href={`/${locale}/info/returns`} className={styles.footerLink}>
+                {policies.returnsLink}
               </Link>
               <Link href={`/${locale}/privacy-policy`} className={styles.footerLink}>
                 {t.footer.privacy}

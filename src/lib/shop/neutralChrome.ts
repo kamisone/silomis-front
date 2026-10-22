@@ -8,6 +8,10 @@
  * shop halfway through the purchase. Remembered in localStorage as the
  * product's slug, which also gives the neutral logo somewhere to go back to.
  *
+ * The neutral footer links to /info/contact, /info/terms and /info/returns:
+ * neutral versions of those pages, which always show the neutral header (their
+ * own marker) — the main shop has /contact, /terms and /returns.
+ *
  * Any other page — the home page, a standard product, a collection, search…
  * — is the main shop: it shows the full header and forgets the neutral mode.
  *
@@ -20,7 +24,7 @@
 export const NEUTRAL_CHROME_KEY = "silomis:neutral-chrome";
 
 /** Pages that keep the neutral header once a neutral product was visited (path after the locale). */
-const FLOW_PREFIXES = ["/shop/cart", "/shop/checkout", "/shop/orders", "/privacy-policy", "/legal", "/cookies", "/contact"];
+const FLOW_PREFIXES = ["/shop/cart", "/shop/checkout", "/shop/orders", "/privacy-policy", "/legal", "/cookies", "/contact", "/terms", "/returns", "/info"];
 
 /** /shop/<segment> routes that are not product pages. */
 const SHOP_ROUTES = ["cart", "checkout", "collections", "orders", "search", "wishlist"];

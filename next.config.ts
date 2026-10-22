@@ -39,6 +39,11 @@ const nextConfig: NextConfig = {
     /** When the policies were last revised, e.g. "September 2026". Printed
      *  verbatim, so write it for your main market's reader. */
     LEGAL_UPDATED_AT:             "September 2026",
+    /** Where returned items are sent — printed on the Returns & refunds pages. */
+    RETURN_ADDRESS:               "17 rue du moulin le châtelet-en-brie 77820",
+    /** The consumer mediator customers can refer a dispute to (name + website),
+     *  required on French terms of sale. Left unset: shows as a placeholder. */
+    CONSUMER_MEDIATOR:            "",
   },
   images: {
     remotePatterns: [{ protocol: "https", hostname: "storage.googleapis.com", port: "", pathname: "/**", search: "" }],

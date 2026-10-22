@@ -92,6 +92,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     entry("/about", { changeFrequency: "monthly", priority: 0.4 }),
     entry("/contact", { changeFrequency: "monthly", priority: 0.4 }),
+    entry("/terms", { changeFrequency: "monthly", priority: 0.2 }),
+    entry("/returns", { changeFrequency: "monthly", priority: 0.2 }),
     entry("/privacy-policy", { changeFrequency: "monthly", priority: 0.2 }),
     entry("/cookies", { changeFrequency: "monthly", priority: 0.2 }),
   ];

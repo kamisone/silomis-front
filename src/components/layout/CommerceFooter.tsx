@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Mail, MapPin } from "lucide-react";
 import { getTranslations, type Locale } from "@/lib/i18n";
+import { getSalesPolicies } from "@/lib/i18n/salesPolicies";
 import styles from "./CommerceFooter.module.css";
 import CookieSettingsButton from "@/components/consent/CookieSettingsButton";
 import { VisaIcon, MastercardIcon, AmexIcon } from "./PaymentIcons";
@@ -20,6 +21,7 @@ const SOCIAL_ICONS: Record<SocialKey, typeof InstagramIcon> = {
 
 export default function CommerceFooter({ locale }: { locale: Locale }) {
   const t = getTranslations(locale);
+  const policies = getSalesPolicies(locale);
 
   // Translated, because the label is what a screen reader announces.
   const SOCIAL_LABELS: Record<SocialKey, string> = {
@@ -115,6 +117,12 @@ export default function CommerceFooter({ locale }: { locale: Locale }) {
           <div className={styles.footerCol}>
             <h3 className={styles.footerHeading}>{t.footer.legalHeading}</h3>
             <nav className={styles.footerLinks}>
+              <Link href={`/${locale}/terms`} className={styles.footerLink}>
+                {policies.termsLink}
+              </Link>
+              <Link href={`/${locale}/returns`} className={styles.footerLink}>
+                {policies.returnsLink}
+              </Link>
               <Link href={`/${locale}/privacy-policy`} className={styles.footerLink}>
                 {t.footer.privacy}
               </Link>
