@@ -8,12 +8,12 @@ import { fetchProductDeliveryOptions } from "@/lib/shop/productDeliveryOptions";
 import styles from "./ProductDetail.module.css";
 
 /** 🇫🇷 from "FR": two regional-indicator letters. */
-function flagEmoji(code: string): string {
+export function flagEmoji(code: string): string {
   return String.fromCodePoint(...[...code.toUpperCase()].map((c) => 0x1f1e6 + c.charCodeAt(0) - 65));
 }
 
 /** "France" in the shop language, from the browser's own CLDR data. */
-function countryName(code: string, locale: Locale): string {
+export function countryName(code: string, locale: Locale): string {
   try {
     return new Intl.DisplayNames([toBcp47(locale)], { type: "region", fallback: "code" }).of(code) ?? code;
   } catch {

@@ -28,6 +28,7 @@ import DeliveryHighlights from "./DeliveryHighlights";
 import FreeShippingBanner from "./FreeShippingBanner";
 import KlarnaInstalments from "./KlarnaInstalments";
 import FreeGifts from "./FreeGifts";
+import FreeShippingTape from "./FreeShippingTape";
 import StickyFreeShipping from "./StickyFreeShipping";
 import { ProductChromeMark } from "@/components/layout/NeutralChrome";
 import PackageContents from "./PackageContents";
@@ -828,6 +829,11 @@ export default function ShopProductDetail({
       <ReplayRecorderMount productId={product.id} />
       {/* Neutral or full header/footer, from here through cart and checkout */}
       <ProductChromeMark neutral={!!product.neutralLayout} slug={product.slug} />
+
+      {/* Neutral page only: the free delivery, first thing under the simple header. */}
+      {product.neutralLayout && product.freeShipping && (
+        <FreeShippingTape locale={locale} productId={product.id} priceCents={priceCents} daysMin={product.freeShippingDaysMin} daysMax={product.freeShippingDaysMax} />
+      )}
 
       {allOutOfStock && (
         <div className={styles.oosStickyNotice} role="status">
