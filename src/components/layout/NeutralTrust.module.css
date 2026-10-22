@@ -1,0 +1,169 @@
+/* ── Desktop trust row, centred in the neutral header ── */
+.row {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rowCell {
+  display: flex;
+  align-items: center;
+}
+/* A thin divider between promises. */
+.rowCell + .rowCell::before {
+  content: "";
+  width: 1px;
+  height: 28px;
+  margin: 0 6px;
+  background: color-mix(in srgb, var(--foreground) 12%, transparent);
+}
+
+.rowItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  border: 0;
+  border-radius: 12px;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.rowItem:hover { background: color-mix(in srgb, var(--color-primary) 7%, transparent); }
+.rowItem:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+
+.rowIcon {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease;
+}
+.rowItem:hover .rowIcon { transform: scale(1.08); }
+.tone_secure { color: var(--color-success); background: color-mix(in srgb, var(--color-success) 13%, transparent); }
+.tone_returns { color: var(--color-primary); background: color-mix(in srgb, var(--color-primary) 13%, transparent); }
+.tone_help { color: var(--color-accent); background: color-mix(in srgb, var(--color-accent) 13%, transparent); }
+
+.rowText {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.rowTitle {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--foreground);
+}
+.rowSub {
+  font-size: 12px;
+  color: color-mix(in srgb, var(--foreground) 58%, var(--background));
+}
+
+/* Medium widths: titles only, smaller icons. */
+@media (max-width: 1100px) {
+  .rowSub { display: none; }
+  .rowIcon { width: 28px; height: 28px; }
+  .rowItem { gap: 7px; padding: 6px 8px; }
+  .rowTitle { font-size: 13px; }
+}
+/* Phones and small tablets: the ticker takes over. */
+@media (max-width: 860px) {
+  .row { display: none; }
+}
+
+/* ── Phone ticker under the logo row ── */
+.ticker {
+  display: none;
+  position: relative;
+  height: 32px;
+  overflow: hidden;
+  border-top: 1px solid color-mix(in srgb, var(--foreground) 8%, transparent);
+  background: color-mix(in srgb, var(--color-primary) 6%, var(--background));
+}
+@media (max-width: 860px) {
+  .ticker { display: block; }
+}
+
+.tickerItem {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 16px;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--foreground);
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  opacity: 0;
+  transform: translateY(100%);
+  transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.45s ease;
+  pointer-events: none;
+}
+.tickerActive {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+.tickerLeaving {
+  opacity: 0;
+  transform: translateY(-100%);
+}
+.tickerItem strong { font-weight: 700; }
+.tickerIcon { color: var(--color-primary); flex-shrink: 0; }
+.tickerSep { color: color-mix(in srgb, var(--foreground) 35%, transparent); }
+.tickerSub { color: color-mix(in srgb, var(--foreground) 62%, var(--background)); overflow: hidden; text-overflow: ellipsis; }
+
+/* ── Help button next to the cart ── */
+.help {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 40px;
+  padding: 0 14px 0 12px;
+  border-radius: 999px;
+  border: 1.5px solid color-mix(in srgb, var(--color-accent) 40%, transparent);
+  background: color-mix(in srgb, var(--color-accent) 8%, var(--background));
+  color: var(--color-accent);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s, border-color 0.15s, transform 0.15s;
+}
+.help:hover {
+  background: color-mix(in srgb, var(--color-accent) 15%, var(--background));
+  border-color: var(--color-accent);
+}
+.help:active { transform: scale(0.97); }
+.help:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+
+/* Phones: icon only, same footprint as the other header buttons. */
+@media (max-width: 640px) {
+  .help { width: 40px; padding: 0; justify-content: center; border-radius: 9px; }
+  .helpLabel { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tickerItem { transition: none; }
+  .rowIcon { transition: none; }
+}
