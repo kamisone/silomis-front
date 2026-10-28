@@ -4,10 +4,12 @@ import { Package } from "lucide-react";
 import CartHeaderIcon from "./CartHeaderIcon";
 import LangSwitcher from "./LangSwitcher";
 import ScrollAwareHeader from "./ScrollAwareHeader";
-import { NeutralHomeLink } from "./NeutralChrome";
+import { BrandLogo, NeutralHomeLink } from "./NeutralChrome";
 import ShippingStrip from "./ShippingStrip";
 import { NeutralHelpButton, NeutralTrustRow, NeutralTrustTicker } from "./NeutralTrust";
 import { getTranslations, type Locale } from "@/lib/i18n";
+import { getStoreBrandCopy } from "@/lib/i18n/storeBrand";
+import { SITE_NAME } from "@/lib/seo";
 import headerStyles from "./CommerceHeader.module.css";
 import iconStyles from "./HeaderIconButton.module.css";
 import styles from "./NeutralHeader.module.css";
@@ -22,6 +24,8 @@ import styles from "./NeutralHeader.module.css";
  * The space a menu would take holds reassurance instead — secure payment,
  * 14-day returns, a person to ask (a rotating line on phones) — with a Help
  * button by the cart that opens the support chat.
+ *
+ * For a product sold under a neutral brand, the brand's logo replaces Silomis's.
  */
 export default function NeutralHeader({ locale }: { locale: Locale }) {
   const t = getTranslations(locale);
@@ -33,11 +37,20 @@ export default function NeutralHeader({ locale }: { locale: Locale }) {
         {/* Where the shop ships from and to — trust, not embroidery: kept. */}
         <ShippingStrip locale={locale} generic={t.nav.originStrip} originBased={t.nav.originBased} shipToCountry={t.nav.shipToCountry} withoutProduction />
         <div className={styles.inner}>
-          <NeutralHomeLink locale={locale} className={headerStyles.logo} ariaLabel={t.nav.logoAriaLabel}>
-            <Image src="/assets/logo_silomis_mark.webp" alt="" width={42} height={50} className={headerStyles.logoIcon} />
-            <span className={headerStyles.logoText} aria-hidden="true">
-              <span className={headerStyles.logoWord}>ilomis</span>
-            </span>
+          <NeutralHomeLink locale={locale} className={`${headerStyles.logo} ${styles.logoLink}`} ariaLabel={t.nav.logoAriaLabel}>
+            {/* Under a neutral brand, its logo instead (lib/shop/storeBrand.ts). */}
+            <BrandLogo
+              className={styles.brandLogo}
+              nameClassName={styles.brandName}
+              byline={getStoreBrandCopy(locale).byShop(SITE_NAME)}
+              wordmarkClassName={styles.brandWordmark}
+              bylineClassName={styles.brandByline}
+            >
+              <Image src="/assets/logo_silomis_mark.webp" alt="" width={42} height={50} className={headerStyles.logoIcon} />
+              <span className={headerStyles.logoText} aria-hidden="true">
+                <span className={headerStyles.logoWord}>ilomis</span>
+              </span>
+            </BrandLogo>
           </NeutralHomeLink>
 
           <NeutralTrustRow locale={locale} />

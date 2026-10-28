@@ -10,6 +10,8 @@ import type { Translations } from "@/lib/i18n/translations";
 export const STOCK_ERROR_CODE = {
   INSUFFICIENT_STOCK: "INSUFFICIENT_STOCK",
   PRODUCT_UNAVAILABLE: "PRODUCT_UNAVAILABLE",
+  /** The basket holds another neutral brand's products (one brand per order). */
+  OTHER_STORE_IN_CART: "OTHER_STORE_IN_CART",
   UNKNOWN: "UNKNOWN",
 } as const;
 
@@ -50,6 +52,7 @@ export function formatStockError(err: { code?: StockErrorCode; available?: numbe
     return t.shop.insufficientStock;
   }
   if (err.code === STOCK_ERROR_CODE.PRODUCT_UNAVAILABLE) return t.shop.productUnavailableError;
+  if (err.code === STOCK_ERROR_CODE.OTHER_STORE_IN_CART) return t.shop.otherStoreInCart;
   return t.shop.cartAddError;
 }
 

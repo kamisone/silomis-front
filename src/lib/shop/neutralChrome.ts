@@ -1,3 +1,5 @@
+import { readStoreBrand, writeStoreBrand, STORE_BRAND_KEY, type StoreBrandChrome } from "./storeBrand";
+
 /**
  * The neutral header/footer, for products outside the embroidery range
  * (Product.neutralLayout).
@@ -19,12 +21,16 @@
  * (and a neutral product page's own marker, for the first visit) picks which
  * one CSS shows — see globals.css. An inline script sets the attribute before
  * the first paint (NEUTRAL_CHROME_SCRIPT), so the full header never flashes.
+ *
+ * A product sold under a neutral brand carries that brand through the same
+ * flow — see lib/shop/storeBrand.ts. The script marks it too, so no Silomis
+ * logo shows before the brand's is drawn.
  */
 
 export const NEUTRAL_CHROME_KEY = "silomis:neutral-chrome";
 
 /** Pages that keep the neutral header once a neutral product was visited (path after the locale). */
-const FLOW_PREFIXES = ["/shop/cart", "/shop/checkout", "/shop/orders", "/privacy-policy", "/legal", "/cookies", "/contact", "/terms", "/returns", "/info"];
+const FLOW_PREFIXES = ["/shop/cart", "/shop/checkout", "/shop/orders", "/privacy-policy", "/legal", "/cookies", "/contact", "/terms", "/returns", "/info", "/brand"];
 
 /** /shop/<segment> routes that are not product pages. */
 const SHOP_ROUTES = ["cart", "checkout", "collections", "orders", "search", "wishlist"];
@@ -49,8 +55,13 @@ export function readNeutralSlug(): string | null {
   }
 }
 
-/** Turns the neutral header/footer on (`slug`) or off (null), stored and on screen. */
-export function setNeutralChrome(slug: string | null): void {
+/**
+ * Turns the neutral header/footer on (`slug`) or off (null), stored and on
+ * screen. `brand` is the neutral brand the product is sold under (null: none,
+ * the plain neutral header); left out, the stored one is kept — a page of the
+ * flow does not know it. Turning neutral off forgets the brand too.
+ */
+export function setNeutralChrome(slug: string | null, brand?: StoreBrandChrome | null): void {
   try {
     if (slug) localStorage.setItem(NEUTRAL_CHROME_KEY, slug);
     else localStorage.removeItem(NEUTRAL_CHROME_KEY);
@@ -59,6 +70,7 @@ export function setNeutralChrome(slug: string | null): void {
   }
   if (slug) document.documentElement.dataset.chrome = "neutral";
   else delete document.documentElement.dataset.chrome;
+  writeStoreBrand(!slug ? null : brand !== undefined ? brand : readStoreBrand());
 }
 
 /**
@@ -73,5 +85,7 @@ var p=location.pathname.replace(/^\\/[a-z]{2}(?=\\/|$)/,"")||"/";
 var flow=${JSON.stringify(FLOW_PREFIXES)}.some(function(f){return p===f||p.indexOf(f+"/")===0});
 var m=p.match(/^\\/shop\\/([^/]+)$/);
 var product=m&&${JSON.stringify(SHOP_ROUTES)}.indexOf(m[1])<0;
-if(flow||(product&&decodeURIComponent(m[1])===slug))document.documentElement.setAttribute("data-chrome","neutral");
+if(!(flow||(product&&decodeURIComponent(m[1])===slug)))return;
+document.documentElement.setAttribute("data-chrome","neutral");
+var b=JSON.parse(localStorage.getItem(${JSON.stringify(STORE_BRAND_KEY)})||"null");if(b&&b.slug)document.documentElement.setAttribute("data-brand",b.slug);
 }catch(e){}})();`;

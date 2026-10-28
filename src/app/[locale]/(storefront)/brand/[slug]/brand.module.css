@@ -1,0 +1,78 @@
+/* The brand's own pages: the legal pages' column (privacy.module.css), with
+   room for what the admin writes — rich text on About, questions on the FAQ. */
+
+.richText {
+  font-size: 1rem;
+  line-height: 1.7;
+  color: var(--foreground);
+}
+
+.richText :is(h2, h3) {
+  margin: 1.75rem 0 0.5rem;
+  line-height: 1.25;
+}
+
+.richText p {
+  margin: 0 0 1rem;
+}
+
+.richText img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 12px;
+}
+
+.richText a {
+  color: var(--color-primary);
+}
+
+.faqList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+.faqItem {
+  border: 1px solid var(--color-surface);
+  border-radius: 12px;
+  background: var(--background);
+}
+
+.faqItem summary {
+  cursor: pointer;
+  padding: 1rem 1.25rem;
+  font-weight: 600;
+  list-style: none;
+}
+
+.faqItem summary::-webkit-details-marker {
+  display: none;
+}
+
+.faqItem summary::after {
+  content: "+";
+  float: right;
+  margin-left: 1rem;
+  font-weight: 400;
+  color: var(--color-secondary);
+}
+
+.faqItem[open] summary::after {
+  content: "–";
+}
+
+.faqAnswer {
+  margin: 0;
+  padding: 0 1.25rem 1.1rem;
+  line-height: 1.65;
+  white-space: pre-line;
+  color: var(--color-secondary);
+}
+
+/* "<Brand> is a brand operated by <company>." */
+.operatedBy {
+  margin: 0 0 1.25rem;
+  font-size: 0.85rem;
+  color: var(--color-secondary);
+}

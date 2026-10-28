@@ -102,3 +102,11 @@ html[data-chrome="neutral"] .chrome-neutral { display: contents; }
 :root:has([data-chrome-mark="neutral"]) .chrome-neutral { display: contents; }
 :root:has([data-chrome-mark="full"]) .chrome-full { display: contents; }
 :root:has([data-chrome-mark="full"]) .chrome-neutral { display: none; }
+
+/* A neutral brand (lib/shop/storeBrand.ts): nothing of Silomis in the neutral
+   chrome — its logo and name are hidden from the first paint (the inline
+   script's data-brand, or a brand page's own marker) and the brand's are
+   drawn in their place once the page is interactive. */
+.silomis-mark { display: contents; }
+html[data-brand] .silomis-mark,
+:root:has([data-brand-mark]) .silomis-mark { display: none; }

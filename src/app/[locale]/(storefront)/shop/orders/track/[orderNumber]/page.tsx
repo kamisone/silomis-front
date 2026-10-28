@@ -9,6 +9,8 @@ import EmbroideryLine, { slipLines, type EmbroideryLineDesign } from "@/componen
 import SendInTracking, { type SendInTrackingData } from "@/components/shop/SendInTracking";
 import OrderConversation from "@/components/shop/OrderConversation";
 import { formatRetryAfter, isRateLimited, retryAfterSeconds } from "@/lib/shop/rateLimit";
+import { readNeutralSlug, setNeutralChrome } from "@/lib/shop/neutralChrome";
+import type { StoreBrandChrome } from "@/lib/shop/storeBrand";
 import styles from "../track.module.css";
 
 interface TrackingItem {
@@ -54,6 +56,8 @@ interface OrderTracking {
   timeline: TimelineEntry[];
   /** Present when this order is embroidery on the customer's own item. */
   sendIn?: SendInTrackingData | null;
+  /** The neutral brand the order was sold under — null for Silomis. */
+  storeBrand?: StoreBrandChrome | null;
 }
 
 const STATUS_ORDER = ["paid", "processing", "shipped", "delivered"] as const;
@@ -196,7 +200,11 @@ export default function OrderTrackDetailPage() {
         setLoading(false);
         return;
       }
-      setOrder((await res.json()) as OrderTracking);
+      const data = (await res.json()) as OrderTracking;
+      // Usually opened from an email, with nothing remembered: the order says
+      // which brand it was bought under, and the header follows.
+      if (data.storeBrand) setNeutralChrome(readNeutralSlug() ?? data.storeBrand.homeSlug ?? data.storeBrand.slug, data.storeBrand);
+      setOrder(data);
       setLoading(false);
     }
 

@@ -39,6 +39,7 @@ import SwatchPhotosDialog from "@/components/admin/shop/SwatchPhotosDialog";
 import type { StorefrontLocale } from "@/components/admin/shop/storefrontLanguages";
 import styles from "../ProductEdit.module.css";
 import Switch from "@/components/admin/ui/Switch";
+import StoreBrandSelect from "@/components/admin/shop/StoreBrandSelect";
 
 // ── Types ────────────────────────────────────────────────────────────────
 
@@ -144,6 +145,7 @@ interface Product {
   fastDelivery?: boolean;
   trackedDelivery?: boolean;
   neutralLayout?: boolean;
+  storeBrandId?: string | null;
   askCompanyName?: boolean;
   askPhone?: boolean;
   askAddressLine2?: boolean;
@@ -457,6 +459,7 @@ export default function EditProductPage() {
         fastDelivery: !!product.fastDelivery,
         trackedDelivery: !!product.trackedDelivery,
         neutralLayout: !!product.neutralLayout,
+        storeBrandId: product.storeBrandId ?? null,
         askCompanyName: !!product.askCompanyName,
         askPhone: !!product.askPhone,
         askAddressLine2: !!product.askAddressLine2,
@@ -1227,12 +1230,19 @@ export default function EditProductPage() {
                 onChange={(v) => set({ trackedDelivery: v })}
               />
               <div className={styles.divider} />
-              <Switch
-                label="Neutral page"
-                hint="For a product outside the embroidery range: its page shows a simple header (logo, languages, order tracking, cart) and a simple footer, with no embroidery wording, menu or social links. A customer who arrives on it keeps that header and footer through the cart, checkout and order tracking."
-                checked={!!product.neutralLayout}
-                onChange={(v) => set({ neutralLayout: v })}
-              />
+              <StoreBrandSelect value={product.storeBrandId} onChange={(storeBrandId) => set({ storeBrandId })} />
+              {/* A branded product is always neutral; the switch is for one sold as Silomis. */}
+              {!product.storeBrandId && (
+                <>
+                  <div className={styles.divider} />
+                  <Switch
+                    label="Neutral page"
+                    hint="For a product outside the embroidery range: its page shows a simple header (logo, languages, order tracking, cart) and a simple footer, with no embroidery wording, menu or social links. A customer who arrives on it keeps that header and footer through the cart, checkout and order tracking. To sell it under its own name and logo, pick a brand above instead."
+                    checked={!!product.neutralLayout}
+                    onChange={(v) => set({ neutralLayout: v })}
+                  />
+                </>
+              )}
               <div className={styles.divider} />
               {/* Saved on the spot rather than with the form: it is its own
                   endpoint (the template behind it is the shop's business, not

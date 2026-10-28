@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
 import {
+  BadgeCheck,
   AlertCircle,
   ArrowLeftRight,
   BarChart2,
@@ -129,6 +130,8 @@ const NAV_GROUPS: NavGroup[] = [
           { href: "/admin/shop/products",           icon: Package,           label: "Products"                },
           { href: "/admin/shop/categories",         icon: FolderOpen,        label: "Categories"              },
           { href: "/admin/shop/collections",        icon: LayoutGrid,        label: "Collections"             },
+          // Products sold under their own name instead of Silomis.
+          { href: "/admin/shop/brands",             icon: BadgeCheck,        label: "Neutral Brands"          },
           { href: "/admin/shop/variant-attributes", icon: SlidersHorizontal, label: "Variations & Attributes" },
           { href: "/admin/shop/inventory",          icon: Warehouse,         label: "Inventory"               },
           { href: "/admin/shop/reviews",            icon: Star,              label: "Product Reviews"         },

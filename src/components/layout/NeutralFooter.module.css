@@ -18,3 +18,38 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* A neutral brand's logo on the dark footer: on a light chip, since a logo is
+   usually drawn for a light ground. */
+.brandLogo {
+  display: block;
+  max-height: 40px;
+  max-width: 180px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: #fff;
+}
+
+/* The same wordmark as the neutral header's. */
+.brandName {
+  font-family: var(--font-display), Georgia, "Times New Roman", serif;
+  font-variation-settings: "opsz" 144;
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 1;
+  color: var(--background);
+}
+
+/* Same light ink as the main footer's tagline: the footer sets colour per
+   element, not on itself, so text without one inherits the body's dark ink. */
+.brandText {
+  margin: 0.75rem 0 0;
+  max-width: 42ch;
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: color-mix(in srgb, var(--background) 70%, transparent);
+}

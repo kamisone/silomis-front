@@ -30,6 +30,7 @@ import KlarnaInstalments from "./KlarnaInstalments";
 import FreeGifts from "./FreeGifts";
 import FreeShippingTape from "./FreeShippingTape";
 import StickyFreeShipping from "./StickyFreeShipping";
+import type { StoreBrandChrome } from "@/lib/shop/storeBrand";
 import { ProductChromeMark } from "@/components/layout/NeutralChrome";
 import PackageContents from "./PackageContents";
 import StorySideGallery from "./StorySideGallery";
@@ -161,6 +162,8 @@ export interface Product {
   trackedDelivery?: boolean;
   /** Outside the embroidery range: shown with the neutral header/footer. */
   neutralLayout?: boolean;
+  /** Sold under a neutral brand instead of Silomis — always with the neutral header/footer, in the brand's colours. */
+  storeBrand?: StoreBrandChrome | null;
   storyNarrativeTitle?: string | null;
   freeShipping?: boolean;
   freeShippingDaysMin?: number | null;
@@ -828,10 +831,10 @@ export default function ShopProductDetail({
           sampled server-side, see ReplayRecorderMount ── */}
       <ReplayRecorderMount productId={product.id} />
       {/* Neutral or full header/footer, from here through cart and checkout */}
-      <ProductChromeMark neutral={!!product.neutralLayout} slug={product.slug} />
+      <ProductChromeMark neutral={!!product.neutralLayout} slug={product.slug} brand={product.storeBrand} />
 
       {/* Neutral page only: the free delivery, first thing under the simple header. */}
-      {product.neutralLayout && product.freeShipping && (
+      {(product.neutralLayout || product.storeBrand) && product.freeShipping && (
         <FreeShippingTape locale={locale} productId={product.id} priceCents={priceCents} daysMin={product.freeShippingDaysMin} daysMax={product.freeShippingDaysMax} />
       )}
 

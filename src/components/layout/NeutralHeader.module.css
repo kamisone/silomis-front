@@ -26,3 +26,78 @@
     gap: 6px;
   }
 }
+
+/* A neutral brand's logo: any shape, held to the header's height. */
+.brandLogo {
+  display: block;
+  max-height: 44px;
+  max-width: 200px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
+/* A brand with no logo: its name set as a wordmark. Fraunces (--font-display,
+   already loaded) at its display optical size — a heavy, high-contrast serif
+   that reads as a logo, and not Pacifico, which is Silomis's own signature. */
+.brandName {
+  font-family: var(--font-display), Georgia, "Times New Roman", serif;
+  font-variation-settings: "opsz" 144;
+  font-size: 1.7rem;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 1.05;
+  /* A long name wraps between its words, never inside one. */
+  overflow-wrap: normal;
+  word-break: normal;
+  color: var(--foreground);
+}
+
+/* The name with its signature: "by Silomis" right-aligned, tucked up just
+   under the name's last line. */
+.brandWordmark {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  min-width: 0;
+}
+
+/* Pacifico — the script of the Silomis logo itself — small and in the
+   Silomis teal: a maker's signature, quieter than the brand it signs. */
+.brandByline {
+  margin-top: -0.15rem;
+  padding-right: 0.1rem;
+  font-family: var(--font-brand), "Segoe UI", system-ui, sans-serif;
+  font-weight: 400;
+  font-size: 0.72rem;
+  line-height: 1.2;
+  white-space: nowrap;
+  color: var(--color-primary);
+}
+
+/* The shared logo link never shrinks (the Silomis lockup is a fixed size);
+   here it may, so a brand name has room to wrap — capped so the trust row and
+   the actions keep theirs. No `min-width: 0`: the default keeps it at least as
+   wide as the name's longest word, which therefore never breaks (min-width
+   wins over max-width). */
+.logoLink {
+  flex-shrink: 1;
+  max-width: 45%;
+}
+
+@media (max-width: 640px) {
+  .brandLogo {
+    max-height: 36px;
+    max-width: 140px;
+  }
+  .brandName {
+    font-size: 1.4rem;
+  }
+}
+
+/* Under 860px the trust row moves to the ticker below: the name gets its room. */
+@media (max-width: 860px) {
+  .logoLink {
+    max-width: 62%;
+  }
+}

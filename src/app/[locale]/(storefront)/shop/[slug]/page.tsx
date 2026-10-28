@@ -127,14 +127,18 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
   const description = stripHtml(product.shortDescription) || undefined;
   const alternates = localeAlternates(locale, `/shop/${slug}`);
 
+  // Sold under a neutral brand: its name in the tab and in shares, its icon on the tab.
+  const brand = product.storeBrand;
   return {
-    title: variantTitle,
+    title: brand ? { absolute: `${variantTitle} | ${brand.name}` } : variantTitle,
     description,
+    ...(brand ? { applicationName: brand.name, icons: brand.iconUrl ? { icon: brand.iconUrl, apple: brand.iconUrl } : undefined } : {}),
     openGraph: {
       title: variantTitle,
       description,
       type: "website",
       images: variantImage ? [{ url: variantImage }] : undefined,
+      ...(brand ? { siteName: brand.name } : {}),
     },
     twitter: {
       title: variantTitle,
@@ -176,7 +180,7 @@ export default async function ProductPage({ params }: PageProps) {
     description: stripHtml(product.shortDescription) || stripHtml(product.description) || undefined,
     image: images.length > 0 ? images : undefined,
     sku: defaultVariant?.sku ?? undefined,
-    ...(product.brand ? { brand: { "@type": "Brand", name: product.brand } } : {}),
+    ...(product.brand || product.storeBrand ? { brand: { "@type": "Brand", name: product.brand || product.storeBrand!.name } } : {}),
     offers: product.variants.map((v) => ({
       "@type": "Offer",
       sku: v.sku,
